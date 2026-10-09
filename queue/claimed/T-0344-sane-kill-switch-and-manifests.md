@@ -15,7 +15,7 @@ reviewer: null
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
-  - "A1 Fake-Worker table, through the SHIPPED ops/sane --prod: `bash ops/lib/check-sane-prod` exits 0 printing `SANE-PROD ok` with every case passed - a local python fake Worker on 127.0.0.1 (never prod) serving /__health, /__version (live git_sha = HEAD) and a corpus manifest; cases: quota green, kill_switch true, upstream_calls at trip_at, at the near bound (calls*10 == trip_at*9), one below the near bound (green), null, absent, boolean and negative calls, kill_switch a string, trip_at 0; manifest green, not an object, missing key, extra key, schema_version 2 and the string 3, version empty, sha256 uppercase and 63 chars, bytes 0, boolean min_app_build, manifest 404; no manifest URL (skip); precedence 6 over 8, 7 over 6 and 8 (health 503). Each red case asserts the exact exit code (6, 8 or 7) and the FAIL row's check name; each green case asserts the ok row and exit 0 exactly (SANE_SCOPE=prod skips the local checks 2/4/10, R8)."
+  - "A1 Fake-Worker table, through the SHIPPED ops/sane --prod: `bash ops/lib/check-sane-prod` exits 0 printing `SANE-PROD ok` with every case passed - a local python fake Worker on 127.0.0.1 (never prod) serving /__health, /__version (live git_sha = HEAD) and a corpus manifest; cases: quota green, kill_switch true, upstream_calls at trip_at, at the near bound (calls*10 == trip_at*9), one below the near bound (green), null, absent, boolean and negative calls, kill_switch a string, null, 0 and the empty string (every non-boolean is cannot-tell, falsy included), trip_at 0; manifest green, not an object, missing key, extra key, schema_version 2 (older, SV - 1) and 4 (newer, SV + 1) and the string 3, version empty, sha256 uppercase and 63 chars, bytes 0, boolean min_app_build, manifest 404; no manifest URL (skip); precedence 6 over 8, 7 over 6 and 8 (health 503). Each red case asserts the exact exit code (6, 8 or 7) and the FAIL row's check name; each green case asserts the ok row and exit 0 exactly (SANE_SCOPE=prod skips the local checks 2/4/10, R8)."
   - "A2 Never mutates: every check-sane-prod case asserts the fake received only GET requests and that `git status --porcelain` and HEAD are byte-identical before and after the ops/sane run."
   - "A3 RED first: check-sane-prod against the pre-change ops/sane FAILS (quoted in the Log), then green; and three one-line mutants of ops/sane's verdict helper ops/lib/sane_prod.py (near bound `>=` -> `>`, the schema_version compare dropped, the kill_switch arm dropped) each turn it red by case name, restored green."
   - "A4 P-OPS-05: EXIT_ORDER becomes (2 7 3 6 9 8 4 10); `bash ops/lib/check-sane-exit-order` seen exit 1 with the new fail() 6/8 calls in place and EXIT_ORDER unchanged, then exit 0."
@@ -136,3 +136,41 @@ a whole-answer test.
     check-pins-yaml `PINS-YAML ok pins=50 fields=403`; check-exec-bits `P-OPS-01: 202 files, 23 required present, all
     modes correct`; queue-check `QUEUE OK (336 tasks)`; `ops/check-pins --source-only` on 2d289a41 `PINS ok=21
     skipped=28 pending=1 expired=0 failed=0` rc=0. PR #228 CI on 2d289a41: core pass, pins-source-only pass.
+- 2026-10-09T16:07:57Z PRE-REVIEW SURVIVORS CLOSED BY CLASS (agent/claude-opus-5). The pre-review mutant pass on ebb9b6e2 found two
+  false-greens in ops/lib/sane_prod.py, both survived by the 37-row table:
+  - (2) kill_switch parsed loosely: `type(kill) is not bool` -> `kill is None` passed q-kill/q-kill-string/
+    q-kill-absent/q-green (the only mistyped value was the TRUTHY "false"). CLASS: R3 makes every non-boolean
+    kill_switch "cannot tell", falsy ones included. Rows added: q-kill-null (None), q-kill-zero (0),
+    q-kill-empty-string (""), each exit 6 Q6.
+  - (3) schema_version compared one-sided: `!=` -> `>` passed m-schema-other (SV + 1 only). CLASS: R4's EQUAL is
+    two-sided. Row added: m-schema-older (SV - 1 = 2, which is also A1's named "schema_version 2"), exit 8 M8;
+    m-schema-other (SV + 1) kept. A1's case list amended to name the new rows (wording only; no Log line edited).
+  - MISSED then CAUGHT by name, six one-line mutants (.artifacts/t0344_mutants_pr.py, each run first on the pre-fix
+    rows, then on the new rows; `restored: True`):
+    kill-is-none: pre-fix `SANE-PROD ok 4/4 cases passed` rc=0 (MISSED); new rows `FAIL q-kill-zero: exit 0, want
+    6; row quota ['ok'], want [FAIL]` + `FAIL q-kill-empty-string: exit 0, want 6` -> `2 of 3 cases failed` rc=1.
+    kill-not-in-true-false (`kill not in (True, False)`, 0 == False): pre-fix 4/4 ok rc=0 (MISSED); new rows
+    `FAIL q-kill-zero: exit 0, want 6` -> `1 of 3 cases failed` rc=1.
+    kill-isinstance-int (`not isinstance(kill, int)`): pre-fix 4/4 ok rc=0 (MISSED); new rows `FAIL q-kill-zero:
+    exit 0, want 6` -> `1 of 3` rc=1.
+    schema-gt (`>`): pre-fix `SANE-PROD ok 3/3 cases passed` rc=0 (MISSED); new rows `FAIL m-schema-older: exit 0,
+    want 8; row manifest ['ok'], want [FAIL]` -> `1 of 2 cases failed` rc=1.
+    schema-lt (`<`) and schema-abs-gt-1 (`abs(... - want) > 1`): already CAUGHT by the pre-fix m-schema-other (`FAIL
+    m-schema-other: exit 0, want 8`); on the new rows schema-lt fails m-schema-other, abs-gt-1 fails both
+    (`2 of 2 cases failed`) rc=1.
+    Honest note: q-kill-null fails none of these six (each still refuses None); it binds the key-present-but-null
+    reading against a key-presence mutant, beside q-kill-absent.
+- 2026-10-09T16:07:57Z ACCEPTANCE re-run on the merged head f15d7f4c (origin/main be0960a8, T-0346 filing only, merged clean):
+  - A1 + A2: `bash ops/lib/check-sane-prod` -> 41 `SANE-PROD pass` rows incl. `q-kill-null exit=6`, `q-kill-zero
+    exit=6`, `q-kill-empty-string exit=6`, `m-schema-other exit=8`, `m-schema-older exit=8`, then `SANE-PROD ok
+    41/41 cases passed`, rc=0 (GET-only and git status/HEAD unchanged asserted inside every case).
+  - A3: red-first and the three original mutants as quoted at 2026-10-09T14:21:53Z (sane_prod.py unchanged since);
+    plus the six class mutants above.
+  - A4: `SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=18` rc=0.
+  - A5: services/api untouched by this commit; as quoted at 2026-10-09T15:03:49Z.
+  - A6: P-OPS-08's why now says 41 cases; check-pins-yaml `PINS-YAML ok pins=50 fields=403` rc=0; check-exec-bits
+    `P-OPS-01: 202 files, 23 required present, all modes correct` rc=0; queue-check `QUEUE OK (337 tasks)` rc=0;
+    `ops/check-pins --source-only` `PINS ok=21 skipped=28 pending=1 expired=0 failed=0 tier=linux source-only`
+    rc=0. `bash ops/sane` repo-only: the only FAIL row is `worktrees FAIL 5 of 97 need attention - untracked:1
+    modified:3 unpushed:2` -> `SANE FAIL exit=10` (environmental, R7: other agents' worktrees, plus this branch's
+    unpushed merge and this uncommitted Log).
