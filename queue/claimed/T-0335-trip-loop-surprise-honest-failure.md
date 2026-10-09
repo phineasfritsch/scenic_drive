@@ -181,3 +181,41 @@ MISSED before / CAUGHT after by test name.
     its honest suite; each MIN_MUTATIONS floor rises by 2. MISSED at 876923f4's tests, CAUGHT by name after.
   - P-SAFE-04: named-tests.json lists the refusal rows by name, so one B1 row (pct 39, days 2) and one B2 row
     (0xFFFFFFFE, [2, 2, 2]) join it by name.
+- 2026-10-09T06:46:18Z rv1 B1/B2 CLOSED BY CLASS (66ade4ce; agent/claude-opus-5, owner). One ruling above amended by
+  measurement: pct 21 does NOT reach nothing_pretty in this harness (free answered 200 on the fast path scored 8, paid
+  422 ceiling_breached), so rv1 RECORDABLE 1's "21 to 40" is wrong at 21. Ruled: give the harness a dull fast path
+  (rv1's other option) - tripHarness.tripRouter gains `firstScenic` (the lambda-0 answer, the fastest path scored 8
+  by default, so no other row moves), and the echo rows send the fast road scored 2. That lets the rows reach the
+  lower bound too: extra_budget_pct {0, 21, 39, 40} x days {2, 5} x tier {free, paid}, 16 rows plus a meta row
+  ({pcts, days} distinct = [4, 2]); each row is the whole 422 {error: nothing_pretty, days, extra_budget_pct} equal
+  to the request's own values after 7 requests. loopHonest: 6 rows (seeds 0xFFFFFFFE "agO3ON", 0xFFFFFFFF "v551St" x
+  answers [2, 8], [2, 2, 8], [2, 2, 2]) plus a meta row (the seeds the rows step to at or past 2^32: seed + 1 at
+  0xFFFFFFFF in 3 rows, seed + 2 at both).
+  - HARNESS STALE (found running it, pre-existing): loopMutants.mjs refused "STALE planner-areas-old-seed" and "STALE
+    loop-plan-budget" - both anchors occur 0 times on origin/main 4537e7d4 too (the areas line became
+    mergeClosures(feed, areas), and LOOP_UPSTREAM_COST moved to its own line); tripMutants.mjs refused "STALE
+    planner-details-more" (this branch's TRIP_DETAILS). All three re-anchored to the current lines, same mutation.
+  - MISSED at 876923f4's tests (its tripHonest, loopHonest, tripHarness restored into the worktree, the harnesses as
+    now, so the honest suites ARE in TESTS): `tripMutants.mjs --only trip-refusal-pct-cap,trip-refusal-days-5`
+    "baseline green tests=113", "MISSED trip-refusal-pct-cap", "CAUGHT trip-refusal-days-5 by "a pretty detour crossing
+    a closure, re-requested to a dull road, is refused"" (the days half was already caught by the days-2 closure row;
+    kept in the population as the other half of the class); `loopMutants.mjs --only
+    planner-reseed-no-wrap,planner-reroll-no-wrap` "baseline green tests=37", "MISSED planner-reseed-no-wrap",
+    "MISSED planner-reroll-no-wrap", "RESULT caught=0 missed=2 trap=0 of 2 (--only)".
+  - CAUGHT by name now: tripMutants --only trip-refusal-pct-cap,trip-refusal-days-5,planner-details-more "baseline
+    green tests=130", CAUGHT planner-details-more by "a 5-day trip is exactly 12 requests, reserved first: ...",
+    CAUGHT trip-refusal-pct-cap and trip-refusal-days-5 by "extra_budget_pct +0, days 2, 'free': the whole 422
+    carries the request's own values", "RESULT caught=3 missed=0 trap=0 of 3 (--only)". loopMutants --only
+    planner-reseed-no-wrap,planner-reroll-no-wrap,planner-areas-old-seed,loop-plan-budget "baseline green tests=44",
+    CAUGHT planner-reseed-no-wrap by "seed 4294967295, scores [ 2, 8 ]: ...", planner-reroll-no-wrap by "seed
+    4294967294, scores [ 2, 2, 8 ]: ...", planner-areas-old-seed by "a loop is at most 3 upstream requests: ...",
+    loop-plan-budget by "the quota is reserved once, LOOP_UPSTREAM_COST of it, ...", "RESULT caught=4 missed=0 trap=0
+    of 4 (--only)". --prove-floor, both: "prove-floor real population: quiet" (floors 93 and 43).
+  - ACCEPTANCE on the merged head (git fetch origin: origin/main 4537e7d4, already an ancestor, "Already up to date"):
+    vitest over tripHonest, loopHonest, trip*, loop*, closures*, requestReadSites, reflectionSites, planHonest,
+    isochrone*, surpriseReachParity, routes: "Test Files 28 passed (28) / Tests 1184 passed (1184)".
+    `python ops/lib/run-named-tests.py P-SAFE-04` "NAMED P-SAFE-04 passed=22/22" (20 + the pct 39 days 2 free echo
+    row and the 0xFFFFFFFE [2, 2, 2] wrap row). `python ops/lib/check-mutate-population.py` "P-PROC-06: every added
+    module is covered or allowlisted; the floor of 144 holds" exit 0. `python ops/lib/check-pins-yaml.py`
+    "PINS-YAML ok pins=49 fields=395" exit 0. `bash ops/queue-check` "QUEUE OK (328 tasks)" exit 0. Line counts:
+    tripHonest 202, loopHonest 150, tripHarness 152, loopMutants.mjs 184, tripMutants.mjs 250 (all under 300).
