@@ -31,7 +31,7 @@ struct SavedDrivesList: View {
                 }
             }
         }
-        .onAppear { list.load(SavedDriveShelf.rows()) }
+        .onAppear { list.load(PlanRehearsal.atLaunch.map { $0.savedRows } ?? SavedDriveShelf.rows()) }
     }
 
     @ViewBuilder private func rowView(_ row: SavedRow) -> some View {
