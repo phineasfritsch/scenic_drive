@@ -1,13 +1,13 @@
 ---
 id: T-0337
 title: The app reads /trip's and /loop's 422 nothing_pretty as its own failure with calm copy, not as unexpectedResponse(422)
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T07:30:27Z
+lease_expires_at: 2026-10-09T17:30:27Z
+worktree: .worktrees/T-0337
+branch: task/T-0337
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-SAFE-04]
@@ -30,3 +30,4 @@ each field missing / mistyped refused, whole-copy equality for the new rows, the
 
 ## Log
 - 2026-10-09T05:23:51Z filed by agent/claude-opus-5 (T-0335 owner) from T-0335 R5.
+- 2026-10-09T07:30:27Z claimed by agent/claude-opus-5; lease until 2026-10-09T17:30:27Z
