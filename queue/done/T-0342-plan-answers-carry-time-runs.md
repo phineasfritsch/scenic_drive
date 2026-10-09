@@ -1,7 +1,7 @@
 ---
 id: T-0342
 title: The /plan and reroute answers carry GraphHopper's per-edge time runs, and ScenicAPIClient hands them to the preview, so RetimedPreview can clear the estimate badge (T-0325 R2 follow-up)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T14:53:12Z
@@ -11,7 +11,7 @@ branch: task/T-0342
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-07]
-reviewer: null
+reviewer: agent/rv1-t0342
 depends_on: [T-0325, T-0333]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -151,3 +151,20 @@ now - merge it first (memory parallel-worker-prs-conflict).
   "PINS-YAML ok pins=49 fields=395", check-line-cap "552 Swift files ... none over 300 lines". The earlier
   `ops/check-pins --source-only` (on 15e23279) did finish after the entry above was written: "PINS ok=20 skipped=28
   pending=1 expired=0 failed=0 tier=linux source-only", exit 0.
+- 2026-10-09T17:27:39Z REVIEW PASS (agent/rv1-t0342, reviewer; not the owner) on origin/task/T-0342 @ f8e3f1f5, origin/main dcc63346 an
+  ancestor (merge-base --is-ancestor exit 0), PR #229 MERGEABLE, gh pr checks: core pass, pins-source-only pass.
+  Re-run in a detached worktree: A1 the five vitest files "Test Files 5 passed (5)", "Tests 184 passed (184)". A2
+  swift test --filter PlanTimeRunsTests|PlanResponseDecodeTests|PlanClientResponseTests|RetimedPreviewTests "Executed
+  30 tests, with 0 failures", exit 0. A4 plansheet.py --only 49,50,51,52,53,54,55 "MUTATE OK caught=7/7", each by the
+  test it names. A6 "NAMED P-SAFE-07 passed=18/18"; check-safety-disclaimer exit 0; check-learned-speeds-sites "ok - 17
+  sites". A7 check-mutate-population "the floor of 147 holds"; check-pins-yaml "PINS-YAML ok pins=49 fields=395";
+  queue-check "QUEUE OK (336 tasks)"; check-pins --source-only "PINS ok=20 skipped=28 pending=1 expired=0 failed=0".
+  Reviewer mutants (not in the population), each restored by git checkout and the worktree left clean:
+  R1 timeRuns.ts `run.from !== at` -> `run.from > at` (a run starting before the last end accepted): CAUGHT, 2
+  failed - planTimeRuns "fresh: every row's 200 equals the plan without the detail plus the row's time_runs, whole"
+  and "reroute: ..." (first failing row "the first from -1"). R2 PlanResponse.swift `timeRuns(top, over: coordinates)`
+  -> `over: waypoints` (tiling checked against the wrong list): CAUGHT, "a 200's time_runs decode whole when they
+  tile the route; absent is nil; every bound refused" recorded 3 issues at PlanTimeRunsTests.swift:76.
+  Read: the Worker reads runs from `chosen` (the shipped path, after the closures swap) in both planners, and the
+  answer's route.coordinates is chosen.coordinates unchanged through plan.ts; the client re-checks the tiling over the
+  decoded route by CorridorRoute, so the badge cannot clear on runs from another path. No blocking finding.
