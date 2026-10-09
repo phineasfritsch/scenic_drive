@@ -1,5 +1,5 @@
 ---
-id: T-0336
+id: T-0337
 title: The app reads /trip's and /loop's 422 nothing_pretty as its own failure with calm copy, not as unexpectedResponse(422)
 state: backlog
 owner: null

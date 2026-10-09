@@ -111,3 +111,13 @@ MISSED before / CAUGHT after by test name.
   only when the LAST attempt was clean: RED "retraced, then clean but dull, then retraced again ...".
 - 2026-10-09T05:23:51Z A5: named-tests.json P-SAFE-04 binds the two tripHonest refusal rows and the three-dull loopHonest row by name.
   Follow-up filed: T-0336 (the app reads /trip's and /loop's nothing_pretty, R5).
+- 2026-10-09T05:47:46Z RENUMBERED: main took T-0336 (screenshot every screen) while this branch was open, so the follow-up filed above
+  as T-0336 is T-0337 (queue/backlog/T-0337-trip-loop-nothing-pretty-client.md); the line above stays as written.
+- 2026-10-09T05:47:46Z ACCEPTANCE re-run on the merged head 17080142 (origin/main 4537e7d4, PR #216 T-0329 merged in, no conflict; this
+  branch changes no Sources/ or apps/ios file, so no digest row moves and no ios-compile is due):
+  - A1/A2/A3/A4 `npx vitest run` tripHonest, loopHonest, trip*, loop*, closures*, requestReadSites, reflectionSites,
+    planHonest, isochrone*, surpriseReachParity, routes: "Test Files 26 passed (26) / Tests 1113 passed (1113)". The
+    full suite on 0fdfa1a6 (before the merge): "Test Files 86 passed (86) / Tests 2492 passed (2492)".
+  - A5 run-named-tests P-SAFE-04 (Swift scratch .build/t0335): "NAMED P-SAFE-04 passed=20/20", exit 0 (on 9d9e977f);
+    check-pins-yaml "PINS-YAML ok pins=49 fields=395" exit 0; check-mutate-population "P-PROC-06: every added module
+    is covered or allowlisted; the floor of 144 holds" exit 0; queue-check "QUEUE OK (328 tasks)" exit 0.
