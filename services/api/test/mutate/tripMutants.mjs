@@ -24,11 +24,12 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
 
-export const MIN_MUTATIONS = 93;
+export const MIN_MUTATIONS = 100;
 export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts", "src/tripPlaces.ts",
   "migrations/0009_trip_places.sql"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
-  "test/killSwitchRoutes.test.ts", "test/tripPlaces.test.ts", "test/tripHonest.test.ts"];
+  "test/killSwitchRoutes.test.ts", "test/tripPlaces.test.ts", "test/tripHonest.test.ts",
+  "test/tripLoopHazards.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -70,7 +71,16 @@ export const MUTATIONS = [
   m("planner-cost-11", "tripPlanner.ts", "TRIP_UPSTREAM_COST = 12;", "TRIP_UPSTREAM_COST = 11;"),
   m("planner-drive-minus-1", "tripPlanner.ts", "MAX_DRIVE_MS_PER_DAY = 21_600_000;", "MAX_DRIVE_MS_PER_DAY = 21_599_999;"),
   m("planner-metres-minus-1", "tripPlanner.ts", "MAX_METERS_PER_DAY = 482_803;", "MAX_METERS_PER_DAY = 482_802;"),
-  m("planner-details-more", "tripPlanner.ts", "TRIP_DETAILS = [\"time\", \"distance\", \"scenic_score\"];", "TRIP_DETAILS = [\"time\", \"distance\", \"scenic_score\", \"road_class\"];"),
+  m("planner-details-more", "tripPlanner.ts", "\"scenic_score\", ...HAZARD_DETAILS];", "\"scenic_score\", \"road_class\", ...HAZARD_DETAILS];"),
+  // T-0340 R1: the day hazards.
+  m("planner-details-no-hazards", "tripPlanner.ts", "\"scenic_score\", ...HAZARD_DETAILS];", "\"scenic_score\"];"),
+  m("planner-day-clip-end-inclusive", "tripPlanner.ts", "run.from_index < end &&", "run.from_index <= end &&"),
+  m("planner-day-clip-start-inclusive", "tripPlanner.ts", "run.to_index > start)", "run.to_index >= start)"),
+  m("planner-day-unclipped", "tripPlanner.ts", "from_index: Math.max(run.from_index, start), to_index: Math.min(run.to_index, end)", "from_index: run.from_index, to_index: run.to_index"),
+  m("planner-day-vertex-off-by-one", "tripPlanner.ts", "pointOf[day.end_vertex]!", "pointOf[day.end_vertex - 1]!"),
+  m("planner-full-day-reads-route", "tripPlanner.ts", "      hazards = hazardsOf(path);
+", ""),
+  m("planner-day-hazards-empty", "tripPlanner.ts", "overnight: night(day.overnight), hazards, leg,", "overnight: night(day.overnight), hazards: [], leg,"),
   m("planner-search-7", "tripPlanner.ts", "}, MAX_EVALUATIONS);", "}, MAX_EVALUATIONS + 1);"),
   m("planner-pct-ignored", "tripPlanner.ts", "budgetSeconds(fastestMs, extraBudgetPct);", "budgetSeconds(fastestMs);"),
   m("planner-leg-ceiling-exclusive", "tripPlanner.ts", "if (legPath.timeMs > ceiling)", "if (legPath.timeMs >= ceiling)"),

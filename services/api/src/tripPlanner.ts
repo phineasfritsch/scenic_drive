@@ -12,6 +12,7 @@
  */
 import type { ClosuresFor, PathGuard } from "./closuresNearest";
 import { buildCustomModel, formatMultiplier, rejectCustomModel } from "./customModel";
+import { HAZARD_DETAILS, hazardsOf, type Hazard } from "./hazards";
 import { searchLambda } from "./lambdaSearch";
 import type { LatLon } from "./latLon";
 import { budgetSeconds, planRoadTrip, type RoadTripEdge, type RoadTripOvernight, type RoadTripPlace } from "./roadTrip";
@@ -21,8 +22,9 @@ import { FAST_PROFILE, MAX_EVALUATIONS, SCENIC_PROFILE } from "./scenicPlanner";
 import type { GuardedFetch } from "./upstream";
 
 export const TRIP_UPSTREAM_COST = 12;
-/** time and distance cut the days; scenic_score is what the chosen route is scored with (T-0335 R2). */
-export const TRIP_DETAILS = ["time", "distance", "scenic_score"];
+/** time and distance cut the days; scenic_score is what the chosen route is scored with (T-0335 R2); the hazard
+ *  details are what each day tells the driver (T-0340 R1). */
+export const TRIP_DETAILS = ["time", "distance", "scenic_score", ...HAZARD_DETAILS];
 /** R7: a day drives at most 6 h and 300 mi (1609.344 m a mile, to the metre). */
 export const MAX_DRIVE_MS_PER_DAY = 21_600_000;
 export const MAX_METERS_PER_DAY = 482_803;
@@ -50,6 +52,8 @@ export interface TripDayResult {
   ceiling_s: number;
   stops: string[];
   overnight: TripOvernight | null;
+  /** T-0340 R1: a full day's indices are into leg.coordinates, a preview day's into route.coordinates. */
+  hazards: Hazard[];
   leg: { coordinates: [number, number][]; eta_s: number; distance_m: number } | null;
 }
 
@@ -123,6 +127,13 @@ export function edgesOf(path: RoutePath): RoadTripEdge[] {
   return edges;
 }
 
+/** T-0340 R1: the route's runs that overlap points [start, end], clipped to them (a run across a night is told on both
+ *  days); indices stay the route's. */
+export function dayHazards(runs: Hazard[], start: number, end: number): Hazard[] {
+  return runs.filter((run) => run.from_index < end && run.to_index > start)
+    .map((run) => ({ ...run, from_index: Math.max(run.from_index, start), to_index: Math.min(run.to_index, end) }));
+}
+
 /** R7: a day's share of fastest + budget, floor(ceiling x day / total), exact in BigInt (the product passes 2^53). */
 function dayCeilingMs(ceilingMs: number, dayMs: number, totalMs: number): number {
   return Number((BigInt(ceilingMs) * BigInt(dayMs)) / BigInt(totalMs));
@@ -176,6 +187,9 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
 
   const totalMs = edges.reduce((sum, e) => sum + e.seconds, 0);
   const vertices = [edges[0]!.start, ...edges.map((e) => e.end)];
+  // M1: vertex v sits at route point 0 for v = 0 and at the end of time run v - 1 after (edgesOf held the tiling).
+  const pointOf = [0, ...(chosen.details.time ?? []).map((run) => run.to)];
+  const routeHazards = hazardsOf(chosen);
   const night = (o: RoadTripOvernight): TripOvernight | null => o === null ? null
     : places === null ? { kind: "not_searched" } : o === "no_lodging" ? { kind: "no_lodging" }
       : { kind: "lodging", name: o.lodging.name, meters: o.lodging.meters };
@@ -185,6 +199,7 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
   for (const [index, day] of split.plan.entries()) {
     const ceiling = dayCeilingMs(ceilingMs, day.seconds, totalMs);
     let leg: TripDayResult["leg"] = null;
+    let hazards = dayHazards(routeHazards, pointOf[day.start_vertex]!, pointOf[day.end_vertex]!);
     if (full) {
       const [from, to] = [vertices[day.start_vertex]!, vertices[day.end_vertex]!];
       const legPath = await route(counted, routerBase, from, to, SCENIC_PROFILE, buildCustomModel(outcome.lambda, closuresFor(from, to)));
@@ -199,11 +214,12 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
         } : null);
       etaMs += path.timeMs;
       leg = { coordinates: path.coordinates, eta_s: path.timeMs / 1000, distance_m: path.distanceM };
+      hazards = hazardsOf(path);
     }
     result.push({
       day: day.day, start: vertices[day.start_vertex]!, end: vertices[day.end_vertex]!, drive_s: day.seconds / 1000,
       distance_m: day.meters, ceiling_s: ceiling / 1000, stops: day.stops,
-      overnight: night(day.overnight), leg,
+      overnight: night(day.overnight), hazards, leg,
     });
   }
   return {

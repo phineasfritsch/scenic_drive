@@ -12,7 +12,7 @@ import { guardedPlan, PlanBudgetExceeded } from "../src/upstream";
 import { BIG_SUR, PRETTY_RUNS, EDGE_M, EDGES, expectedTrip, NOW, ROAD, ROUTER, SCENIC_EDGE_MS, TRIP_BODY, tripCounters, tripPath,
   tripRequest, tripRouter, type RouterOptions } from "./tripHarness";
 
-const LEG = { points_encoded: false, instructions: false, "ch.disable": true, details: ["time", "distance", "scenic_score"] };
+const LEG = { points_encoded: false, instructions: false, "ch.disable": true, details: ["time", "distance", "scenic_score", "surface", "road_access"] };
 
 function harness(tier: Tier, options: RouterOptions = {}) {
   const events: string[] = [];
