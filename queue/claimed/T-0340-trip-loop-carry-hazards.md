@@ -149,3 +149,12 @@ tables - one at a time.
     it read TRAP: that vitest run collected 0 tests, "numTotalTests":0, the loaded box; re-run alone, CAUGHT).
     tripMutants.mjs MIN_MUTATIONS 100 -> 102, "population mutations=102 (floor 102)"; --prove-floor refuses all four
     arms, "real population: quiet". Measured: tripLoopHazards.test.ts 267 lines, tripMutants.mjs 262.
+- 2026-10-09T23:08:09Z agent/claude-opus-5 - A9 re-run on the merged head 49034bec (origin/main fetched and merged
+  last; main brought T-0343's Swift, ops and queue files, no services/api file).
+  - Touched vitest file: `npx vitest run test/tripLoopHazards.test.ts` exit 0, "Tests 13 passed (13)".
+  - Bare gates: check-mutate-population exit 0 ("the floor of 147 holds"); check-hazard-copy-sites exit 0 ("ok - 14
+    sites, every one approved, in 5 files"); check-pins-yaml exit 0 ("PINS-YAML ok pins=50 fields=403");
+    queue-check exit 0 ("QUEUE OK (342 tasks)").
+  - check-line-cap (the 20:50:56Z entry left it to CI): run bare, started at e66a715b at 22:38Z, the merge of
+    origin/main landing during its run, finished in ~30 min: exit 0, "P-SRC-02: 554 Swift files tracked
+    (Sources=269, Tests=198, apps/ios=87), none over 300 lines".
