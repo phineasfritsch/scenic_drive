@@ -1,7 +1,7 @@
 ---
 id: T-0331
 title: ops/mutate/session.py --prove-vacuity builds again - the Surprise history tests that reference SurpriseShowingTests are emptied with it (or stop referencing it), so the vacuity arm of the session population runs on main
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T22:28:47Z
@@ -11,7 +11,7 @@ branch: task/T-0331
 exclusive: []
 touches: [ops/mutate/, Tests/ScenicKitTests/Surprise/]
 pins_affected: [P-PROC-06]
-reviewer: null
+reviewer: agent/rv1-t0331
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
@@ -101,3 +101,17 @@ SurpriseShowingTests, which the vacuity mode empties. A vacuity arm that cannot 
   (need 0) and MISSED=3 of 3` exit=0 (the emptied set builds on this head); `session.py --only 35,36,39` ->
   `MUTATE OK  caught=3/3 equivalent_caught=0` exit=0; check-mutate-population exit 0 (302 modules, 0 added by
   this branch), check-exec-bits exit 0, tree clean after the runs.
+- 2026-10-09T03:44:08Z REVIEW PASS by agent/rv1-t0331 (round 1, PR #217, head 57ed3b00; origin/main e3de4d78 is an
+  ancestor). Acceptance (2): `python ops/mutate/session.py --prove-vacuity` at 57ed3b00 -> `BASELINE ... exit=0`,
+  `caught by the test that names it: 0 of 81 (... compile-only 0, MISSED 81, skipped 0)`, `VACUITY PROOF OK: with the
+  8 test file(s) emptied, caught=0 (need 0) and MISSED=81 of 81`, exit 0, tree clean after. Acceptance (1)/(3) red
+  arm, reproduced: the three Surprise test files restored to origin/main in a detached worktree, `--only 35,36,39
+  --prove-vacuity` -> `VACUITY REFUSED ... no mutation was run`, exit 2, quoting SurpriseCardHistoryTests.swift
+  10:24, 11:28, 13:20, 14:20, 15:20, 16:20 `cannot find 'SurpriseShowingTests' in scope`. Driver mutants, committed
+  in that worktree on the same broken set: M1 refusal dropped (`if False:`) -> exit 2 `baseline is not green`, no
+  OK; M2 run_all's compile error counted as MISSED -> exit 2 `VACUITY REFUSED`, no OK; M1+M2 -> exit 2 `baseline is
+  not green`, no OK. All RED. Grep: no test file outside the emptied set names SurpriseShowingTests or
+  SessionAccountTests (only the fixture's doc comment). Gates bare: check-mutate-population exit 0 (302 modules, 0
+  added by this branch), check-exec-bits exit 0, queue-check `QUEUE OK (326 tasks)`, `gh pr checks 217` core pass,
+  pins-source-only pass. Recordable: M1 is caught only by the pre-existing baseline-not-green guard; nothing pins
+  the VACUITY REFUSED marker itself, so dropping it loses the message but not the refusal.
