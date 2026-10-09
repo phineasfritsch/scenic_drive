@@ -7,10 +7,11 @@ import Testing
 /// SESSION_JWT_SECRET rotation) through the SHIPPING PlanClient (plan and reroute), TripClient and LoopClient over a
 /// REAL SessionStore and ONE scripted transport, as the cross product route x held {Keychain session - this launch's
 /// acquisition unspent; a session acquired this launch - spent; no App Attest} x Worker {answers, rejects once, rejects
-/// always}, two user actions each. The WHOLE ordered request list - App Attest and route alike - EQUALS the list
+/// always} x renewal {renews, assert rejected, challenge budget spent}, two user actions each. The WHOLE ordered request list - App Attest and route alike - EQUALS the list
 /// recomputed here from the variant: a 401 to a request that carried a Bearer hands the token back, the store acquires
 /// once more, and the byte-identical body is resent ONCE; a second 401 hands that token back too but is final - never
-/// a third request, never a second re-acquisition; a request with no Bearer is never resent.
+/// a third request, never a second re-acquisition; a request with no Bearer is never resent; a renewal that fails
+/// resends with NO Bearer, never the one just rejected (T-0333 R7).
 @Suite("PlanSessionRetryTests")
 struct PlanSessionRetryTests {
     enum Route: String, CaseIterable, Sendable {
@@ -35,15 +36,26 @@ struct PlanSessionRetryTests {
         case rejectsAlways
     }
 
+    enum Renewal: String, CaseIterable, Sendable {
+        /// /attest/assert answers a fresh session.
+        case renews
+        /// /attest/assert answers 400: the key is refused and the store forgets the session.
+        case assertRejected
+        /// /attest/challenge answers 429 challenge_rate_limited after this launch's first challenge.
+        case budgetSpent
+    }
+
     struct Row: Sendable, CustomTestStringConvertible {
         let route: Route
         let held: Held
         let worker: Worker
-        var testDescription: String { "\(route) \(held) \(worker)" }
+        let renewal: Renewal
+        var testDescription: String { "\(route) \(held) \(worker) \(renewal)" }
     }
 
     static let rows: [Row] = Route.allCases.flatMap { route in
-        Held.allCases.flatMap { held in Worker.allCases.map { Row(route: route, held: held, worker: $0) } }
+        Held.allCases.flatMap { held in Worker.allCases.flatMap { worker in
+            Renewal.allCases.map { Row(route: route, held: held, worker: worker, renewal: $0) } } }
     }
 
     /// The token /attest/assert answers - distinct from both the stored and the attested one, so a resend is seen.
@@ -66,8 +78,12 @@ struct PlanSessionRetryTests {
         case .rejectsOnce: replies = [rejected, answered]
         case .rejectsAlways: replies = [rejected]
         }
-        let assert = AttestWire.reply(200, "{\"token\":\"\(freshToken)\",\"expires_at\":\"2026-10-08T03:00:00.000Z\"}")
-        return ScriptedTransport(["POST /attest/challenge": [AttestWire.challengeReply],
+        let assert = row.renewal == .assertRejected ? AttestWire.reply(400, #"{"error":"assertion_rejected"}"#)
+            : AttestWire.reply(200, "{\"token\":\"\(freshToken)\",\"expires_at\":\"2026-10-08T03:00:00.000Z\"}")
+        let spent = AttestWire.reply(429, #"{"error":"challenge_rate_limited"}"#)
+        let challenges = row.renewal != .budgetSpent ? [AttestWire.challengeReply]
+            : row.held == .acquired ? [AttestWire.challengeReply, spent] : [spent]
+        return ScriptedTransport(["POST /attest/challenge": challenges,
                                   "POST /attest": [AttestWire.sessionReply], "POST /attest/assert": [assert],
                                   "POST " + path(row.route): replies])
     }
@@ -108,8 +124,15 @@ struct PlanSessionRetryTests {
         list.append(send(first))
         if row.worker == .answers { return list + [send(first)] }
         let key = row.held == .keychain ? AttestWire.oldKey : AttestWire.newKey
-        list += [AttestWire.challengeRequest(), AttestWire.renewRequest(key), send(freshToken)]
-        return list + [send(row.worker == .rejectsOnce ? freshToken : nil)]
+        switch row.renewal {
+        case .renews:
+            list += [AttestWire.challengeRequest(), AttestWire.renewRequest(key), send(freshToken)]
+            return list + [send(row.worker == .rejectsOnce ? freshToken : nil)]
+        case .assertRejected:
+            return list + [AttestWire.challengeRequest(), AttestWire.renewRequest(key), send(nil), send(nil)]
+        case .budgetSpent:
+            return list + [AttestWire.challengeRequest(), send(nil), send(nil)]
+        }
     }
 
     /// One user action of `route` through its shipping client.
@@ -142,7 +165,7 @@ struct PlanSessionRetryTests {
     @Test("the resend carries the same purchase: the renewal names it and the Bearer is the renewed session's",
           arguments: Route.allCases)
     func resendKeepsThePurchase(_ route: Route) async {
-        let row = Row(route: route, held: .keychain, worker: .rejectsOnce)
+        let row = Row(route: route, held: .keychain, worker: .rejectsOnce, renewal: .renews)
         let transport = Self.transport(row)
         let live = SessionAccountTests.Purchase.live
         let session = SessionStore(client: AttestWire.client(transport), attester: FakeAttester(isSupported: true),
@@ -170,21 +193,28 @@ struct PlanSessionRetryTests {
                                              send(Self.freshToken)])
     }
 
-    @Test("no row ignores its variant: held and Worker each change some row's requests, and every action is bounded")
+    @Test("no row ignores its variant: held, Worker and renewal each change some row's requests, and every action is bounded")
     func rowsFollowTheirVariant() {
         for route in Route.allCases {
             let mine = Self.rows.filter { $0.route == route }
             let lists = mine.map { Self.expected($0) }
-            #expect(lists.indices.filter { i in !lists[..<i].contains(lists[i]) }.count == 7)
-            #expect(mine.contains { a in mine.contains { b in
-                a.held != b.held && a.worker == b.worker && Self.expected(a) != Self.expected(b) } })
-            #expect(mine.contains { a in mine.contains { b in
-                a.held == b.held && a.worker != b.worker && Self.expected(a) != Self.expected(b) } })
+            #expect(lists.indices.filter { i in !lists[..<i].contains(lists[i]) }.count == 11)
+            #expect(mine.contains { a in mine.contains { b in a.held != b.held && a.worker == b.worker &&
+                a.renewal == b.renewal && Self.expected(a) != Self.expected(b) } })
+            #expect(mine.contains { a in mine.contains { b in a.held == b.held && a.worker != b.worker &&
+                a.renewal == b.renewal && Self.expected(a) != Self.expected(b) } })
+            #expect(mine.contains { a in mine.contains { b in a.held == b.held && a.worker == b.worker &&
+                a.renewal != b.renewal && Self.expected(a) != Self.expected(b) } })
         }
+        let bearers = { (row: Row) in
+            Self.expected(row).filter { $0.url.path == Self.path(row.route) && $0.headers["authorization"] != nil }.count
+        }
+        #expect(Self.rows.filter { $0.renewal != .renews && $0.worker != .answers && $0.held != .noSession }
+            .allSatisfy { bearers($0) == 1 })
         let routeRequests = { (row: Row) in Self.expected(row).filter { $0.url.path == Self.path(row.route) }.count }
         let challenges = { (row: Row) in Self.expected(row).filter { $0.url.path == "/attest/challenge" }.count }
         #expect(Self.rows.allSatisfy { routeRequests($0) <= 4 && challenges($0) <= 2 })
         #expect(Self.rows.filter { routeRequests($0) == 3 }.allSatisfy { $0.worker != .answers && $0.held != .noSession })
-        #expect(Self.rows.count == 36)
+        #expect(Self.rows.count == 108)
     }
 }
