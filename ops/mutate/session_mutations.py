@@ -275,6 +275,9 @@ MUTATIONS = [
      "let renewed = await session.planSession(account: nil)", [PURCHASE]),
     ("90 the resend skips the renewal", FAMILY, "let renewed = await session.planSession(account: account)",
      "let renewed: String? = nil", [RETRY]),
+    ("91 the failed renewal resends the rejected token", FAMILY,
+     "let second = try await transport.send(request(renewed))",
+     "let second = try await transport.send(request(renewed ?? bearer))", [RETRY]),
 ]
 
 # (name, path, old, new, witness): cannot change behaviour, so anything but MISSED is a failure.
@@ -297,6 +300,6 @@ EQUIVALENT = [
      "takes only its keyId and the act ASKED FOR, and keep writes a new record - the dropped record's act is never read"),
 ]
 
-MIN_MUTATIONS = 90
+MIN_MUTATIONS = 91
 MIN_EQUIVALENT = 3
 MIN_TEST_FILES = 9

@@ -106,3 +106,19 @@ wrong TTL, malformed} x {flag 1, closed} for the Worker answer, and for the clie
   entry), then `every added module is covered or allowlisted; the floor of 144 holds` once session.py declared it.
   Digests: 5 Sources rows re-approved from the committed blobs, PlanFamilySend.swift added. P-STORE-02's named table
   binds 28 more names (246, sha256 190b9ca64c61...), `NAMED-TABLE P-STORE-02 ok - 246 distinct names`.
+- 2026-10-09T12:59:44Z RULED (agent/claude-opus-5, owner) on rv1-t0333 FAIL (PR #225, head 20358065), before any change:
+  B1 accepted by class. R3's "(a Bearer, or none)" has a none branch no row reached: every row's renewal succeeded.
+  R7: PlanSessionRetryTests gains a Renewal variant {renews, assertRejected (/attest/assert answers 400 -> the store
+  forgets the session), budgetSpent (/attest/challenge answers 429 challenge_rate_limited after this launch's first
+  challenge)} crossed with route x held x Worker (108 rows). The expected whole request list is recomputed from it: a
+  failed renewal after a 401 is `send(T), challenge, [renew(key)], send(nil)` and the next action is `send(nil)` (the
+  acquisition stays spent); Worker answers never asks for a renewal, so there the variant is moot by construction. The
+  meta-test gains the renewal-variant pair and the rule that a failed renewal's rows carry the rejected Bearer on
+  exactly one route request. session_mutations.py gains "91 the failed renewal resends the rejected token"
+  (`request(renewed)` -> `request(renewed ?? bearer)`), MISSED at 20358065 by the reviewer (116/116), CAUGHT by name
+  now; MIN_MUTATIONS 90 -> 91. No Sources/ file changes, so no digest is re-approved; no new test function, so
+  P-STORE-02's named table and count are unchanged.
+  B2 accepted: A4 named "401 after the reservation". attestMutants.mjs gains "reject-plan-after-reservation" - plan.ts
+  answers the 401 only after guardedPlan has reserved (a body that fetches nothing), so status, body and fetch count
+  match the reference and only the quota state differs; it must be CAUGHT by name by the EMPTY-quota rows (R2);
+  MIN_MUTATIONS 92 -> 93.

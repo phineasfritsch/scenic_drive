@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-attest");
 
-export const MIN_MUTATIONS = 92;
+export const MIN_MUTATIONS = 93;
 export const SUBJECTS = ["src/cbor.ts", "src/appAttest.ts", "src/x509.ts", "src/attestStore.ts", "src/attest.ts", "src/sessionJwt.ts",
   "src/sessionIdentity.ts", "src/routerDeps.ts", "src/plan.ts", "src/trip.ts", "src/loop.ts"];
 const TESTS = ["test/attestVerify.test.ts", "test/attestAccept.test.ts", "test/sessionIdentity.test.ts", "test/requestReadSites.test.ts",
@@ -134,6 +134,8 @@ export const MUTATIONS = [
   m("reject-plan-unanswered", "plan.ts", "  if (who.rejected === true) return json({ error: \"session_rejected\" }, 401);\n", ""),
   m("reject-trip-unanswered", "trip.ts", "  if (who.rejected === true) return json({ error: \"session_rejected\" }, 401);\n", ""),
   m("reject-loop-unanswered", "loop.ts", "  if (who.rejected === true) return json({ error: \"session_rejected\" }, 401);\n", ""),
+  m("reject-plan-after-reservation", "plan.ts", "  if (who.rejected === true) return json({ error: \"session_rejected\" }, 401);\n",
+    "  if (who.rejected === true) {\n    await guardedPlan(upstream, who, async () => null).catch(() => null);\n    return json({ error: \"session_rejected\" }, 401);\n  }\n"),
 ];
 
 export const EQUIVALENT = [
