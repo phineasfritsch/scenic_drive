@@ -86,6 +86,6 @@ extension DriveDisplay {
     /// The same row drawing `line` (T-0328 R4): the session's display carries the session's current line.
     func drawing(_ line: [Coordinate]) -> DriveDisplay {
         DriveDisplay(actionTitle: actionTitle, actionMinHeight: actionMinHeight, status: status,
-                     showsDetails: showsDetails, line: line)
+                     showsDetails: showsDetails, line: line, etaLine: "0 min · about as quick as the fastest way")
     }
 }

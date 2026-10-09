@@ -38,8 +38,10 @@ CONTINUATION = ROOT / "Sources" / "ScenicKit" / "PlanSheet" / "PlanContinuation.
 REROUTER = ROOT / "Sources" / "ScenicAPIClient" / "PlanRerouter.swift"
 PLANNER = ROOT / "Sources" / "ScenicAPIClient" / "ClientPlanner.swift"
 VOICE = _KIT / "DriveVoice.swift"
+# T-0330: the Worker's `continued` decoded.
+RESPONSE = ROOT / "Sources" / "ScenicAPIClient" / "PlanResponse.swift"
 SUBJECTS = (SESSION, LINE, SURFACE, FIX, REQUEST, CONTROLLER, LEG, UNAVAILABLE, DISPLAY, REPLY, PREVIEW, CONTINUATION,
-            REROUTER, PLANNER, VOICE)
+            REROUTER, PLANNER, VOICE, RESPONSE)
 # NavAdapter (T-0321 R10) is mutated only by EQUIVALENT entries: apps/ios is not compiled on Linux, so those
 # mutants are MISSED here by construction and only a device run observes them.
 NAVIGATOR = ROOT / "apps" / "ios" / "Packages" / "ScenicApp" / "Sources" / "NavAdapter" / "DriveNavigator.swift"
@@ -50,13 +52,20 @@ TEST_FILES = (_TESTS / "DriveSessionTests.swift", _TESTS / "DriveRerouteTests.sw
               _TESTS / "DriveMotionGateTests.swift", _TESTS / "DriveControllerTests.swift",
               _TESTS / "DriveLegTests.swift", _TESTS / "DriveDisplayTests.swift",
               ROOT / "Tests" / "ScenicAPIClientTests" / "DriveReplanTests.swift", _TESTS / "DriveTokenTakeTests.swift",
-              _TESTS / "DriveVoiceTests.swift")
+              _TESTS / "DriveVoiceTests.swift", _TESTS / "DriveContinuedTests.swift",
+              ROOT / "Tests" / "ScenicAPIClientTests" / "DriveContinuedReplanTests.swift")
 
 C_FIX = "T-0321: every fix reaches the session whole; off-route online is one send under ticket 1"
 C_LOST = "T-0321: losing the connection with a reroute out cancels its ticket; with none out it cancels nothing"
 C_REPLY = "T-0321: a late reply from before the drop is dropped; the reconnect's own reply is taken"
 C_FAIL = "T-0321: a late failure from before the drop is dropped; the reconnect's own failure is rejoin mode"
 C_IDLE = "T-0321: an answer with nothing in flight changes nothing, and a ticket is answered once"
+K_SURF = "T-0330 R3/R4: continued x surface - the taken answer's ETA line, and the fresh note on the full surface only"
+K_SEED = "T-0330 R4: the preview seeds the drive - line, pins, lambda, token and ETA - and its ETA line until a reroute"
+K_BOUNDS = "T-0330 R5: every ETA bound x field x entry - an answer or a preview outside 0...86400 s is refused whole"
+K_WIRE = "T-0330 R3: continued true / false / absent / not a boolean - taken with its ETA and note, or refused whole"
+K_REPLY = ("T-0330 R4: PlanRerouter.reply(of:) carries the answer's line, pins, token, ETA, fastest ETA and marker, "
+           "whole")
 C_SENDER = "T-0321: until T-0319 the sender asks nothing and fails, so an online off-route drive rejoins"
 L_INNER = "T-0321: the legs cut the line at each inner pin, end at each pin, and the last arrives"
 L_END = "T-0321: no pin, or a pin on the first or last vertex, cuts nothing - no leg is a single point"
@@ -358,6 +367,50 @@ MUTATIONS = [
      "if session.line.destination != line.destination {", [V_LANDED, V_OFFLINE]),
     ("106 the line-change reset keyed on the first vertex", VOICE, "if session.line != line {",
      "if session.line.coordinates[0] != line.coordinates[0] {", [V_LANDED]),
+    # T-0330: the marker, the ruling on a fresh answer and the ETA line, each through its shipping entry point.
+    ("107 the controller drops the marker", CONTROLLER, "continued: reply.continued)", "continued: true)",
+     [K_SURF, K_WIRE]),
+    ("108 the controller drops the ETA", CONTROLLER, "etaSeconds: reply.etaSeconds,", "etaSeconds: 0,", [K_SURF]),
+    ("109 the controller hands the ETA as the fastest", CONTROLLER, "fastestEtaSeconds: reply.fastestEtaSeconds,",
+     "fastestEtaSeconds: reply.etaSeconds,", [K_SURF]),
+    ("110 the session keeps the old marker", SESSION, "        self.continued = continued\n", "", [K_SURF]),
+    ("111 the session keeps the old ETA", SESSION,
+     "        self.etaSeconds = etaSeconds\n        self.fastestEtaSeconds = fastestEtaSeconds\n        self.continued",
+     "        self.continued", [K_SURF]),
+    ("112 a day exactly refused", SESSION, "seconds >= 0 && seconds <= maxEtaSeconds",
+     "seconds >= 0 && seconds < maxEtaSeconds", [K_BOUNDS]),
+    ("113 zero refused", SESSION, "seconds >= 0 && seconds <= maxEtaSeconds", "seconds > 0 && seconds <= maxEtaSeconds",
+     [K_BOUNDS]),
+    ("114 no lower bound", SESSION, "seconds >= 0 && seconds <= maxEtaSeconds", "seconds <= maxEtaSeconds", [K_BOUNDS]),
+    ("115 no upper bound", SESSION, "seconds >= 0 && seconds <= maxEtaSeconds", "seconds >= 0", [K_BOUNDS]),
+    ("116 the day widened by a second", SESSION, "maxEtaSeconds: Double = 86_400", "maxEtaSeconds: Double = 86_401",
+     [K_BOUNDS]),
+    ("117 an answer's ETA unchecked", SESSION,
+     "guard Self.isEta(etaSeconds), Self.isEta(fastestEtaSeconds), let next", "guard let next", [K_BOUNDS]),
+    ("118 an answer's fastest ETA unchecked", SESSION,
+     "guard Self.isEta(etaSeconds), Self.isEta(fastestEtaSeconds), let next", "guard Self.isEta(etaSeconds), let next",
+     [K_BOUNDS]),
+    ("119 a preview's ETA unchecked", SESSION,
+     "guard lambda.isFinite, Self.isEta(etaSeconds), Self.isEta(fastestEtaSeconds), let line",
+     "guard lambda.isFinite, let line", [K_BOUNDS]),
+    ("120 the preview seeds no ETA", SESSION, "etaSeconds: preview.etaSeconds,", "etaSeconds: 0,", [K_SEED]),
+    ("121 the preview seeds its ETA as the fastest", SESSION, "fastestEtaSeconds: preview.fastestEtaSeconds)",
+     "fastestEtaSeconds: preview.etaSeconds)", [K_SEED]),
+    ("122 the preview seeds no token", SESSION, "planToken: preview.continuation?.token, etaSeconds",
+     "planToken: nil, etaSeconds", [K_SEED]),
+    ("123 the note on the moving surface", DISPLAY, "note = moving || continued ? nil : Self.freshNote",
+     "note = continued ? nil : Self.freshNote", [K_SURF]),
+    ("124 never a note", DISPLAY, "note = moving || continued ? nil : Self.freshNote", "note = nil", [K_SURF, K_WIRE]),
+    ("125 the display ignores the session's marker", DISPLAY, "continued: session.continued)", "continued: true)",
+     [K_SURF, K_WIRE]),
+    ("126 the display's ETA is the fastest", DISPLAY, "etaLine: PlanPreview.etaLine(etaSeconds: session.etaSeconds,",
+     "etaLine: PlanPreview.etaLine(etaSeconds: session.fastestEtaSeconds,", [K_SURF, K_SEED]),
+    ("127 the rerouter drops the marker", REROUTER, "continued: response.continued)", "continued: true)",
+     [K_REPLY, K_WIRE]),
+    ("128 the rerouter hands the fastest as the ETA", REROUTER, "etaSeconds: response.etaSeconds,",
+     "etaSeconds: response.fastestEtaSeconds,", [K_REPLY]),
+    ("129 an absent marker reads continued", RESPONSE, "forKey: .continued) ?? false", "forKey: .continued) ?? true",
+     [K_REPLY, K_WIRE]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -378,14 +431,16 @@ EQUIVALENT = [
      "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device run hears it (T-0329). What bounds it: ops/lib/check-drive-voice.py (P-SAFE-09's row) allows exactly this whole line and refuses its removal by name ('the navigator never asks DriveVoice'), and what DriveVoice returns is CAUGHT above (entries 82-99)"),
 ]
 
-MIN_MUTATIONS = 106
+MIN_MUTATIONS = 129
 EQUIVALENT.append(
     ("E5 (device-only) the navigator's session starts without the preview's token", NAVIGATOR,
-     "online: true, planToken: preview.continuation?.token)", "online: true)",
+     "guard let session = DriveSession(preview: preview, online: true) else { return nil }",
+     "guard let session = DriveSession(line: preview.route, waypoints: preview.waypoints, lambda: preview.lambda, "
+     "online: true) else { return nil }",
      "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in "
      "behaviour; only a device or simulator run can observe it (T-0328 R1). What bounds it: the adapter line it edits "
-     "hands DriveSession the preview's token, whose session half is CAUGHT above (entry 60) and whose preview half is "
-     "CAUGHT above (entries 68-71, 73)"))
+     "hands DriveSession the preview whole; since T-0330 the seeding is ScenicKit's DriveSession(preview:online:), "
+     "whose token and ETA are CAUGHT above (entries 120-122), and the session half of the token by entry 60"))
 
 MIN_EQUIVALENT = 6
-MIN_TEST_FILES = 9
+MIN_TEST_FILES = 11

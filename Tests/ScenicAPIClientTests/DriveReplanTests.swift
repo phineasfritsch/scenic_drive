@@ -155,9 +155,11 @@ import Testing
     func answerBecomesTheDrawnLine() async throws {
         let response = try await PlanWire.plan(answering: Self.reply()).outcome.get()
         #expect(PlanRerouter.reply(of: response)
-            == RerouteReply(line: Self.answerLine, waypoints: Self.answerPins, planToken: Self.answerToken))
+            == RerouteReply(line: Self.answerLine, waypoints: Self.answerPins, planToken: Self.answerToken,
+                            etaSeconds: 900, fastestEtaSeconds: 800, continued: false))
         let untokened = try await PlanWire.plan(answering: Self.reply(token: nil)).outcome.get()
-        #expect(PlanRerouter.reply(of: untokened) == RerouteReply(line: Self.answerLine, waypoints: Self.answerPins))
+        #expect(PlanRerouter.reply(of: untokened) == RerouteReply(line: Self.answerLine, waypoints: Self.answerPins,
+                                                                 etaSeconds: 900, fastestEtaSeconds: 800))
         let transport = CountingPlanTransport(reply: Self.reply())
         var controller = DriveController(session: DriveSession(line: Self.line, waypoints: Self.pins, lambda: 7.75,
                                                                online: true, planToken: Self.planToken)!)
@@ -166,7 +168,8 @@ import Testing
         for t in 1...6 { commands += controller.observe(Self.fix(Self.away(0), Double(t))) }
         await Self.carryOut(commands, &controller, Self.rerouter(transport))
         #expect(DriveDisplay(session: controller.session)
-            == DriveDisplay(surface: .minimal, mode: .guiding, line: Self.answerLine))
+            == DriveDisplay(surface: .minimal, mode: .guiding, line: Self.answerLine,
+                            etaLine: "15 min · 2 min longer than the fastest way", continued: false))
     }
 
     @Test("T-0328: the offline edge mid-flight cancels; the late answer is dropped by ticket and its token never taken")

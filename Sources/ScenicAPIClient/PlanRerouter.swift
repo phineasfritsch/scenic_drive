@@ -24,8 +24,11 @@ public struct PlanRerouter: RerouteSending {
         return Self.reply(of: response)
     }
 
-    /// The Worker's answer as DriveController.rerouteArrived takes it: its line, its pins and its own token.
+    /// The Worker's answer as DriveController.rerouteArrived takes it: its line, its pins, its own token, its ETA and
+    /// the fastest route's, and whether it continued the drive (T-0330 R3/R4).
     public static func reply(of response: PlanResponse) -> RerouteReply {
-        RerouteReply(line: response.route, waypoints: response.waypoints, planToken: response.planToken)
+        RerouteReply(line: response.route, waypoints: response.waypoints, planToken: response.planToken,
+                     etaSeconds: response.etaSeconds, fastestEtaSeconds: response.fastestEtaSeconds,
+                     continued: response.continued)
     }
 }

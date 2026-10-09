@@ -46,8 +46,9 @@ public struct DriveRehearsal: RerouteSending {
         #endif
     }
 
-    /// The road the simulated location drives, with no pins: the line DriveSession takes and the map draws.
+    /// The road the simulated location drives, with no pins: the line DriveSession takes and the map draws - the rest
+    /// of the rehearsal's own drive (continued), 23 min of a 20-min fastest way from where it asked (T-0330 R4).
     public func reroute(_ request: RerouteRequest) async throws -> RerouteReply {
-        RerouteReply(line: Self.line, waypoints: [])
+        RerouteReply(line: Self.line, waypoints: [], etaSeconds: 1_380, fastestEtaSeconds: 1_200, continued: true)
     }
 }
