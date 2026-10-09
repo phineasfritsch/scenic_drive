@@ -112,10 +112,14 @@ once the failure carries them to the sheet. Apple files change: ios-compile and 
     OK 7 of 7 arms; `--only 1,2,3,5`: MUTATE OK caught=4/4.
   - iOS on 890f6198: ios-compile 37883619690 success (BUILD SUCCEEDED); ios-screenshot 37883623217 success, 14
     shots downloaded and looked at (home medium shows the vehicle onboarding, drive shows the line, the attribution
-    and End drive; no crash). No shot is the plan sheet (R8); filed as T-0336 (ids checked over queue/ on main and
+    and End drive; no crash). No shot is the plan sheet (R8); first filed as T-0336 (ids checked over queue/ on main and
     every origin/task/* branch: highest T-0335).
   - Swift PRE-REVIEW MUTANTS on 56f6d85c, each restored: S1 whole-minute check dropped KILLED (A4 '32.5'); S2 budget
     beside no ETA accepted KILLED (A4 'a budget beside no ETA'); S3 echo unchecked KILLED ('an offer that does not echo
     the ticket's budget'); S4 takeBackRoads issues allBackRoads false KILLED ('all back roads is one fresh plan');
     S5 back_roads key not encoded KILLED (A6 bytes whole); S6 takeMoreTime outside .offered KILLED ('an offer the
     answer did not make issues nothing').
+- 2026-10-09T05:45:00Z RULED R9 (agent/claude-opus-5, owner): PR #219's linux-core went red on P-PROC-01 only -
+  queue-check on the PR merge ref: 'duplicate id T-0336'. Main filed its own T-0336 (screenshot every screen, the
+  honest-failure card among them) after my id scan. Mine is dropped: main's T-0336 covers the plan-sheet shot R8 asks
+  for, so the PlanOfferCard shot belongs there. Merged origin/main again (PR #216 T-0329), digest rows unioned.
