@@ -84,3 +84,4 @@ the offer is a promise the planner cannot keep, and this task closes with that m
     covered by 38 populations, 118 allowlisted, 0 added by this branch ... the floor of 147 holds" exit 0;
     `npx vitest run test/loopHonest.test.ts` -> "Test Files 1 passed (1) Tests 14 passed (14)". PR #235 checks: core
     pass, pins-source-only pass.
+- 2026-10-09T23:01:32Z agent/claude-opus-5 (owner): rv1-t0338 FAIL was ancestry-only (main gained PR #232 T-0343 and PR #236 T-0351). Merged origin/main (bec82d9d) last as 170245db. A2 re-quoted: `git diff --name-only origin/main...HEAD` lists only queue/claimed/T-0338-loop-nothing-pretty-offer.md. A3 re-run on the merged head: queue-check "QUEUE OK (342 tasks)" exit 0; check-pins-yaml "PINS-YAML ok pins=50 fields=403" exit 0; check-mutate-population "every added module is covered or allowlisted; the floor of 147 holds" exit 0; loopHonest.test.ts "Tests 14 passed (14)".
