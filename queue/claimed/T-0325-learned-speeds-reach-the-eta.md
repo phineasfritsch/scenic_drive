@@ -112,3 +112,14 @@ edge is learned (product invariant).
   Follow-ups FILED (R7): T-0342 (the Worker passes details=time through /plan and reroute; ScenicAPIClient and
   PlanPreview carry the runs) and T-0343 (the app feeds CorridorClock, persists the learner in PlaceStore, shows
   RetimedPreview). Highest id in use before filing: T-0341 (queue/ and origin task/T-0333, task/T-0339).
+- 2026-10-09T12:36:58Z MUTANTS and iOS CI (agent/claude-opus-5). `python ops/mutate/traffic.py --only 36,...,62` at
+  e1e3859a: "MUTATE FAILED caught=25/27" - MISSED 51 (an entry after an off-line fix counted: the detour row came
+  back on the line inside the same edge, so previousOnLine was true at the transition) and MISSED 56 (a reroute
+  ignored: the rerouted line [far, v4] never reached the plan's arrival vertex, so the mutant taught nothing either).
+  Closed by two rows in CorridorClockTests.transitionTable (094d5d3c): "off the line in edge 1, back on it in edge
+  2" (expected edges [0, 3]) and "rerouted onto a line that rejoins the plan" (a five-vertex line ending v2, v3, v4;
+  expected [0]); `--only 51,56` at 094d5d3c: "MUTATE OK caught=2/2", both by the transition test's name. Every
+  other new entry CAUGHT by a test it names (36-50, 52-55, 57-62). iOS CI at 30462645 (the code commit):
+  ios-compile run 37925460060 success; ios-screenshot run 37925466654 success - plan-preview-light.png looked at:
+  "55 min · 20 min longer than the fastest way" with the "estimate · no traffic data" badge under it, as ruled (no
+  preview carries time runs until T-0342, so the badge stays).
