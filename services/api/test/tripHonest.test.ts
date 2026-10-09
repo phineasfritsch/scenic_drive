@@ -8,6 +8,8 @@ import { FRESH_EMPTY, TEST_VERSION } from "./closuresFake";
 import { describe, expect, it } from "vitest";
 import type { ClosureSnapshot } from "../src/closuresStore";
 import type { Tier } from "../src/quota";
+import type { RoutePath } from "../src/routePath";
+import { isHonestFailure, routeScoreOf } from "../src/routeScore";
 import { handleTrip, type TripDeps } from "../src/trip";
 import { BIG_SUR, EDGE_M, EDGES, expectedTrip, FAST_EDGE_MS, NOW, ROAD, ROUTER, SCENIC_EDGE_MS, TRIP_BODY, tripCounters, tripPath,
   tripRequest, tripRouter } from "./tripHarness";
@@ -119,4 +121,66 @@ describe("POST /trip honest failure scores the route that would SHIP - after the
       ...expectedTrip({ days: 2, edgeMs: SCENIC_EDGE_MS, lambda: 7.75, full: false }),
       closures_hazard: { state: "fresh", version: TEST_VERSION, fetched_at: NOW.toISOString(), dropped: 1 } } });
   });
+});
+
+/** T-0335 R2 by CLASS (pre-review M1a): the score is over the WHOLE route that would ship - never day 1 of it, any
+ *  other day, or any strict sub-span. Each row is the tripHarness road with edges [from, to) scored `inside` and every
+ *  other edge `outside`; `oracle` is Tests/Fixtures/t0332/oracle.py's reading of that whole road (route_score over
+ *  edges_of). Rows 1-10: each of the 5 days (8 edges each at days 5) pretty on a dull road, then dull on a pretty
+ *  road - every one of those days alone scores 0.713333 or 0.020000, the other side of 0.45 from its whole road.
+ *  Rows 11-14: the cover of the multi-day and near-whole spans rows 1-10 leave (the last meta-test below). */
+type Block = { from: number; to: number; inside: number; outside: number; oracle: number };
+const BLOCKS: Block[] = [
+  { from: 0, to: 8, inside: 8, outside: 2, oracle: 0.305999 }, { from: 0, to: 8, inside: 2, outside: 8, oracle: 0.610668 },
+  { from: 8, to: 16, inside: 8, outside: 2, oracle: 0.305669 }, { from: 8, to: 16, inside: 2, outside: 8, oracle: 0.644331 },
+  { from: 16, to: 24, inside: 8, outside: 2, oracle: 0.305336 }, { from: 16, to: 24, inside: 2, outside: 8, oracle: 0.644664 },
+  { from: 24, to: 32, inside: 8, outside: 2, oracle: 0.305001 }, { from: 24, to: 32, inside: 2, outside: 8, oracle: 0.644999 },
+  { from: 32, to: 40, inside: 8, outside: 2, oracle: 0.304662 }, { from: 32, to: 40, inside: 2, outside: 8, oracle: 0.612005 },
+  { from: 8, to: 28, inside: 2, outside: 8, oracle: 0.491452 }, { from: 0, to: 20, inside: 8, outside: 2, oracle: 0.459378 },
+  { from: 0, to: 20, inside: 2, outside: 8, oracle: 0.457289 }, { from: 1, to: 20, inside: 8, outside: 2, oracle: 0.446527 },
+];
+const blockScores = (b: Block) => Array.from({ length: EDGES }, (_, i) => (b.from <= i && i < b.to ? b.inside : b.outside));
+
+/** The road between vertices a and b as the RoutePath routeScoreOf reads, edge i scored scores[i]. */
+const span = (scores: number[], a: number, b: number): RoutePath => ({ timeMs: (b - a) * SCENIC_EDGE_MS, distanceM: (b - a) * EDGE_M,
+  coordinates: ROAD.slice(a, b + 1), details: { scenic_score: scores.slice(a, b).map((value, i) => ({ from: i, to: i + 1, value })) } });
+const refused = (scores: number[], a = 0, b = EDGES) => isHonestFailure(routeScoreOf(span(scores, a, b)));
+
+function mixedHarness(scores: number[]) {
+  const details = { time: runs(SCENIC_EDGE_MS), distance: runs(EDGE_M), scenic_score: scores.map((value, i) => [i, i + 1, value]) };
+  return harness("free", tripPath(ROAD, SCENIC_EDGE_MS, details));
+}
+
+describe("POST /trip scores the WHOLE route that would ship, not a day or any sub-span of it (T-0335 R2, M1a)", () => {
+  it.each(BLOCKS)("edges [$from, $to) scored $inside on a road scored $outside (oracle $oracle) through handleTrip", async (b) => {
+    const scores = blockScores(b);
+    expect(routeScoreOf(span(scores, 0, EDGES))!.value).toBeCloseTo(b.oracle, 6);
+    expect(await mixedHarness(scores).run()).toEqual(b.oracle < 0.45 ? REFUSED
+      : { status: 200, requests: 7, json: expectedTrip({ days: 5, edgeMs: SCENIC_EDGE_MS, lambda: 7.75, full: false }) });
+  });
+
+  it("pretty day 1 on a dull road (whole 0.305999, day 1 alone 0.713333) is refused whole-body", async () => {
+    expect(refused(blockScores(BLOCKS[0]!), 0, 8)).toBe(false);
+    expect(await mixedHarness(blockScores(BLOCKS[0]!)).run()).toEqual(REFUSED);
+  });
+
+  it("dull day 1 on a pretty road (whole 0.610668, day 1 alone 0.020000) ships the whole 200 trip", async () => {
+    expect(refused(blockScores(BLOCKS[1]!), 0, 8)).toBe(true);
+    expect(await mixedHarness(blockScores(BLOCKS[1]!)).run()).toEqual({ status: 200, requests: 7,
+      json: expectedTrip({ days: 5, edgeMs: SCENIC_EDGE_MS, lambda: 7.75, full: false }) });
+  });
+
+  it("meta: every strict sub-span [a, b) of the road has a row whose whole-road verdict differs from that span's", () => {
+    const rows = BLOCKS.map((row) => ({ scores: blockScores(row), whole: refused(blockScores(row)) }));
+    const uncaught: string[] = [];
+    let spans = 0;
+    for (let a = 0; a < EDGES; a++) {
+      for (let b = a + 1; b <= EDGES; b++) {
+        if (a === 0 && b === EDGES) continue;
+        spans += 1;
+        if (!rows.some((row) => row.whole !== refused(row.scores, a, b))) uncaught.push(`[${a}, ${b})`);
+      }
+    }
+    expect({ spans, uncaught }).toEqual({ spans: 819, uncaught: [] });
+  }, 30_000);
 });

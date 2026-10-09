@@ -20,6 +20,7 @@ acceptance:
   - "A3 EXEMPT: /isochrone (isochronePlanner.planReach) ships reach polygons only - no route, no scenic_score - so it is not scored (R1); its suites (isochroneShape, isochroneCost, isochroneVerdicts, surpriseReachParity) stay green unedited. POST /plan reroute stays exempt (T-0332 R6)."
   - "A4 NO REGRESSION: tripHarness.tripPath and loopHarness.loopPath default to a scenic_score 8 run (oracle 0.713333) so every pre-existing /trip and /loop test keeps its whole answer; vitest over tripRoute, tripFull, tripPlaces, tripRequest, loopShape, loopCost, closuresCrossing, closuresCrossingTrip, closuresDriven, closuresNearest, closuresNearestRetry, closuresRoutes, requestReadSites, reflectionSites, planHonest, isochroneShape, isochroneCost and the two new files all pass; P-COST-04 counts unchanged (trip <= 12, loop <= 3)."
   - "A5 PINS + GATES: named-tests.json P-SAFE-04 gains the A1 preview-refusal row and the A2 three-dull refusal row by name (a refusal carries no route, so the ceiling is untouched); check-pins-yaml, check-mutate-population, queue-check and check-line-cap green on the merged head; no Sources/ or apps/ios file changes (the client reading of the new 422 is the follow-up, R5)."
+  - "A6 WHOLE ROUTE, BY CLASS (pre-review M1a), through handleTrip, whole-body equality, in test/tripHonest.test.ts: 14 rows, each the tripHarness road (days 5, 8 edges a day) with edges [from, to) scored inside and the rest outside, oracle.py's whole-road score quoted per row; every row below 0.45 is the 422 {error: nothing_pretty, days: 5, extra_budget_pct: 40} after 7 requests and every row above is the whole 200 expectedTrip(days 5). Rows 1-10 are each day pretty on a dull road (0.304662-0.305999, refused) and dull on a pretty road (0.610668-0.644999, shipped); rows 11-14 cover the multi-day and near-whole spans ([8,28) 2/8 0.491452, [0,20) 8/2 0.459378, [0,20) 2/8 0.457289, [1,20) 8/2 0.446527). A meta row proves through routeScoreOf that every one of the 819 strict sub-spans [a, b) of the road has a row whose whole verdict differs from that span's verdict."
 ---
 ## Brief
 
@@ -121,3 +122,33 @@ MISSED before / CAUGHT after by test name.
   - A5 run-named-tests P-SAFE-04 (Swift scratch .build/t0335): "NAMED P-SAFE-04 passed=20/20", exit 0 (on 9d9e977f);
     check-pins-yaml "PINS-YAML ok pins=49 fields=395" exit 0; check-mutate-population "P-PROC-06: every added module
     is covered or allowlisted; the floor of 144 holds" exit 0; queue-check "QUEUE OK (328 tasks)" exit 0.
+- 2026-10-09T06:13:25Z PRE-REVIEW M1a CLOSED BY CLASS (agent/claude-opus-5, owner). The finding: scoring only DAY 1 of the chosen
+  route (the slice to split.plan[0].end_vertex) SURVIVED the 11 suites, because every /trip row scored one value on every edge, so
+  any sub-span scored the same as the whole road. RULED: the class is "a strict sub-span of the chosen route is scored in place of
+  the route that ships" (one day, several days, the route minus an edge). MEASURED with oracle.py (.artifacts/t0335/m1a_days.py
+  calls route_score/edges_of on the tripHarness road): day d pretty (8) on a dull (2) road scores 0.305999 / 0.305669 / 0.305336
+  / 0.305001 / 0.304662 for d = 1..5 (mean ~0.320, p90 0.8, dud ~0.80, 1 episode), and that day alone scores 0.713333. Day d dull
+  on a pretty road scores 0.610668 / 0.644331 / 0.644664 / 0.644999 / 0.612005, and that day alone scores 0.020000. Those 10 rows
+  catch every span inside one day but miss 299 of the 819 strict sub-spans [a, b) (multi-day and near-whole ones, e.g. days 1-3,
+  days 2-5, [0, 39)). A greedy cover over block rows added [8,28) 2-on-8 (0.491452), [0,20) 8-on-2 (0.459378), [0,20) 2-on-8
+  (0.457289) and [1,20) 8-on-2 (0.446527, the near-whole spans [0,39) [1,38) [1,39) [1,40) [2,37) [2,38) [2,39) [3,38)). After
+  those, 0 of the 819 are uncovered. Added as A6: the 14 rows (it.each over BLOCKS, whole-body through handleTrip, each one also
+  checks routeScoreOf against the oracle to 6 places), the two named rows the finding asks for ("pretty day 1 on a dull road ...
+  is refused whole-body", "dull day 1 on a pretty road ... ships the whole 200 trip"), and the meta row ("every strict sub-span
+  [a, b) of the road has a row whose whole-road verdict differs from that span's": {spans: 819, uncaught: []}).
+  - meta RED: with row 14 ([1,20) 8-on-2) removed, `vitest run test/tripHonest.test.ts -t meta` gives "Tests  1 failed | 21 skipped
+    (22)". With the row restored it is GREEN.
+  - MUTANTS (.artifacts/t0335/m1a_mutants.py, output in m1a_mutants.out). Each one replaces the R2 check with routeScoreOf(cut(a, b)), where cut
+    slices the coordinates and shifts the detail runs. The script restores the source byte-for-byte ("restored True"). "prior
+    rows" means the two describes that existed before this entry:
+    M1a day 1 only: "Tests  6 failed | 17 passed (23)", prior rows failing 0 (MISSED), CAUGHT by "edges [+0, 8) scored 8 ...",
+      "edges [+0, 8) scored 2 ...", "edges [+0, 20) scored 2 ...", "edges [1, 20) scored 8 ...", "pretty day 1 on a dull road ...",
+      "dull day 1 on a pretty road ...".
+    day 3 only: 6 failed, CAUGHT by [16,24) 8, [16,24) 2, [8,28) 2, [1,20) 8. The 2 prior failures are the days-2 closure rows,
+      which crash on split.plan[2] being undefined; that is not a catch of the class.
+    last day only: 3 failed, prior 0 (MISSED), CAUGHT by [32,40) 8, [32,40) 2, [0,20) 8.
+    days 1-3: 5 failed, CAUGHT by [8,28) 2, [0,20) 2, [1,20) 8. The 2 prior failures are the same days-2 crash.
+    all but day 1: 2 failed, prior 0 (MISSED), CAUGHT by [8,28) 2, [0,20) 8.
+    all but the last edge: 1 failed, prior 0 (MISSED), CAUGHT by [1,20) 8.
+  - GREEN on the source as written: `npx vitest run test/tripHonest.test.ts` "Tests  23 passed (23)" (the meta row runs in 104 ms;
+    it has a 30 s timeout so a loaded box does not fail it).
