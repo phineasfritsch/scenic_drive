@@ -210,4 +210,58 @@ struct DriveVoiceTests {
             #expect(Self.run(&session, steps) == expected, "pin \(String(describing: pin))")
         }
     }
+
+    @Test("P-SAFE-09: a landed reroute after a pin's approach, the destination's, or the arrival says the new line's cues, online or offline")
+    func landedRerouteSaysTheNewLine() throws {
+        var before: [(online: Bool, said: [[String]])] = []
+        for state in Self.cueStates {
+            for online in [true, false] {
+                var session = try #require(
+                    DriveSession(line: Self.line, waypoints: [Self.line[2]], lambda: 0.5, online: online))
+                // The same shape as the old line (5 vertices, pin at v2), 0.002 N, starting at the away fix.
+                let fresh = DriveFixtures.line(latitude: 0.002, firstLongitude: state.at, count: 5)
+                var steps: [(inout DriveSession) -> Void] = [Self.at(Self.east(state.at), 0), Self.at(fresh[0], 1),
+                                                             Self.at(fresh[0], 6)]
+                if !online { steps.append { _ = $0.connectivity(online: true) } }
+                let landing = steps.count
+                steps.append { _ = $0.rerouteArrived(line: fresh, waypoints: [fresh[2]]) }
+                for (t, ahead) in [0.017, 0.037, 0.0398].enumerated() {
+                    steps.append(Self.at(Self.east(state.at + ahead, north: 0.002), Double(7 + t)))
+                }
+                let left: [[String]] = online ? [[Self.leftOnline]] : [[Self.leftOffline], []]
+                let said = Self.run(&session, steps)
+                #expect(said == [[state.said], []] + left + [[Self.newWay], [Self.next], [Self.destination],
+                                                             [Self.arrived]], "\(state.said) online \(online)")
+                before.append((online, Array(said.prefix(landing))))
+            }
+        }
+        for online in [true, false] {
+            let rows = before.filter { $0.online == online }.map { "\($0.said)" }
+            #expect(rows.count == Self.cueStates.count && Set(rows).count == rows.count, "online \(online)")
+        }
+    }
+
+    /// An L: east along the equator to a corner, then north; one leg, no pin.
+    static let bent = [Coordinate(latitude: 0, longitude: 0), Coordinate(latitude: 0, longitude: 0.003),
+                       Coordinate(latitude: 0.003, longitude: 0.003)]
+
+    @Test("P-SAFE-09: on a bent line the approach is measured along the line - quiet just above 400 m along it, though the crow flies under 400")
+    func bentLineMeasuresAlongTheLine() throws {
+        let corner = Self.bent[1], end = Self.bent[2]
+        let along = { (at: Coordinate) in Geo.distanceMeters(at, corner) + Geo.distanceMeters(corner, end) }
+        let above = Self.east(0.00237), below = Self.east(0.00246)
+        let bound = DriveVoice.approachMeters
+        #expect(along(above) > bound && along(above) < bound + 10 && Geo.distanceMeters(above, end) < bound - 50)
+        #expect(along(below) <= bound && along(below) > bound - 15 && Geo.distanceMeters(below, end) < bound - 50)
+        var probe = try #require(DriveSession(line: Self.bent, waypoints: [], lambda: 0.5, online: true))
+        _ = probe.observe(DriveFixtures.fix(above, at: 0))
+        let end2 = try #require(probe.legEnd)
+        #expect(end2.vertex == 2 && end2.meters == along(above))
+        var session = try #require(DriveSession(line: Self.bent, waypoints: [], lambda: 0.5, online: true))
+        let said = Self.run(&session, [
+            Self.at(Self.east(0.0005), 0), Self.at(above, 1), Self.at(below, 2),
+            Self.at(Coordinate(latitude: 0.0029, longitude: 0.003), 3),
+        ])
+        #expect(said == [[], [], [Self.destination], [Self.arrived]])
+    }
 }

@@ -1539,7 +1539,9 @@
         "ScenicKitTests.DriveVoiceTests/legEndOnlyOnTheLine()",
         "ScenicKitTests.DriveVoiceTests/offlineThenANewWay()",
         "ScenicKitTests.DriveVoiceTests/roundTripRepeatsNothing()",
-        "ScenicKitTests.DriveVoiceTests/pinAtEveryVertex()"
+        "ScenicKitTests.DriveVoiceTests/pinAtEveryVertex()",
+        "ScenicKitTests.DriveVoiceTests/landedRerouteSaysTheNewLine()",
+        "ScenicKitTests.DriveVoiceTests/bentLineMeasuresAlongTheLine()"
       ]
     }
   },
