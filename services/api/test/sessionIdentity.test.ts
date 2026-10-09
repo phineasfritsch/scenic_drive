@@ -48,6 +48,13 @@ async function plan(headers: Headers, e: Partial<Env>) {
 const today = (device: string | null, token?: string) => plan({ ...(device ? { "x-scenic-device": device } : {}),
   ...(token ? { "x-scenic-account-token": token } : {}) }, { SESSION_JWT_SECRET: undefined, IDENTITY_HEADERS: undefined });
 
+/** T-0333 R1: the flag closed, a present authorization that does not verify is 401 with the quota exactly as seeded. */
+function rejected() {
+  const q = fakeQuotaNamespace();
+  for (const [b, n] of SEEDS) q.seed(`device:${b}`, "daily", { day: "2026-10-05", plan: n });
+  return { status: 401, json: { error: "session_rejected" }, state: q.state() };
+}
+
 const claims = (over: Record<string, unknown> = {}) => ({ iss: "scenic-api", sub: DEVICE, iat: S, exp: S + 3600, ...over });
 const bearer = (jwt: string) => ({ authorization: `Bearer ${jwt}` });
 const WITH_SECRET = { SESSION_JWT_SECRET: SECRET, IDENTITY_HEADERS: "1" };
@@ -99,7 +106,7 @@ describe("a verified session JWT is the identity (R6)", () => {
   }
 });
 
-describe("a Bearer that does not verify reads as no Bearer: the headers under IDENTITY_HEADERS=1, else unidentified anon (R5, R6, T-0322 B1)", () => {
+describe("a Bearer that does not verify reads as no Bearer: the headers under IDENTITY_HEADERS=1, else 401 session_rejected (R5, R6, T-0322 B1, T-0333 R1)", () => {
   const head = (json: string) => b64url(json);
   const INVALID: [string, () => Promise<string>][] = [
     ["now = exp (bound)", () => mintJwt(claims({ iat: S - 3600, exp: S }))],
@@ -131,14 +138,14 @@ describe("a Bearer that does not verify reads as no Bearer: the headers under ID
       const token = await jwt();
       expect([await plan({ ...bearer(token), ...LEGACY_HEADERS }, WITH_SECRET),
         await plan({ ...bearer(token), ...LEGACY_HEADERS }, { ...WITH_SECRET, IDENTITY_HEADERS: undefined })])
-        .toEqual([await today(OTHER_DEVICE, PAID), await today(null)]);
+        .toEqual([await today(OTHER_DEVICE, PAID), rejected()]);
     });
   }
 
   it("1 ms past the second S, iat = S + 1 is still in the future (now is the clock floored, bound)", async () => {
     vi.setSystemTime(NOW.getTime() + 1);
     const jwt = await mintJwt(claims({ iat: S + 1, exp: S + 3601 }));
-    expect(await plan({ ...bearer(jwt), ...LEGACY_HEADERS }, { ...WITH_SECRET, IDENTITY_HEADERS: undefined })).toEqual(await today(null));
+    expect(await plan({ ...bearer(jwt), ...LEGACY_HEADERS }, { ...WITH_SECRET, IDENTITY_HEADERS: undefined })).toEqual(rejected());
   });
 
   it("999 ms past the second S, exp = S + 1 is still valid: the sub's bucket (now is the clock floored, bound)", async () => {
@@ -154,7 +161,7 @@ describe("a Bearer that does not verify reads as no Bearer: the headers under ID
       await plan({ authorization: "Basic dXNlcjpwYXNz", ...LEGACY_HEADERS }, WITH_SECRET),
       await plan({ authorization: `bearer ${jwt}`, ...LEGACY_HEADERS }, off),
       await plan({ authorization: "Basic dXNlcjpwYXNz", ...LEGACY_HEADERS }, off)])
-      .toEqual([await today(OTHER_DEVICE, PAID), await today(OTHER_DEVICE, PAID), await today(null), await today(null)]);
+      .toEqual([await today(OTHER_DEVICE, PAID), await today(OTHER_DEVICE, PAID), rejected(), rejected()]);
   });
 });
 

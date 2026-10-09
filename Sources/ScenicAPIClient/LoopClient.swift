@@ -1,7 +1,8 @@
 import Foundation
 import ScenicKit
 
-/// POST /loop (T-0314 R1, R2). One request per call and no retries: the body is validated on the device first (a
+/// POST /loop (T-0314 R1, R2). One request per call and no retries - but ONE resend after a 401 to its Bearer
+/// (T-0333 R3, PlanFamilySend): the body is validated on the device first (a
 /// refusal sends nothing), sent once with PlanClient's IdentityHeaders (T-0315), and the reply read once through
 /// LoopReplyReader. A transport throw is routingOffline.
 public struct LoopClient: Sendable {
@@ -35,14 +36,12 @@ public struct LoopClient: Sendable {
         guard let bytes = try? encoder.encode(body) else { throw .refusedOnDevice(.startOutOfRange) }
 
         let account = await accountToken?.accountToken()
-        let bearer = await session?.planSession(account: account)
-        let request = PlanHTTPRequest(url: base.appendingPathComponent("loop"), method: "POST",
-                                      headers: IdentityHeaders.json(device: installID.installID(),
-                                                                     account: account, bearer: bearer),
-                                      body: bytes)
         let reply: PlanHTTPReply
         do {
-            reply = try await transport.send(request)
+            // T-0333 R3: a 401 to a Bearer is handed back, the session asked again, and the same bytes sent once more.
+            reply = try await PlanFamilySend.send(base.appendingPathComponent("loop"), body: bytes,
+                                                  device: installID.installID(), account: account, session: session,
+                                                  transport: transport)
         } catch {
             throw .routingOffline
         }
