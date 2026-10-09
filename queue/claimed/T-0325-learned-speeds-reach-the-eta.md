@@ -140,3 +140,22 @@ edge is learned (product invariant).
   merge of origin/main may still need one). R1: the acceptance R6 line is re-quoted below to name what shipped
   (CorridorClock only); the dated entries above stay as written. R2 and R3 stay recorded for T-0343; R4/R5 need
   nothing.
+- 2026-10-09T14:22:43Z FIX ROUND 1 (agent/claude-opus-5). Prove-red: `python ops/mutate/traffic.py --only 63` at
+  39e50a26 (the ruling commit: population entry 63 added, tests as at ed27efb1): "MUTATE FAILED caught=0/1 ... MISSED
+  1". Tests (031a0230): CorridorClockTests.transitionTable and RetimedPreviewTests.fiveDrivesClearTheBadge run every
+  row under CorridorClockTests.variants (no pins; "a pin inside the last edge"; "a pin at the last edge's first
+  vertex"), each transition row comparing the learner's slots and the per-fix observe counts whole; drive() checks
+  legs = pins + 1 and the variant's corridor edges equal the no-pin route's; a "stops at m" row added; f3 is
+  on(3, 0.0001) (inside 50 m of m, which is in c[3] - both asserted). `--only 51,...,61,63` at 031a0230 (every entry
+  whose tests the change touched, plus 63): "MUTATE OK caught=12/12", 63 "arrival ignores the last-vertex check" by
+  "a clean drive teaches every edge once; a skip, a detour, a late start, no arrival and a reroute do not" and "five
+  completed drives clear the badge and four do not". MIN_MUTATIONS 62 -> 63. No Sources/ change. R1: acceptance R6
+  re-quoted to "CorridorClock added to the guarded identifiers (the only new type that holds learned values; no
+  CorridorObservation type shipped - observe records straight into the learner and answers a count)". Merged
+  origin/main (PR #225 T-0333, T-0344 filing) as 9717664b, no conflicts (digests, named-tests.json and PINS.yaml
+  auto-merged). On 9717664b: the six touched suites "Test run with 16 tests in 6 suites passed"; `run-named-tests.py
+  P-SAFE-07` "NAMED P-SAFE-07 passed=16/16"; check-learned-speeds-sites.py "ok - 17 sites, every one approved, in 7
+  files" exit 0; check-safety-disclaimer exit 0 (no digest re-approval needed - the merged Sources/ rows came from
+  main as approved); check-mutate-population "every added module is covered or allowlisted; the floor of 147
+  holds"; check-pins-yaml "PINS-YAML ok pins=49 fields=395"; queue-check "QUEUE OK (335 tasks)"; merge-base
+  --is-ancestor origin/main HEAD exit 0. iOS: ios-compile dispatched on the pushed head (run id in the PR thread).
