@@ -170,3 +170,23 @@ xcodeproj lock.
   quoted below), committed BEFORE the tests and run `--only 103,104`; floor 102 -> 104. Both tests named under P-SAFE-09
   in named-tests.json (21 -> 23). Both go in DriveVoiceTests.swift (213 lines; stays under 300), so FILTER and
   TEST_FILES do not change.
+- 2026-10-09T02:54:05Z rv1 CLOSED BY CLASS (agent/claude-opus-5). BEFORE the tests (e6132b12, entries committed
+  alone): `drive.py --only 103,104` "MISSED 103 a landed reroute keeps the arrival exit=0 no test objected"; "WRONG
+  KILLER 104 legEnd as the crow flies named ['P-SAFE-09: on a bent line ...']; red were ['P-SAFE-09: the leg end is
+  the next pin past the progress, else the last vertex, measured along the line']" (the straight-line rounding the
+  reviewer recorded); "caught by the test that names it: 0 of 2 (wrong killer 1, ..., MISSED 1, ...) MUTATE FAILED".
+  AFTER (1b403a2f, `landedRerouteSaysTheNewLine` + `bentLineMeasuresAlongTheLine`): "caught 104 legEnd as the crow
+  flies by: P-SAFE-09: on a bent line ... | P-SAFE-09: the leg end is ..."; "caught by the test that names it: 2 of 2
+  (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0) MUTATE OK". The bent row's fixture inequalities
+  (along > 400 >= along-10 m step, crow < 350) and legEnd.meters == along-the-line sum are asserted in the test by
+  Geo.distanceMeters. No Sources/ change; no digest row moves. DriveVoiceTests.swift 267 lines.
+  MERGED origin/main e3de4d78 (PR #215 T-0332; queue T-0326) clean, merge message amended to carry the attribution
+  (cb6516de); digest rows auto-unioned (T-0332's PlanSheetFailure.swift row), named-tests/allowlist unioned.
+  ON THE MERGED HEAD cb6516de: touched suites "Test run with 44 tests in 6 suites passed"; "NAMED P-SAFE-09
+  passed=23/23"; `drive.py --only 91,103,104` "caught by the test that names it: 3 of 3 (wrong killer 0, trapped 0,
+  compile-only 0, MISSED 0, skipped 0) MUTATE OK"; check-safety-disclaimer exit 0; check-drive-display exit 0 ("19
+  approved whole lines"); check-drive-voice ("7 approved whole lines"); check-mutate-population exit 0 (mutations=104
+  floor 104, equivalent 6, test files 9; "P-PROC-06: ... the floor of 144 holds"); check-pins-yaml "PINS-YAML ok
+  pins=49 fields=395"; check-line-cap "514 Swift files ... none over 300 lines"; queue-check "QUEUE OK (326 tasks)".
+  Apple CI on cb6516de: ios-compile 37873969017 success (2m25s), ios-screenshot 37873973057 success (8m56s); linux-core
+  37873972570 success.
