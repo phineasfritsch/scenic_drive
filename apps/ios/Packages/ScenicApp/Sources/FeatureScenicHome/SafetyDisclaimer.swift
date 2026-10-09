@@ -34,7 +34,7 @@ struct SafetyDisclaimer: View {
 
     /// T-0309 R1: first-run onboarding is this sheet grown a first step. The ScenicKit machine decides when the
     /// disclaimer is accepted; `onAccept` runs only then, so the one stored flag keeps its one writer.
-    @State private var onboarding = Onboarding()
+    @State private var onboarding = OnboardingRehearsal.atLaunch
     /// The vehicle, stored only together with the acceptance (R2: on the device, never on the wire yet).
     @AppStorage(VehicleProfile.storageKey) private var storedVehicle = ""
 

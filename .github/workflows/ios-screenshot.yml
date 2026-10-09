@@ -6,7 +6,10 @@
 # argument) and collapsed again with the menu's 'Fastest' row selected (T-0246: `-menuRow 0`; every other shot passes
 # `-menuRow default`, which is no row, so the menu's own default row), then Settings and the paywall (T-0271:
 # `-screen settings|paywall|surprise`, read only in a DEBUG build; every home shot passes `-screen home`), the drive (T-0324:
-# `-screen drive` with location granted and a simulated location moving at 15 m/s along the rehearsal line), as ONE artifact,
+# `-screen drive` with location granted and a simulated location moving at 15 m/s along the rehearsal line), and (T-0336)
+# onboarding's two steps (no arguments; `-screen disclaimer`), the plan sheet's preview, nothingPretty, loop, trip and
+# saved (`-screen <name>`, FeaturePlanSheet's PlanRehearsal) and Legal (`-screen legal`). Every shot but onboarding's
+# passes the acknowledgement and the vehicle in the argument domain (DONE): volatile, never written. As ONE artifact,
 # `ios-screenshots`, so the app can be SEEN. It proves nothing about
 # signing or TestFlight (T-0009). The runner needs network: the demo style is remote. apps/ios/ScenicDrive/Tiles/
 # la.pmtiles is gitignored, so CI draws the MapLibre demo tiles and credits them as such - BasemapResolver's
@@ -118,16 +121,20 @@ jobs:
           }
           for LOOK in light dark; do
             xcrun simctl ui "$UDID" appearance "$LOOK"
-            for SHOT in collapsed medium fastest settings paywall surprise drive; do
+            for SHOT in collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty loop trip saved legal; do
+              DONE=(-safety.disclaimer.acknowledged.v1 YES -vehicle.profile.v1 standard)
               case "$SHOT" in
                 fastest) DETENT=collapsed ROW=0 SCREEN=home NAME=home-$LOOK-$SHOT ;;
-                settings|paywall|surprise) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
+                settings|paywall|surprise|legal) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
+                onboarding) DETENT=collapsed ROW=default SCREEN=home NAME=onboarding-$LOOK DONE=() ;;
+                disclaimer) DETENT=collapsed ROW=default SCREEN=disclaimer NAME=disclaimer-$LOOK DONE=() ;;
+                preview|nothingPretty|loop|trip|saved) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=plan-$SHOT-$LOOK ;;
                 drive) DETENT=collapsed ROW=default SCREEN=drive NAME=drive-$LOOK
                   xcrun simctl privacy "$UDID" grant location "$BUNDLE"
                   xcrun simctl location "$UDID" start --speed=15 34.0905,-118.6370 34.0880,-118.6250 34.0855,-118.6150 34.0830,-118.6050 ;;
                 *) DETENT=$SHOT ROW=default SCREEN=home NAME=home-$LOOK-$SHOT ;;
               esac
-              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN")
+              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN" "${DONE[@]}")
               echo "$LAUNCHED"
               PID=${LAUNCHED##*: }
               case "$PID" in ''|*[!0-9]*) echo "ios-screenshot: simctl launch printed no pid: $LAUNCHED"; exit 1;; esac

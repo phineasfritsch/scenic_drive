@@ -65,16 +65,20 @@ alive() {
 }
 for LOOK in light dark; do
   xcrun simctl ui "$UDID" appearance "$LOOK"
-  for SHOT in collapsed medium fastest settings paywall surprise drive; do
+  for SHOT in collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty loop trip saved legal; do
+    DONE=(-safety.disclaimer.acknowledged.v1 YES -vehicle.profile.v1 standard)
     case "$SHOT" in
       fastest) DETENT=collapsed ROW=0 SCREEN=home NAME=home-$LOOK-$SHOT ;;
-      settings|paywall|surprise) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
+      settings|paywall|surprise|legal) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
+      onboarding) DETENT=collapsed ROW=default SCREEN=home NAME=onboarding-$LOOK DONE=() ;;
+      disclaimer) DETENT=collapsed ROW=default SCREEN=disclaimer NAME=disclaimer-$LOOK DONE=() ;;
+      preview|nothingPretty|loop|trip|saved) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=plan-$SHOT-$LOOK ;;
       drive) DETENT=collapsed ROW=default SCREEN=drive NAME=drive-$LOOK
         xcrun simctl privacy "$UDID" grant location "$BUNDLE"
         xcrun simctl location "$UDID" start --speed=15 34.0905,-118.6370 34.0880,-118.6250 34.0855,-118.6150 34.0830,-118.6050 ;;
       *) DETENT=$SHOT ROW=default SCREEN=home NAME=home-$LOOK-$SHOT ;;
     esac
-    LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN")
+    LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN" "${DONE[@]}")
     echo "$LAUNCHED"
     PID=${LAUNCHED##*: }
     case "$PID" in ''|*[!0-9]*) echo "ios-screenshot: simctl launch printed no pid: $LAUNCHED"; exit 1;; esac
@@ -133,9 +137,10 @@ CAPTURE = f"      - name: {CAPTURE_STEP}\n        run: |\n"
 GUARD = '          test -d "$DEVELOPER_DIR" || { echo "ios-screenshot: $DEVELOPER_DIR is not on this image"; exit 1; }\n'
 TEE = 'build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"\n'
 LAUNCH = ('              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW"'
-          ' -screen "$SCREEN")\n')
+          ' -screen "$SCREEN" "${DONE[@]}")\n')
 ALIVE = '              alive "$PID" "${SETTLE}s after the $LOOK $SHOT launch"\n'
-SHOTS_LIST = "            for SHOT in collapsed medium fastest settings paywall surprise drive; do\n"
+SHOTS_LIST = ("            for SHOT in collapsed medium fastest settings paywall surprise drive onboarding disclaimer"
+              " preview nothingPretty loop trip saved legal; do\n")
 LS = '          ls -l "$SHOTS"\n'
 
 
@@ -177,8 +182,13 @@ MUTATIONS = [
     ("CRASH UNSEEN: || true after the launch", LAUNCH, LAUNCH.rstrip("\n") + " || true\n"),
     ("T-0271: the -screen argument dropped (settings and paywall shots become home shots)", LAUNCH,
      LAUNCH.replace(' -screen "$SCREEN"', "")),
-    ("T-0324: the drive shot dropped", SHOTS_LIST,
-     "            for SHOT in collapsed medium fastest settings paywall surprise; do\n"),
+    ("T-0336: onboarding done for no shot (every shot but drive becomes onboarding)", LAUNCH,
+     LAUNCH.replace(' "${DONE[@]}"', "")),
+    ("T-0324: the drive shot dropped", SHOTS_LIST, SHOTS_LIST.replace(" drive onboarding", " onboarding")),
+    ("T-0336: the plan-sheet shots dropped", SHOTS_LIST,
+     SHOTS_LIST.replace(" preview nothingPretty loop trip saved", "")),
+    ("T-0336: the onboarding and legal shots dropped", SHOTS_LIST,
+     SHOTS_LIST.replace(" onboarding disclaimer", "").replace(" legal;", ";")),
     ("T-0271: the settings and paywall shots dropped", SHOTS_LIST,
      "            for SHOT in collapsed medium fastest; do\n"),
     ("a hard-coded device instead of the one chosen from the image's own lists",
