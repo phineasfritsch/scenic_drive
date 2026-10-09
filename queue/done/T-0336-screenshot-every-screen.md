@@ -11,7 +11,7 @@ branch: task/T-0336
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, .github/workflows/ios-screenshot.yml, ops/lib/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-ATTR-01, P-SAFE-03, P-SAFE-07]
-reviewer: agent/rv1-t0336
+reviewer: agent/rv2-t0336
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
@@ -206,3 +206,20 @@ human-initiated only).
   PR #220 (T-0335: services/api, ops/lib/named-tests.json) and the T-0337 queue moves; merged clean as 21551365 (no
   conflict, no Swift, workflow or digest path touched). Bare gates re-run on the merged head below; the iOS runs
   above stand, because no apps/ios, Sources/ or workflow file changed.
+- 2026-10-09T08:21:30Z agent/rv2-t0336 (reviewer) review PASS (round 2, merge-main + offered shot) on 363fdee9. Merge 122a78a4
+  keeps both sides: PlanSheetScreen.swift has T-0334's `.offered` -> PlanOfferCard(copy: PlanOfferCopy.of(offer)...)
+  and T-0336's `PlanRehearsal.atLaunch` hook; its tree differs from the auto-merge only in the conflicted
+  -pinned row, recomputed to fab8d6f1... which equals the merged file's LF sha256. Every path row of both parents
+  is present in -pinned (115 rows), -frozen and -linked-digests.txt (268 rows); every head row matches its file.
+  Merges 4a89e3ec and 21551365 equal `git merge-tree` of their parents. Rehearsal guard seen red by name on two
+  spellings of my own: the release `#else` returning rehearsal(named: "offered") and `PlanRehearsalFixtures.offer`
+  named in PlanSheetScreen.swift, each "is not an approved -screen site", exit 1; restored, exit 0.
+  check-ios-compile-guardrails --prove-red: "T-0336: the plan-offered shot dropped" red, PROVE-RED OK 73/6.
+  Bare gates exit 0: check-safety-disclaimer, check-map-attribution, check-store-links.py,
+  check-screen-rehearsals.py (11 approved sites), check-ios-compile-guardrails.py. gh pr checks 221 on 363fdee9:
+  core pass 7m11s, pins-source-only pass 2m25s. Dispatched on 363fdee9: ios-compile 37902063876 success,
+  ios-screenshot 37902068436 success (32 PNGs). Looked at plan-offered light+dark ("Not much pretty within 25
+  extra minutes of this drive.", "Try 65 extra minutes", "All back roads: about 60 min, 32 extra minutes"
+  wrapping unclipped, "Choose another place"; no map surface) and plan-preview light (Zuma Beach, 55 min / 20 min
+  longer, estimate badge, bold "Conditions change. Verify locally.", Route data (c) OpenStreetMap footer).
+  merge-base --is-ancestor origin/main origin/task/T-0336: yes.
