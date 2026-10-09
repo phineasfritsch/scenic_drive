@@ -158,3 +158,26 @@ MISSED before / CAUGHT after by test name.
   tripHonest rows. A5: queue-check "QUEUE OK (328 tasks)"; check-line-cap "P-SRC-02: 515 Swift files tracked ..., none over 300
   lines" exit 0. PINS.yaml, named-tests.json, Sources/ and apps/ios are unchanged by this entry, so the P-SAFE-04 / pins-yaml /
   digest results quoted above stand.
+- 2026-10-09T06:33:36Z RULED on rv1-t0335 FAIL (PR #220, head 876923f4), before any code (agent/claude-opus-5, owner). Both
+  findings are population gaps, not wording gaps; each is closed by CLASS, rows as a function of the request.
+  - B1 the class: "the /trip refusal body echoes something other than the request's own values" (extra_budget_pct read
+    from the cap or default, days from a constant). Every A1/A6 refusal row sent TRIP_BODY (days 5, extra_budget_pct
+    defaulted to 40), so the cap and the request's value were the same number. New tripHonest rows: the cross product
+    extra_budget_pct {21, 39, 40} x days {2, 5}, each body expected WHOLE as {error: nothing_pretty, days: <the
+    request's>, extra_budget_pct: <the request's>} after 7 requests. pct 0/10/20 are not used: rv1 RECORDABLE 1
+    measured that this harness's fast path (scored 8) is chosen there and fails ceiling_breached later - a harness
+    artifact, not a refusal row.
+  - B2 the class: "a seed step of the loop ladder leaves uint32" (seed + 1 or seed + 2 without `>>> 0`). Every loop
+    row used SEED = fnv1a32("device-1|2026-10-05"), far from 2^32. New loopHonest rows: the cross product of the two
+    seeds at the wrap {0xFFFFFFFE (userId "agO3ON"), 0xFFFFFFFF (userId "v551St")} x answers {[2, 8], [2, 2, 8],
+    [2, 2, 2]}; each row asserts fnv1a32(`${user}|2026-10-05`) equals its seed, then the WHOLE answer (200 via
+    shipped() or 422 nothing_pretty) and the router seeds, the expected seeds computed as (S + i) % 2^32 (modulo, not
+    the source's `>>> 0`). The preimages are rv1's meet-in-the-middle (.artifacts/t0335/preimage.mjs).
+  - POPULATION (R6 amended): rv1 shows the Worker harness (services/api/test/mutate/*.mjs) never ran tripHonest or
+    loopHonest, so T-0335's own mutants lived in .artifacts only. tripMutants.mjs gains "trip-refusal-pct-cap" (B1:
+    extraBudgetPct -> 40, the value of MAX_EXTRA_BUDGET_PCT, written as the literal so no import line is mutated) and
+    "trip-refusal-days-5" (the days half of the class); loopMutants.mjs gains "planner-reroll-no-wrap" (B2) and
+    "planner-reseed-no-wrap" (the seed + 1 `>>> 0` drop) plus the --only flag tripMutants has. Each TESTS list gains
+    its honest suite; each MIN_MUTATIONS floor rises by 2. MISSED at 876923f4's tests, CAUGHT by name after.
+  - P-SAFE-04: named-tests.json lists the refusal rows by name, so one B1 row (pct 39, days 2) and one B2 row
+    (0xFFFFFFFE, [2, 2, 2]) join it by name.
