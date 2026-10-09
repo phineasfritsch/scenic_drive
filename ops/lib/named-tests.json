@@ -1490,6 +1490,14 @@
         "meta: no trip cap row ignores its variant (T-0286) > for each crossing, the four day counts expect four different answers; for each day count, the three crossings differ",
         "meta: no trip cap row ignores its variant (T-0286) > the cap is reached, never passed: the most requests any row expects is 12"
       ]
+    },
+    "swift": {
+      "filter": "ScenicAPIClientTests\\.ClosuresHazardTests|ScenicKitTests\\.HazardCopyTests",
+      "tests": [
+        "ScenicAPIClientTests.ClosuresHazardTests/everyWorkerShape()",
+        "ScenicAPIClientTests.ClosuresHazardTests/unreadableIsSafe()",
+        "ScenicKitTests.HazardCopyTests/closureLines()"
+      ]
     }
   },
   "P-PRIV-06": {
