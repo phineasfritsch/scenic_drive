@@ -152,3 +152,16 @@ P-SAFE-02's layers still see each hazard; shots looked at.
     "PROVE-RED OK: 9 of 9 rows red by name, control 0". Green: "P-SAFE-03 hazard copy: ok - 5 sites, every one
     approved, in 3 files". CANNOT SEE: interpolation or String(describing:) over a whole PlanPreview (no identifier
     spelled); the digest table still refuses any byte change to the card.
+- 2026-10-09T10:30:05Z ACCEPTANCE RE-RUN on dc1f9cbf (origin/main fetched and merged: "Already up to date" at
+  bdb77ca6; this Log commit touches no measured file; no file under Sources/ or apps/ changed since 2c15dbb6).
+  - A1-A5: `swift test --filter "HazardCopyTests|HazardStrip"` "Test run with 34 tests in 3 suites passed".
+  - A6, A8: unchanged since 09:16:30Z (HazardCopy.swift, its tests and the hazardcopy drivers untouched).
+  - A7: check-hazard-copy-sites.py "ok - 5 sites, every one approved, in 3 files"; --prove-red "PROVE-RED OK: 9 of 9
+    rows red by name, control 0".
+  - A9: check-pins-yaml "PINS-YAML ok pins=49 fields=395"; check-line-cap "526 Swift files ... none over 300 lines";
+    check-mutate-population "every added module is covered or allowlisted; the floor of 145 holds"; check-exec-bits
+    "P-OPS-01: 199 files, 23 required present, all modes correct"; queue-check "QUEUE OK (331 tasks)"; bare
+    check-safety-disclaimer exit=0 (both digest tables). PR CI linux-core 37915163350 on dc1f9cbf: core success,
+    pins-source-only success (the jobs red at 09:25 on P-SAFE-03/P-ATTR-01). ios-compile 37906862915 success and
+    ios-screenshot 37906867328 success stand (2c15dbb6, the last commit touching apps/ios or Sources); not
+    re-triggered, nothing Apple-side changed. Screens as LOOKED AT 09:16:30Z.
