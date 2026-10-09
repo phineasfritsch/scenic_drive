@@ -124,3 +124,19 @@ unchanged, compared whole; bind it under P-PRIV-04 and update the row's count in
   path, router honours: ...` (closuresCrossing), CAUGHT token-remember-unkeyed by `every answer remembers its pins and
   lambda under plan_token for 43200 s`; RESULT caught=2 missed=0 (the first attempt REFUSED on a non-green baseline -
   planCeiling's 120-curve property timing out beside the siwa run; re-run alone, green).
+- 2026-10-09T03:40:18Z ACCEPTANCE RE-RUN on the merged head f6e8fce1 (origin/main e3de4d78, PR #215 T-0332 merged in;
+  one conflict in planReroute.test.ts, a union of T-0326's foreign-device test and T-0332's reroute-exempt test).
+  (1) RULED FIRST: commit db047780 carries R1-R9 and the acceptance before any code. (2) Key: planReroute.test.ts
+  green inside the 259 below; `a foreign device cannot read another device's token: ...` bound. (3) Sweep cross
+  product, (4) failure arms, (5) bound, (6) shipped wiring: accountDeletePlans.test.ts 14/14. Touched files on the
+  merged head: `npx vitest run asnVerify accountDeletePlans accountDelete planReroute closuresCrossing
+  identityVerifierPin requestReadSites` -> Test Files 7 passed (7), Tests 259 passed (259). Whole services/api suite
+  on the merged head: 2416/2419, the 3 failures (configAnswerPath, sharedEnvWorker, waitlistDedupe) `Test timed out
+  in 5000ms` under load plus one pool-start ECONNRESET; re-run alone: Test Files 3 passed, Tests 14 passed.
+  (7) Pins: `python ops/lib/run-named-tests.py P-PRIV-04` -> NAMED P-PRIV-04 passed=68/68 (no Swift row in this
+  entry, so nothing GRDB-gated is MISSING); `python ops/lib/check-pins-yaml.py` -> PINS-YAML ok pins=48 fields=387;
+  account.ts hash and requestReadSites lines re-approved (green above); mutants quoted in the entries above.
+  (8) RED first: quoted above. (9) `bash ops/lib/check-line-cap` -> P-SRC-02 none over 300 (Swift only); TS line
+  counts: planSweep.ts 63, account.ts 160, planToken.ts 95, accountDeletePlans.test.ts 175, planReroute.test.ts 238;
+  closuresCrossing.test.ts is 302 on origin/main already (T-0332's merge) and this branch changes one line in place;
+  `bash ops/queue-check` -> QUEUE OK (326 tasks).
