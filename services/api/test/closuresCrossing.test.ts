@@ -127,7 +127,10 @@ export function expectedRow(r: Route, s: SetName, shape: Shape, router: Router) 
   const hazard = dropped === 0 && crosses.length === 0 ? undefined : { state: "fresh", version: TEST_VERSION, fetched_at: NOW.toISOString(),
     ...(dropped > 0 ? { dropped } : {}), ...(crosses.length > 0 ? { crosses } : {}) };
   const areas = [...Array<unknown>(BASE[r]).fill(areasOf(first)), ...(re ? [areasOf(swapOf(r))] : [])];
-  return { status: 200, requests: areas.length, areas, coordinates: shapeOf(x, final), hazard };
+  // T-0342 R7: a /plan answer carries the SHIPPED path's runs - the re-request's when it swapped.
+  const n = shapeOf(x, final).length - 1;
+  const timeRuns = HANDLER[r] === "/plan" ? Array.from({ length: n }, (_, i) => ({ from: i, to: i + 1, ms: SCENIC_MS[r] / n })) : undefined;
+  return { status: 200, requests: areas.length, areas, coordinates: shapeOf(x, final), hazard, timeRuns };
 }
 
 let graph = 0;
@@ -176,11 +179,11 @@ export async function drive(r: Route, set: Feature[], body: unknown = BODIES[r])
   const req = new Request(`https://scenic-api.test${r}`, { method: "POST",
     headers: { "content-type": "application/json", "x-scenic-device": DEVICE }, body: JSON.stringify(body) });
   const response = await ROUTES[HANDLER[r]]!(req, shipped, new URL(req.url));
-  const json = (await response.json()) as { closures_hazard?: unknown; route?: { coordinates: unknown } };
+  const json = (await response.json()) as { closures_hazard?: unknown; route?: { coordinates: unknown }; time_runs?: unknown };
   lastAnswer = json as Record<string, unknown>;
   const modelled = sent.filter((b) => b.custom_model !== undefined);
   return { status: response.status, requests: modelled.length, areas: modelled.map((b) => (b.custom_model as { areas?: unknown }).areas),
-    coordinates: json.route?.coordinates, hazard: json.closures_hazard };
+    coordinates: json.route?.coordinates, hazard: json.closures_hazard, timeRuns: json.time_runs };
 }
 
 describe("every returned path is held to every stored closure; one re-request, then the hazard (T-0286, P-SAFE-08)", () => {
@@ -267,7 +270,9 @@ describe("a re-request exactly at the ceiling is returned: the ceiling is inclus
   for (const p of PLAN_PATHS) {
     it(`${p}, the re-request exactly at the ceiling: the clear path is returned, one re-request made`, async () => {
       [router, shape, reAnswer] = ["honours", "through", (r, x) => answer(shapeOf(x, "clear"), PLAN_CEILING_MS)];
-      expect(await drive(p, STORED)).toEqual(expectedRow(p, "the fixture", "through", "honours"));
+      // T-0342 R7: the swapped path's own runs - one edge at the ceiling - never the first path's.
+      expect(await drive(p, STORED)).toEqual({ ...expectedRow(p, "the fixture", "through", "honours"),
+        timeRuns: [{ from: 0, to: 1, ms: PLAN_CEILING_MS }] });
     });
   }
 });
