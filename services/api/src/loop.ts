@@ -12,7 +12,7 @@ import { closurePicker } from "./closuresNearest";
 import { withClosuresHazard, type ClosureSnapshot } from "./closuresStore";
 import { killSwitch } from "./killSwitch";
 import { parseLoopRequest } from "./loopRequest";
-import { LOOP_UPSTREAM_COST, LoopFailure, loopSeed, planLoop } from "./loopPlanner";
+import { LOOP_UPSTREAM_COST, LoopFailure, LoopNothingPretty, loopSeed, planLoop } from "./loopPlanner";
 import type { PlanEnv } from "./plan";
 import { dayKey } from "./quota";
 import { routerDepsFromEnv, type Identity, type RouterEnv } from "./routerDeps";
@@ -41,7 +41,7 @@ export function loopDepsFromEnv(env: PlanEnv & RouterEnv): LoopDeps | null {
   return routerDepsFromEnv(env);
 }
 
-function failure(error: unknown): Response {
+function failure(error: unknown, minutes: number): Response {
   if (error instanceof UpstreamPaused) {
     const verdict = error.verdict;
     if (!verdict.ok && verdict.reason === "quota_exhausted") {
@@ -50,6 +50,7 @@ function failure(error: unknown): Response {
     return json({ error: "planning_paused" }, 503);
   }
   if (error instanceof LoopFailure) return json({ error: "no_clean_loop", retrace_fraction: error.fraction }, 422);
+  if (error instanceof LoopNothingPretty) return json({ error: "nothing_pretty", minutes }, 422);
   if (error instanceof RouteError || error instanceof PlanBudgetExceeded) {
     return json({ error: "no_route", detail: error.message }, 502);
   }
@@ -84,6 +85,6 @@ export async function handleLoop(req: Request, env: PlanEnv, deps: LoopDeps | nu
       LOOP_UPSTREAM_COST);
     return json(withClosuresHazard(loop, snapshot, picker.dropped(), picker.crosses()), 200);
   } catch (error) {
-    return failure(error);
+    return failure(error, request.minutes);
   }
 }

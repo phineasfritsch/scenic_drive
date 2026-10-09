@@ -9,10 +9,10 @@ import { buildCustomModel } from "../src/customModel";
 import type { Tier } from "../src/quota";
 import { handleTrip, TRIP_UPSTREAM_COST, type TripDeps } from "../src/trip";
 import { guardedPlan, PlanBudgetExceeded } from "../src/upstream";
-import { BIG_SUR, EDGE_M, EDGES, expectedTrip, NOW, ROAD, ROUTER, SCENIC_EDGE_MS, TRIP_BODY, tripCounters, tripPath,
+import { BIG_SUR, PRETTY_RUNS, EDGE_M, EDGES, expectedTrip, NOW, ROAD, ROUTER, SCENIC_EDGE_MS, TRIP_BODY, tripCounters, tripPath,
   tripRequest, tripRouter, type RouterOptions } from "./tripHarness";
 
-const LEG = { points_encoded: false, instructions: false, "ch.disable": true, details: ["time", "distance"] };
+const LEG = { points_encoded: false, instructions: false, "ch.disable": true, details: ["time", "distance", "scenic_score"] };
 
 function harness(tier: Tier, options: RouterOptions = {}) {
   const events: string[] = [];
@@ -86,7 +86,7 @@ describe("the ceiling per day and for the trip (R7)", () => {
   // 4 x 4_031_999 (sum 20_159_996 <= 20_160_000); rounded UP they would be 4_032_001 + 4 x 4_032_000 = 20_160_001.
   const UNEVEN = [450_001, ...Array<number>(EDGES - 1).fill(SCENIC_EDGE_MS)];
   const unevenScenic = tripPath(ROAD, 0, { time: UNEVEN.map((ms, i) => [i, i + 1, ms]),
-    distance: UNEVEN.map((_, i) => [i, i + 1, EDGE_M]) }, 18_000_001);
+    distance: UNEVEN.map((_, i) => [i, i + 1, EDGE_M]), scenic_score: PRETTY_RUNS }, 18_000_001);
   const FLOORS = [4_032_000, 4_031_999, 4_031_999, 4_031_999, 4_031_999];
 
   it("an uneven share floors each day ceiling: the whole answer, and the day ceilings sum to <= the trip ceiling", async () => {
@@ -165,7 +165,8 @@ describe("a scenic body the splitter cannot read is 502 no_route, never partly s
 describe("the per-day ceiling at every extra_budget_pct bound, non-exact shares (P-SAFE-04)", () => {
   const FASTEST = 14_400_037;
   const ROUTE = [360_001, ...Array<number>(EDGES - 1).fill(360_000)];
-  const routeBody = tripPath(ROAD, 0, { time: ROUTE.map((ms, i) => [i, i + 1, ms]), distance: ROUTE.map((_, i) => [i, i + 1, EDGE_M]) }, FASTEST);
+  const routeBody = tripPath(ROAD, 0, { time: ROUTE.map((ms, i) => [i, i + 1, ms]), distance: ROUTE.map((_, i) => [i, i + 1, EDGE_M]),
+    scenic_score: PRETTY_RUNS }, FASTEST);
   const FLOORS: [number, number[]][] = [
     [0, [2_880_008, 2_880_007, 2_880_007, 2_880_007, 2_880_007]],
     [1, [2_908_808, 2_908_807, 2_908_807, 2_908_807, 2_908_807]],

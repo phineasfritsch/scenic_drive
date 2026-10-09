@@ -84,14 +84,15 @@ export function spurThenSquare(meters: number): [number, number][] {
   return spur.concat(spur.slice().reverse().slice(1), squareLoop().slice(1));
 }
 
-/** A GraphHopper body over [lat, lon] points, one road_class / osm_way_id run per segment. */
-export function loopPath(points: [number, number][], timeMs = 2_700_000): string {
+/** A GraphHopper body over [lat, lon] points, one road_class / osm_way_id run per segment, and a scenic_score of
+ *  `score` per segment - 8 by default, a pretty loop (T-0335: a dull or unscored loop is not shown); null: none. */
+export function loopPath(points: [number, number][], timeMs = 2_700_000, score: number | null = 8): string {
   const coordinates = points.map(([lat, lon]) => [lon, lat]);
   const runs = (value: (i: number) => string | number) => points.slice(1).map((_, i) => [i, i + 1, value(i)]);
-  return JSON.stringify({
-    paths: [{ time: timeMs, distance: 4000, points: { type: "LineString", coordinates },
-      details: { osm_way_id: runs((i) => 1000 + Math.floor(i / 20)), road_class: runs((i) => (Math.floor(i / 20) % 2 ? "secondary" : "tertiary")) } }],
-  });
+  const details: Record<string, unknown> = { osm_way_id: runs((i) => 1000 + Math.floor(i / 20)),
+    road_class: runs((i) => (Math.floor(i / 20) % 2 ? "secondary" : "tertiary")) };
+  if (score !== null) details.scenic_score = runs(() => score);
+  return JSON.stringify({ paths: [{ time: timeMs, distance: 4000, points: { type: "LineString", coordinates }, details }] });
 }
 
 export function loopRequest(body: unknown, method = "POST"): Request {

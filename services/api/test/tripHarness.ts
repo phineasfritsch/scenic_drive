@@ -27,18 +27,23 @@ export const SCENIC_MS = EDGES * SCENIC_EDGE_MS;
 export const ROAD: [number, number][] = Array.from({ length: EDGES + 1 }, (_, i) =>
   [ORIGIN.lon + ((BIG_SUR.lon - ORIGIN.lon) * i) / EDGES, ORIGIN.lat + ((BIG_SUR.lat - ORIGIN.lat) * i) / EDGES]);
 
+/** A scenic_score of 8 on every edge of the road (oracle 0.713333): a test that writes its own time and distance
+ *  runs adds this so its chosen route stays a pretty one (T-0335). */
+export const PRETTY_RUNS = Array.from({ length: EDGES }, (_, i) => [i, i + 1, 8]);
+
 export interface Sent {
   url: string;
   body: Record<string, unknown>;
 }
 
-/** A GraphHopper body: per-edge `time` (ms) and `distance` (m) runs over `points`, unless `details` replaces them. */
+/** A GraphHopper body: per-edge `time` (ms) and `distance` (m) runs over `points`, and a scenic_score of 8 per edge
+ *  (a pretty route - T-0335: a dull or unscored chosen route is refused), unless `details` replaces them. */
 export function tripPath(points: [number, number][], edgeMs: number, details?: Record<string, unknown>, timeMs?: number): string {
   const edges = points.length - 1;
   const runs = (value: number) => Array.from({ length: edges }, (_, i) => [i, i + 1, value]);
   return JSON.stringify({
     paths: [{ time: timeMs ?? edges * edgeMs, distance: edges * EDGE_M, points: { type: "LineString", coordinates: points },
-      details: details ?? { time: runs(edgeMs), distance: runs(EDGE_M) } }],
+      details: details ?? { time: runs(edgeMs), distance: runs(EDGE_M), scenic_score: runs(8) } }],
   });
 }
 

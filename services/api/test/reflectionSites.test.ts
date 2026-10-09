@@ -26,7 +26,7 @@ const APPROVED: Record<string, string[]> = {
   "../src/honestFailure.ts": ["constructor(backRoadsEtaSeconds: number | null) {"],
   "../src/killSwitch.ts": ["Object.freeze(KillSwitchReader.prototype);"],
   "../src/lambdaSearch.ts": ["constructor(reason: BudgetRefusal, message: string) {"],
-  "../src/loopPlanner.ts": ["constructor(fraction: number | null) {"],
+  "../src/loopPlanner.ts": ["constructor(fraction: number | null) {", "constructor() {"],
   "../src/quota.ts": [`return typeof t === "string" && ${OWN_PROTOTYPE}DAILY_PLAN_QUOTA, t);`],
   "../src/ro.ts": ["* ops/test now runs `ro_grammar.py --self-test`."],
   "../src/routePath.ts": ["constructor(reason: RouteRefusal, message: string) {"],
