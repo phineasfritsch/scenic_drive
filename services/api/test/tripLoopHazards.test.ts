@@ -11,7 +11,7 @@ import { handleLoop } from "../src/loop";
 import type { Tier } from "../src/quota";
 import { ROUTE_DETAILS } from "../src/scenicPlanner";
 import { handleTrip, type TripDeps } from "../src/trip";
-import { BIG_SUR, EDGE_M, EDGES, expectedTrip, NOW, ROAD, ROUTER, SCENIC_EDGE_MS, TRIP_BODY, tripCounters, tripPath,
+import { BIG_SUR, EDGE_M, EDGES, expectedTrip, FAST_EDGE_MS, NOW, ROAD, ROUTER, SCENIC_EDGE_MS, TRIP_BODY, tripCounters, tripPath,
   tripRequest, tripRouter } from "./tripHarness";
 import { LOOP_BODY, loopHarness, loopPath, loopRequest, NOW as LOOP_NOW, outAndBack, squareLoop, START } from "./loopHarness";
 
@@ -166,5 +166,102 @@ describe("T-0340 /loop hazards come from the SHIPPED attempt (A2)", () => {
     expect(SHIP_ROWS.map((r) => r.answers.length > 1 && r.answers.every((_, k) => k === r.ships
       || JSON.stringify(ATTEMPT_HAZARDS[k]) !== JSON.stringify(ATTEMPT_HAZARDS[r.ships])))).toEqual(SHIP_ROWS.map(() => true));
     expect(SHIP_ROWS.map((r) => r.ships)).toEqual([1, 2, 2, 1, 0]);
+  });
+});
+
+/** /trip's closure re-requests (closuresCrossingTrip's fixture): 100 stored squares nearer every corridor than X, so X
+ *  is dropped from the first request and a path over it buys ONE re-request carrying X. Preview: X on the search's
+ *  detour (road vertex 20 moved 0.3 degrees north-east); full: X on the day-2 leg's detour (via vertex 36 + 0.3). */
+type Answer = "crossing" | "reRequest" | "refused";
+const ne = (i: number): [number, number] => [ROAD[i]![0] + 0.3, ROAD[i]![1] + 0.3];
+const DETOUR = ROAD.map((p, i) => (i === 20 ? ne(20) : p));
+const NEAR = [0, 36].flatMap((v) => Array.from({ length: 50 }, (_, i) =>
+  area(`n${v}-${i + 1}`, ROAD[v]![0], ROAD[v]![1] - 0.01 - (i + 1) * 0.002, 0.0005)));
+const X_ROUTE = area("x", (ROAD[19]![0] + ne(20)[0]) / 2, (ROAD[19]![1] + ne(20)[1]) / 2, 0.0005);
+const X_LEG = area("x", ne(36)[0], ne(36)[1], 0.0005);
+const carries = (body: Record<string, unknown>, x: typeof X_LEG) =>
+  JSON.stringify((body.custom_model as { areas?: unknown } | undefined)?.areas ?? null).includes(JSON.stringify(x.geometry.coordinates));
+
+/** Each answer's runs and, by hand, what it reads as: preview per day (clipped at the night, point 20) or a day-2 leg. */
+const ROUTE_RUNS: Record<Answer, { surface: Run[]; access: Run[]; days: unknown[][] }> = {
+  crossing: { surface: [[5, 8, "gravel"]], access: [[30, 32, "PRIVATE"]],
+    days: [[h("surface", "gravel", 5, 8)], [h("road_access", "private", 30, 32)]] },
+  reRequest: { surface: [[12, 26, "Dirt"], [26, 40, "asphalt"]], access: [[2, 4, "destination"]],
+    days: [[h("surface", "dirt", 12, 20), h("road_access", "destination", 2, 4)], [h("surface", "dirt", 20, 26)]] },
+  refused: { surface: [[0, 3, "sand"]], access: [], days: [[h("surface", "sand", 0, 3)], []] },
+};
+const LEG1 = { surface: [[0, 1, "Gravel"]] as Run[], access: [] as Run[], hazards: [h("surface", "gravel", 0, 1)] };
+const LEG2_RUNS: Record<Answer, { surface: Run[]; access: Run[]; hazards: unknown[] }> = {
+  crossing: { surface: [], access: [[1, 2, "no"]], hazards: [h("road_access", "no", 1, 2)] },
+  reRequest: { surface: [[0, 1, "compacted"]], access: [[0, 1, "customers"]],
+    hazards: [h("surface", "compacted", 0, 1), h("road_access", "customers", 0, 1)] },
+  refused: { surface: [[0, 1, "ground"]], access: [], hazards: [h("surface", "ground", 0, 1)] },
+};
+function answer(points: [number, number][], edgeMs: number, runs: { surface: Run[]; access: Run[] }, timeMs?: number) {
+  const per = (v: number) => points.slice(1).map((_, i) => [i, i + 1, v]);
+  return tripPath(points, edgeMs, { time: per(edgeMs), distance: per(EDGE_M), scenic_score: per(8), surface: runs.surface,
+    road_access: runs.access }, timeMs);
+}
+
+/** Rows: {preview, full} x the re-request {ships, refused}; `ships` is the answer whose path goes out. */
+const TRIP_SHIP_ROWS: { name: string; full: boolean; reply: "reRequest" | "refused"; ships: Answer }[] = [
+  { name: "preview, a closure on the chosen route, its re-request ships", full: false, reply: "reRequest", ships: "reRequest" },
+  { name: "preview, the route's re-request refused - the crossing route stays", full: false, reply: "refused", ships: "crossing" },
+  { name: "full, a closure on the day-2 leg, its re-request ships", full: true, reply: "reRequest", ships: "reRequest" },
+  { name: "full, the day-2 leg's re-request refused - the crossing leg stays", full: true, reply: "refused", ships: "crossing" },
+];
+
+async function shipTrip(full: boolean, reply: "reRequest" | "refused") {
+  const x = full ? X_LEG : X_ROUTE;
+  const snapshot: ClosureSnapshot = { version: TEST_VERSION, fetchedAt: NOW.toISOString(), hazard: null,
+    closures: { type: "FeatureCollection", features: [...NEAR, x] } as never };
+  const sent: Record<string, unknown>[] = [];
+  let scenic = 0;
+  const fetchImpl = async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    sent.push(body);
+    if (body.profile === "car_fast") return new Response(tripPath(ROAD, FAST_EDGE_MS));
+    const points = body.points as [number, number][];
+    if (JSON.stringify(points) === JSON.stringify(sent[0]!.points)) {
+      scenic += 1;
+      if (scenic === 1) return new Response(tripPath(ROAD, FAST_EDGE_MS));
+      if (full) return new Response(answer(ROAD, SCENIC_EDGE_MS, ROUTE_RUNS.crossing));
+      if (!carries(body, x)) return new Response(answer(DETOUR, SCENIC_EDGE_MS, ROUTE_RUNS.crossing));
+      return new Response(answer(ROAD, reply === "refused" ? 10 * SCENIC_EDGE_MS : SCENIC_EDGE_MS, ROUTE_RUNS[reply]));
+    }
+    if (JSON.stringify(points[1]) !== JSON.stringify(ROAD[40])) return new Response(answer(points, 1000, LEG1));
+    if (!carries(body, x)) return new Response(answer([points[0]!, ne(36), points[1]!], 1000, LEG2_RUNS.crossing));
+    return new Response(answer(points, 1000, LEG2_RUNS[reply], reply === "refused" ? 99_000_000 : undefined));
+  };
+  const deps: TripDeps = {
+    upstream: { counters: tripCounters([]).counters, fetchImpl, now: () => NOW, killed: () => false },
+    routerBase: ROUTER,
+    resolvePlace: async (id) => (id === BIG_SUR.id ? { lat: BIG_SUR.lat, lon: BIG_SUR.lon } : null),
+    identify: () => ({ userId: "device-1", tier: full ? "paid" : "free" }),
+    closures: async () => snapshot,
+    tripPlaces: async () => {
+      throw new Error("this harness has no trip_places table");
+    },
+  };
+  const response = await handleTrip(tripRequest({ ...TRIP_BODY, days: 2 }), {}, deps);
+  const json = (await response.json()) as { route?: { coordinates: unknown }; days?: { leg: { coordinates: unknown } | null; hazards: unknown }[] };
+  return { status: response.status, reRequested: sent.filter((b) => carries(b, x)).length, route: json.route?.coordinates,
+    legs: json.days?.map((d) => d.leg?.coordinates ?? null), hazards: json.days?.map((d) => d.hazards) };
+}
+
+describe("T-0340 /trip hazards come from the SHIPPED path (A1)", () => {
+  it.each(TRIP_SHIP_ROWS)("$name: the trip's day hazards are the shipped path's runs", async ({ full, reply, ships }) => {
+    const legs = [[ROAD[0], ROAD[20]], ships === "crossing" ? [ROAD[20], ne(36), ROAD[40]] : [ROAD[20], ROAD[40]]];
+    expect(await shipTrip(full, reply)).toEqual({ status: 200, reRequested: 1,
+      route: !full && ships === "crossing" ? DETOUR : ROAD, legs: full ? legs : [null, null],
+      hazards: full ? [LEG1.hazards, LEG2_RUNS[ships].hazards] : ROUTE_RUNS[ships].days });
+  });
+
+  it("meta: every trip row ships one path whose runs differ from every other answer's - no wrong path's runs pass", () => {
+    const read = (full: boolean, a: Answer) => JSON.stringify(full ? LEG2_RUNS[a].hazards : ROUTE_RUNS[a].days);
+    const answers: Answer[] = ["crossing", "reRequest", "refused"];
+    expect(TRIP_SHIP_ROWS.map((r) => answers.every((a) => a === r.ships || read(r.full, a) !== read(r.full, r.ships))))
+      .toEqual(TRIP_SHIP_ROWS.map(() => true));
+    expect(TRIP_SHIP_ROWS.map((r) => [r.full, r.ships])).toEqual([[false, "reRequest"], [false, "crossing"], [true, "reRequest"], [true, "crossing"]]);
   });
 });

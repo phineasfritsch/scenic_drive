@@ -15,7 +15,7 @@ reviewer: null
 depends_on: [T-0339]
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "A1 WORKER /trip WHOLE (full equality, through handleTrip): over view {preview, full} x road hazards {none, MIX} (MIX = a surface run crossing the day-1/day-2 boundary, a road_access run inside one day, a run on the route's first edge, a run on its last edge, an upper-cased value, and whitelisted asphalt / yes / missing runs), the 200 EQUALS the harness oracle expectedTrip with each day's hazards recomputed in the test by R1's rule written out independently of src/ (preview: the chosen route's runs clipped to the day's point span, indices into route.coordinates; full: the leg's own runs, indices into leg.coordinates), and every router request's details EQUAL [time, distance, scenic_score, surface, road_access]. Test: 'every trip day carries its own hazard runs, whole'."
+  - "A1 WORKER /trip WHOLE (full equality, through handleTrip): over view {preview, full} x road hazards {none, MIX} (MIX = a surface run crossing the day-1/day-2 boundary, a road_access run inside one day, a run on the route's first edge, a run on its last edge, an upper-cased value, and whitelisted asphalt / yes / missing runs), the 200 EQUALS the harness oracle expectedTrip with each day's hazards recomputed in the test by R1's rule written out independently of src/ (preview: the chosen route's runs clipped to the day's point span, indices into route.coordinates; full: the leg's own runs, indices into leg.coordinates), and every router request's details EQUAL [time, distance, scenic_score, surface, road_access]. Test: 'every trip day carries its own hazard runs, whole'. AND over every planner path whose shipped geometry differs from the first-requested one {preview: a stored closure crosses the chosen route and its re-request ships; preview: that re-request refused, the crossing route stays; full: a stored closure crosses the day-2 leg and its re-request ships; full: that re-request refused, the crossing leg stays}, each router answer carrying its own hand-written runs, the 200's {status, route.coordinates, every day's leg coordinates, every day's hazards} EQUAL {200, the SHIPPED path's coordinates, the shipped path's runs written out by hand}; a meta-check asserts every row ships one path whose runs differ from every other answer's in that row. Test: 'the trip's day hazards are the shipped path's runs'."
   - "A2 WORKER /loop WHOLE (through handleLoop): over road hazards {none, MIX'} (MIX' = surface and road_access runs incl. an upper-cased value and whitelisted asphalt / yes / missing), the 200's hazards EQUAL the list recomputed in the test, and the request still sends ROUTE_DETAILS. Test: 'the loop carries its hazard runs, whole'. AND over every planner path to a shipped loop {re-seed after a retrace-dirty first attempt, third re-roll after two dull loops, retrace-square attempt after two dirty loops, closure re-request shipped, closure re-request dull so the first loop stays} with a different run set per attempt, the 200's {status, attempts, route.coordinates, hazards} EQUAL {200, attempts, the SHIPPED attempt's coordinates, the shipped attempt's runs written out by hand}; a meta-check asserts every row ships one attempt whose runs differ from every other attempt's. Test: 'the 200's hazards are the shipped attempt's runs'."
   - "A3 SWIFT THROUGH THE SHIPPING ENTRY POINTS: over {trip preview, trip full, loop} x {hazards empty, hazards full (a known row, a kind fallback, an unknown kind; on two trip days)}, a 200 sent through TripClient.trip -> ClientTripPlanner.itinerary and LoopClient.loop -> ClientLoopPlanner.outcome reads HazardCopy.lines(for:) EQUAL to a list written out in the test (R5's lines as literal strings, day order then run order, one line per run). Test: 'trip and loop answers read their hazard lines, whole'."
   - "A4 FAIL-CLOSED ON EVERY FIELD (rows as functions of input): over {trip preview day, trip full day, loop} x base {hazards empty, hazards full} x {hazards removed, null, number, string, object; an element that is not an object; kind removed / number / null; value removed / number / null; from_index removed / string / 1.5; to_index removed / string / null}, the client answers unexpectedResponse (R3) - never an itinerary or preview; a meta-check asserts every malformed body differs from its base and every base decodes. Test: 'a trip or loop whose hazards cannot be read is refused'."
@@ -122,3 +122,30 @@ tables - one at a time.
     loop-hazards-dropped still by "the loop carries its hazard runs, whole" ("caught=4 missed=0 trap=0 of 4").
     loopMutants.mjs MIN_MUTATIONS 44 -> 47, --prove-floor refuses its arms, "real population: quiet".
   - No Sources/ or apps/ios file touched: no digest re-approval, no new Apple CI run needed for this fix.
+- 2026-10-09T22:24:20Z agent/claude-opus-5 - rv1-t0340 FAIL (PR #234 at 94b76109) RULED BEFORE CODE. The finding is
+  right: A1 ranged over one router answer with FRESH_EMPTY closures, so measuredChosen === chosen and legPath === path,
+  and two tripPlanner.ts reads of the PRE-SWAP path survive the 9 trip test files - R1 `hazardsOf(chosen)` ->
+  `hazardsOf(measuredChosen)` (preview days ship the closure-crossing route's runs) and R2 `hazards = hazardsOf(path)`
+  -> `hazardsOf(legPath)` (a full day's runs from the leg that did not ship). P-SAFE-02 fail-open: a gravel or private
+  run on the shipped route can go unshown. Closed by CLASS - every trip path whose shipped geometry differs from the
+  first-requested one - and A1 is widened (acceptance block above) over the closure re-request paths the way A2 was for
+  /loop: rows {preview, full} x {re-request ships, re-request refused}, each router answer carrying its own runs, the
+  200's {status, route, legs, per-day hazards} compared WHOLE to the shipped path's hand-written runs, plus a meta row.
+  tripMutants.mjs gains planner-route-hazards-pre-swap and planner-leg-hazards-pre-swap; MIN_MUTATIONS 100 -> 102.
+- 2026-10-09T22:37:43Z agent/claude-opus-5 - rv1-t0340 CLOSED BY CLASS (tests and population only; no src/ change).
+  - MISSED first, at 94b76109's tripLoopHazards.test.ts with tripMutants.mjs carrying the two new rows: "MISSED
+    planner-route-hazards-pre-swap", "MISSED planner-leg-hazards-pre-swap", "RESULT caught=0 missed=2 trap=0 of 2
+    (--only)" (baseline green tests=138).
+  - Fix: tripLoopHazards.test.ts 'the trip's day hazards are the shipped path's runs' - four rows {preview, full} x
+    {re-request ships, re-request refused} over closuresCrossingTrip's fixture (100 nearer squares, X dropped from
+    the first request: on the search's detour for preview, on the day-2 leg's detour for full); every answer (the
+    crossing path, the re-request, the refused re-request) carries its own hand-written runs; the 200's {status,
+    reRequested: 1, route.coordinates, every day's leg coordinates, every day's hazards} compared WHOLE to the
+    shipped path's; plus a meta row (every row's shipped runs differ from every other answer's in that row).
+    `npx vitest run test/tripLoopHazards.test.ts` "Tests 13 passed (13)".
+  - CAUGHT after, by name: planner-route-hazards-pre-swap by "'preview, a closure on the chosen rout...': the trip's
+    day hazards are the shipped path's runs"; planner-leg-hazards-pre-swap by "'full, a closure on the day-2 leg,
+    its...': the trip's day hazards are the shipped path's runs" ("caught=1 missed=0 trap=0 of 1" - in the pair run
+    it read TRAP: that vitest run collected 0 tests, "numTotalTests":0, the loaded box; re-run alone, CAUGHT).
+    tripMutants.mjs MIN_MUTATIONS 100 -> 102, "population mutations=102 (floor 102)"; --prove-floor refuses all four
+    arms, "real population: quiet". Measured: tripLoopHazards.test.ts 267 lines, tripMutants.mjs 262.
