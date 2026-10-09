@@ -1,13 +1,13 @@
 ---
 id: T-0344
 title: ops/sane --prod gains its reserved exit codes 6 (quota / kill switch tripped or near its trip) and 8 (the R2 corpus/tiles manifests disagree with this checkout's config), read-only, against the deployed Worker's own read-only endpoints
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T13:50:37Z
+lease_expires_at: 2026-10-09T23:50:37Z
+worktree: .worktrees/T-0344
+branch: task/T-0344
 exclusive: []
 touches: [ops/sane, ops/lib/, ops/mutate/, services/api/src/, services/api/test/, pins/PINS.yaml]
 pins_affected: [P-OPS-05, P-COST-01, P-COST-02, P-PROD-05]
@@ -32,3 +32,4 @@ a whole-answer test.
 
 ## Log
 - 2026-10-09T13:50:14Z filed by agent/claude-opus-5 (orchestrator) from the plan's harness table (M1 ops/sane 6/8).
+- 2026-10-09T13:50:37Z claimed by agent/claude-opus-5; lease until 2026-10-09T23:50:37Z
