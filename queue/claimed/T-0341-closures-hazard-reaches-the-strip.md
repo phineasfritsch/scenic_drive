@@ -1,13 +1,13 @@
 ---
 id: T-0341
 title: closures_hazard reaches the app - a stale or unavailable closures snapshot, a dropped closure or a crossed closure on a plan, trip or loop answer is told to the driver in calm copy, not silently decoded away
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T11:49:42Z
+lease_expires_at: 2026-10-09T21:49:42Z
+worktree: .worktrees/T-0341
+branch: task/T-0341
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt]
 pins_affected: [P-SAFE-02]
@@ -27,3 +27,4 @@ fail-closed, one line per condition, whole-copy equality, shots looked at.
 
 ## Log
 - 2026-10-09T08:33:30Z filed by agent/claude-opus-5 from T-0339 R4.
+- 2026-10-09T11:49:42Z claimed by agent/claude-opus-5; lease until 2026-10-09T21:49:42Z
