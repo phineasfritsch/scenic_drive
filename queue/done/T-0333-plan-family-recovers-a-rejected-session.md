@@ -1,7 +1,7 @@
 ---
 id: T-0333
 title: Before IDENTITY_HEADERS closes, the plan family recovers a session the Worker cannot verify - the Worker signals an unverifiable Bearer (e.g. 401 session_rejected) on /plan, /trip and /loop, and the client drops the session, re-acquires once and retries, so a SESSION_JWT_SECRET rotation or SESSION_TTL_S change never downgrades a subscriber for the rest of the launch
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T10:41:55Z
@@ -11,7 +11,7 @@ branch: task/T-0333
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-STORE-02, P-COST-01, P-COST-04]
-reviewer: null
+reviewer: agent/rv2-t0333
 depends_on: [T-0322]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -152,3 +152,21 @@ wrong TTL, malformed} x {flag 1, closed} for the Worker answer, and for the clie
   ops/lib/check-pins-yaml.py` -> `PINS-YAML ok pins=49 fields=395`; `bash ops/queue-check` -> `QUEUE OK (332 tasks)`;
   `git diff --name-only origin/main...HEAD -- apps/ios` -> 0 files.
   Not closed here (rv1 RECORDABLE 2): the `record.token == token` guard in planSessionRejected has no EQUIVALENT entry.
+- 2026-10-09T13:41:43Z REVIEW PASS round 2 (agent/rv2-t0333, not the owner) on clean head 275f7968 == origin/task/T-0333.
+  Touched rows only. B1: rv1's mutant (PlanFamilySend.swift `request(renewed)` -> `request(renewed ?? bearer)`)
+  re-applied -> `swift test --filter "PlanSessionRetryTests|SessionStoreTests|SessionAccountTests|PlanBearerTests"`
+  RED by name, "a 401 hands the session back, re-acquires once and resends the same bytes once; never a third
+  request" with 108 test cases failed with 32 issues (rows {plan,reroute,...} x {keychain,acquired} x
+  {rejectsOnce,rejectsAlways} x {assertRejected,budgetSpent}). Reviewer's own mutant in the same class (a failed
+  renewal sends nothing: `guard renewed != nil else { return first }` before the resend) -> RED by the same test,
+  32 issues on the failed-renewal rows. Unmutated control: 17 tests in 4 suites passed. Source restored, tree clean.
+  B2: `node test/mutate/attestMutants.mjs --only=reject-plan-after-reservation` -> `population mutations=93 (floor
+  93)`, `CAUGHT reject-plan-after-reservation by "/plan, Bearer expired, IDENTITY_HEADERS unset, header live: the
+  answer is the ruled reference"`, `RESULT caught=1 missed=0 trap=0 of 1`.
+  Gates: `gh pr checks 225` core pass (6m39s), pins-source-only pass (2m50s); `python ops/lib/run-named-tests.py
+  P-STORE-02` -> `NAMED P-STORE-02 passed=246/246` exit 0; `python ops/lib/check-mutate-population.py` -> floor 147
+  holds, exit 0; `bash ops/queue-check` -> `QUEUE OK (332 tasks)`. The 13:16:08Z entry re-quotes the acceptance
+  block on f73ecf64; f73ecf64..275f7968 changes only this file. `git merge-base --is-ancestor origin/main
+  origin/task/T-0333` (origin/main e3567a6e) -> exit 0, no drift.
+  Recordable, not blocking: rv1 RECORDABLE 2 (no EQUIVALENT entry with a witness for the `record.token == token`
+  guard) and RECORDABLE 4 (the user-visible error after a second 401 is unpinned) stay open as follow-ups.
