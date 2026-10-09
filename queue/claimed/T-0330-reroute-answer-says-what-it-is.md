@@ -117,3 +117,20 @@ after a reroute is taken.
   Natural Earth · Route data © OpenStreetMap contributors" above the one large End drive action. The shots are the
   MINIMAL surface (15 m/s fixes), so neither the ETA line nor the note is on them, as ruled (P-SAFE-09: moving adds
   nothing); the full surface's two new Text lines are compiled (ios-compile) and whitelisted, not photographed.
+- 2026-10-09T09:01:08Z MERGED origin/main (PR #220 T-0335; Worker /trip and /loop only - no Swift, digest or plan.ts overlap) and
+  RE-RAN on the merged head. CI on the first push found two things my filtered local runs had not: planWire.test.ts
+  compares the 200 to Tests/Fixtures/t0251/200-plan*.json byte for byte (both fixtures now end
+  `"plan_token":null,"continued":false}`, and PlanRerouteWireTests' suffix check moved with them), and P-NAV-01 is
+  source-anchored, so its tier has no services/api node_modules - the 3 planContinued names moved to P-SAFE-04's api
+  tier (the over/at-ceiling rows are that pin's), P-NAV-01 keeps 42 Swift names. ACCEPTANCE ON THE MERGED HEAD (898ae585):
+  (1) R1-R6 above, dated before the code (b6fdc928). (2) vitest planContinued + planRecorded + planReroute 17/17, planWire
+  13/13; swift ScenicKitTests Drive* + ScenicAPIClientTests 103/103 and the Drive|PlanPreview|PlanResponse|ClientPlanner
+  filter green; NAMED P-NAV-01 green, NAMED P-SAFE-04 passed=27/27. (3) the rulings are what those names assert.
+  (4) RED first by name (entry above); drive.py 107-130 + moved anchors CAUGHT, planMutants 4/4 CAUGHT, floors 130 / 68.
+  (5) digests re-approved; check-drive-display 21 lines + --prove-red 6/6; ios-compile and ios-screenshot success,
+  shots looked at (entry above). GATES bare, local: check-mutate-population exit 0, check-line-cap exit 0,
+  check-pins-yaml exit 0, queue-check exit 0, planMutants --prove-floor exit 0. Local ops/check-pins exit 1 on
+  P-PRIV-05 alone (54/55: PlaceStoreTests.UserStorePrivacyTests is `#if canImport(GRDB)`, absent on this Windows box -
+  environment) and local ops/test 4928/76 with 7 vitest STACK_TRACE_ERRORs in /auth/apple and /waitlist files this
+  task does not touch (environment). CI on 898ae585: core ops/test TESTS linux=4969/76 failed=0, check-pins PINS ok=46
+  failed=0 tier=linux, pins-source-only PINS ok=20 failed=0.
