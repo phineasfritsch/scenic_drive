@@ -64,7 +64,7 @@ xcrun simctl install "$UDID" "$APP"
 alive() {
   ps -ww -o command= -p "$1" | grep ScenicDrive || { echo "ios-screenshot: ScenicDrive (pid $1) is not running $2 - it crashed"; exit 1; }
 }
-for LOOK in light dark ax5; do
+for LOOK in ${{ matrix.look }}; do
   SIZE=()
   LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty offered loop trip saved legal"
   if [ "$LOOK" = ax5 ]; then
@@ -101,6 +101,12 @@ for LOOK in light dark ax5; do
 done
 ls -l "$SHOTS"
 '''
+# T-0350: one leg per pass, so no leg pays for all 38 shots; fail-fast off so one crashed pass keeps the others' PNGs.
+STRATEGY = {"fail-fast": False, "matrix": {"look": ["light", "dark", "ax5"]}}
+MERGE_JOB = "merge-screenshots"
+MERGE_STEP = {"name": "merge the three passes into one artifact", "uses": "actions/upload-artifact/merge@v4",
+              "with": {"name": "ios-screenshots", "pattern": "ios-screenshots-*", "retention-days": 7,
+                       "delete-merged": True}}
 WHY_RUN = r'''tail -n 40 "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log" || true
 find ~/Library/Logs/DiagnosticReports -name 'ScenicDrive*' -print -exec head -c 4000 {} \; || true
 xcrun simctl spawn booted log show --last 5m --style compact --predicate 'process == "ScenicDrive"' | tail -n 60 || true
@@ -118,6 +124,7 @@ def expected(job_env):
         "jobs": {"simulator-screenshot": {
             "runs-on": "macos-15",
             "timeout-minutes": 30,
+            "strategy": STRATEGY,
             "env": job_env,
             "steps": [
                 {"uses": "actions/checkout@v4"},
@@ -126,10 +133,16 @@ def expected(job_env):
                 {"name": BUILD_STEP, "run": BUILD_RUN},
                 {"name": CAPTURE_STEP, "run": CAPTURE_RUN},
                 {"name": "upload the screenshots", "uses": "actions/upload-artifact@v4",
-                 "with": {"name": "ios-screenshots", "path": "DerivedData/screens/*.png", "retention-days": 7,
-                          "if-no-files-found": "error"}},
+                 "with": {"name": "ios-screenshots-${{ matrix.look }}", "path": "DerivedData/screens/*.png",
+                          "retention-days": 1, "if-no-files-found": "error"}},
                 {"name": "why it failed", "if": "failure()", "run": WHY_RUN},
             ],
+        }, MERGE_JOB: {
+            "runs-on": "macos-15",
+            "timeout-minutes": 10,
+            "needs": "simulator-screenshot",
+            "env": job_env,
+            "steps": [MERGE_STEP],
         }},
     }
 
@@ -140,6 +153,16 @@ ON = "on:\n  workflow_dispatch:\n"
 PERMS = "permissions:\n  contents: read\n"
 JOB = "  simulator-screenshot:\n    runs-on: macos-15\n"
 ENVLINE = "      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer\n"
+# T-0350: both jobs carry the env line and the runner line, so the legs' are anchored with what follows them.
+STEPS_TAIL = "    steps:\n      - uses: actions/checkout@v4\n"
+SIM_ENV = ENVLINE + STEPS_TAIL
+MATRIX = "      matrix:\n        look: [light, dark, ax5]\n"
+LEG_UPLOAD = "          name: ios-screenshots-${{ matrix.look }}\n"
+NEEDS = "    needs: simulator-screenshot\n"
+MERGE_JOB_TEXT = ("  merge-screenshots:\n    runs-on: macos-15\n    timeout-minutes: 10\n" + NEEDS + "    env:\n" + ENVLINE
+                  + "    steps:\n      - name: merge the three passes into one artifact\n"
+                  "        uses: actions/upload-artifact/merge@v4\n        with:\n          name: ios-screenshots\n"
+                  "          pattern: ios-screenshots-*\n          retention-days: 7\n          delete-merged: true\n")
 OTHER_XCODE = "      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer\n"
 PICK = f"      - name: {PICK_STEP}\n        run: |\n"
 BUILD = f"      - name: {BUILD_STEP}\n        run: |\n"
@@ -153,7 +176,7 @@ PLAN_SETTLE = "          PLAN_SETTLE=6\n"
 PLAN_ARM = "NAME=plan-$SHOT-$LOOK WAIT=$PLAN_SETTLE ;;"
 SHOTS_LIST = ('            LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer'
               ' preview nothingPretty offered loop trip saved legal"\n')
-LOOKS = "          for LOOK in light dark ax5; do\n"
+LOOKS = "          for LOOK in ${{ matrix.look }}; do\n"
 AX5_SIZE = "              SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)\n"
 AX5_LIST = '              LIST="preview nothingPretty offered loop trip saved"\n'
 LS = '          ls -l "$SHOTS"\n'
@@ -179,12 +202,12 @@ MUTATIONS = [
     ("SKIPPED BUILD: a condition never true on dispatch", BUILD, after(BUILD, "if: github.event_name == 'push'")),
     ("SKIPPED PICK: if: false on the simulator step", PICK, after(PICK, "if: false")),
     ("SKIPPED JOB: if: false on the job", JOB, "  simulator-screenshot:\n    if: false\n    runs-on: macos-15\n"),
-    ("a larger runner", "    runs-on: macos-15\n", "    runs-on: macos-15-xlarge\n"),
-    ("a matrix on the job", JOB, "  simulator-screenshot:\n    strategy:\n      matrix:\n        os: [macos-15, macos-15-xlarge]\n    runs-on: macos-15\n"),
+    ("a larger runner", JOB, JOB.replace("macos-15", "macos-15-xlarge")),
+    ("a matrix on the job", MATRIX, "      matrix:\n        os: [macos-15, macos-15-xlarge]\n"),
     ("the timeout removed", "    timeout-minutes: 30\n", ""),
     ("the timeout above the cap", "    timeout-minutes: 30\n", "    timeout-minutes: 45\n"),
-    ("a SECOND env key at the job level", ENVLINE, ENVLINE + "      GH_TOKEN: a-token\n"),
-    ("DEVELOPER_DIR pointed elsewhere (the image default, 16.4)", ENVLINE, OTHER_XCODE),
+    ("a SECOND env key at the job level", SIM_ENV, ENVLINE + "      GH_TOKEN: a-token\n" + STEPS_TAIL),
+    ("DEVELOPER_DIR pointed elsewhere (the image default, 16.4)", SIM_ENV, OTHER_XCODE + STEPS_TAIL),
     ("env: at the WORKFLOW level, inherited by every job", PERMS, PERMS + "\nenv:\n  DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer\n"),
     ("a token handed to the capture step", CAPTURE, f"      - name: {CAPTURE_STEP}\n        env:\n          GH_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n        run: |\n"),
     ("the DEVELOPER_DIR existence guard deleted (a silent fall back to the image default)", GUARD, ""),
@@ -202,8 +225,8 @@ MUTATIONS = [
     ("T-0324: the drive shot dropped", SHOTS_LIST, SHOTS_LIST.replace(" drive onboarding", " onboarding")),
     ("T-0336: the plan-sheet shots dropped", SHOTS_LIST,
      SHOTS_LIST.replace(" preview nothingPretty offered loop trip saved", "")),
-    ("T-0346: the AX5 pass dropped (no plan card seen at the largest text size)", LOOKS,
-     LOOKS.replace(" ax5;", ";")),
+    ("T-0346: the AX5 pass dropped (no plan card seen at the largest text size)", MATRIX,
+     MATRIX.replace(", ax5]", "]")),
     ("T-0346: the AX5 pass launched at the default text size", LAUNCH, LAUNCH.replace(' "${SIZE[@]}"', "")),
     ("T-0346: the AX5 pass at a smaller accessibility size (AX3)", AX5_SIZE,
      AX5_SIZE.replace("AccessibilityXXXL", "AccessibilityL")),
@@ -226,10 +249,37 @@ MUTATIONS = [
      "NAME=plan-$SHOT-$LOOK ;;"),
     ("T-0346: the wait chosen per shot but never slept", '              sleep "$WAIT"\n', ""),
     ("an empty capture uploads green", "          if-no-files-found: error\n", "          if-no-files-found: ignore\n"),
+    ("T-0350: every leg shoots all three passes (38 shots a leg - the cap again)", LOOKS,
+     "          for LOOK in light dark ax5; do\n"),
+    ("T-0350: fail-fast on (one crashed pass cancels the other passes' PNGs)", "      fail-fast: false\n",
+     "      fail-fast: true\n"),
+    ("T-0350: the legs take their runner label from the matrix", JOB, JOB.replace("macos-15", "${{ matrix.os }}")),
+    ("T-0350: every leg uploads under one name (v4 refuses the second; two passes lost)", LEG_UPLOAD,
+     "          name: ios-screenshots\n"),
+    ("T-0350: the merge job dropped (the owner downloads three artifacts)", MERGE_JOB_TEXT, ""),
+    ("T-0350: the merge waits for no leg (a merge of whatever finished first)", NEEDS, ""),
+    ("T-0350: the merged artifact renamed (the owner's download changes name)",
+     "          name: ios-screenshots\n          pattern:", "          name: ios-screenshots-all\n          pattern:"),
+    ("T-0350: the merge takes one pass only", "          pattern: ios-screenshots-*\n",
+     "          pattern: ios-screenshots-light\n"),
+    ("T-0350: the per-pass artifacts kept beside the merged one (four downloads)", "          delete-merged: true\n",
+     "          delete-merged: false\n"),
+    ("T-0350: the merge job's timeout removed", "    timeout-minutes: 10\n", ""),
+    ("T-0350: the merge job on a larger runner", "  merge-screenshots:\n    runs-on: macos-15\n",
+     "  merge-screenshots:\n    runs-on: macos-15-xlarge\n"),
+]
+# ios-compile.yml rows, run beside the check's own: the strategy and the merge action this file pins are the
+# screenshot workflow's only (T-0350).
+COMPILE_MUTATIONS = [
+    ("T-0350: ios-compile given the screenshot legs' pinned matrix", "  simulator-build:\n    runs-on: macos-15\n",
+     "  simulator-build:\n    strategy:\n      fail-fast: false\n      matrix:\n        look: [light, dark, ax5]\n"
+     "    runs-on: macos-15\n"),
+    ("T-0350: ios-compile running the merge action", "      - uses: actions/checkout@v4\n",
+     "      - uses: actions/checkout@v4\n      - uses: actions/upload-artifact/merge@v4\n"),
 ]
 # Legitimate spellings that must stay GREEN - a check that refuses them teaches people to stop running it.
 STILL_GREEN = [
     ("on: as a bare string", ON, "on: workflow_dispatch\n"),
-    ("runs-on as a one-element list", "    runs-on: macos-15\n", "    runs-on: [macos-15]\n"),
+    ("runs-on as a one-element list", JOB, JOB.replace("macos-15", "[macos-15]")),
     ("a comment added", "name: ios-screenshot\n", "# a comment changes nothing that runs\nname: ios-screenshot\n"),
 ]

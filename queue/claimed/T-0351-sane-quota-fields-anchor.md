@@ -1,13 +1,13 @@
 ---
 id: T-0351
 title: ops/lib/sane_prod.py names its quota fields once (QUOTA_FIELDS), quota() reads through it, and check_sane_prod's R10 meta-check compares the generated field list against that shipped symbol - both halves of R10 seen red
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T19:47:24Z
+lease_expires_at: 2026-10-10T03:47:24Z
+worktree: .worktrees/T-0351
+branch: task/T-0351
 exclusive: []
 touches: [ops/lib/sane_prod.py, ops/lib/check_sane_prod.py, ops/lib/check-sane-prod, queue/]
 pins_affected: [P-OPS-08]
@@ -26,3 +26,4 @@ q-green, but the anchor compares a table to itself), and the field-list half of 
 
 ## Log
 - 2026-10-09T18:54:55Z filed by agent/claude-opus-5 (orchestrator) from rv2-t0344 recordables 1-2.
+- 2026-10-09T19:47:24Z claimed by agent/claude-opus-5; lease until 2026-10-10T03:47:24Z

@@ -40,9 +40,16 @@ defaults:
     shell: bash
 
 jobs:
+  # T-0350: one leg per pass - light, dark, AX5 - each under its own 30-minute cap. Every leg pays the toolchain,
+  # boot and build again (6-11 minutes measured); the 38 shots in one job left a slow runner minutes from the cap.
+  # fail-fast off: a crash in one pass fails the run but keeps the other passes' PNGs.
   simulator-screenshot:
     runs-on: macos-15
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        look: [light, dark, ax5]
     # The same pinned Xcode as ios-compile.yml, for the same reason: the image defaults to 16.4.
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
@@ -120,7 +127,7 @@ jobs:
           alive() {
             ps -ww -o command= -p "$1" | grep ScenicDrive || { echo "ios-screenshot: ScenicDrive (pid $1) is not running $2 - it crashed"; exit 1; }
           }
-          for LOOK in light dark ax5; do
+          for LOOK in ${{ matrix.look }}; do
             SIZE=()
             LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty offered loop trip saved legal"
             if [ "$LOOK" = ax5 ]; then
@@ -157,14 +164,15 @@ jobs:
           done
           ls -l "$SHOTS"
 
-      # One artifact, both PNGs, kept 7 days. No write scope is needed: the artifact goes through the runner's
-      # own channel, and the token stays contents: read. A capture that wrote nothing fails here, not green.
+      # This pass's PNGs, kept 1 day: merge-screenshots folds the three into the one artifact the owner downloads.
+      # No write scope is needed: the artifact goes through the runner's own channel, and the token stays
+      # contents: read. A capture that wrote nothing fails here, not green.
       - name: upload the screenshots
         uses: actions/upload-artifact@v4
         with:
-          name: ios-screenshots
+          name: ios-screenshots-${{ matrix.look }}
           path: DerivedData/screens/*.png
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: error
 
       - name: why it failed
@@ -173,3 +181,21 @@ jobs:
           tail -n 40 "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log" || true
           find ~/Library/Logs/DiagnosticReports -name 'ScenicDrive*' -print -exec head -c 4000 {} \; || true
           xcrun simctl spawn booted log show --last 5m --style compact --predicate 'process == "ScenicDrive"' | tail -n 60 || true
+
+  # The owner's download, unchanged in shape: ONE artifact, ios-screenshots, every pass's PNGs side by side (the
+  # names already carry the pass), kept 7 days; the per-pass artifacts are deleted once merged. Runs only when all
+  # three legs passed. The same runner label and env as the legs: no other runner is allowed in this workflow.
+  merge-screenshots:
+    runs-on: macos-15
+    timeout-minutes: 10
+    needs: simulator-screenshot
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - name: merge the three passes into one artifact
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: ios-screenshots
+          pattern: ios-screenshots-*
+          retention-days: 7
+          delete-merged: true
