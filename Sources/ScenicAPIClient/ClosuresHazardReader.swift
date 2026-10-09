@@ -16,6 +16,27 @@ public enum ClosuresHazardReader {
 
     /// The closures_hazard under `key` in `top`, read fail-closed.
     public static func read<Key: CodingKey>(_ top: KeyedDecodingContainer<Key>, forKey key: Key) -> ClosuresHazard {
-        .clear
+        guard top.contains(key) else { return .clear }
+        guard let box = try? top.nestedContainer(keyedBy: Keys.self, forKey: key) else {
+            return ClosuresHazard(state: .unavailable)
+        }
+        return ClosuresHazard(state: state(of: box), dropped: box.contains(.dropped), crosses: box.contains(.crosses))
+    }
+
+    /// The state, exactly as the Worker spells it - and only when the record it names read: a version that is a
+    /// string and a fetched_at that is a string or null. Anything else could not be checked.
+    static func state(of box: KeyedDecodingContainer<Keys>) -> ClosuresState {
+        guard (try? box.decode(String.self, forKey: .version)) != nil, readsFetchedAt(box) else { return .unavailable }
+        switch try? box.decode(String.self, forKey: .state) {
+        case .some("fresh"): return .fresh
+        case .some("stale"): return .stale
+        default: return .unavailable
+        }
+    }
+
+    static func readsFetchedAt(_ box: KeyedDecodingContainer<Keys>) -> Bool {
+        guard box.contains(.fetchedAt) else { return false }
+        if (try? box.decodeNil(forKey: .fetchedAt)) == true { return true }
+        return (try? box.decode(String.self, forKey: .fetchedAt)) != nil
     }
 }

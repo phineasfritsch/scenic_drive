@@ -25,6 +25,11 @@ struct TripItineraryCard: View {
                         .foregroundStyle(DesignTokens.fgMuted)
                         .accessibilityIdentifier("trip.estimate")
                 }
+                ForEach(Array(HazardCopy.lines(for: itinerary).enumerated()), id: \.offset) { _, line in
+                    Label(line, systemImage: "exclamationmark.triangle.fill")
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("trip.closures")
+                }
             }
             ForEach(itinerary.days, id: \.day) { day in
                 Section("Day \(day.day)") {

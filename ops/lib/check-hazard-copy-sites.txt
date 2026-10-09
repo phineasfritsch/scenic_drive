@@ -1,5 +1,7 @@
 apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	            .accessibilityIdentifier("plan.hazards")
 apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	            Text(HazardCopy.noneFlagged)
 apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	        let lines = HazardCopy.lines(for: preview)
-apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	        hazards: [PlanHazardRun(kind: "road_access", value: "destination", fromIndex: 2, toIndex: 3)])
+apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	        hazards: [PlanHazardRun(kind: "road_access", value: "destination", fromIndex: 2, toIndex: 3)],
 apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	                           hazards: [], waypoints: [], lambda: 0.5)
+apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	                ForEach(Array(HazardCopy.lines(for: preview).enumerated()), id: \.offset) { _, line in
+apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	                ForEach(Array(HazardCopy.lines(for: itinerary).enumerated()), id: \.offset) { _, line in

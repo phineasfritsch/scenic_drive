@@ -83,23 +83,30 @@ public enum HazardCopy {
 
     /// One line per closure condition (T-0341 R2): crosses, then the state (none when fresh), then dropped.
     public static func closureLines(for closures: ClosuresHazard) -> [String] {
-        []
+        var lines: [String] = closures.crosses ? [closureCrosses] : []
+        switch closures.state {
+        case .fresh: break
+        case .stale: lines.append(closuresStale)
+        case .unavailable: lines.append(closuresUnavailable)
+        }
+        if closures.dropped { lines.append(closuresDropped) }
+        return lines
     }
 
     /// The strip: the closure lines, then one line per run in the order the Worker reported them. Nothing is merged
     /// or dropped.
     public static func lines(for preview: PlanPreview) -> [String] {
-        preview.hazards.map { line(for: $0) }
+        closureLines(for: preview.closures) + preview.hazards.map { line(for: $0) }
     }
 
     /// The itinerary card's hazard lines (T-0341 R2): the closure lines; /trip carries no runs (T-0339 M2).
     public static func lines(for itinerary: TripItinerary) -> [String] {
-        []
+        closureLines(for: itinerary.closures)
     }
 
     /// The loop card's hazard lines (T-0341 R2): the closure lines; /loop carries no runs (T-0339 M2).
     public static func lines(for preview: LoopPreview) -> [String] {
-        []
+        closureLines(for: preview.closures)
     }
 
     /// The line one derived flag reads, its times in `timeZone`.
