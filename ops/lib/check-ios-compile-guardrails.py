@@ -35,7 +35,10 @@ ALLOWED_RUNNERS = {"macos-15"}
 ALLOWED_USES = {"actions/checkout@v4", "actions/upload-artifact@v4"}
 MAX_TIMEOUT_MINUTES = 30
 BUILD_STEP = "build for the iOS Simulator"
-UNSKIPPABLE = {BUILD_STEP} | shot.UNSKIPPABLE
+PLIST_STEP = "P-PRIV-02 on the built plist"
+PLIST_RUN = ('python3 ops/lib/check-background-modes.py --built-products '
+             '"$GITHUB_WORKSPACE/DerivedData/Build/Products"')
+UNSKIPPABLE = {BUILD_STEP, PLIST_STEP} | shot.UNSKIPPABLE
 # The ONE environment variable this workflow is allowed, at the job level and nowhere else (T-0167): the plan
 # needs the iOS 26 SDK, the image defaults to 16.4, and DEVELOPER_DIR is the only selector. By exact path - a
 # glob would silently fall back to the default the day 26.3 leaves the image.
@@ -71,6 +74,7 @@ EXPECTED = {
             {"uses": "actions/checkout@v4"},
             {"name": "toolchain", "run": TOOLCHAIN_RUN},
             {"name": BUILD_STEP, "run": BUILD_RUN},
+            {"name": PLIST_STEP, "run": PLIST_RUN},
             {"name": "what the build wrote into the tree", "if": "always()", "run": STATUS_RUN},
             {"name": "keep the log and any Package.resolved", "if": "always()", "uses": "actions/upload-artifact@v4",
              "with": {"name": "ios-compile-${{ github.run_id }}", "if-no-files-found": "warn",

@@ -231,8 +231,9 @@ check("every packageProductDependency is a declared product",
 # --- extras: the two facts the Brief states about the shell, checked rather than claimed ------
 if os.path.exists(PLIST):
     plist = open(PLIST, encoding="utf-8").read()
-    check("Info.plist has no UIBackgroundModes", "UIBackgroundModes" not in plist,
-          "the plan allows location/audio only with the Drive target")
+    check("Info.plist declares UIBackgroundModes once (its set is P-PRIV-02's)",
+          plist.count("<key>UIBackgroundModes</key>") == 1,
+          "the ruled set is checked whole by ops/lib/check-background-modes.py (T-0329 R5)")
     check("CFBundleIdentifier defers to PRODUCT_BUNDLE_IDENTIFIER",
           re.search(r"<key>CFBundleIdentifier</key>\s*<string>\$\(PRODUCT_BUNDLE_IDENTIFIER\)</string>",
                     plist) is not None,
