@@ -91,6 +91,10 @@ V_ROUND = ("P-SAFE-09: a mode round trip on the same line repeats no cue - after
            "destination's, or the arrival, online or offline")
 V_PINLEG = ("P-SAFE-09: with a pin at every interior vertex, or none, only the pin's leg says the next stop and only "
             "the last says the destination")
+V_LANDED = ("P-SAFE-09: a landed reroute after a pin's approach, the destination's, or the arrival says the new line's "
+            "cues, online or offline")
+V_BENT = ("P-SAFE-09: on a bent line the approach is measured along the line - quiet just above 400 m along it, "
+          "though the crow flies under 400")
 
 THRESHOLD = "P-NAV-01: 50 m exactly is on the line; the smallest distance above 50 m is away"
 DWELL = "P-NAV-01: off-route needs 5 s away exactly; one ulp less is not; an on-line fix restarts the dwell"
@@ -344,6 +348,11 @@ MUTATIONS = [
      [V_ROUND]),
     ("102 the last leg one vertex early", VOICE, "lastLeg: end.vertex == session.line.segmentCount)",
      "lastLeg: end.vertex >= session.line.segmentCount - 1)", [V_PINLEG]),
+    # rv1-t0329: the other half of a landed reroute's reset (RV1-M1), and the leg end on a bent line (RV1-M2).
+    ("103 a landed reroute keeps the arrival", VOICE, "            approached = []\n            arrived = false\n",
+     "            approached = []\n", [V_LANDED]),
+    ("104 legEnd as the crow flies", SESSION, "        return (end, meters)\n",
+     "        return (end, Geo.distanceMeters(at, line.coordinates[end]))\n", [V_BENT]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -364,7 +373,7 @@ EQUIVALENT = [
      "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device run hears it (T-0329). What bounds it: ops/lib/check-drive-voice.py (P-SAFE-09's row) allows exactly this whole line and refuses its removal by name ('the navigator never asks DriveVoice'), and what DriveVoice returns is CAUGHT above (entries 82-99)"),
 ]
 
-MIN_MUTATIONS = 102
+MIN_MUTATIONS = 104
 EQUIVALENT.append(
     ("E5 (device-only) the navigator's session starts without the preview's token", NAVIGATOR,
      "online: true, planToken: preview.continuation?.token)", "online: true)",
