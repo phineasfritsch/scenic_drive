@@ -1,13 +1,13 @@
 ---
 id: T-0346
 title: The plan sheet's bottom bar never hides a card's own actions - on the road-trip card "Change the trip" sits under the "Plan a drive / Just drive a loop" bar; every card's last control stays reachable above the bar at every Dynamic Type size
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T15:45:25Z
+lease_expires_at: 2026-10-10T01:45:25Z
+worktree: .worktrees/T-0346
+branch: task/T-0346
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, .github/workflows/ios-screenshot.yml, ops/lib/, ops/lib/check-safety-disclaimer-linked-digests.txt]
 pins_affected: [P-ATTR-01, P-A11Y-01]
@@ -29,3 +29,4 @@ owner's design pass.
 
 ## Log
 - 2026-10-09T15:24:28Z filed by agent/claude-opus-5 (orchestrator) from T-0341 stillOpen 2; T-0345 is held by task/T-0344.
+- 2026-10-09T15:45:25Z claimed by agent/claude-opus-5; lease until 2026-10-10T01:45:25Z
