@@ -58,3 +58,23 @@ owner's design pass.
   - GREEN: python ops/lib/check-ios-compile-guardrails.py -> both "IOS-COMPILE-GUARDRAILS OK" lines, rc=0
   - python ops/lib/check-ios-compile-guardrails.py --prove-red -> each of the five T-0346 rows "[red rc=1]";
     "PROVE-RED OK: 78 mutations red, 6 legitimate spellings green over 2 workflows, 0 unexpected result(s)" rc=0
+- 2026-10-09T16:25:13Z R1's run did NOT fit the cap: ios-screenshot run 37954789863 (head 9e8d2e98) - pre-capture
+  10 min (toolchain 2:09, boot 1:59, build 5:46), capture 16:01:19 -> 16:20:50 = 19.5 min for 38 shots (~31 s a shot),
+  then the 30-minute job timeout cancelled it before "upload the screenshots": conclusion cancelled, no artifact, no
+  AX5 measurement. For comparison T-0341's run 37945135739 captured 32 shots in 10.5 min (~20 s a shot) and T-0325's
+  run 37937330449 took 15.8 min of capture: the runner's speed varies by ~1.6x, and the BASELINE 32 shots on the slow
+  runner would already take ~27 of the 30 minutes.
+- 2026-10-09T16:25:13Z R2 (fit the cap without dropping a shot). The plan-sheet shots draw fixtures from the
+  -screen rehearsal, never a tile or a network call, so they do not need the map's 15 s settle (the comment's own
+  reason: "a cold first launch, the remote demo style, and its first tiles"). Each shot now waits WAIT, which is
+  SETTLE (15) for every home/map/settings shot and PLAN_SETTLE (6) for the 18 plan shots (6 default light, 6 dark,
+  6 AX5). Saving 9 s x 18 = 2.7 min against 6 added shots x ~(6 + 13 overhead) s = 1.9 min: the job is no longer than
+  before T-0346 on any runner. Liveness is still checked after the wait and after the capture. Guard rows raised by
+  name: "T-0346: no settle before a plan-sheet capture", "T-0346: the plan shots wait the map settle (the 30-minute
+  cap)", "T-0346: the wait chosen per shot but never slept". Seen red then green:
+  - RED: python ops/lib/check-ios-compile-guardrails.py <R1's ios-screenshot.yml at 9e8d2e98> -> "IOS-COMPILE-GUARDRAILS:
+    workflow.jobs.simulator-screenshot.steps[4].run: differs from the pinned value (compared by equality)" rc=1
+  - GREEN: python ops/lib/check-ios-compile-guardrails.py -> both "IOS-COMPILE-GUARDRAILS OK" lines, rc=0
+  - --prove-red: the three new rows and R1's five each "[red rc=1]"; "PROVE-RED OK: 81 mutations red, 6 legitimate
+    spellings green over 2 workflows, 0 unexpected result(s)" rc=0
+  The cap's fragility on a slow runner is older than T-0346 and is not closed here (stillOpen).

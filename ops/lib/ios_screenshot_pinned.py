@@ -56,6 +56,7 @@ xcodebuild \
 CAPTURE_RUN = r'''UDID=$(cat "$GITHUB_WORKSPACE/DerivedData/sim-udid")
 BUNDLE=com.phineasfritsch.scenicdrive
 SETTLE=15
+PLAN_SETTLE=6
 SHOTS="$GITHUB_WORKSPACE/DerivedData/screens"
 APP=$(find "$GITHUB_WORKSPACE/DerivedData/Build/Products" -maxdepth 2 -name '*.app' -path '*-iphonesimulator/*')
 test "$(printf '%s\n' "$APP" | grep -c .)" = 1 || { echo "ios-screenshot: expected exactly one simulator .app, found: $APP"; exit 1; }
@@ -75,12 +76,13 @@ for LOOK in light dark ax5; do
   fi
   for SHOT in $LIST; do
     DONE=(-safety.disclaimer.acknowledged.v1 YES -vehicle.profile.v1 standard)
+    WAIT=$SETTLE
     case "$SHOT" in
       fastest) DETENT=collapsed ROW=0 SCREEN=home NAME=home-$LOOK-$SHOT ;;
       settings|paywall|surprise|legal) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
       onboarding) DETENT=collapsed ROW=default SCREEN=home NAME=onboarding-$LOOK DONE=() ;;
       disclaimer) DETENT=collapsed ROW=default SCREEN=disclaimer NAME=disclaimer-$LOOK DONE=() ;;
-      preview|nothingPretty|offered|loop|trip|saved) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=plan-$SHOT-$LOOK ;;
+      preview|nothingPretty|offered|loop|trip|saved) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=plan-$SHOT-$LOOK WAIT=$PLAN_SETTLE ;;
       drive) DETENT=collapsed ROW=default SCREEN=drive NAME=drive-$LOOK
         xcrun simctl privacy "$UDID" grant location "$BUNDLE"
         xcrun simctl location "$UDID" start --speed=15 34.0905,-118.6370 34.0880,-118.6250 34.0855,-118.6150 34.0830,-118.6050 ;;
@@ -90,8 +92,8 @@ for LOOK in light dark ax5; do
     echo "$LAUNCHED"
     PID=${LAUNCHED##*: }
     case "$PID" in ''|*[!0-9]*) echo "ios-screenshot: simctl launch printed no pid: $LAUNCHED"; exit 1;; esac
-    sleep "$SETTLE"
-    alive "$PID" "${SETTLE}s after the $LOOK $SHOT launch"
+    sleep "$WAIT"
+    alive "$PID" "${WAIT}s after the $LOOK $SHOT launch"
     xcrun simctl io "$UDID" screenshot --type=png "$SHOTS/$NAME.png"
     alive "$PID" "after the $LOOK $SHOT screenshot"
     xcrun simctl terminate "$UDID" "$BUNDLE"
@@ -146,7 +148,9 @@ GUARD = '          test -d "$DEVELOPER_DIR" || { echo "ios-screenshot: $DEVELOPE
 TEE = 'build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"\n'
 LAUNCH = ('              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW"'
           ' -screen "$SCREEN" "${DONE[@]}" "${SIZE[@]}")\n')
-ALIVE = '              alive "$PID" "${SETTLE}s after the $LOOK $SHOT launch"\n'
+ALIVE = '              alive "$PID" "${WAIT}s after the $LOOK $SHOT launch"\n'
+PLAN_SETTLE = "          PLAN_SETTLE=6\n"
+PLAN_ARM = "NAME=plan-$SHOT-$LOOK WAIT=$PLAN_SETTLE ;;"
 SHOTS_LIST = ('            LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer'
               ' preview nothingPretty offered loop trip saved legal"\n')
 LOOKS = "          for LOOK in light dark ax5; do\n"
@@ -217,6 +221,10 @@ MUTATIONS = [
      '            -destination "platform=iOS Simulator,id=$UDID" \\\n', "            -destination 'platform=iOS Simulator,name=iPhone 16' \\\n"),
     ("the runtime list no longer printed first", "          xcrun simctl list runtimes\n", ""),
     ("no settle before the capture (a black frame)", "          SETTLE=15\n", "          SETTLE=0\n"),
+    ("T-0346: no settle before a plan-sheet capture", PLAN_SETTLE, "          PLAN_SETTLE=0\n"),
+    ("T-0346: the plan shots wait the map settle (the 30-minute cap)", PLAN_ARM,
+     "NAME=plan-$SHOT-$LOOK ;;"),
+    ("T-0346: the wait chosen per shot but never slept", '              sleep "$WAIT"\n', ""),
     ("an empty capture uploads green", "          if-no-files-found: error\n", "          if-no-files-found: ignore\n"),
 ]
 # Legitimate spellings that must stay GREEN - a check that refuses them teaches people to stop running it.
