@@ -12,11 +12,13 @@ import { attestDepsFromEnv, handleAttest, handleAttestAssert, handleAttestChalle
 import { runClosuresCron } from "./closuresCron";
 import { handleConfig } from "./config";
 import { handleIsochrone, isochroneDepsFromEnv } from "./isochrone";
-import { killSwitchReader, type KillSwitchRead } from "./killSwitch";
+import { killSwitch, killSwitchReader, type KillSwitchRead } from "./killSwitch";
 import { handleLedger, ledgerDepsFromEnv } from "./ledger";
 import { handleLoop, loopDepsFromEnv } from "./loop";
 import { handlePlan, planDepsFromEnv } from "./plan";
+import { monthKey, UPSTREAM_TRIP_AT } from "./quota";
 import type { QuotaCounter } from "./QuotaCounter";
+import { monthlyUpstreamCalls } from "./quotaCounters";
 import { readOnlyProblem } from "./ro";
 import { handleTelemetry, telemetryDepsFromEnv } from "./telemetry";
 import { handleTrip, tripDepsFromEnv } from "./trip";
@@ -69,9 +71,20 @@ async function dbUp(env: Env): Promise<boolean> {
   }
 }
 
+// T-0344: the kill switch (the same read every killable route makes) and the month's global upstream counter, read
+// only, for ops/sane --prod's exit 6. `ok` and the status stay D1's alone. One aggregate integer, no location, no user.
 const health: Handler = async (_req, env) => {
+  const now = new Date();
   const db = await dbUp(env);
-  return json({ ok: db, db: db ? "up" : "down", git_sha: env.GIT_SHA }, db ? 200 : 503);
+  return json({
+    ok: db,
+    db: db ? "up" : "down",
+    git_sha: env.GIT_SHA,
+    kill_switch: await killSwitch(env),
+    upstream_month: monthKey(now),
+    upstream_calls: await monthlyUpstreamCalls(env.QUOTA, now),
+    upstream_trip_at: UPSTREAM_TRIP_AT,
+  }, db ? 200 : 503);
 };
 
 const version: Handler = async (_req, env) =>

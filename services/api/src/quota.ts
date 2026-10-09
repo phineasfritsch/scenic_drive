@@ -16,6 +16,8 @@ export const MAX_MONTHLY_UPSTREAM_CALLS = 250_000;
 
 /** Trip the kill switch at 90%, leaving headroom to notice and react before anything is refused. */
 export const KILL_SWITCH_THRESHOLD = 0.9;
+/** The least monthly count killSwitchTripped refuses; /__health reports it so ops/sane can see the distance (T-0344). */
+export const UPSTREAM_TRIP_AT = Math.ceil(MAX_MONTHLY_UPSTREAM_CALLS * KILL_SWITCH_THRESHOLD);
 
 /** Daily per-user plan budgets. A plan is at most PLAN_UPSTREAM_COST upstream calls. */
 export const DAILY_PLAN_QUOTA = { anon: 3, free: 10, paid: 200 } as const;
@@ -60,7 +62,7 @@ export type QuotaVerdict =
 
 /** A count that a limit can be compared against: finite, integral, not negative. NaN is none of these, and
  *  every comparison against NaN is false - which is how a NaN counter silently disables a ceiling. */
-function isCount(n: unknown): n is number {
+export function isCount(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n) && Number.isInteger(n) && n >= 0;
 }
 
