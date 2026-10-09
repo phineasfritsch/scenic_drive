@@ -1,13 +1,13 @@
 ---
 id: T-0333
 title: Before IDENTITY_HEADERS closes, the plan family recovers a session the Worker cannot verify - the Worker signals an unverifiable Bearer (e.g. 401 session_rejected) on /plan, /trip and /loop, and the client drops the session, re-acquires once and retries, so a SESSION_JWT_SECRET rotation or SESSION_TTL_S change never downgrades a subscriber for the rest of the launch
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T10:41:55Z
+lease_expires_at: 2026-10-09T20:41:55Z
+worktree: .worktrees/T-0333
+branch: task/T-0333
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-STORE-02, P-COST-01, P-COST-04]
@@ -29,3 +29,4 @@ wrong TTL, malformed} x {flag 1, closed} for the Worker answer, and for the clie
 
 ## Log
 - 2026-10-08T20:50:40Z filed by agent/claude-opus-5 (orchestrator) from T-0322 stillOpen 1.
+- 2026-10-09T10:41:55Z claimed by agent/claude-opus-5; lease until 2026-10-09T20:41:55Z
