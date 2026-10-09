@@ -27,3 +27,52 @@ only through the long-body rows. The app ships on Darwin; this closes the platfo
 ## Log
 - 2026-10-07T23:30:00Z filed by agent/claude-opus-5 (orchestrator) from rv2-t0305's recordable.
 - 2026-10-09T22:23:09Z claimed by agent/claude-opus-5; lease until 2026-10-10T04:23:09Z
+- 2026-10-09T22:43:21Z MEASURED (agent/claude-opus-5, worktree on 7cc37c1f, swift 6.3.3 native = swift-corelibs-foundation).
+  WHERE: CorpusDownloadDelegate.urlSession(_:dataTask:didReceive:completionHandler:) calls completionHandler(.cancel)
+  at two sites and nowhere calls dataTask.cancel() beside them: the status refusal (any status but a 200 or a 206 at
+  the resume offset; failure = .status) and the resume file that cannot be opened (FileHandle(forWritingTo:) throws;
+  failure = .transport(cannotWriteToFile)). The two body paths in urlSession(_:dataTask:didReceive:) - one byte past
+  `expected`, a write that throws - already call dataTask.cancel(). WHAT REACHES THE CALLER: Darwin honours the
+  .cancel disposition, the task completes with URLError.cancelled and the delegate's `failure` outranks it, so the
+  caller sees .status(404) / .status(206). swift-corelibs-foundation hands the delegate a completion handler that
+  ignores the disposition, so no cancel reaches the URLProtocol: the stub plays the rest of its script, the delegate
+  drops the body behind `failure == nil`, the scripted finish completes the task with error nil and the caller sees
+  the same .status. Same error to the caller, a different task completion. ROWS: the table's servers `missing`
+  ([404, "not found", finish]), `wrongRange` ([206 at byte 0 with no Range / byte 7 with one, body, finish]) and
+  `long` ([head, three chunks, one extra byte, finish]), each over five prefixes, four of which send a request
+  (`complete` sends none). No row reaches the unopenable-resume-file site. MUTANT 22 (the error-order swap) is
+  caught off Darwin only through the four `long` rows (T-0305 Log 2026-10-07T22:39:41Z: 4 issues, all longBody vs
+  transport(-999)). Isolated here: the table's server loop narrowed to [Server.missing, .wrongRange] in the test
+  file only (uncommitted, restored after; Sources at HEAD), `python ops/mutate/corpusfetch.py --only 22`
+  22:28:47Z-22:39:23Z -> `BASELINE ... exit=0`, `MISSED 22 the session's cancel error outranks the refusal that
+  caused it exit=0 no test objected`, `MUTATE FAILED caught=0/1 equivalent_caught=0 (--only: 1 of 22 entries)`.
+  RULINGS (before code):
+  R1 Both completionHandler(.cancel) sites get dataTask.cancel() on the next line; the disposition stays (Darwin
+     requires the handler be called, and a second cancel of a cancelling task is a no-op).
+  R2 "complete with URLError.cancelled" is not visible through the fetcher by design (the refusal outranks the
+     cancel), so it is observed at the stub: StubCorpusURLProtocol records, per cancelled request, how many scripted
+     steps it never played because stopLoading() came first, and the table's Result carries that list under its
+     FULL equality. corelibs' cancel() calls stopLoading() before it reports URLError.cancelled, so the record is
+     complete before fetch returns. A run that finishes every step records nothing (whether or not a session calls
+     stopLoading() after a finish), so the field is platform-neutral.
+  R3 The unopenable-resume-file site gets a row: server `unwritable`, whose script deletes the resume file in
+     startLoading() before it responds - the delegate opens the file on the response, so it throws. Expected:
+     .transport(cannotWriteToFile), no resume file, the body and finish unplayed. noFetchRowIgnoresTheResumeFile
+     covers it like every server.
+  R4 Population: 23 "a refused status lets the response play on" and 24 "an unopenable resume file lets the response
+     play on" drop each new cancel; both are mutants caught by fetchTableOverEveryResumeFileAndServer() off Darwin
+     (the population runs here and on Linux), not EQUIVALENT. On Darwin the disposition alone cancels and both would
+     be unobservable - recorded, not run (no Darwin swift test on this box). MIN_MUTATIONS 22 -> 24.
+  R5 CorpusDownloadDelegate.swift's digest row is re-approved; no other Sources/ file changes.
+  ACCEPTANCE (re-run and re-quoted at the final pre-review commit, on the merged head):
+  A1 Every completionHandler(.cancel) line in CorpusDownloadDelegate.swift is followed by a dataTask.cancel() line:
+     2 of 2 (awk over the file).
+  A2 swift test --filter 'URLSessionCorpusFetcherTests|CorpusLaunchTests' green, own scratch path.
+  A3 The table narrowed to [Server.missing, .wrongRange] (uncommitted, as measured above), `--only 22` on the fix:
+     `caught 22 ... by: fetchTableOverEveryResumeFileAndServer()`, MUTATE OK caught=1/1 (MISSED before, above).
+  A4 The swap applied by hand to the whole table: the issue count names the missing, wrongRange and unwritable rows
+     as well as long (4 rows each that send a request), each expecting the refusal and getting transport(-999).
+  A5 `--only 22,23,24` on the committed head: caught 3/3 by fetchTableOverEveryResumeFileAndServer(); 23 and 24 are
+     the red demonstration of the new unplayed-steps field.
+  A6 `--prove-floor` OK at 24; check-safety-disclaimer, check-mutate-population, check-line-cap, check-pins-yaml,
+     queue-check all OK; 300-line cap held on every touched file.
