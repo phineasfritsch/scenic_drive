@@ -55,6 +55,11 @@
       "test/lambdaSearch.test.ts": [
         "searchLambda - the LambdaSearch port > with nothing feasible it refuses no_feasible_lambda rather than returning an overshoot",
         "searchLambda - the LambdaSearch port > flags non-monotone curves and still returns only measured feasible lambdas"
+      ],
+      "test/planContinued.test.ts": [
+        "POST /plan says whether it continued the drive (T-0330 R2) > a recalled token's answer is planReroute's body, whole, with continued true",
+        "POST /plan says whether it continued the drive (T-0330 R2) > every unusable token's answer is the fresh plan's body, whole, with continued false",
+        "POST /plan says whether it continued the drive (T-0330 R2) > meta: no fresh row ignores its variant - each opposite continues, and the marker is the only difference in kind"
       ]
     },
     "swift": {
@@ -1510,7 +1515,7 @@
   },
   "P-NAV-01": {
     "swift": {
-      "filter": "(ScenicKitTests\\.(DriveSessionTests|DriveRerouteTests|DriveControllerTests|DriveLegTests|DriveTokenTakeTests)|ScenicAPIClientTests\\.DriveReplanTests)",
+      "filter": "(ScenicKitTests\\.(DriveSessionTests|DriveRerouteTests|DriveControllerTests|DriveLegTests|DriveTokenTakeTests|DriveContinuedTests)|ScenicAPIClientTests\\.(DriveReplanTests|DriveContinuedReplanTests))",
       "tests": [
         "ScenicKitTests.DriveSessionTests/awayThresholdIsExact()",
         "ScenicKitTests.DriveSessionTests/eastThresholdAtLatitude34()",
@@ -1547,7 +1552,15 @@
         "ScenicAPIClientTests.DriveReplanTests/offlineSendsNothing()",
         "ScenicAPIClientTests.DriveReplanTests/previewKeepsTheToken()",
         "ScenicKitTests.DriveTokenTakeTests/takenTogetherOrNone()",
-        "ScenicKitTests.DriveTokenTakeTests/noRowIgnoresItsTokenVariant()"
+        "ScenicKitTests.DriveTokenTakeTests/noRowIgnoresItsTokenVariant()",
+        "ScenicKitTests.DriveContinuedTests/continuedBySurface()",
+        "ScenicKitTests.DriveContinuedTests/noRowIgnoresItsVariant()",
+        "ScenicKitTests.DriveContinuedTests/previewSeedsTheDrive()",
+        "ScenicKitTests.DriveContinuedTests/etaBounds()",
+        "ScenicKitTests.DriveContinuedTests/refusedAnswerTakesNothing()",
+        "ScenicAPIClientTests.DriveContinuedReplanTests/continuedThroughTheRerouter()",
+        "ScenicAPIClientTests.DriveContinuedReplanTests/noRowIgnoresItsVariant()",
+        "ScenicAPIClientTests.DriveContinuedReplanTests/replyCarriesTheMarkerAndEta()"
       ]
     }
   },

@@ -13,8 +13,7 @@ public struct DriveHost<Content: View>: View {
     /// the navigator (and its location provider) is built once, by the state object, and never thrown away.
     public init?(preview: PlanPreview, sender: any RerouteSending,
                  @ViewBuilder content: @escaping (DriveDisplay) -> Content) {
-        guard DriveSession(line: preview.route, waypoints: preview.waypoints, lambda: preview.lambda,
-                           online: true) != nil else { return nil }
+        guard DriveSession(preview: preview, online: true) != nil else { return nil }
         _navigator = StateObject(wrappedValue: DriveNavigator(preview: preview, sender: sender)!)
         self.content = content
     }
