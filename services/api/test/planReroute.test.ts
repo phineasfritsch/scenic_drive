@@ -11,7 +11,9 @@ import { handlePlan } from "../src/plan";
 import { kvPlanTokens, type PlanTokenKv } from "../src/planToken";
 import { PLAN_UPSTREAM_COST } from "../src/quota";
 import { ROUTE_DETAILS } from "../src/scenicPlanner";
-import { curveRouter, harness, planRequest, SANTA_MONICA_TOPANGA, SANTA_MONICA_TOPANGA_BODY, type Recording } from "./planHarness";
+import { curveRouter, harness, planRequest, recorded, SANTA_MONICA_TOPANGA, SANTA_MONICA_TOPANGA_BODY, type Recording } from "./planHarness";
+import dullRaw from "../../../Tests/Fixtures/t0221/westwood-malibu/lambda-3.25.json?raw";
+import fastestDullRaw from "../../../Tests/Fixtures/t0221/westwood-malibu/fastest.json?raw";
 
 const TOKEN = "0f1e2d3c-4b5a-4968-8776-655443322110";
 const MINTED = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -143,6 +145,13 @@ describe("POST /plan reroute wire (T-0319 R2, P-PRIV-05)", () => {
     const answer = await send(h, pinned(1));
     expect({ status: fresh.status, answer, sent: h.sent, reads: kv.reads })
       .toEqual({ status: 200, answer: fresh, sent: plain.sent, reads: [`plan:device-1:${TOKEN}`] });
+  });
+
+  it("T-0332 R6: a reroute is exempt from the honest failure - a 0.226 route still answers 200", async () => {
+    const h = rig(recorded(fastestDullRaw, new Map([[7.75, dullRaw]])), fakeKv(stored(RECORD)));
+    const { status, body } = await send(h, pinned(3));
+    expect(status).toBe(200);
+    expect(body.lambda).toBe(7.75);
   });
 
   it("the first remaining pin may be the stored count: no pins left, straight to the destination", async () => {

@@ -20,6 +20,9 @@ public enum PlanError: Error, Equatable, Sendable {
     case offlineDuringDrive
     /// 422 `no_scenic_alternative`: the best scenic route is the fastest route under another name.
     case noScenicAlternative
+    /// 422 `nothing_pretty` (T-0332): the route the server would ship scores below RouteScore's 0.45, so it is not
+    /// shown; the answer carries the plan's two offers (more time, all back roads).
+    case nothingPretty(NothingPrettyOffer)
     /// 404 `unknown_place`: the server's corpus does not know the destination id.
     case unknownPlace
     /// 500 `ceiling_breached` / `no_recorded_lambda`: the server's own safety net refused its result.
@@ -42,6 +45,7 @@ public enum PlanError: Error, Equatable, Sendable {
         case .attestUnsupported: return .attestUnsupported
         case .offlineDuringDrive: return .offlineDuringDrive
         case .noScenicAlternative: return .noScenicAlternative
+        case .nothingPretty: return .nothingPretty
         case .unknownPlace: return .unknownPlace
         case .planRefused: return .planRefused
         case .invalidRequest: return .invalidRequest

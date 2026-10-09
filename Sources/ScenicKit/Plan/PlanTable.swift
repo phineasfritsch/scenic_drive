@@ -55,6 +55,20 @@ public struct PlanTable: Sendable, Equatable {
         self.rows = PlanTable.rows(of: path)
     }
 
+    /// GraphHopper encodes `scenic_score` as an integer 0...10; `ScoredEdge.score` is 0...1.
+    public static let encodedScoreScale = 10.0
+
+    /// What `RouteScore` scores (T-0332): every row of positive metres that carries a scenic score, as one edge of
+    /// `score / 10`. Unscored metres are left out rather than scored 0, so an unscored stretch cannot pass for a dull
+    /// one - and a route with no scored metres has no edges, which `RouteScore(edges:)` answers nil. The Worker's
+    /// routeScore.ts `scoredEdges` is this, over its port of these rows.
+    public var scoredEdges: [ScoredEdge] {
+        rows.compactMap { row in
+            guard row.meters > 0, let score = row.scenicScore else { return nil }
+            return ScoredEdge(length: row.meters, score: Double(score) / Self.encodedScoreScale)
+        }
+    }
+
     static func rows(of path: RoutePath) -> [Row] {
         let points = path.coordinates
         guard points.count >= 2 else { return [] }

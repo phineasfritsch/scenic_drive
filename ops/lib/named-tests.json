@@ -35,6 +35,10 @@
         "POST /plan budget ceiling (R7, P-SAFE-04) > a router whose every scenic route overshoots answers no_route, never an over-ceiling route",
         "POST /plan budget ceiling (R7, P-SAFE-04) > a scenic route exactly at the ceiling is returned (the ceiling is inclusive)"
       ],
+      "test/planHonest.test.ts": [
+        "POST /plan honest failure (T-0332 A3, P-SAFE-04) > westwood-malibu +25 (RouteScore 0.226) answers nothing_pretty with both offers, never a 200 route",
+        "POST /plan honest-failure offers (T-0332 A4/A5) > a chosen route with no scenic_score detail is an honest failure, never a 200 (R3, fail closed)"
+      ],
       "test/lambdaSearch.test.ts": [
         "searchLambda - the LambdaSearch port > with nothing feasible it refuses no_feasible_lambda rather than returning an overshoot",
         "searchLambda - the LambdaSearch port > flags non-monotone curves and still returns only measured feasible lambdas"
