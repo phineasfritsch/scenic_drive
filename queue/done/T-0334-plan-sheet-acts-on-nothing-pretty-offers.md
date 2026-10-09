@@ -1,7 +1,7 @@
 ---
 id: T-0334
 title: The plan sheet acts on a nothing_pretty answer's offers - "+40" re-plans at budget + 40 and "all back roads" plans the lambda-8 route with its real ETA - instead of only showing the honest-failure line
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T03:46:03Z
@@ -11,7 +11,7 @@ branch: task/T-0334
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-SAFE-04, P-COST-04]
-reviewer: null
+reviewer: agent/rv1-t0334
 depends_on: [T-0332]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -123,3 +123,22 @@ once the failure carries them to the sheet. Apple files change: ios-compile and 
   queue-check on the PR merge ref: 'duplicate id T-0336'. Main filed its own T-0336 (screenshot every screen, the
   honest-failure card among them) after my id scan. Mine is dropped: main's T-0336 covers the plan-sheet shot R8 asks
   for, so the PlanOfferCard shot belongs there. Merged origin/main again (PR #216 T-0329), digest rows unioned.
+- 2026-10-09T06:44:16Z REVIEW PASS (agent/rv1-t0334, reviewer, not the owner) on 26dd3616, PR #219:
+  - every acceptance line A1-A8 read against the diff and tests; committed before code (f3d44ad5). R1 holds: a
+    back-roads plan is checked against fastest + the requested budget (ceiling_breached 500 at 31, 200 at 32).
+  - touched tests green: Worker planBackRoads + planHonest + reflectionSites 27/27; Swift PlanOffer|PlanSheet|
+    NothingPretty|PlanClient|ClientPlanner: XCTest 0 failures, Swift Testing 28 tests in 5 suites passed.
+  - reviewer mutants (not in the population), each restored: R-M1 scenicPlanner.ts HonestFailure built with
+    ceiling instead of fastestSeconds KILLED (5 failed: 'westwood-malibu +25 names the whole minutes that cover the
+    back-roads ETA', planHonest 'westwood-malibu +25 (RouteScore 0.226) answers nothing_pretty with both offers',
+    'budget 140 offers exactly 180', 'the next double above 140 offers no more time', 'budget 180 offers no more
+    time'); R-M2 PlanOfferCopy ETA minutes truncated (Int(eta / 60)) KILLED ('every budget x more x back-roads
+    variant, whole': about 59 min != about 60 min, 4 issues).
+  - guards on the clean tree: check-line-cap, check-mutate-population (floor 144), check-pins-yaml,
+    check-safety-disclaimer-pinned, queue-check all exit 0; check-pins --source-only did not finish locally within
+    the review budget (loaded box) - CI pins-source-only passed on 26dd3616 (run 37890895281).
+  - CI on 26dd3616: linux-core 37890895281 success; ios-compile 37890892779 success; ios-screenshot 37892939560
+    success (dispatched by the reviewer), 14 shots looked at: home medium shows vehicle onboarding, drive shows the
+    route line, attribution and End drive. No shot shows the plan sheet, so PlanOfferCard is unseen (R8; main's
+    T-0336 owns that shot).
+  - origin/main 4537e7d4 is an ancestor of origin/task/T-0334.
