@@ -111,3 +111,13 @@ GRDB-gated suites run only in CI linux-core. iOS screenshots looked at.
   planner wrapper and the store, each tested through its shipping symbol. The feedTable row "a reroute" became "runs
   that do not tile the line" (a reroute through DriveController needs a ticketed RerouteReply; T-0325's
   transitionTable holds the clock's reroute row and T-0348 owns the reroute path).
+- 2026-10-09T19:11:31Z CI AND MUTANTS (agent/claude-opus-5; code commit e3ffbfc6).
+  ios-compile run 37972620056: success. ios-screenshot run 37972624773: success; plan-preview-light and drive-light
+  LOOKED AT - the preview shows the line, "55 min - 20 min longer than the fastest way", the estimate badge, both
+  hazard lines, the conditions line and the OSM credit; the drive shows the line, the map and route credit and End
+  drive. No app file changed in this PR (R9), so both are the unchanged app over the new ScenicKit.
+  MUTANTS NOT RUN: `python ops/mutate/traffic.py --only 64,...,81` could not build its baseline on this box twice -
+  first a GRDB checkout pinned by a Package.resolved the Linux docker run had written into the worktree (removed),
+  then a swift-frontend hang with no file written for 3+ minutes after 40 (killed, tree clean). The population
+  grows to 81 entries with a literal floor (check-mutate-population reads it); the 18 new entries (64-81) are NOT
+  yet seen CAUGHT - an open item for the reviewer's pre-review mutant pass, not a claim.
