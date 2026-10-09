@@ -66,7 +66,7 @@ struct SurpriseShownStoreTests {
         let applied = try DatabaseQueue(path: path).read { db in
             try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY identifier")
         }
-        #expect(applied == ["v1-saved-drives", "v2-needs-replan", "v3-surprise-shown"])
+        #expect(applied == ["v1-saved-drives", "v2-needs-replan", "v3-surprise-shown", "v4-corridor-ratio"])
     }
 
     @Test("the shared gate: a corpus file is refused before anything is written")

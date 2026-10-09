@@ -15,3 +15,24 @@ Sources/ScenicKit/Traffic/CorridorClock.swift	                                 i
 Sources/ScenicKit/Traffic/CorridorClock.swift	    private func teach(_ index: Int, from start: Date, to stop: Date, into speeds: inout LearnedCorridorSpeeds) -> Bool {
 Sources/ScenicKit/Traffic/CorridorClock.swift	public struct CorridorClock: Sendable, Equatable {
 Sources/ScenicKit/Traffic/RetimedPreview.swift	    public static func of(_ preview: PlanPreview, timeRuns: [CorridorTimeRun], by provider: some TrafficProvider,
+Sources/PlaceStore/CorridorRatioRecord.swift	public struct CorridorRatioRecord: Sendable, Equatable {
+Sources/PlaceStore/CorridorRatioStore.swift	                CorridorRatioRecord(cell: UInt64(bitPattern: row["cell"] as Int64), hour: row["hour"],
+Sources/PlaceStore/CorridorRatioStore.swift	    private static func all(_ db: Database) throws -> [CorridorRatioRecord] {
+Sources/PlaceStore/CorridorRatioStore.swift	    public func list() throws -> [CorridorRatioRecord] {
+Sources/PlaceStore/CorridorRatioStore.swift	    public func replaceAll(with records: [CorridorRatioRecord]) throws -> [CorridorRatioRecord] {
+Sources/PlaceStore/CorridorRatioStore.swift	public final class CorridorRatioStore: Sendable {
+Sources/ScenicKit/Traffic/CorridorLearner.swift	                        on controller: inout DriveController, clock: inout CorridorClock?) -> [DriveCommand] {
+Sources/ScenicKit/Traffic/CorridorLearner.swift	        return CorridorClock(route: route)
+Sources/ScenicKit/Traffic/CorridorLearner.swift	    private let save: @MainActor ([CorridorSlotRow]) -> Void
+Sources/ScenicKit/Traffic/CorridorLearner.swift	    public func clock(for preview: PlanPreview) -> CorridorClock? {
+Sources/ScenicKit/Traffic/CorridorLearner.swift	    public init(speeds: LearnedCorridorSpeeds, save: @escaping @MainActor ([CorridorSlotRow]) -> Void) {
+Sources/ScenicKit/Traffic/CorridorLearner.swift	    public private(set) var speeds: LearnedCorridorSpeeds
+Sources/ScenicKit/Traffic/CorridorLearner.swift	public final class CorridorLearner {
+Sources/ScenicKit/Traffic/CorridorSlotRow.swift	public struct CorridorSlotRow: Equatable, Sendable {
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	            CorridorSlotRow(cell: slot.cell.index, hour: slot.hour.value, ratio: learned.ratio, samples: learned.samples)
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	            let slot = CorridorSlot(cell: CorridorCell(index: row.cell), hour: hour)
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	            slots[slot] = CorridorRatio(ratio: row.ratio, samples: row.samples)
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	    public init?(timeZone: TimeZone, restoring rows: [CorridorSlotRow]) {
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	    public var rows: [CorridorSlotRow] {
+Sources/ScenicKit/Traffic/RetimingPlanner.swift	    private let learner: CorridorLearner
+Sources/ScenicKit/Traffic/RetimingPlanner.swift	    public init(inner: any RoutePlanning, learner: CorridorLearner, now: @escaping @Sendable () -> Date) {

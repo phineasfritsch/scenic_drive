@@ -23,7 +23,8 @@ acceptance:
   - "Persistence (R3): PlaceStore CorridorRatioStore(path:) over the user store's v4 table corridor_ratio (cell, hour, ratio, samples) with CHECK constraints on every bound; replaceAll(with:) is one transaction (a refused row leaves the table unchanged), list() answers it sorted; a second store on the same path reads the same rows (relaunch); cells above Int64.max round-trip. UserStorePrivacyTests' whole column map gains corridor_ratio and no column matches /home|address|breadcrumb|trail|speed/; the migration tests list v4. GRDB suites green in CI linux-core."
   - "P-PRIV-05 (R6): CorridorSlotRow, CorridorLearner, CorridorRatioRecord and CorridorRatioStore join the guarded identifiers; every new site (ScenicKit, PlaceStore, PlanAdapter, NavAdapter) approved in the whitelist, seen RED by name before approval and green after; LearnedSpeedsPrivacyTests casts the new ScenicKit types, a PlaceStore test casts CorridorRatioRecord."
   - "Tests RED first by name against stubs, then green; digest rows re-approved; ops/mutate/traffic population extended to the new subjects with a raised literal floor, the new entries CAUGHT by name; check-mutate-population, check-line-cap, check-pins-yaml, queue-check green; ios-compile and ios-screenshot success with the plan-preview and drive shots looked at."
-  - "The rest FILED (R8): reroute answers carry time runs so a rerouted drive keeps learning."
+  - "The rest FILED (R8): reroute answers carry time runs so a rerouted drive keeps learning (T-0348)."
+  - "R9 (re-ruled 2026-10-09T18:15:30Z): the app wiring - DriveNavigator.forward calling CorridorLearner.observe, DriveHost's learner parameter, LivePlanner.make() wrapping RetimingPlanner over the one learner restored from CorridorRatioStore, the shell line, their P-PRIV-05 sites - is FILED as T-0349: every Swift file under apps/ios is byte-pinned in ops/lib/check-safety-disclaimer-pinned and the permission classifier refused that re-approval; this task ships the ScenicKit and PlaceStore slice only."
 ---
 ## Brief
 
@@ -78,3 +79,35 @@ GRDB-gated suites run only in CI linux-core. iOS screenshots looked at.
   between drives. R6: the P-PRIV-05 guard grows by CorridorSlotRow, CorridorLearner, CorridorRatioRecord,
   CorridorRatioStore and every new site. R7: loop and trip previews are not retimed (other card types; no runs
   reach them). R8: after a reroute the clock teaches nothing more (m5; T-0325 R3) - filed as a follow-up.
+- 2026-10-09T18:15:30Z RED then GREEN, GUARD, and a RE-RULING R9 (agent/claude-opus-5).
+  ScenicKit RED: against early-return stubs (restore `return nil`, rows `return []`, the learner's save `if false`,
+  the planner `return outcome`), `swift test --filter 'ScenicKitTests\.(LearnedSpeedsRestoreTests|CorridorLearnerTests|
+  RetimingPlannerTests|LearnedSpeedsPrivacyTests)'` exit 1, "Test run with 6 tests in 4 suites failed ... with 49
+  issues", FAILED by name: "restore: every bound of hour, ratio and samples, alone and beside a good row; a repeated
+  slot refuses all", "rows answers every slot by cell then hour, and restoring them equals the learner that wrote
+  them", "each fix teaches through the shipped entry: a save of the whole table exactly when an edge completes",
+  "five drives, each followed by a relaunch, clear the planner's badge on the fifth and not before", "previews with
+  runs are retimed at now(); a preview without runs, a failure and an offer pass unchanged" (the privacy cast stays
+  green: nothing is Codable). GREEN: the same filter plus LearnedCorridorSpeedsTests, CorridorClockTests and
+  RetimedPreviewTests, "Test run with 16 tests in 7 suites passed". `ops/lib/run-named-tests.py P-SAFE-07`:
+  NAMED P-SAFE-07 passed=23/23.
+  PlaceStore (GRDB-gated; swift:6.1-noble under WSL docker with libsqlite3-dev, no git inside): RED with the v4
+  migration unregistered - FAILED by name "records round-trip whole, by stored cell then hour; a second store on the
+  file reads the same; a write replaces all" and "every bound of hour, ratio and samples one step either side; a
+  refused write or a repeated slot keeps the table" (no such table: corridor_ratio), "no column of the migrated user
+  store matches home|address|breadcrumb|trail|speed; the columns are R3's", and the two upgrade tests (GRDB "undefined
+  migration" trap); GREEN with v4: "Test run with 16 tests passed" over CorridorRatioStoreTests,
+  CorridorRatioRecordFieldsTests, UserStorePrivacyTests, UserStoreMigrationTests, SurpriseShownStoreTests,
+  SavedDriveStoreTests - SQLite's 0.3 and 1.0 CHECK bounds hold exactly at Swift's one-ulp neighbours.
+  P-PRIV-05 GUARD: the four new identifiers added, the guard exit 1 with "FAILED - 33 unapproved, 0 missing of 17
+  approved" naming every new line (ScenicKit, PlaceStore, PlanAdapter, NavAdapter); approved; --prove-red 14 of 14
+  red by name (four new rows) with the control green.
+  R9 RE-RULING: `bash ops/lib/check-safety-disclaimer` (P-SAFE-03) refused the app edits - every Swift file under
+  apps/ios is byte-pinned in ops/lib/check-safety-disclaimer-pinned, and the shell line is a frozen render block -
+  and the permission classifier REFUSED the digest re-approval in check-safety-disclaimer-pinned. Per the brief's
+  instruction the app edits (DriveNavigator, DriveHost, LivePlanner, the shell line, LiveCorridorLearner) are
+  withdrawn, unapproved, and FILED as T-0349 with the exact wiring; their P-PRIV-05 sites are withdrawn with them
+  (the whitelist now holds 38 sites in 12 files). This PR ships the Linux slice: the feed, the restore, the
+  planner wrapper and the store, each tested through its shipping symbol. The feedTable row "a reroute" became "runs
+  that do not tile the line" (a reroute through DriveController needs a ticketed RerouteReply; T-0325's
+  transitionTable holds the clock's reroute row and T-0348 owns the reroute path).
