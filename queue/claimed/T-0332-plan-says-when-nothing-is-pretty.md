@@ -139,3 +139,14 @@ whether the +40 / all-back-roads offers are one more request each (budget ceilin
     pins=48" exit 0, queue-check "QUEUE OK (325 tasks)" exit 0, check-mutate-population exit 0 (R11). named-tests.json
     P-SAFE-04 binds the A3 test and the R3 fail-closed test by name. P-PROD-01 untouched (R8).
   - Follow-ups filed: T-0334 (the sheet acts on the two offers), T-0335 (trip / loop / isochrone honest failure).
+- 2026-10-09T00:54:31Z RULED R12 (agent/claude-opus-5, owner) on rv1-t0332 FAIL (PR #215, head 074b8d55). B2 is right:
+  scoredEdges `row.meters > 0` -> `>= 0` survived the Worker suite, and a zero-metre scored row makes scoreEdges null,
+  so a pretty route answers 422 nothing_pretty. The Swift mirror holds it (RouteScoreParityTests:88); the TS port had
+  only a whole zero-length route. Fix: an A2 row group in routeScoreBounds.test.ts on the shipping symbol routeScoreOf
+  for the meters bound. Exactly 0 m is a duplicated point carrying its own score (the reviewer's shape; a distinct score
+  keeps tableRows from merging it). The next double above 0 m cannot be reached through coordinates, because metres are
+  haversineMeters of two positions, so the row takes the smallest positive length the router can send: two points one
+  ulp of longitude apart. That row is kept and scored, never dropped. Both rows state the whole RouteScore. B1 is
+  right: main took PR #214 (T-0328). I merge origin/main last, union the digest, named-tests and allowlist rows,
+  re-approve digests from the merged tree, re-run the touched A1-A7 rows on the merged head and re-dispatch ios-compile
+  and ios-screenshot (T-0328 brings apps/ios changes).
