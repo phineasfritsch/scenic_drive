@@ -122,3 +122,9 @@ P-SAFE-02's layers still see each hazard; shots looked at.
     2c15dbb6, the last commit touching apps/ios or Sources). LOOKED AT: plan-preview-light - the strip reads a
     warning glyph and "Local traffic only on part of this route - you may not be allowed through", no raw key;
     plan-trip-light and plan-loop-dark - no hazard line, as M2/R4 rule (their bodies carry none; T-0340).
+- 2026-10-09T09:25:10Z OPEN - PR #224 CI red: `core` and `pins-source-only` fail P-SAFE-03 and P-ATTR-01 with "the pinned
+  render surface changed: Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift content changed (sha256
+  9056a618..., approved 44bac72a...)". PlanPreviewCard is content-pinned in ops/lib/check-safety-disclaimer-pinned
+  (a second digest table, separate from -linked-digests.txt, which this run did not measure). The re-approval edit
+  was refused by this session's permission classifier; it waits on the owner's say-so. Not done, and nothing has
+  been worked around.
