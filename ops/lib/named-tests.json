@@ -1596,7 +1596,7 @@
   },
   "P-SAFE-07": {
     "swift": {
-      "filter": "ScenicKitTests\\.(LearnedCorridorSpeedsTests|HourOfWeekTests)",
+      "filter": "ScenicKitTests\\.(LearnedCorridorSpeedsTests|HourOfWeekTests|CorridorCellTests|CorridorRouteTests|CorridorClockTests|RetimedPreviewTests)",
       "tests": [
         "ScenicKitTests.LearnedCorridorSpeedsTests/badgeAtFiveSamples()",
         "ScenicKitTests.LearnedCorridorSpeedsTests/emptyRouteIsAnEstimate()",
@@ -1605,7 +1605,15 @@
         "ScenicKitTests.LearnedCorridorSpeedsTests/badTimesRefused()",
         "ScenicKitTests.LearnedCorridorSpeedsTests/hourBoundaryMidRoute()",
         "ScenicKitTests.HourOfWeekTests/initBounds()",
-        "ScenicKitTests.HourOfWeekTests/wrapAndZone()"
+        "ScenicKitTests.HourOfWeekTests/wrapAndZone()",
+        "ScenicKitTests.CorridorCellTests/everyReferenceRow()",
+        "ScenicKitTests.CorridorCellTests/rangeBounds()",
+        "ScenicKitTests.CorridorRouteTests/tilingTable()",
+        "ScenicKitTests.CorridorRouteTests/edgeOfSegment()",
+        "ScenicKitTests.CorridorClockTests/transitionTable()",
+        "ScenicKitTests.CorridorClockTests/countsAndFinish()",
+        "ScenicKitTests.RetimedPreviewTests/badgeTable()",
+        "ScenicKitTests.RetimedPreviewTests/fiveDrivesClearTheBadge()"
       ]
     }
   }

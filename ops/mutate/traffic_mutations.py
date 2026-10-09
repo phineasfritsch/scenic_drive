@@ -32,12 +32,22 @@ ROUTE = _DIR / "RetimedRoute.swift"
 SLOT = _DIR / "CorridorSlot.swift"
 CELL = _DIR / "CorridorCell.swift"
 EDGE = _DIR / "CorridorEdge.swift"
-SUBJECTS = (LEARNER, HOUR, RATIO, ROUTE, SLOT, CELL, EDGE)
+TIME_RUN = _DIR / "CorridorTimeRun.swift"
+CROUTE = _DIR / "CorridorRoute.swift"
+CLOCK = _DIR / "CorridorClock.swift"
+PREVIEW = _DIR / "RetimedPreview.swift"
+H3_BASE = _DIR / "H3BaseCells.swift"
+H3_IJK = _DIR / "H3CoordIJK.swift"
+H3_FACE = _DIR / "H3FaceProjection.swift"
+H3_INDEX = _DIR / "H3IndexBuilder.swift"
+SUBJECTS = (LEARNER, HOUR, RATIO, ROUTE, SLOT, CELL, EDGE, TIME_RUN, CROUTE, CLOCK, PREVIEW, H3_BASE, H3_IJK, H3_FACE,
+            H3_INDEX)
 MUTATED_FILES = SUBJECTS
 
 _TESTS = ROOT / "Tests" / "ScenicKitTests" / "Traffic"
 TEST_FILES = (_TESTS / "LearnedCorridorSpeedsTests.swift", _TESTS / "HourOfWeekTests.swift",
-              _TESTS / "LearnedSpeedsPrivacyTests.swift")
+              _TESTS / "LearnedSpeedsPrivacyTests.swift", _TESTS / "CorridorCellTests.swift",
+              _TESTS / "CorridorRouteTests.swift", _TESTS / "CorridorClockTests.swift", _TESTS / "RetimedPreviewTests.swift")
 
 BADGE = "the estimate badge: on at 0 and 4 samples, off at 5 and 6, and on whenever another edge is unlearned"
 EMPTY = "an empty route is an estimate with no edges"
@@ -48,6 +58,17 @@ CROSS = "departsAt: an edge entered after Sunday 23:59 reads Monday 00:00's rati
 INIT = "HourOfWeek(_:) holds 0...167 and refuses -1, 168 and the Int extremes"
 WRAP = "Sunday 23:00 is 167 and wraps to Monday 00:00 = 0; the zone decides the hour"
 PRIVATE = "no learned-speed type is Encodable or Decodable"
+# T-0325: the H3-8 cell, the corridor route, the clock and the preview.
+CELLS = "every reference point's cell equals h3-py's latlng_to_cell at resolution 8, and at 5 as Telemetry's"
+BOUNDS = "latitude -90 and 90 and longitude -180 and 180 are cells; one ulp outside, NaN and infinities are nil"
+TILE = "runs tile the route edge for edge into corridor edges; every bound of the tiling refused"
+SEGMENT = "a segment's edge is the last edge starting at or before it"
+DRIVES = "a clean drive teaches every edge once; a skip, a detour, a late start, no arrival and a reroute do not"
+COUNTS = "a fix after arrival teaches nothing more, and observe answers how many edges each fix taught"
+PREVIEW_BADGE = "the badge: on at 0 and 4 samples, off at 5 and 6, on with one edge unlearned, and kept without runs"
+FIVE = "five completed drives clear the badge and four do not"
+_OFF_LINE = "            enteredAt = nil\n            previousOnLine = false\n"
+_FINISH = "            finished = true\n        }\n        return taught"
 
 _CLAMP = "min(Self.ceilingRatio, max(Self.floorRatio, freeFlowSeconds / actualSeconds))"
 _EWMA = "(1 - Self.alpha) * prior.ratio + Self.alpha * observed"
@@ -125,6 +146,53 @@ MUTATIONS = [
     ("35 the clamp after the EWMA only, the seed raw", LEARNER, _RECORD,
      _RAW.replace("CorridorRatio(ratio: ratio,", "CorridorRatio(ratio: " + _STORED_CLAMP % "ratio" + ","),
      [EWMA, CLAMP]),
+    # T-0325 (36-62): the H3-8 copy, CorridorRoute's tiling, CorridorClock's transitions, RetimedPreview.
+    ("36 corridors at resolution 9", CELL, "public static let resolution = 8", "public static let resolution = 9",
+     [CELLS, BOUNDS]),
+    ("37 latitude 90 refused", CELL, "(-90...90).contains(latitudeDegrees)", "(-90..<90).contains(latitudeDegrees)",
+     [BOUNDS]),
+    ("38 longitude one ulp past 180 accepted", CELL, "(-180...180).contains(longitudeDegrees)",
+     "(-180...180.0.nextUp).contains(longitudeDegrees)", [BOUNDS]),
+    ("39 the Class III rotation never applied", H3_FACE, "if resolution % 2 == 1 {", "if resolution % 2 == 2 {",
+     [CELLS]),
+    ("40 sin 60 rounded", H3_IJK, "static let sin60 = 0.8660254037844386467637231707529361834714",
+     "static let sin60 = 0.866", [CELLS]),
+    ("41 the base cell rotation dropped", H3_BASE, "return (value / 8, value % 8)", "return (value / 8, 0)", [CELLS]),
+    ("42 the resolution field shifted", H3_INDEX, "UInt64(resolution) << 52", "UInt64(resolution) << 51",
+     [CELLS, BOUNDS]),
+    ("43 a run from == to accepted", CROUTE, "run.to > run.from,", "run.to >= run.from,", [TILE]),
+    ("44 a negative time accepted", CROUTE, "run.milliseconds >= 0 else", "run.milliseconds >= -1 else", [TILE]),
+    ("45 runs past the last vertex accepted", CROUTE, "guard at == route.count - 1,", "guard at >= route.count - 1,",
+     [TILE]),
+    ("46 an all-zero route accepted", CROUTE, "timeRuns.contains(where: { $0.milliseconds > 0 })",
+     "timeRuns.contains(where: { $0.milliseconds >= 0 })", [TILE]),
+    ("47 a run's cell from its last vertex", CROUTE, "let cell = cells[run.from]", "let cell = cells[run.to]", [TILE]),
+    ("48 adjacent runs in one cell never merge", CROUTE, "if let last = grouped.last, last.cell == cell {",
+     "if let last = grouped.last, last.cell == cell, run.from < 0 {", [TILE, SEGMENT]),
+    ("49 milliseconds read as centiseconds", CROUTE, "Double($0.milliseconds) / 1000", "Double($0.milliseconds) / 100",
+     [TILE]),
+    ("50 a segment at an edge's first vertex is the edge before", CROUTE, "firstVertices.lastIndex { $0 <= segment }",
+     "firstVertices.lastIndex { $0 < segment }", [SEGMENT, DRIVES]),
+    ("51 an entry after an off-line fix counted", CLOCK, "let clean = previousOnLine && now == current + 1",
+     "let clean = now == current + 1", [DRIVES]),
+    ("52 a skipped edge's neighbour counted", CLOCK, "let clean = previousOnLine && now == current + 1",
+     "let clean = previousOnLine && now > current", [DRIVES]),
+    ("53 an off-line fix does not spoil the edge", CLOCK, _OFF_LINE, "            previousOnLine = false\n", [DRIVES]),
+    ("54 the first fix enters any edge", CLOCK, "enteredAt = now == 0 ? date : nil", "enteredAt = date", [DRIVES]),
+    ("55 arrival at twice the threshold", CLOCK, "end.meters <= DriveSession.awayThresholdMeters",
+     "end.meters <= 2 * DriveSession.awayThresholdMeters", [DRIVES]),
+    ("56 a reroute ignored", CLOCK, "guard session.line.coordinates == route.coordinates else {", "guard true else {",
+     [DRIVES]),
+    ("57 the hour of the exit", CLOCK, "HourOfWeek.of(start, in: speeds.timeZone)",
+     "HourOfWeek.of(stop, in: speeds.timeZone)", [DRIVES, COUNTS, FIVE]),
+    ("58 arrival does not finish the drive", CLOCK, _FINISH, "        }\n        return taught", [COUNTS]),
+    ("59 the badge stays the server's", PREVIEW, "etaIsEstimate: retimed.isEstimate",
+     "etaIsEstimate: preview.etaIsEstimate", [PREVIEW_BADGE, FIVE]),
+    ("60 the ETA stays the server's", PREVIEW, "etaSeconds: retimed.etaSeconds", "etaSeconds: preview.etaSeconds",
+     [PREVIEW_BADGE, FIVE]),
+    ("61 the hazards dropped", PREVIEW, "hazards: preview.hazards", "hazards: []", [PREVIEW_BADGE, FIVE]),
+    ("62 a time run's milliseconds doubled", TIME_RUN, "self.milliseconds = milliseconds",
+     "self.milliseconds = milliseconds * 2", [TILE]),
 ]
 
 EQUIVALENT = [
@@ -134,6 +202,6 @@ EQUIVALENT = [
      "guard), so min-then-max and max-then-min clamp every value to the same number"),
 ]
 
-MIN_MUTATIONS = 35
+MIN_MUTATIONS = 62
 MIN_EQUIVALENT = 1
-MIN_TEST_FILES = 3
+MIN_TEST_FILES = 7
