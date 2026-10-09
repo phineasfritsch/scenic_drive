@@ -129,7 +129,7 @@ struct ClosuresHazardTests {
             rows.append(("state \(value ?? "removed")", with("state", value), unreadable))
         }
         for value in [nil, "null", "7"] { rows.append(("version \(value ?? "removed")", with("version", value), unreadable)) }
-        for value in [nil, "7", "true"] {
+        for value in [nil, "null", "7", "true"] {
             rows.append(("fetched_at \(value ?? "removed")", with("fetched_at", value), unreadable))
         }
         for value in ["0", "-1", "null", #""x""#] {
@@ -158,6 +158,6 @@ struct ClosuresHazardTests {
                 }
             }
         }
-        #expect(count == 3 * 4 * 27)
+        #expect(count == 3 * 4 * 28)
     }
 }

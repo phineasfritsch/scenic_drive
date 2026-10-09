@@ -23,20 +23,16 @@ public enum ClosuresHazardReader {
         return ClosuresHazard(state: state(of: box), dropped: box.contains(.dropped), crosses: box.contains(.crosses))
     }
 
-    /// The state, exactly as the Worker spells it - and only when the record it names read: a version that is a
-    /// string and a fetched_at that is a string or null. Anything else could not be checked.
+    /// The state, exactly as the Worker spells it - and only when the record it names read: a version and a
+    /// fetched_at that are both strings. Anything else, the Worker's own null fetched_at included, could not be
+    /// checked.
     static func state(of box: KeyedDecodingContainer<Keys>) -> ClosuresState {
-        guard (try? box.decode(String.self, forKey: .version)) != nil, readsFetchedAt(box) else { return .unavailable }
+        guard (try? box.decode(String.self, forKey: .version)) != nil,
+              (try? box.decode(String.self, forKey: .fetchedAt)) != nil else { return .unavailable }
         switch try? box.decode(String.self, forKey: .state) {
         case .some("fresh"): return .fresh
         case .some("stale"): return .stale
         default: return .unavailable
         }
-    }
-
-    static func readsFetchedAt(_ box: KeyedDecodingContainer<Keys>) -> Bool {
-        guard box.contains(.fetchedAt) else { return false }
-        if (try? box.decodeNil(forKey: .fetchedAt)) == true { return true }
-        return (try? box.decode(String.self, forKey: .fetchedAt)) != nil
     }
 }
