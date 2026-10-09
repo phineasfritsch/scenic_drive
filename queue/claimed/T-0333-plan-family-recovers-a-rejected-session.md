@@ -89,3 +89,20 @@ wrong TTL, malformed} x {flag 1, closed} for the Worker answer, and for the clie
   {rejectsOnce, rejectsAlways}; its 20 answers / noSession rows and the meta-test passed (today's behaviour). The
   later `the resend carries the same purchase` test calls only shipped API but was written after the code; its red is
   mutant 89.
+- 2026-10-09T12:05:00Z GREEN and POPULATION. `npx vitest run test/sessionCarriesAct.test.ts test/sessionIdentity.test.ts
+  test/requestReadSites.test.ts test/telemetry*.test.ts test/waitlist*.test.ts test/plan*.test.ts test/loop*.test.ts
+  test/trip*.test.ts` -> `Test Files  26 passed (26)`, `Tests  504 passed (504)`. `swift test --filter
+  "PlanSessionRetryTests|PlanBearerTests|SessionAccountTests|SessionStoreTests|SessionSkewTests|AccountTokenHeaderTests|PlanRerouteWireTests"`
+  -> `Test run with 29 tests in 7 suites passed`. Worker population (attestMutants.mjs, floor 85 -> 92, subjects + plan.ts,
+  trip.ts, loop.ts, tests + sessionCarriesAct.test.ts): `--only` the 7 new entries and the re-anchored deps-bearer-not-read
+  -> all 8 CAUGHT by name (reject-never, reject-plan/trip/loop-unanswered by `<route>, Bearer expired, IDENTITY_HEADERS
+  unset, header live: the answer is the ruled reference`; reject-under-flag by the IDENTITY_HEADERS 1 row; reject-absent-
+  header by `with the secret and IDENTITY_HEADERS unset or 0, no Bearer is the unidentified bucket, anon`; reject-unmarked
+  and deps-bearer-not-read by the request-sites whitelist). Swift population (session_mutations.py, floor 81 -> 90, test
+  files 8 -> 9, FAMILY subject; 71-74 re-anchored on the clients' `session: session` and the family send): MISSED BEFORE -
+  the runner's FILTER lacked PlanSessionRetryTests and 82-88 were `MISSED exit=0 no test objected` (71-74 caught); with
+  the suite in FILTER, `--only 82..90` -> `caught by the test that names it: 9 of 9 (wrong killer 0, trapped 0,
+  compile-only 0, MISSED 0, skipped 0)`. check-mutate-population first refused PlanFamilySend.swift (no SUBJECT_MODULES
+  entry), then `every added module is covered or allowlisted; the floor of 144 holds` once session.py declared it.
+  Digests: 5 Sources rows re-approved from the committed blobs, PlanFamilySend.swift added. P-STORE-02's named table
+  binds 28 more names (246, sha256 190b9ca64c61...), `NAMED-TABLE P-STORE-02 ok - 246 distinct names`.
