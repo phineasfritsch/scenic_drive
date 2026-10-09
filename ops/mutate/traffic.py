@@ -29,7 +29,11 @@ shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_er
 SUBJECT_MODULES = ("Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift", "Sources/ScenicKit/Traffic/HourOfWeek.swift",
                    "Sources/ScenicKit/Traffic/CorridorRatio.swift", "Sources/ScenicKit/Traffic/RetimedRoute.swift",
                    "Sources/ScenicKit/Traffic/CorridorSlot.swift", "Sources/ScenicKit/Traffic/CorridorCell.swift",
-                   "Sources/ScenicKit/Traffic/CorridorEdge.swift")
+                   "Sources/ScenicKit/Traffic/CorridorEdge.swift", "Sources/ScenicKit/Traffic/CorridorTimeRun.swift",
+                   "Sources/ScenicKit/Traffic/CorridorRoute.swift", "Sources/ScenicKit/Traffic/CorridorClock.swift",
+                   "Sources/ScenicKit/Traffic/RetimedPreview.swift", "Sources/ScenicKit/Traffic/H3BaseCells.swift",
+                   "Sources/ScenicKit/Traffic/H3CoordIJK.swift", "Sources/ScenicKit/Traffic/H3FaceProjection.swift",
+                   "Sources/ScenicKit/Traffic/H3IndexBuilder.swift")
 
 from traffic_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)
