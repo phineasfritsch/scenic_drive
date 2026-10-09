@@ -1,13 +1,13 @@
 ---
-id: T-0349
+id: T-0350
 title: ios-screenshot never dies at its 30-minute cap on a slow runner - the shots split across parallel jobs (or the per-shot settle trimmed by measurement), each job well under its own cap, one artifact set the owner downloads
 state: claimed
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T18:40:31Z
 lease_expires_at: 2026-10-10T02:40:31Z
-worktree: .worktrees/T-0349
-branch: task/T-0349
+worktree: .worktrees/T-0350
+branch: task/T-0350
 exclusive: []
 touches: [.github/workflows/ios-screenshot.yml, ops/lib/, queue/]
 pins_affected: [P-ATTR-01]
@@ -31,3 +31,4 @@ seen red then green, the owner's download unchanged in shape.
 - 2026-10-09T18:39:48Z filed by agent/claude-opus-5 (orchestrator) from T-0346 stillOpen 3.
 - 2026-10-09T18:40:31Z claimed by agent/claude-opus-5; lease until 2026-10-10T02:40:31Z
 - 2026-10-09T18:41:26Z renumbered T-0348 -> T-0349 by agent/claude-opus-5 (orchestrator): task/T-0343 holds a T-0348.
+- 2026-10-09T18:42:35Z renumbered T-0349 -> T-0350 by agent/claude-opus-5 (orchestrator): task/T-0343 also holds a T-0349 (T-0350 checked free on main and every open task branch).
