@@ -9,7 +9,8 @@ ScenicKit's HazardCopy table - never a raw wire kind or value.
 
 A WHITELIST over SITES, never a blacklist of spellings (CLAUDE.md). A raw run reaches app code only by naming
 PlanPreview's `hazards` field or the PlanHazardRun type (a closure, a key path, a rebinding or a new file all spell
-one of them), or by reflecting over the preview with Mirror. So every line of every *.swift under apps/ that names
+one of them), or by reflecting over the preview with Mirror. The closures model (T-0341) is the same class: a
+card reaches it only by naming the `closures` field or the ClosuresHazard / ClosuresState types. So every line of every *.swift under apps/ that names
 one of IDENTIFIERS must be, WHOLE (trailing whitespace dropped), one of the approved (file, line) pairs in
 check-hazard-copy-sites.txt, as many times as it is listed there. Only a line whose first non-blank characters are
 `//` is skipped (memory source-guards-fail-closed). An approved site that is gone is red too: the whitelist is
@@ -17,7 +18,7 @@ re-approved in the diff that moves it. The task's A7 grep (`run.kind` / `run.val
 --prove-red prints, per row, that the grep MISSED the bypass and this check CAUGHT it by name.
 
 WHAT IT CANNOT SEE. A run reached without spelling an identifier - string interpolation or String(describing:)
-over a whole PlanPreview - `/* */` block comments (a line inside one is read as code, so it can only fail closed),
+over a whole PlanPreview, TripItinerary or LoopPreview - `/* */` block comments (a line inside one is read as code, so it can only fail closed),
 and Swift outside apps/. Whether the approved lines are RIGHT is the reviewer's, and P-SAFE-03's digest table
 (ops/lib/check-safety-disclaimer-pinned) refuses any byte change to the card besides.
 
@@ -39,7 +40,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 WHITELIST = pathlib.Path(__file__).resolve().parent / "check-hazard-copy-sites.txt"
 SCANNED = ("apps",)
 SKIP_DIRS = {".build", "DerivedData", ".swiftpm"}
-IDENTIFIERS = ("hazards", "PlanHazardRun", "HazardCopy", "HazardStrip", "HazardFlag", "Mirror")
+IDENTIFIERS = ("hazards", "PlanHazardRun", "HazardCopy", "HazardStrip", "HazardFlag", "Mirror",
+               "closures", "ClosuresHazard", "ClosuresState", "ClosuresHazardReader")
 NAMES = re.compile(r"\b(?:%s)\b" % "|".join(IDENTIFIERS))
 TAG = "P-SAFE-03 hazard copy"
 
@@ -99,6 +101,9 @@ def check(root: pathlib.Path, out=sys.stdout) -> int:
 APP = "apps/ios/Packages/ScenicApp/Sources/"
 CARD = APP + "FeaturePlanSheet/PlanPreviewCard.swift"
 SHIPPED = "        let lines = HazardCopy.lines(for: preview)"
+TRIP = APP + "FeaturePlanSheet/TripItineraryCard.swift"
+LOOP = APP + "FeaturePlanSheet/LoopPreviewCard.swift"
+TRIP_SITE = "                ForEach(Array(HazardCopy.lines(for: itinerary).enumerated()), id: \\.offset) { _, line in"
 # (name, file, old or None to append/create, new). Every row must exit 1 with that file refused by name.
 RED_ROWS = (
     ("the strip maps raw kinds by key path", CARD, SHIPPED, "        let lines = preview.hazards.map(\\.kind)"),
@@ -113,6 +118,14 @@ RED_ROWS = (
      "private let copyProbe = HazardCopy.noneFlagged\n"),
     ("an approved line repeated", CARD, None, SHIPPED.strip() + "\n"),
     ("the table call is gone", CARD, "Text(HazardCopy.noneFlagged)", "Text(\"No hazards flagged\")"),
+    ("a card reads closures beside the site", TRIP, TRIP_SITE,
+     "                Text(itinerary.closures.crosses ? \"Road closed ahead\" : \"\")\n" + TRIP_SITE),
+    ("the raw closures state reaches a Text", TRIP, TRIP_SITE,
+     "                Text(\"closures: \\(itinerary.closures.state)\")\n" + TRIP_SITE),
+    ("a helper takes the closures model", LOOP, None,
+     "private func word(_ c: ClosuresHazard) -> Bool { c.crosses }\n"),
+    ("a helper spells the closures state", LOOP, None,
+     "private func word(_ s: ClosuresState) -> String { String(describing: s) }\n"),
 )
 
 

@@ -22,10 +22,13 @@ public struct PlanPreview: Equatable, Sendable {
     public let lambda: Double
     /// T-0328 R1: how a reroute continues this plan; nil when the Worker remembered nothing (no plan_token).
     public let continuation: PlanContinuation?
+    /// T-0341 R1: what the answer said about road closures; the strip reads its lines before the runs'.
+    public let closures: ClosuresHazard
 
     public init(route: [Coordinate], etaSeconds: Double, fastestEtaSeconds: Double, etaIsEstimate: Bool,
                 hazards: [PlanHazardRun], waypoints: [Coordinate] = [], lambda: Double = 0,
-                continuation: PlanContinuation? = nil) {
+                continuation: PlanContinuation? = nil, closures: ClosuresHazard = .clear) {
+        self.closures = closures
         self.route = route
         self.etaSeconds = etaSeconds
         self.fastestEtaSeconds = fastestEtaSeconds

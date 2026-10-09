@@ -22,7 +22,7 @@ enum LoopWire {
     static let squarePins = #""waypoints":[{"lat":34.04,"lon":-118.49},{"lat":34.04,"lon":-118.46},{"lat":34.02,"lon":-118.46}]"#
     static let tail = #""duration_s":2700,"retrace_fraction":0.02,"attempts":1,"seed":7,"target_distance_m":30000,"minutes":45,"eta_is_estimate":true,"apple_maps_url":"https://maps.apple.com/directions?destination=0,0&mode=driving""#
 
-    static let squareBody = "{\(squareRoute),\(squarePins),\(tail),\"closures_hazard\":{\"state\":\"fresh\"}}"
+    static let squareBody = "{\(squareRoute),\(squarePins),\(tail)}"
     static let outAndBackBody = #"{"route":{"coordinates":[[-118.49,34.02],[-118.49,34.05],[-118.49,34.02]],"distance_m":6700},"waypoints":[{"lat":34.05,"lon":-118.49}],"# + tail + "}"
     static let noEstimateBody = squareBody.replacingOccurrences(of: #""eta_is_estimate":true,"#, with: "")
     static let falseEstimateBody = squareBody.replacingOccurrences(of: #""eta_is_estimate":true"#,

@@ -21,7 +21,7 @@ enum TripWire {
     static let fullBody = """
     {"view":"full","route":{"coordinates":[[-118.49,34.02],[-121.81,36.27]],"distance_m":480000},\
     "eta_s":31000,"fastest_eta_s":24000,"ceiling_s":33600,"budget_s":9600,"extra_budget_pct":30,"lambda":1.5,\
-    "evaluations":5,"eta_is_estimate":true,"places_searched":false,"closures_hazard":{"state":"fresh"},"days":[\
+    "evaluations":5,"eta_is_estimate":true,"places_searched":false,"days":[\
     {"day":1,"start":{"lat":34.02,"lon":-118.49},"end":{"lat":36.27,"lon":-121.81},"drive_s":31000,\
     "distance_m":480000,"ceiling_s":33600,"stops":["Ojai"],"overnight":null,\
     "leg":{"coordinates":[[-118.49,34.02],[-119.2,34.4],[-121.81,36.27]],"eta_s":31000,"distance_m":480000}}]}

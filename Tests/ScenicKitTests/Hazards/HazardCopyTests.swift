@@ -159,6 +159,43 @@ struct HazardCopyTests {
         }
     }
 
+    /// T-0341 R2, written out: X crosses, S stale, U unavailable, D dropped.
+    static let closureX = "This route crosses a reported road closure - expect the road to be blocked and check before you drive"
+    static let closureS = "Road closure reports may be out of date for this route - check for closures before you drive"
+    static let closureU = "Road closures could not be checked for this route - check for closures before you drive"
+    static let closureD =
+        "Not every reported road closure near this route was checked - check for closures before you drive"
+
+    @Test("every closure condition reads its ruled lines, whole, on every route card")
+    func closureLines() {
+        let (x, s, u, d) = (Self.closureX, Self.closureS, Self.closureU, Self.closureD)
+        let rows: [(ClosuresState, Bool, Bool, [String])] = [
+            (.fresh, false, false, []), (.fresh, true, false, [d]), (.fresh, false, true, [x]),
+            (.fresh, true, true, [x, d]),
+            (.stale, false, false, [s]), (.stale, true, false, [s, d]), (.stale, false, true, [x, s]),
+            (.stale, true, true, [x, s, d]),
+            (.unavailable, false, false, [u]), (.unavailable, true, false, [u, d]),
+            (.unavailable, false, true, [x, u]), (.unavailable, true, true, [x, u, d]),
+        ]
+        let gravel = Self.run("surface", "gravel")
+        for (state, dropped, crosses, want) in rows {
+            let closures = ClosuresHazard(state: state, dropped: dropped, crosses: crosses)
+            let label = "\(state) dropped=\(dropped) crosses=\(crosses)"
+            #expect(HazardCopy.closureLines(for: closures) == want, "\(label)")
+            let plan = PlanPreview(route: [], etaSeconds: 600, fastestEtaSeconds: 500, etaIsEstimate: true,
+                                   hazards: [gravel, gravel], closures: closures)
+            #expect(HazardCopy.lines(for: plan) == want + ["Gravel \(Self.suits)", "Gravel \(Self.suits)"], "\(label)")
+            let trip = TripItinerary(isFull: true, etaSeconds: 600, fastestEtaSeconds: 500, etaIsEstimate: true,
+                                     days: [], closures: closures)
+            #expect(HazardCopy.lines(for: trip) == want, "\(label)")
+            let loop = LoopPreview(path: [], waypoints: [], durationSeconds: 600, distanceMeters: 1_000,
+                                   retraceFraction: 0, etaIsEstimate: true, closures: closures)
+            #expect(HazardCopy.lines(for: loop) == want, "\(label)")
+        }
+        #expect(ClosuresHazard.clear == ClosuresHazard(state: .fresh, dropped: false, crosses: false))
+        for line in [x, s, u, d] { #expect(!line.contains("_") && !line.contains(":"), "\(line)") }
+    }
+
     @Test("no copy line is empty, and none spells a wire key")
     func noWireKey() {
         let lines = HazardCopy.runLines.values.flatMap(\.values)

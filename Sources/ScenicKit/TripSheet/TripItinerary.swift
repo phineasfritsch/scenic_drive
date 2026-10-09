@@ -6,9 +6,12 @@ public struct TripItinerary: Equatable, Sendable {
     public let fastestEtaSeconds: Double
     public let etaIsEstimate: Bool
     public let days: [TripItineraryDay]
+    /// T-0341 R1: what the answer said about road closures; the itinerary card reads its lines.
+    public let closures: ClosuresHazard
 
     public init(isFull: Bool, etaSeconds: Double, fastestEtaSeconds: Double, etaIsEstimate: Bool,
-                days: [TripItineraryDay]) {
+                days: [TripItineraryDay], closures: ClosuresHazard = .clear) {
+        self.closures = closures
         self.isFull = isFull
         self.etaSeconds = etaSeconds
         self.fastestEtaSeconds = fastestEtaSeconds
