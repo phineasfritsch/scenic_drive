@@ -46,7 +46,7 @@ BODY = ROOT / "Sources" / "ScenicAPIClient" / "PlanRequestBody.swift"
 CLIENT = ROOT / "Sources" / "ScenicAPIClient" / "PlanClient.swift"
 RESPONSE = ROOT / "Sources" / "ScenicAPIClient" / "PlanResponse.swift"
 RETIMED = ROOT / "Sources" / "ScenicKit" / "Traffic" / "RetimedPreview.swift"
-SUBJECTS = (SHEET, COPY, ACTION, FAILURE, PREVIEW, TICKET, PLACE, HAZARD, PLANNER, ERROR, BODY, CLIENT)
+SUBJECTS = (SHEET, COPY, ACTION, FAILURE, PREVIEW, TICKET, PLACE, HAZARD, PLANNER, ERROR, BODY, CLIENT, RESPONSE, RETIMED)
 MUTATED_FILES = SUBJECTS
 
 TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "PlanSheet" / "PlanSheetTests.swift",
