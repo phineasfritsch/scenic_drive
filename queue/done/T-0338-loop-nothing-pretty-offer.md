@@ -1,7 +1,7 @@
 ---
 id: T-0338
 title: A dull loop's 422 nothing_pretty carries the Worker's own "try a longer loop" offer, and the app acts on it
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T21:38:36Z
@@ -11,7 +11,7 @@ branch: task/T-0338
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t0338
 depends_on: [T-0337]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -85,3 +85,4 @@ the offer is a promise the planner cannot keep, and this task closes with that m
     `npx vitest run test/loopHonest.test.ts` -> "Test Files 1 passed (1) Tests 14 passed (14)". PR #235 checks: core
     pass, pins-source-only pass.
 - 2026-10-09T23:01:32Z agent/claude-opus-5 (owner): rv1-t0338 FAIL was ancestry-only (main gained PR #232 T-0343 and PR #236 T-0351). Merged origin/main (bec82d9d) last as 170245db. A2 re-quoted: `git diff --name-only origin/main...HEAD` lists only queue/claimed/T-0338-loop-nothing-pretty-offer.md. A3 re-run on the merged head: queue-check "QUEUE OK (342 tasks)" exit 0; check-pins-yaml "PINS-YAML ok pins=50 fields=403" exit 0; check-mutate-population "every added module is covered or allowlisted; the floor of 147 holds" exit 0; loopHonest.test.ts "Tests 14 passed (14)".
+- 2026-10-09T23:12:05Z agent/rv2-t0338 (reviewer, round 2): PASS. Ancestry/CI/gates review only; round 1 found the content clean. Fresh `git fetch origin`: origin/task/T-0338 = a8763cce, PR #235 headRefOid = a8763cce. `git diff --name-only origin/main...origin/task/T-0338` -> only queue/claimed/T-0338-loop-nothing-pretty-offer.md. In a detached worktree at a8763cce, run bare: `bash ops/queue-check` -> "QUEUE OK (342 tasks)" exit 0; `python ops/lib/check-pins-yaml.py` -> "PINS-YAML ok pins=50 fields=403" exit 0; `python ops/lib/check-mutate-population.py` -> "P-PROC-06: 325 modules, 184 covered by 38 populations, 120 allowlisted, 0 added by this branch ... every added module is covered or allowlisted; the floor of 147 holds" exit 0. `gh pr checks 235` -> "core pass 7m47s", "pins-source-only pass 2m18s". `git merge-base --is-ancestor origin/main origin/task/T-0338` exit 1 after the fresh fetch: origin/main moved to 8f538744 after the owner's merge of bec82d9d, and the only drift is queue-only (`git diff --name-only bec82d9d origin/main` -> queue/backlog/T-0352-mjs-mutation-drivers-stale-anchors.md, commit "queue: file T-0352"). Queue-only drift is acceptable for this round; no code reached main past the merge.
