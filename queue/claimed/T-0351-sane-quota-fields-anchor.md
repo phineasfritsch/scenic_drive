@@ -27,3 +27,29 @@ q-green, but the anchor compares a table to itself), and the field-list half of 
 ## Log
 - 2026-10-09T18:54:55Z filed by agent/claude-opus-5 (orchestrator) from rv2-t0344 recordables 1-2.
 - 2026-10-09T19:47:24Z claimed by agent/claude-opus-5; lease until 2026-10-10T03:47:24Z
+- 2026-10-09T19:50:12Z MEASURED (before code, on b048be30): check_sane_prod.CASES = 138 (41 hand-written + 97
+  generated, 43 of them quota rows x-kill_switch/x-upstream_*); HEALTH fixture keys = db, git_sha, kill_switch, ok,
+  upstream_calls, upstream_month, upstream_trip_at; QUOTA_KINDS = the four quota keys; sane_prod has no QUOTA_FIELDS;
+  quota() reads the four keys as four string literals (sane_prod.py lines 41-44); meta_problems() line 191 compares
+  set(QUOTA_KINDS) to set(HEALTH) - {ok, db, git_sha} - the generator's table against the generator's own fixture;
+  meta_problems() today = []. The Worker writes the four keys in services/api/src/index.ts lines 83-86 in the order
+  kill_switch, upstream_month, upstream_calls, upstream_trip_at. check_sane_prod.py is 300 lines (at the cap).
+  RULINGS:
+  R1 sane_prod.QUOTA_FIELDS = ("kill_switch", "upstream_month", "upstream_calls", "upstream_trip_at"), the Worker's
+     order; quota() binds kill, month, calls, trip by unpacking `h.get(k) for k in QUOTA_FIELDS`, so no quota key is
+     spelled anywhere else in quota(); a field added to or dropped from QUOTA_FIELDS without quota() raises at the
+     unpack (uncaught -> exit 1 -> ops/sane exit 6, fail closed) and the meta-check refuses first in the check.
+  R2 The quota half of R10 compares set(QUOTA_KINDS) to set(sane_prod.QUOTA_FIELDS) and NOTHING else - the HEALTH
+     comparison is removed (acceptance 1: "never to its own HEALTH fixture"). The fixture still has to hold every
+     field because variants() reads each field's good value from it (a KeyError at import, not an anchor). Both
+     shipped symbols are read with getattr(sane_prod, NAME, ()), so a sane_prod without the symbol (the pre-change
+     file) refuses with exit 2 by the meta line instead of an AttributeError traceback.
+  R3 Sets, not order, as the manifest side already does; the order is quota()'s business (R1's unpack).
+  R4 check_sane_prod.py stays <= 300: the change is in place (the condition and message lines of the quota half).
+  R5 pins/PINS.yaml is not in touches; P-OPS-08's text ("the shipped sane_prod.MANIFEST_FIELDS plus the /__health
+     quota keys") stays true - QUOTA_FIELDS IS those keys - and the case count 138 does not change; not edited.
+  R6 Red, by name, each refusing exit 2 with zero "SANE-PROD pass" lines (before any case runs), driven by a
+     restore-checked script under .build-t0351/ (gitignored) that purges ops/lib/__pycache__ and sleeps 1.1 s
+     before restoring: anchor half - (a) "upstream_month" dropped from shipped QUOTA_FIELDS, (b) "bytes" dropped
+     from shipped MANIFEST_FIELDS, (c) the new check against the pre-change sane_prod.py (no QUOTA_FIELDS);
+     coverage half - (d) the "negative" variant dropped from the generator's int branch; then the full table green.
