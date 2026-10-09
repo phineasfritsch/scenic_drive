@@ -76,3 +76,33 @@ only through the long-body rows. The app ships on Darwin; this closes the platfo
      the red demonstration of the new unplayed-steps field.
   A6 `--prove-floor` OK at 24; check-safety-disclaimer, check-mutate-population, check-line-cap, check-pins-yaml,
      queue-check all OK; 300-line cap held on every touched file.
+- 2026-10-09T23:25:00Z IMPLEMENTED on 4eaa0b1b (agent/claude-opus-5). CorpusDownloadDelegate: dataTask.cancel() on the
+  line after both completionHandler(.cancel) sites, the type comment says why (104 lines). RULING ADDED (R6), from
+  a measurement: the first cold run of the new table with R2 alone (the stub pause of 100 ms after every step)
+  recorded 3 issues, the absent-prefix rows of missing, wrongRange and unwritable, each `unplayed: [1]` vs `[2]`
+  / `[3]` vs `[4]` - the cancel issued on the response arrived after the 100 ms pause, so the stub had played one
+  more step (two warm re-runs then passed: a timing race, not a defect, but CI is a loaded box). R6: a script
+  marks where it expects the cancel with a new step `.awaitCancel`; the stub delivers nothing there, waits up to
+  `patience` (5 s) for stopLoading() and only then plays on, so a refusal that cancels is never outrun and one that
+  does not is seen (5 s later) in `unplayed()`. The expectation is a function of the row: the steps after the
+  mark (none when the script has no mark). Marks: missing and wrongRange after the response, unwritable after its
+  response, long after its extra byte, and the stub meta-test after its first chunk (`unplayed() == [3]`).
+  Touched suites, own scratch: `Test run with 7 tests in 2 suites passed after 8.452 seconds`.
+  A1 awk over CorpusDownloadDelegate.swift: `completionHandler(.cancel) sites=2 followed by dataTask.cancel()=2`.
+  A3 table narrowed to [Server.missing, .wrongRange] (uncommitted, restored; Sources at HEAD 4eaa0b1b),
+     `--only 22` 23:12:57Z-23:14:40Z: `caught 22 the session's cancel error outranks the refusal that caused it by:
+     fetchTableOverEveryResumeFileAndServer()`, `MUTATE OK caught=1/1` (MISSED before: 22:28:47Z-22:39:23Z above).
+  A4 the swap applied by hand (corpusfetch_mutations entry 22, restored byte-equal) over the whole table,
+     23:15:50Z-23:17:08Z: `fetchTableOverEveryResumeFileAndServer() failed ... with 16 issues` = four servers x the
+     four prefixes that send a request, each getting transport(code: -999): want status(404), longBody(4096),
+     status(206), transport(-3003) (T-0305 measured 4, the long rows only).
+  A5 `--only 22,23,24` 23:06:55Z-23:12:57Z: caught 22, 23 and 24 each `by: fetchTableOverEveryResumeFileAndServer()`,
+     `MUTATE OK caught=3/3` - 23 and 24 are the new field seen red (the response plays on, `unplayed: []`).
+  A6 on 4eaa0b1b: `--prove-floor` -> `FLOOR PROOF OK: 7 of 7 arms refused and the control did not` (floor 24);
+     check-safety-disclaimer rc=0 (digest row re-approved: CorpusDownloadDelegate.swift ae6eab63...7c7f52);
+     check-mutate-population `P-PROC-06: every added module is covered or allowlisted; the floor of 147 holds` rc=0;
+     check-line-cap `P-SRC-02: 563 Swift files tracked (Sources=274, Tests=202, apps/ios=87), none over 300 lines`;
+     check-pins-yaml `PINS-YAML ok pins=50 fields=403`; queue-check `QUEUE OK (342 tasks)`. Line counts: delegate
+     104, stub 140, table 238, corpusfetch_mutations.py 120.
+  NOT RUN: Darwin. On Darwin the .cancel disposition already cancels, so 23 and 24 would be unobservable there and
+  the explicit cancel is a no-op second cancel of a cancelling task; the root package has no Darwin swift test here.
