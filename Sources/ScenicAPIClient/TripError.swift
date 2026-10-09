@@ -12,6 +12,8 @@ public enum TripError: Error, Equatable, Sendable {
     case unknownPlace
     case tooFewDays
     case ceilingBreached
+    /// 422 `nothing_pretty` (T-0337): the trip the Worker would ship is not pretty enough to show.
+    case nothingPretty(TripNothingPretty)
     case planRefused(reason: String)
     case invalidRequest(detail: String)
     case refusedOnDevice(TripRefusal)
@@ -27,6 +29,7 @@ public enum TripError: Error, Equatable, Sendable {
         case .unknownPlace: return .unknownPlace
         case .tooFewDays: return .tooFewDays
         case .ceilingBreached: return .ceilingBreached
+        case .nothingPretty: return .nothingPretty
         case .planRefused: return .planRefused
         case .invalidRequest: return .invalidRequest
         case .refusedOnDevice: return .refusedOnDevice

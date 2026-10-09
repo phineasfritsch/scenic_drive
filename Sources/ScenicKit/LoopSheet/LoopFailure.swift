@@ -6,6 +6,7 @@ public enum LoopFailure: String, CaseIterable, Equatable, Sendable {
     case routingOffline
     case noRoute
     case noCleanLoop
+    case nothingPretty
     case regionUnsupported
     case invalidRequest
     case refusedOnDevice
@@ -19,6 +20,8 @@ public enum LoopFailure: String, CaseIterable, Equatable, Sendable {
         case .routingOffline: return "We could not reach the planner. Check your connection and try again."
         case .noRoute: return "We could not find a loop from this start. Try another place."
         case .noCleanLoop: return "Every loop from here doubled back on itself. Try another start or another length."
+        case .nothingPretty:
+            return "No loop from here was pretty enough to show today. Try another start or another length."
         case .regionUnsupported: return "Loops start inside the area we cover for now."
         case .invalidRequest: return "Something about this loop did not add up. Try choosing again."
         case .refusedOnDevice: return "This loop cannot be planned from here. Check the start and the time."
