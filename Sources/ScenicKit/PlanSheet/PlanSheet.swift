@@ -56,31 +56,31 @@ public struct PlanSheet: Equatable, Sendable {
     /// THE GATE. A ticket only with the disclaimer accepted, a start and a destination, from chosen, preview,
     /// failed or offered; otherwise nil and nothing changes.
     public mutating func startPlanning() -> PlanTicket? {
-        switch state {
-        case .chosen, .preview, .failed, .offered: break
-        case .idle, .searching, .planning: return nil
-        }
-        return issue(budgetMinutes: budgetMinutes, allBackRoads: false)
+        gate(budgetMinutes: budgetMinutes, allBackRoads: false)
     }
 
-    /// T-0334: the "+40" offer - ONE fresh plan at budget + 40, through the same gate. Only from `.offered`, only when
+    /// T-0334: the "+40" offer - ONE fresh plan at budget + 40, through THE GATE. Only from `.offered`, only when
     /// the answer made the offer; otherwise nil and nothing changes.
     public mutating func takeMoreTime() -> PlanTicket? {
         guard case .offered(_, let offer) = state, let minutes = offer.moreTimeMinutes else { return nil }
-        return issue(budgetMinutes: minutes, allBackRoads: false)
+        return gate(budgetMinutes: minutes, allBackRoads: false)
     }
 
     /// T-0334: the "all back roads" offer - ONE fresh plan at MAX_LAMBDA naming the minutes that cover its ETA, so the
-    /// Worker checks its answer against fastest + those minutes like every plan (P-SAFE-04, R1).
+    /// Worker checks its answer against fastest + those minutes like every plan (P-SAFE-04, R1). Through THE GATE.
     public mutating func takeBackRoads() -> PlanTicket? {
         guard case .offered(_, let offer) = state, let minutes = offer.backRoadsBudgetMinutes else { return nil }
-        return issue(budgetMinutes: minutes, allBackRoads: true)
+        return gate(budgetMinutes: minutes, allBackRoads: true)
     }
 
-    /// The one place a ticket is made: disclaimer, start, destination and a budget in 0...max - or nil, nothing changed.
-    private mutating func issue(budgetMinutes minutes: Int, allBackRoads: Bool) -> PlanTicket? {
-        guard disclaimerAccepted, let start, let destination, (0...Self.maxBudgetMinutes).contains(minutes) else {
-            return nil
+    /// The one place a ticket is made. The minutes are the stepper's (clamped by setBudget) or an offer's (bounded by
+    /// ScenicAPIClient's NothingPrettyOffer read); they become the sheet's budget only when a ticket is issued.
+    private mutating func gate(budgetMinutes minutes: Int, allBackRoads: Bool) -> PlanTicket? {
+        guard disclaimerAccepted, let start, let destination else { return nil }
+        switch state {
+        case .chosen, .preview, .failed: break
+        case .idle, .searching, .planning: return nil
+        case .offered: break
         }
         budgetMinutes = minutes
         issued += 1

@@ -50,6 +50,7 @@ describe("POST /plan back-roads offer budget (T-0334 A1)", () => {
   });
 
   const rows: [string, number, number | null][] = [
+    ["a back-roads route a minute quicker than the fastest asks 0, never a negative budget", 1_200_000 - 60_000, 0],
     ["an extra of exactly 25 minutes asks 25", 1_200_000 + 25 * 60_000, 25],
     ["a millisecond above 25 minutes asks 26", 1_200_000 + 25 * 60_000 + 1, 26],
     ["an extra of exactly 180 minutes asks 180", 1_200_000 + 180 * 60_000, 180],
