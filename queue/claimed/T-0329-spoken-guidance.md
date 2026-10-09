@@ -147,3 +147,26 @@ xcodeproj lock.
   with two ScenicDrive.app copies "found 2" exit 1; with one (the source plist) exit 0 "... in the source plist and
   the BUILT one". No Apple or Sources/ file changed in this round, so ios-compile 37856383059 / ios-screenshot
   37856393175 (both success, merged head) stand and are not re-triggered.
+- 2026-10-09T01:52:43Z RULING rv1-t0329 (FAIL at 973298b7, before any code). B1 (reviewer mutant RV1-M1: `arrived =
+  false` dropped from the `if session.line != line {` reset; 51/51 green) is a TEST HOLE, not a code defect - the
+  shipping DriveVoice does reset both on a new line (R2 "a taken reroute counts as a new line and resets both"); no
+  Sources/ change, so no digest row moves. CLASS: a cue state the voice holds when a reroute LANDS (entry 91 bound only
+  the `approached = []` half, through V_OFFLINE's destination-approach row). Closed by a scenario table
+  `landedRerouteSaysTheNewLine`: every cue state {pin approached (0.017), destination approached (0.037), arrived
+  (0.0398)} x both ways a reroute lands (online: leave -> rerouting -> rerouteArrived; offline: leave -> rejoining ->
+  reconnect -> rerouteArrived), the new line the same shape as the old (5 vertices, pin at v2, so the old state's
+  vertex numbers collide with the new line's) shifted 0.002 N and starting at the away fix; then a pin approach, the
+  destination approach and the arrival on the new line. Expected [[String]] = [state's cue] + the leaving lines (a
+  function of online) + [newWay] + [[next], [destination], [arrived]], compared whole; a meta-check requires every
+  row's pre-reroute said to differ from every other row's. RECORDABLE 1 (legEnd as the crow flies caught only by the
+  last bits of a straight equator line): RULED the trigger distance is R2's approach bound, 400 m ALONG the line
+  (`DriveVoice.approachMeters`). New `bentLineMeasuresAlongTheLine`: an L line (0,0) -> (0,0.003) -> (0.003,0.003),
+  fixes on its first leg where the along-the-line distance to the destination is just above 400 m while the crow-flies
+  distance is ~60 m below it (the voice must stay quiet), then just below 400 m along it (destination), then the
+  arrival; the fixture's own inequalities (crow <= 400 < along; next along <= 400) are asserted by Geo.distanceMeters
+  in the test, independent of DriveSession, and legEnd.meters is compared to the along-the-line sum exactly.
+  Population: entries 103 "a landed reroute keeps the arrival" (RV1-M1, killer the new table) and 104 "legEnd as the
+  crow flies" (RV1-M2's text, killer the bent row ONLY - so at 973298b7 it reports whatever V_LEGEND's rounding does,
+  quoted below), committed BEFORE the tests and run `--only 103,104`; floor 102 -> 104. Both tests named under P-SAFE-09
+  in named-tests.json (21 -> 23). Both go in DriveVoiceTests.swift (213 lines; stays under 300), so FILTER and
+  TEST_FILES do not change.
