@@ -7,6 +7,7 @@
  *   2b. The origin outside the served region (servedRegion.ts, T-0293) -> 422 region_unsupported. Costs nothing.
  *   3. The destination place id -> its coordinate, or 404. Not an upstream call; costs no plan.
  *   3b. T-0319 R5: a `reroute` token is recalled from PLANS; an unusable one is simply the fresh plan below.
+ *      T-0330 R2: every 200 says which - `continued` is true exactly when the body is planReroute's answer.
  *   3c. T-0332: a fresh plan whose route scores below RouteScore's 0.45 is 422 nothing_pretty with its offers
  *      (honestFailure.ts); a reroute is exempt - the driver already accepted the drive.
  *   4. guardedPlan: the quota is read and RESERVED before the first router request; every request goes through
@@ -113,17 +114,19 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
   const recalled = reroute && plans ? await plans.recall(who.userId, reroute.token) : null;
   const usable: RememberedPlan | null = recalled && reroute && recalled.device === who.userId &&
     recalled.place === request.destinationPlace && reroute.firstPin <= recalled.pins.length ? recalled : null;
+  let continued = false;
   try {
     const plan = await guardedPlan(upstream, who, async (call) => {
       const budget = request.budgetMinutes * 60;
       const rest = usable && reroute ? await planReroute(call, deps.routerBase, request.origin, destination, budget,
         usable.pins.slice(reroute.firstPin), usable.lambda, picker.pick, picker.returned) : null;
+      continued = rest !== null;
       return rest ?? planScenic(call, deps.routerBase, request.origin, destination, budget, picker.pick, picker.returned,
         request.allBackRoads);
     });
     const token = plans ? await plans.remember({ device: who.userId, place: request.destinationPlace,
       pins: plan.waypoints, lambda: plan.lambda }) : null;
-    return json({ ...withClosuresHazard(plan, snapshot, picker.dropped(), picker.crosses()), plan_token: token }, 200);
+    return json({ ...withClosuresHazard(plan, snapshot, picker.dropped(), picker.crosses()), plan_token: token, continued }, 200);
   } catch (error) {
     return failure(error, request.budgetMinutes);
   }
