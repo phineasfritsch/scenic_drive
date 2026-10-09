@@ -80,34 +80,61 @@ import Testing
     static let ticket = PlanTicket(serial: 1, origin: Coordinate(latitude: 34.05, longitude: -118.25), place: 42,
                                    budgetMinutes: 30)
 
+    static let la = TimeZone(identifier: "America/Los_Angeles")!
+    /// (zone, the hour each edge is entered in at the drive's departure 2026-10-05T08:59Z): rows are f(zone) - in Los
+    /// Angeles the same instant is 01:59 PDT, so the clock teaches and the planner reads hours 1 and 2 (rv1-t0343 B2).
+    static let zoned: [(String, TimeZone, [Int])] = [("UTC", utc, RetimedPreviewTests.hours),
+                                                      ("Los Angeles", la, [1, 2, 2, 2])]
+
     @Test("five drives, each followed by a relaunch, clear the planner's badge on the fifth and not before")
     @MainActor
     func fiveDrivesAcrossRelaunch() async {
+        var last: [String: [CorridorSlotRow]] = [:]
+        for (name, zone, hours) in Self.zoned {
+            last[name] = await Self.fiveDrives(zone, hours: hours, name: name)
+        }
+        // Meta: the zone is read. Los Angeles's kept rows relaunched in UTC answer the badge at the same departure.
+        let laRows = last["Los Angeles"] ?? []
+        let misread = CorridorLearner(speeds: LearnedCorridorSpeeds(timeZone: Self.utc, restoring: laRows)
+                                      ?? LearnedCorridorSpeeds(timeZone: Self.utc), save: { _ in })
+        let planner = RetimingPlanner(inner: Fixed(outcome: .preview(Self.server)), learner: misread,
+                                      now: { RetimedPreviewTests.departs })
+        #expect(await planner.plan(Self.ticket) == .preview(Self.expected(eta: 310, estimate: true)))
+        #expect(last["UTC"] != last["Los Angeles"] && last["UTC"]?.isEmpty == false)
+    }
+
+    static func expected(eta: Double, estimate: Bool) -> PlanPreview {
+        PlanPreview(route: server.route, etaSeconds: eta, fastestEtaSeconds: 250, etaIsEstimate: estimate,
+                    hazards: server.hazards, lambda: 1.5, continuation: server.continuation, timeRuns: runs)
+    }
+
+    /// Five drives in `zone`, a relaunch from the saved rows after each; answers the rows the fifth drive saved.
+    @MainActor
+    static func fiveDrives(_ zone: TimeZone, hours: [Int], name: String) async -> [CorridorSlotRow] {
         var kept: [CorridorSlotRow] = []
-        var oracle = LearnedCorridorSpeeds(timeZone: Self.utc)
+        var oracle = LearnedCorridorSpeeds(timeZone: zone)
         let actual = [100.0, 150, 50, 100]
         for drive in 1...5 {
             // A relaunch: the learner is rebuilt from what the last launch saved, and nothing else.
-            guard let restored = LearnedCorridorSpeeds(timeZone: Self.utc, restoring: kept) else {
-                Issue.record("drive \(drive): the kept rows are refused")
-                return
+            guard let restored = LearnedCorridorSpeeds(timeZone: zone, restoring: kept) else {
+                Issue.record("\(name) drive \(drive): the kept rows are refused")
+                return []
             }
-            kept = Self.drive(Self.clean, on: Self.server, from: restored).saves.last ?? []
+            kept = Self.drive(clean, on: server, from: restored).saves.last ?? []
             for edge in 0..<4 {
-                oracle.record(cell: CorridorRouteTests.c[edge], hourOfWeek: HourOfWeek(RetimedPreviewTests.hours[edge])!,
+                oracle.record(cell: CorridorRouteTests.c[edge], hourOfWeek: HourOfWeek(hours[edge])!,
                               actualSeconds: actual[edge], freeFlowSeconds: RetimedPreviewTests.freeFlow[edge])
             }
-            let relaunched = CorridorLearner(speeds: LearnedCorridorSpeeds(timeZone: Self.utc, restoring: kept)
-                                             ?? LearnedCorridorSpeeds(timeZone: Self.utc), save: { _ in })
-            #expect(relaunched.speeds == oracle, "drive \(drive)")
-            let planner = RetimingPlanner(inner: Fixed(outcome: .preview(Self.server)), learner: relaunched,
+            let relaunched = CorridorLearner(speeds: LearnedCorridorSpeeds(timeZone: zone, restoring: kept)
+                                             ?? LearnedCorridorSpeeds(timeZone: zone), save: { _ in })
+            #expect(relaunched.speeds == oracle, "\(name) drive \(drive)")
+            let planner = RetimingPlanner(inner: Fixed(outcome: .preview(server)), learner: relaunched,
                                           now: { RetimedPreviewTests.departs })
             let learnedEta = (0..<4).map { RetimedPreviewTests.freeFlow[$0] / oracle.slots[CorridorSlot(
-                cell: CorridorRouteTests.c[$0], hour: HourOfWeek(RetimedPreviewTests.hours[$0])!)]!.ratio }.reduce(0, +)
-            let expected = PlanPreview(route: Self.server.route, etaSeconds: drive < 5 ? 310 : learnedEta,
-                                       fastestEtaSeconds: 250, etaIsEstimate: drive < 5, hazards: Self.server.hazards,
-                                       lambda: 1.5, continuation: Self.server.continuation, timeRuns: Self.runs)
-            #expect(await planner.plan(Self.ticket) == .preview(expected), "drive \(drive)")
+                cell: CorridorRouteTests.c[$0], hour: HourOfWeek(hours[$0])!)]!.ratio }.reduce(0, +)
+            #expect(await planner.plan(ticket) == .preview(expected(eta: drive < 5 ? 310 : learnedEta,
+                                                                    estimate: drive < 5)), "\(name) drive \(drive)")
         }
+        return kept
     }
 }

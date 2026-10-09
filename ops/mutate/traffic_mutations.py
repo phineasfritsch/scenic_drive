@@ -236,6 +236,9 @@ MUTATIONS = [
     ("80 the planner retimes by an empty learner", PLANNER, "by: speeds,",
      "by: LearnedCorridorSpeeds(timeZone: speeds.timeZone),", [RETIMES, RELAUNCH]),
     ("81 a kept row loses its hour", SLOT_ROW, "self.hour = hour", "self.hour = 0", [ROWS, RELAUNCH]),
+    # rv1-t0343 B2: MISSED at abe61917 (every restore was a UTC learner); a Los Angeles relaunch reads every slot 7 h off.
+    ("82 the restore reads every zone as UTC", LEARNER, "self.timeZone = timeZone\n        for row in rows {",
+     "self.timeZone = TimeZone(identifier: \"UTC\")!\n        for row in rows {", [RESTORE, ROWS, RELAUNCH]),
 ]
 
 EQUIVALENT = [
@@ -245,6 +248,6 @@ EQUIVALENT = [
      "guard), so min-then-max and max-then-min clamp every value to the same number"),
 ]
 
-MIN_MUTATIONS = 81
+MIN_MUTATIONS = 82
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 10

@@ -1,6 +1,6 @@
 ---
 id: T-0343
-title: The app learns corridor speeds - NavAdapter feeds CorridorClock after every fix, the learner persists across launches in PlaceStore, and the preview shows RetimedPreview's ETA and badge (T-0325 R3/R4 follow-up, M7 exit)
+title: "T-0343: the corridor learner - feed entry, restore, retiming planner, on-device store (Linux slice)"
 state: claimed
 owner: agent/claude-opus-5
 owner_session: null
@@ -17,8 +17,8 @@ verify: [ops/test, ops/check-pins]
 acceptance:
   - "MEASURE then RULE R1-R8 in a dated Log entry before any code (the 2026-10-09T17:41:58Z entry)."
   - "Restore (R2): LearnedCorridorSpeeds(timeZone:restoring:) over [CorridorSlotRow] (cell UInt64, hour Int, ratio Double, samples Int) is nil unless EVERY row has hour in 0...167, ratio in [0.3, 1.0] (NaN refused), samples >= 1 and no (cell, hour) repeats; else its slots equal the rows. Table over every bound (hour -1, 0, 167, 168, Int.min, Int.max; ratio nextDown(0.3), 0.3, 1.0, nextUp(1.0), NaN, -infinity, +infinity; samples Int.min, 0, 1, Int.max; a repeated slot), each row alone and beside a good row, answers compared WHOLE. `rows` answers every slot sorted by (cell, hour), and restoring it equals the learner that wrote it."
-  - "Feed (R1): CorridorLearner.observe(coordinate:speedMetersPerSecond:at:on:clock:) builds the DriveFix from the one Date (timestamp = date.timeIntervalSinceReferenceDate), runs DriveController.observe, then CorridorClock.observe on the controller's session at that Date, and calls save with the learner's whole `rows` exactly when an edge was taught; DriveNavigator.forward calls it with location.timestamp for every fix. Tests: the commands and the save calls per fix of a clean drive, a skip, no runs and a reroute, compared whole."
-  - "Preview (R4): RetimingPlanner(inner:learner:now:) answers .preview(RetimedPreview.of(p, timeRuns: runs, by: learner.speeds, departsAt: now())) when p carries runs, the preview unchanged without runs, .failure and .offered unchanged; LivePlanner.make() wraps its planner in it with LiveCorridorLearner.shared. Table compared WHOLE."
+  - "Feed (R1): CorridorLearner.observe(coordinate:speedMetersPerSecond:at:on:clock:) builds the DriveFix from the one Date (timestamp = date.timeIntervalSinceReferenceDate), runs DriveController.observe, then CorridorClock.observe on the controller's session at that Date, and calls save with the learner's whole `rows` exactly when an edge was taught; app wiring: T-0349. Tests: the commands and the save calls per fix of a clean drive, a skip, no runs and a reroute, compared whole."
+  - "Preview (R4): RetimingPlanner(inner:learner:now:) answers .preview(RetimedPreview.of(p, timeRuns: runs, by: learner.speeds, departsAt: now())) when p carries runs, the preview unchanged without runs, .failure and .offered unchanged; app wiring: T-0349. Table compared WHOLE."
   - "End to end (R5, P-SAFE-07): five drives through CorridorLearner.observe, each followed by a relaunch (a new learner restored from the last saved rows), clear RetimingPlanner's badge on the fifth and not before, previews compared whole; bound by name in P-SAFE-07."
   - "Persistence (R3): PlaceStore CorridorRatioStore(path:) over the user store's v4 table corridor_ratio (cell, hour, ratio, samples) with CHECK constraints on every bound; replaceAll(with:) is one transaction (a refused row leaves the table unchanged), list() answers it sorted; a second store on the same path reads the same rows (relaunch); cells above Int64.max round-trip. UserStorePrivacyTests' whole column map gains corridor_ratio and no column matches /home|address|breadcrumb|trail|speed/; the migration tests list v4. GRDB suites green in CI linux-core."
   - "P-PRIV-05 (R6): CorridorSlotRow, CorridorLearner, CorridorRatioRecord and CorridorRatioStore join the guarded identifiers; every new site (ScenicKit, PlaceStore, PlanAdapter, NavAdapter) approved in the whitelist, seen RED by name before approval and green after; LearnedSpeedsPrivacyTests casts the new ScenicKit types, a PlaceStore test casts CorridorRatioRecord."
@@ -121,3 +121,25 @@ GRDB-gated suites run only in CI linux-core. iOS screenshots looked at.
   then a swift-frontend hang with no file written for 3+ minutes after 40 (killed, tree clean). The population
   grows to 81 entries with a literal floor (check-mutate-population reads it); the 18 new entries (64-81) are NOT
   yet seen CAUGHT - an open item for the reviewer's pre-review mutant pass, not a claim.
+- 2026-10-09T21:07:02Z ROUND 1 RULINGS (agent/claude-opus-5; rv1-t0343 FAIL on PR #232 head abe61917), before code.
+  Orchestrator ruling B4 (RESCOPE): the orchestrator, who filed T-0343, rescopes it to the Linux slice. The task
+  file and PR #232 are retitled "T-0343: the corridor learner - feed entry, restore, retiming planner, on-device
+  store (Linux slice)"; in the acceptance block the app clauses of R1 (DriveNavigator.forward) and R4
+  (LivePlanner.make()) are struck and each replaced with "app wiring: T-0349". Dated record output is not rewritten:
+  only the title and those two acceptance clauses change. queue/backlog/T-0349 was read and already names the three
+  app sites - DriveNavigator forward observing with location.timestamp, the DriveHost learner parameter, and
+  LivePlanner.make() answering RetimingPlanner over the one learner restored from CorridorRatioStore - so nothing is
+  added there. The P-SAFE-03 digest re-approval of apps/ios files stays the OWNER's call; no apps/ios row is touched.
+  Orchestrator ruling B2: America/Los_Angeles joins UTC as an INPUT VARIANT of restoreBounds() and rowsRoundTrip()
+  (restored learner equals the writer, zone kept) and of fiveDrivesAcrossRelaunch() (rows = f(zone): the taught
+  hours are UTC [8, 9, 9, 9] and LA [1, 2, 2, 2] at the fixed departure 2026-10-05T08:59Z = 01:59 PDT; the
+  RetimingPlanner preview at that departure matches whole), with a meta-assertion that the same kept rows answer
+  differently restored in UTC and in LA (an hour-crossing slot), so no row ignores the zone. Population entry 82
+  (self.timeZone = TimeZone(identifier: "UTC")! in init?(timeZone:restoring:)): MISSED at abe61917 (rv1-t0343),
+  CAUGHT by name after this round via --only 82.
+  Orchestrator ruling B1: traffic.py SUBJECT_MODULES gains CorridorLearner.swift, CorridorSlotRow.swift and
+  RetimingPlanner.swift (entries 75-81 already mutate them); the two PlaceStore modules get allowlist entries with
+  their reasons - CorridorRatioRecord a four-field value with no code, CorridorRatioStore SQL I/O whose bounds are
+  the v4 SQLite CHECKs held by CorridorRatioStoreTests.boundTable and whose only conversion (Int64 bitPattern) is
+  held by roundTripAcrossLaunches. Gate: bare check-mutate-population exit 0.
+  B3: git fetch origin in the main checkout, merge origin/main as the last step, re-run, push.
