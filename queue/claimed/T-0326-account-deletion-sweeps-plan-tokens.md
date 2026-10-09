@@ -91,3 +91,36 @@ unchanged, compared whole; bind it under P-PRIV-04 and update the row's count in
   R9 (c)/(e) account.ts's whole-file hash is re-approved in identityVerifierPin.test.ts in the same diff; the new
   tests live in a new file accountDeletePlans.test.ts (accountDelete.test.ts is 180 lines; its DONE gains
   plans_pending: false); P-PRIV-04 binds them by name, 53 -> 68.
+- 2026-10-09T03:00:23Z RED, code, GREEN (agent/claude-opus-5).
+  RED first, against the T-0319 code with a stub src/planSweep.ts (PLAN_SWEEP_MAX_OPS and the interface only; the
+  sweep returned true, unwired): `npx vitest run accountDeletePlans planReroute closuresCrossing accountDelete` ->
+  Tests 63 failed | 125 passed (188). FAILED by name: all 8 `every plan key of the user's devices is gone, every other
+  key unchanged: <session> x <store>` rows, the 3 `a PLANS failure never fails the deletion: ...` arms, `the sweep's
+  operation bound: ...`, `the shipped ROUTES['/account'] sweeps env.PLANS across pages`, planReroute's `a foreign
+  device cannot read another device's token: ...` (and every key-shape / DONE row of the existing files). The meta
+  test `no row ignores its variant: ...` is test-side only and passed (as it must: it checks the table, not src).
+  Ruling correction while green-ing: the `a page incomplete without a cursor` arm's expectation was wrong in the TEST
+  (it took the first two USER keys, but the uppercase-token neighbour sorts first, so the fake's first page is
+  [upper, T1]); now `user.test(k) && firstPage(device).includes(k)`. The code was right.
+  GREEN: the six touched files 198/198; whole services/api vitest 81 files, Tests 2439 passed (2439);
+  `python ops/lib/run-named-tests.py P-PRIV-04` -> NAMED P-PRIV-04 passed=68/68.
+  Re-approved: identityVerifierPin.test.ts account.ts sha256 3c0cadcb...a790e -> edbb07f6...a69bb9 (sha256sum of
+  src/account.ts); requestReadSites.test.ts account.ts lines (the R7 doc line split in two, and the three new lines
+  naming user/bindings: devices, swept, the answer). index.ts untouched, so configAnswerPath's hash does not move.
+  Mutants (`node test/mutate/siwaMutants.mjs --only=<12 ids>`, population mutations=136 floor 136): RESULT caught=12
+  missed=0 of 12 - sweep-stops-on-empty-page (7, the holding rows), sweep-ignores-cursor (2: only `one delete
+  throws` beside an authAppleFields timeout - the holding rows converged because deletes shift the first page, so a
+  third undeletable neighbour under DEVICE's prefix was added: more than a page, and a cursor-ignoring sweep now
+  spins to the bound), sweep-key-shape-prefix-only (7), sweep-delete-failure-ignored (`one delete throws`),
+  sweep-list-failure-aborts (`list throws for DEVICE, the first device swept` - the arm was moved from SECOND_DEVICE
+  to DEVICE before code because aborting at the LAST device is equivalent there), sweep-no-cursor-complete (`a page
+  incomplete without a cursor`), sweep-deletes-unbounded, sweep-list-bound-off-by-one and sweep-bound-raised (the
+  bound test: the second device left unlisted at exactly MAX ops; MAX < the Workers' 1000), acct-sweep-session-
+  device-only (8), acct-sweep-pending-dropped (5), acct-sweep-unwired (9). Other names in the CAUGHT lists
+  (authAppleFields `accepted: payload extra: ...`, `refused: header kid: ...`) are this box's 5 s timeouts under load.
+  After the third neighbour (commit 042f117e): `--only=sweep-ignores-cursor` -> CAUGHT by 10 (all four `<session> x
+  holding` rows among them), RESULT caught=1 missed=0. planMutants.mjs (population 65, floor 62): `--only=
+  token-recall-any-device,token-remember-unkeyed` -> CAUGHT token-recall-any-device by `/plan reroute, empty, clear
+  path, router honours: ...` (closuresCrossing), CAUGHT token-remember-unkeyed by `every answer remembers its pins and
+  lambda under plan_token for 43200 s`; RESULT caught=2 missed=0 (the first attempt REFUSED on a non-green baseline -
+  planCeiling's 120-curve property timing out beside the siwa run; re-run alone, green).
