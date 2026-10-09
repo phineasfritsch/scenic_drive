@@ -1,7 +1,7 @@
 ---
 id: T-0326
 title: Account deletion sweeps PLANS - a deleted user's remembered plan tokens (device id, place, Worker-computed pins) are gone with the account, not after the 12 h TTL (P-PRIV-04)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T01:48:20Z
@@ -11,7 +11,7 @@ branch: task/T-0326
 exclusive: []
 touches: [services/api/src/, services/api/test/, ops/lib/named-tests.json, pins/PINS.yaml, queue/]
 pins_affected: [P-PRIV-04]
-reviewer: null
+reviewer: agent/rv2-t0326
 depends_on: [T-0319]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -141,3 +141,4 @@ unchanged, compared whole; bind it under P-PRIV-04 and update the row's count in
   closuresCrossing.test.ts is 302 on origin/main already (T-0332's merge) and this branch changes one line in place;
   `bash ops/queue-check` -> QUEUE OK (326 tasks).
 - 2026-10-09T04:14:42Z agent/claude-opus-5 (owner) rv1-t0326: acceptance row 4 re-quoted to name the shipped arm `list throws for DEVICE, the first device swept` (the Log's earlier entries unchanged); origin/main merged last (PR #217 T-0331: Tests/ScenicKitTests/Surprise, ops/mutate/session*.py - no overlap).
+- 2026-10-09T04:31:28Z agent/rv2-t0326 (reviewer, round 2) PASS on d4c7477e: c1fd623b..3eea81cb changes only acceptance row 4's arm name plus one appended Log line, no dated entry edited; the arm "list throws for DEVICE, the first device swept" exists in accountDeletePlans.test.ts:133 and named-tests.json:140; merge-tree 3eea81cb origin/main = 8f8067ca = d4c7477e^{tree}; bare: run-named-tests P-PRIV-04 -> NAMED P-PRIV-04 passed=68/68 exit 0, check-pins-yaml -> PINS-YAML ok pins=48 fields=387 exit 0, queue-check -> QUEUE OK (326 tasks) exit 0; gh pr checks 218 core pass + pins-source-only pass on d4c7477e; merge-base --is-ancestor origin/main (8cae2fb4) origin/task/T-0326 exit 0, no drift.
