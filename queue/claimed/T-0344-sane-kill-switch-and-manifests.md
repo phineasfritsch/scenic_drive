@@ -123,3 +123,16 @@ a whole-answer test.
     `PINS-YAML ok pins=50 fields=403`; check-exec-bits `P-OPS-01: 202 files, 23 required present, all modes correct`
     (ops/lib/check-sane-prod committed 100755; sane_prod.py and check_sane_prod.py data 100644).
   - Follow-up filed: queue/backlog/T-0345 (tiles manifest shape + its exit-8 arm, R5).
+- 2026-10-09T15:03:49Z ACCEPTANCE re-run on the merged head 079a1835 (origin/main 58f66b4a, T-0325, merged clean; no src overlap):
+  - A1 + A2: `bash ops/lib/check-sane-prod` -> 37 pass rows, `SANE-PROD ok 37/37 cases passed`, rc=0 (GET-only and
+    git status/HEAD unchanged are asserted inside every case).
+  - A3: red-first and the three mutants as quoted above (2026-10-09T14:21:53Z); sane_prod.py unchanged since.
+  - A4: `SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=18` rc=0.
+  - A5: `npx vitest run test/healthQuota.test.ts test/routes.test.ts test/sharedEnvWorker.test.ts
+    test/killSwitchRoutes.test.ts test/configAnswerPath.test.ts` -> Test Files 5 passed, Tests 22 passed. Full Worker
+    suite on 2d289a41: Test Files 89 passed, Tests 2579 passed.
+  - A6: `bash ops/sane` repo-only: repo/crlf/autocrlf/gitattrs ok, bounds skip, `worktrees FAIL 4 of 98`
+    (environmental, R7: other agents' worktrees, plus this branch's merge commit before its push) -> exit 10;
+    check-pins-yaml `PINS-YAML ok pins=50 fields=403`; check-exec-bits `P-OPS-01: 202 files, 23 required present, all
+    modes correct`; queue-check `QUEUE OK (336 tasks)`; `ops/check-pins --source-only` on 2d289a41 `PINS ok=21
+    skipped=28 pending=1 expired=0 failed=0` rc=0. PR #228 CI on 2d289a41: core pass, pins-source-only pass.
