@@ -17,7 +17,7 @@ verify: [ops/check-pins]
 acceptance:
   - "MEASURED FIRST and quoted in the Log: every plan card's last control against the bottom bar at default (run 37945135739) and AX5 (run 37959095574) - default: only trip's Change the trip is under the bar; AX5: preview, loop, trip and saved lose the last control below the fold, offered truncates all three labels, the preview's footer shows content through it"
   - "The screenshot job shoots the six plan cards at AX5 (light) beside default light and dark, under its 30-minute cap; each new guard row in ops/lib/ios_screenshot_pinned.py is raised by name and seen red then green (check-ios-compile-guardrails.py bare and --prove-red)"
-  - "After the fix, in one ios-screenshot run on the final code: in plan-trip-{light,dark,ax5} Change the trip, in plan-loop-* Change the loop, in plan-preview-* Choose another place and in plan-offered-* Choose another place are each fully on screen above the bottom bar, legible and untruncated; plan-offered-ax5 shows no truncated label; plan-nothingPretty-* and plan-saved-* no worse than measured; every plan shot (18) looked at and quoted in the Log"
+  - "After the fix, in one ios-screenshot run on the final code: in plan-trip-{light,dark,ax5} Change the trip, in plan-loop-* Change the loop and in plan-offered-* Choose another place are each fully on screen above the bottom bar, legible and untruncated; plan-offered-ax5 shows no truncated label; plan-nothingPretty-* and plan-saved-* no worse than measured; plan-preview-light/dark unchanged from main with Choose another place above the footer and the bar, plan-preview-ax5's footer opaque (R5: the preview's AX5 exit reachable by scrolling, not claimed at rest); every plan shot (18) looked at and quoted in the Log"
   - "Attribution unchanged: the preview's AttributionFooter is on screen in plan-preview-{light,dark,ax5}; bash ops/lib/check-map-attribution green (P-ATTR-01); no toolbar item added, removed or renamed (PlanSheetScreen.swift untouched)"
   - "Every control the fix adds or moves is >= 44 pt tall (PlanCardExit minHeight 44) and scales with Dynamic Type (no fixed font size)"
   - "ios-compile success on the final head; bare guards green on the merged head: check-safety-disclaimer (digests re-approved), check-map-attribution, check-screen-rehearsals.py, check-ios-compile-guardrails.py, check-hazard-copy-sites.py; check-line-cap, check-pins-yaml, queue-check green"
@@ -119,3 +119,25 @@ owner's design pass.
     by the nothingPretty measurement's scale - not claimed, recorded.
   Digests: every touched file's row in ops/lib/check-safety-disclaimer-pinned is re-approved after reading its diff,
   and PlanCardExit.swift gets a new row.
+- 2026-10-09T17:24:00Z FIX RUN 1: ios-compile run 37962716493 success; ios-screenshot run 37962723763 success (head
+  a9bcb01e; capture 17:07:27 -> 17:17:30, 38 shots). Looked at plan-*-light and plan-*-ax5 side by side:
+  - trip: "Change the trip" on the bar material directly above the bottom bar, fully legible - light and AX5. FIXED.
+  - loop: "Change the loop" the same - light and AX5.
+  - offered: light - the two filled offers as before, "Choose another place" now pinned above the bar. AX5 - "Try 65
+    extra minutes" wraps to two lines (was "Try 65 extra..."), "All back roads: about 60 min, ..." wraps and its lower
+    lines scroll under the pinned exit at rest (reachable by scrolling, R3), "Choose another place" legible above the
+    bar. No truncated label.
+  - nothingPretty, saved: unchanged from the measurement.
+  - preview: AX5 - "Choose another place" and the four-line footer on the bar material, legible, above the bar; but
+    the inset then holds ~half the screen. LIGHT (default) - a REGRESSION: the pinned exit (52 pt) is taller than the
+    plain in-line button it replaced, and "Start the drive" - the card's primary action, fully on screen at rest on
+    main - is now cut by the inset at rest (about its lower third hidden; reachable by scrolling).
+- 2026-10-09T17:24:00Z R5 (the preview is reverted to its own scroll; the acceptance's preview clause is amended
+  here, before the commit that changes it). On main the preview's last control was already above the bar at default
+  (measured ~725 pt vs the bar at ~800) and its scroll content inset already clears the footer and the bar, so it was
+  never the filed defect; pinning it trades the primary action's visibility at default for the exit's at AX5, which is
+  a design call for the owner, not this task. So "Choose another place" goes back to the end of the preview's scroll
+  content, and the one AX5 defect the preview did show is kept fixed: the AttributionFooter inset gets the bar
+  material behind it (.background(.bar)), so scrolled content no longer shows through the credit. Acceptance row 3
+  now reads: plan-preview-light/dark unchanged from main with "Choose another place" above the footer and the bar,
+  and plan-preview-ax5's footer opaque; the preview's AX5 exit is reachable by scrolling (R3), not claimed at rest.

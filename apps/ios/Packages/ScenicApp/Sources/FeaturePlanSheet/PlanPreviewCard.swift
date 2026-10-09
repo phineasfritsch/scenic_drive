@@ -61,17 +61,14 @@ struct PlanPreviewCard: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("plan.drive")
+                Button("Choose another place", action: onChangePlace)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
         }
         .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 0) {
-                PlanCardExit("Choose another place", action: onChangePlace)
-                    .accessibilityIdentifier("plan.changePlace")
-                AttributionFooter(text: PlanPreview.attribution)
-            }
-            .background(.bar)
+            AttributionFooter(text: PlanPreview.attribution)
+                .background(.bar)
         }
     }
 
