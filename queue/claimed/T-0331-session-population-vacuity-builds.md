@@ -94,3 +94,10 @@ SurpriseShowingTests, which the vacuity mode empties. A vacuity arm that cannot 
   STILL OPEN: the other Swift populations' drivers (accounttoken, autopsy, corpusfetch, drive, ledger, ...) still
   return 2 on a failed emptied build without naming it as a vacuity refusal - safe (never counted as MISSED) but
   silent; outside this task's touches.
+- 2026-10-09T02:16:22Z main moved (PR #215 T-0332, ScenicAPIClient plan-failure files and tests; no session subject,
+  no session test file); merged again at 9cd792eb and re-ran the touched rows only: the eight suite names occur in
+  Tests/ only in their own (emptied) files and in SurpriseShownFixture.swift's doc comment;
+  `session.py --only 35,36,39 --prove-vacuity` -> `VACUITY PROOF OK: with the 8 test file(s) emptied, caught=0
+  (need 0) and MISSED=3 of 3` exit=0 (the emptied set builds on this head); `session.py --only 35,36,39` ->
+  `MUTATE OK  caught=3/3 equivalent_caught=0` exit=0; check-mutate-population exit 0 (302 modules, 0 added by
+  this branch), check-exec-bits exit 0, tree clean after the runs.
