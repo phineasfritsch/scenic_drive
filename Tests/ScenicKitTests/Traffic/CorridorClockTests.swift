@@ -13,6 +13,8 @@ import Testing
     /// Optional so a refused route fails the tests by name instead of trapping the run.
     static let route = CorridorRoute(route: v, timeRuns: CorridorRouteTests.runs)
     static let far = Coordinate(latitude: 34.2, longitude: -118.9)
+    /// A reroute's line: from off the route back onto the plan's vertices 2, 3 and 4.
+    static let rejoining = [far, Coordinate(latitude: 34.3, longitude: -118.8), v[2], v[3], v[4]]
 
     /// A point `fraction` of the way along segment `segment`.
     static func on(_ segment: Int, _ fraction: Double) -> Coordinate {
@@ -23,7 +25,7 @@ import Testing
 
     enum Step {
         case fix(Coordinate, TimeInterval)
-        case reroute
+        case reroute([Coordinate])
     }
 
     /// Drives `steps` through a fresh session and clock; the learner after the last step.
@@ -41,8 +43,8 @@ import Testing
             case let .fix(at, t):
                 _ = session.observe(DriveFix(coordinate: at, speedMetersPerSecond: 20, timestamp: t))
                 clock.observe(session, at: start.addingTimeInterval(t), into: &speeds)
-            case .reroute:
-                let taken = session.rerouteArrived(line: [far, v[4]], waypoints: [])
+            case let .reroute(line):
+                let taken = session.rerouteArrived(line: line, waypoints: [])
                 #expect(taken)
             }
         }
@@ -84,8 +86,18 @@ import Testing
             ("arrives 45 m short", [Self.f0, Self.f1, Self.f2, Self.f3, .fix(Self.short(45), 400)], false,
              [0, 1, 2, 3]),
             ("stops 55 m short", [Self.f0, Self.f1, Self.f2, Self.f3, .fix(Self.short(55), 400)], false, [0, 1, 2]),
-            ("rerouted after edge 0", [Self.f0, Self.f1, .fix(Self.far, 110), .fix(Self.far, 116), .reroute,
-                                       .fix(Self.on(2, 0.5), 250), Self.f3, Self.arrive], true, [0]),
+            ("rerouted after edge 0", [Self.f0, Self.f1, .fix(Self.far, 110), .fix(Self.far, 116),
+                                       .reroute([Self.far, Self.v[4]]), .fix(Self.on(2, 0.5), 250), Self.f3,
+                                       Self.arrive], true, [0]),
+            // pre-review M56: a reroute whose line rejoins the plan's last three vertices, five vertices like it -
+            // read against the plan's edges it would teach edge 3 on arrival; after a reroute nothing is taught.
+            ("rerouted onto a line that rejoins the plan", [Self.f0, Self.f1, .fix(Self.far, 110),
+                                                            .fix(Self.far, 116), .reroute(Self.rejoining),
+                                                            .fix(Self.on(2, 0.5), 250), Self.f3, Self.arrive],
+             true, [0]),
+            // pre-review M51: off the line in edge 1, back on it already in edge 2 - edge 2's entry was not seen.
+            ("off the line in edge 1, back on it in edge 2", [Self.f0, Self.f1, off1, Self.f2, Self.f3, Self.arrive],
+             false, [0, 3]),
             ("no fix at all", [], false, []),
         ]
         for (name, steps, online, edges) in rows {
