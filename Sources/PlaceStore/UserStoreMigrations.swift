@@ -13,8 +13,9 @@ enum UserStoreMigrations {
     static let savedDrives = "v1-saved-drives"
     static let needsReplan = "v2-needs-replan"
     static let surpriseShown = "v3-surprise-shown"
+    static let corridorRatio = "v4-corridor-ratio"
     /// Every migration this build knows, in order. A file recording any other identifier is refused (R2).
-    static let identifiers = [savedDrives, needsReplan, surpriseShown]
+    static let identifiers = [savedDrives, needsReplan, surpriseShown, corridorRatio]
 
     static func migrator() -> DatabaseMigrator {
         var migrator = DatabaseMigrator()
@@ -54,6 +55,20 @@ enum UserStoreMigrations {
                     corridor TEXT NOT NULL,
                     day INTEGER NOT NULL,
                     PRIMARY KEY (place_id, day)
+                ) WITHOUT ROWID
+                """)
+        }
+        // T-0343 R3: the learned corridor slots - an H3-8 cell (the UInt64 index's bit pattern), the hour of the
+        // week, the ratio and its samples, every bound the learner restores by held here too. No column names a
+        // speed, a place or a trail (P-PRIV-05), and nothing here leaves the device.
+        migrator.registerMigration(corridorRatio) { db in
+            try db.execute(sql: """
+                CREATE TABLE corridor_ratio (
+                    cell INTEGER NOT NULL,
+                    hour INTEGER NOT NULL CHECK (hour BETWEEN 0 AND 167),
+                    ratio REAL NOT NULL CHECK (ratio BETWEEN 0.3 AND 1.0),
+                    samples INTEGER NOT NULL CHECK (samples >= 1),
+                    PRIMARY KEY (cell, hour)
                 ) WITHOUT ROWID
                 """)
         }

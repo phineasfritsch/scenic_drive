@@ -19,7 +19,7 @@ from traffic_mutations import ROOT
 SCRATCH = ".build/mt"
 # The suites every `killers` entry names, by their type names.
 FILTER = ("LearnedCorridorSpeedsTests|HourOfWeekTests|LearnedSpeedsPrivacyTests|CorridorCellTests|CorridorRouteTests"
-          "|CorridorClockTests|RetimedPreviewTests")
+          "|CorridorClockTests|RetimedPreviewTests|LearnedSpeedsRestoreTests|CorridorLearnerTests|RetimingPlannerTests")
 # `Test "<display name>" recorded an issue`. ASCII only: the failure glyph mis-decodes on this console.
 FAIL_LINE = re.compile(r'Test\s+(?:"([^"]*)"|([A-Za-z_]\w*\(\)))\s+recorded an issue')
 

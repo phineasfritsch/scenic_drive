@@ -20,6 +20,7 @@ import sys
 
 NEAR_NUMERATOR = 9
 NEAR_DENOMINATOR = 10
+QUOTA_FIELDS = ("kill_switch", "upstream_month", "upstream_calls", "upstream_trip_at")
 MANIFEST_FIELDS = ("version", "schema_version", "min_app_build", "sha256", "bytes")
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 MONTH_RE = re.compile(r"[0-9]{4}-[0-9]{2}")
@@ -38,10 +39,7 @@ def quota(text: str) -> tuple[bool, str]:
         return False, "cannot tell: /__health is not JSON"
     if not isinstance(h, dict):
         return False, "cannot tell: /__health is not a JSON object"
-    kill = h.get("kill_switch")
-    month = h.get("upstream_month")
-    calls = h.get("upstream_calls")
-    trip = h.get("upstream_trip_at")
+    kill, month, calls, trip = (h.get(k) for k in QUOTA_FIELDS)
     if type(kill) is not bool:
         return False, f"cannot tell: kill_switch is {kill!r}, not a boolean"
     if not isinstance(month, str) or not MONTH_RE.fullmatch(month):
