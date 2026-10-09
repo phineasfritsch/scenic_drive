@@ -152,3 +152,9 @@ MISSED before / CAUGHT after by test name.
     all but the last edge: 1 failed, prior 0 (MISSED), CAUGHT by [1,20) 8.
   - GREEN on the source as written: `npx vitest run test/tripHonest.test.ts` "Tests  23 passed (23)" (the meta row runs in 104 ms;
     it has a 30 s timeout so a loaded box does not fail it).
+- 2026-10-09T06:28:40Z ACCEPTANCE re-run on 37b743cc. `git fetch origin` shows origin/main 4537e7d4, already an ancestor, so there
+  is nothing to merge. A1/A2/A3/A4/A6: vitest over trip*, loop*, closures*, requestReadSites, reflectionSites, planHonest,
+  isochrone*, surpriseReachParity, routes gives "Test Files 26 passed (26) / Tests 1130 passed (1130)". That is 1113 + the 17 new
+  tripHonest rows. A5: queue-check "QUEUE OK (328 tasks)"; check-line-cap "P-SRC-02: 515 Swift files tracked ..., none over 300
+  lines" exit 0. PINS.yaml, named-tests.json, Sources/ and apps/ios are unchanged by this entry, so the P-SAFE-04 / pins-yaml /
+  digest results quoted above stand.
