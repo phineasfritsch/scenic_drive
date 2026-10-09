@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { isHonestFailure, routeScoreOf, scoreEdges, type RouteScore, type ScoredEdge } from "../src/routeScore";
 import type { RoutePath } from "../src/routePath";
+import { haversineMeters } from "../src/planWaypoints";
 
 /** The adjacent double: +1 toward +infinity, -1 toward -infinity (positive finite x only). */
 function adjacent(x: number, direction: 1 | -1): number {
@@ -82,6 +83,22 @@ describe("routeScoreOf reads the router's scenic_score (T-0332 A2)", () => {
     ["an encoded score of -1", path({ scenic_score: [[0, 1, 8], [1, 2, -1]] })],
   ] as [string, RoutePath][])("%s is null, never clamped", (_n, input) => {
     expect(routeScoreOf(input)).toBeNull();
+  });
+
+  const A: [number, number] = [-118.5, 34.0];
+  const B: [number, number] = [-118.49, 34.0];
+  const B_NEXT: [number, number] = [adjacent(-B[0], 1) * -1, 34.0];
+  it.each([
+    ["a 0 m scored row is left out, so a 0.8 route is not an honest failure", [A, B, B], [[0, 1, 8], [1, 2, 7]],
+      single(haversineMeters(A, B), 0.8, 0, 1)],
+    ["a row one ulp of longitude long (the next length above 0 m) is kept and scored", [B, B_NEXT], [[0, 1, 8]],
+      single(haversineMeters(B, B_NEXT), 0.8, 0, 0)],
+  ] as [string, [number, number][], [number, number, number][], RouteScore][])("meters bound: %s",
+  (_n, coordinates, runs, expected) => {
+    expect(expected.totalLength).toBeGreaterThan(0);
+    const scored = routeScoreOf(path({ scenic_score: runs }, coordinates));
+    expect(scored).toEqual(expected);
+    expect(isHonestFailure(scored)).toBe(false);
   });
 
   it("encoded 10 and 0 are the ends of the scale; unscored metres are left out", () => {
