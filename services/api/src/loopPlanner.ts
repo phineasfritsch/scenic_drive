@@ -6,6 +6,9 @@
  * (R4). The returned geometry is held to the retrace check (retrace.ts, the port of RetraceDetector); a loop
  * that fails it is not shown. At most two retries (R5): reseed, then the same seed with `areas` over the
  * retraced road - 3 requests, LOOP_UPSTREAM_COST, which the guarded `call` enforces (P-COST-04).
+ * T-0335 R3: an attempt is shown only if it is also pretty - routeScoreOf >= 0.45 (T-0332's honest failure). A dull
+ * but retrace-clean second attempt re-rolls a third seed instead of closing its (absent) retrace; when nothing ships
+ * and some attempt was retrace-clean, the answer is LoopNothingPretty - a dull loop is never sold as scenic.
  */
 import { appleMapsUrl } from "./appleMaps";
 import { mergeClosures } from "./closuresStore";
@@ -16,6 +19,7 @@ import { decisionPoints } from "./planWaypoints";
 import { distanceMeters, isAcceptable, metersPerDegreeLongitude, METERS_PER_DEGREE_LATITUDE, retraceScan,
   type RetraceScan } from "./retrace";
 import { decodeRoutePath, durationSeconds, RouteError, type RoutePath } from "./routePath";
+import { isHonestFailure, routeScoreOf } from "./routeScore";
 import { ROUTE_DETAILS, SCENIC_PROFILE } from "./scenicPlanner";
 import type { GuardedFetch } from "./upstream";
 
@@ -36,6 +40,14 @@ export class LoopFailure extends Error {
     super(`no loop came back under the retrace limit; the least retraced was ${fraction}`);
     this.fraction = fraction;
     this.name = "LoopFailure";
+  }
+}
+
+/** Every loop the cap allowed was dull or retraced, and at least one was retrace-clean: nothing pretty to show. */
+export class LoopNothingPretty extends Error {
+  constructor() {
+    super("every retrace-clean loop scored below the honest-failure threshold");
+    this.name = "LoopNothingPretty";
   }
 }
 
@@ -125,7 +137,8 @@ interface Attempt {
   seed: number;
 }
 
-const clean = (a: Attempt) => a.scan !== null && isAcceptable(a.scan.fraction);
+const retraceClean = (a: Attempt) => a.scan !== null && isAcceptable(a.scan.fraction);
+const clean = (a: Attempt) => retraceClean(a) && !isHonestFailure(routeScoreOf(a.path));
 
 export async function planLoop(call: GuardedFetch, routerBase: string, start: LatLon, minutes: number,
   seed: number, closuresFor: ClosuresFor, returned: PathGuard): Promise<LoopResult> {
@@ -144,11 +157,16 @@ export async function planLoop(call: GuardedFetch, routerBase: string, start: La
     const reseed = (seed + 1) >>> 0;
     current = await attempt(reseed, feed);
     if (!clean(current)) {
-      const areas = retracedAreas(current.scan?.retraced ?? [], start);
-      if (areas !== null) current = await attempt(reseed, mergeClosures(feed, areas));
+      if (retraceClean(current)) {
+        current = await attempt((seed + 2) >>> 0, feed);
+      } else {
+        const areas = retracedAreas(current.scan?.retraced ?? [], start);
+        if (areas !== null) current = await attempt(reseed, mergeClosures(feed, areas));
+      }
     }
   }
   if (!clean(current)) {
+    if (tried.some(retraceClean)) throw new LoopNothingPretty();
     const fractions = tried.flatMap((a) => (a.scan === null ? [] : [a.scan.fraction]));
     throw new LoopFailure(fractions.length === 0 ? null : Math.min(...fractions));
   }

@@ -24,11 +24,11 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
 
-export const MIN_MUTATIONS = 91;
+export const MIN_MUTATIONS = 93;
 export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts", "src/tripPlaces.ts",
   "migrations/0009_trip_places.sql"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
-  "test/killSwitchRoutes.test.ts", "test/tripPlaces.test.ts"];
+  "test/killSwitchRoutes.test.ts", "test/tripPlaces.test.ts", "test/tripHonest.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -70,7 +70,7 @@ export const MUTATIONS = [
   m("planner-cost-11", "tripPlanner.ts", "TRIP_UPSTREAM_COST = 12;", "TRIP_UPSTREAM_COST = 11;"),
   m("planner-drive-minus-1", "tripPlanner.ts", "MAX_DRIVE_MS_PER_DAY = 21_600_000;", "MAX_DRIVE_MS_PER_DAY = 21_599_999;"),
   m("planner-metres-minus-1", "tripPlanner.ts", "MAX_METERS_PER_DAY = 482_803;", "MAX_METERS_PER_DAY = 482_802;"),
-  m("planner-details-more", "tripPlanner.ts", "TRIP_DETAILS = [\"time\", \"distance\"];", "TRIP_DETAILS = [\"time\", \"distance\", \"road_class\"];"),
+  m("planner-details-more", "tripPlanner.ts", "TRIP_DETAILS = [\"time\", \"distance\", \"scenic_score\"];", "TRIP_DETAILS = [\"time\", \"distance\", \"scenic_score\", \"road_class\"];"),
   m("planner-search-7", "tripPlanner.ts", "}, MAX_EVALUATIONS);", "}, MAX_EVALUATIONS + 1);"),
   m("planner-pct-ignored", "tripPlanner.ts", "budgetSeconds(fastestMs, extraBudgetPct);", "budgetSeconds(fastestMs);"),
   m("planner-leg-ceiling-exclusive", "tripPlanner.ts", "if (legPath.timeMs > ceiling)", "if (legPath.timeMs >= ceiling)"),
@@ -100,6 +100,8 @@ export const MUTATIONS = [
   m("trip-free-full", "trip.ts", "who.tier === \"paid\"", "who.tier !== \"anon\""),
   m("trip-no-kill", "trip.ts", "  if (paused) return json({ error: \"planning_paused\" }, 503);\n  if (req.method", "  if (req.method"),
   m("trip-reserve-13", "trip.ts", "), TRIP_UPSTREAM_COST);", "), 13);"),
+  m("trip-refusal-pct-cap", "trip.ts", "extra_budget_pct: extraBudgetPct }, 422)", "extra_budget_pct: 40 }, 422)"),
+  m("trip-refusal-days-5", "trip.ts", "{ error: \"nothing_pretty\", days, ", "{ error: \"nothing_pretty\", days: 5, "),
   // T-0316: the server's trip_places rows reach the splitter, and the wire tells searched from not searched.
   m("places-dropped", "tripPlanner.ts", "planRoadTrip(pathEdges, places ?? [], fastestMs,", "planRoadTrip(pathEdges, [], fastestMs,"),
   m("places-searched-always-false", "tripPlanner.ts", "places_searched: places !== null,", "places_searched: false,"),
