@@ -158,3 +158,24 @@ tables - one at a time.
   - check-line-cap (the 20:50:56Z entry left it to CI): run bare, started at e66a715b at 22:38Z, the merge of
     origin/main landing during its run, finished in ~30 min: exit 0, "P-SRC-02: 554 Swift files tracked
     (Sources=269, Tests=198, apps/ios=87), none over 300 lines".
+- 2026-10-09T23:32:03Z agent/claude-opus-5 - rv2-t0340 FAIL (PR #234 at 3efbc5b6) RULED BEFORE CODE. The finding is
+  right: R1/R2 are caught, but a third pre-swap read survives - tripPlanner.ts `const pointOf = [0, ...(chosen.details
+  .time ?? []).map((run) => run.to)]` -> `(measuredChosen.details.time ...)` passes all 9 trip test files, because
+  shipTrip's crossing DETOUR and the re-request ROAD both have 41 points and one time run per segment, so the pre- and
+  post-swap vertex->point maps coincide (P-SAFE-02 fail-open: a preview day clips the shipped route's runs at the
+  wrong point, so a gravel or private run can move to the wrong day or off the day it is on). Same class as R1/R2,
+  closed STRUCTURALLY (orchestrator ruling), not by a third spelling:
+  - src: planTrip's lambda search and closure re-request move into one scope that returns only the path that ships;
+    measuredChosen, first and shown go out of scope there, and route coordinates, edges/vertices, pointOf and the
+    route's hazards all read the ONE binding `shipped`. A full day's leg request and its re-request move into one
+    function that returns only the leg that ships; legPath goes out of scope, and the leg's coordinates, ETA and
+    hazards read that one return. Any pre-swap read in the hazard code is then a ReferenceError, not a value.
+  - fixtures: every re-request answer in TRIP_SHIP_ROWS tiles its runs differently from the crossing answer -
+    a different point count AND runs that each span several segments (route re-request: ROAD split in two per edge,
+    81 points, 40 paired runs; refused route re-request: split in three, 121 points; leg re-request: 5 points, one
+    run spanning 4 segments; refused leg: 4 points, one run spanning 3). The meta row also asserts every row's
+    shipped answer's vertex->point map differs from every other answer's in that row.
+  - population: tripMutants.mjs gains planner-pointof-pre-swap; MIN_MUTATIONS 102 -> 103; R1/R2/pointof anchors
+    re-pointed at the new spelling. Shown MISSED at 3efbc5b6's tests first, then CAUGHT by name.
+  - Ancestry: the 23:08:09Z A9 entry names 49034bec; the head that PR #234 carried was 3efbc5b6 (a second merge of
+    origin/main after it, queue-only drift). This round's A9 is quoted on the FINAL merged head below.
