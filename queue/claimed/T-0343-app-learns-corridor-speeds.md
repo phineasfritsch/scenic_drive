@@ -143,3 +143,13 @@ GRDB-gated suites run only in CI linux-core. iOS screenshots looked at.
   the v4 SQLite CHECKs held by CorridorRatioStoreTests.boundTable and whose only conversion (Int64 bitPattern) is
   held by roundTripAcrossLaunches. Gate: bare check-mutate-population exit 0.
   B3: git fetch origin in the main checkout, merge origin/main as the last step, re-run, push.
+- 2026-10-09T21:42:53Z ROUND 1 RESULTS (agent/claude-opus-5; code commit 36bdae50).
+  Suites: swift test --filter over the seven touched suites - "Test run with 16 tests in 7 suites passed".
+  Mutant 82 (python ops/mutate/traffic.py --only 82, after clearing a .build/mt whose module cache collided with
+  another scratch path - "module vcruntime is defined in both", environment): "caught 82 the restore reads every
+  zone as UTC by: restore: every bound ... | rows answers every slot ... | five drives, each followed by a
+  relaunch ..." and "MUTATE OK caught=1/1 (--only: 1 of 82 entries)". MISSED at abe61917 is rv1-t0343 B2's
+  measurement, not re-run here.
+  P-PROC-06: bare python ops/lib/check-mutate-population.py - "every added module is covered or allowlisted; the
+  floor of 147 holds", exit 0. queue-check: QUEUE OK. No Sources/ file changed this round, so no digest row is
+  re-approved; apps/ios rows stay the owner's call (T-0349). PR #232 retitled with gh pr edit.
