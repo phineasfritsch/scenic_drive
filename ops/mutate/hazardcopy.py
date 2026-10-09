@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Mutation harness for T-0314's loop in the app (Sources/ScenicKit/LoopSheet, the /loop client, LoopHandoff).
+"""Mutation harness for T-0339's hazard copy table (Sources/ScenicKit/Hazards/HazardCopy.swift).
 
-    python ops/mutate/loopsheet.py
-    python ops/mutate/loopsheet.py --prove-vacuity
-    python ops/mutate/loopsheet.py --prove-floor
-    python ops/mutate/loopsheet.py --only 1,5,13 [--prove-vacuity]
+    python ops/mutate/hazardcopy.py
+    python ops/mutate/hazardcopy.py --prove-vacuity
+    python ops/mutate/hazardcopy.py --prove-floor
+    python ops/mutate/hazardcopy.py --only 1,5,13 [--prove-vacuity]
 
 `--only` runs just the entries whose leading id is listed; the floor still checks the WHOLE population first.
-The population is ops/mutate/loopsheet_mutations.py and the runner ops/mutate/loopsheet_run.py; this file is the
+The population is ops/mutate/hazardcopy_mutations.py and the runner ops/mutate/hazardcopy_run.py; this file is the
 CLI, the floors and the proof arms - surprise.py's three-file shape. The subjects and the harness's own files are
 compared with `git show HEAD:` before the first build: a mutation report is a claim about a COMMIT.
-`--prove-vacuity` replaces the five test files with empty suites and requires EVERY mutation to report MISSED.
+`--prove-vacuity` replaces the test file with an empty suite and requires EVERY mutation to report MISSED.
 """
 from __future__ import annotations
 
@@ -26,20 +26,16 @@ sys.dont_write_bytecode = True
 shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_errors=True)
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
-SUBJECT_MODULES = ("Sources/ScenicKit/LoopSheet/LoopSheet.swift", "Sources/ScenicKit/LoopSheet/LoopFailure.swift",
-                   "Sources/ScenicAPIClient/LoopRequestBody.swift", "Sources/ScenicAPIClient/LoopReplyReader.swift",
-                   "Sources/ScenicAPIClient/LoopError.swift", "Sources/ScenicAPIClient/LoopClient.swift",
-                   "Sources/ScenicAPIClient/ClientLoopPlanner.swift", "Sources/ScenicAPIClient/LoopResponse.swift",
-                   "Sources/Handoff/LoopHandoff.swift", "Sources/ScenicAPIClient/LoopNothingPretty.swift")
+SUBJECT_MODULES = ("Sources/ScenicKit/Hazards/HazardCopy.swift",)
 
-from loopsheet_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
+from hazardcopy_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)
-from loopsheet_run import FILTER, build, empty_suite, not_at_head, run_all, test
+from hazardcopy_run import FILTER, build, empty_suite, not_at_head, run_all, test
 
 TESTS = [t for t in TEST_FILES if t.exists()]
 HARNESS = (pathlib.Path(__file__).resolve(),
-           pathlib.Path(__file__).resolve().parent / "loopsheet_mutations.py",
-           pathlib.Path(__file__).resolve().parent / "loopsheet_run.py")
+           pathlib.Path(__file__).resolve().parent / "hazardcopy_mutations.py",
+           pathlib.Path(__file__).resolve().parent / "hazardcopy_run.py")
 
 
 def population_floor():
@@ -68,17 +64,16 @@ def prove_floor() -> int:
     base = {"MUTATIONS": list(MUTATIONS), "EQUIVALENT": list(EQUIVALENT), "TESTS": list(TESTS),
             "MIN_MUTATIONS": MIN_MUTATIONS}
     killers_gone = [(n, p, o, w, [] if i == 0 else k) for i, (n, p, o, w, k) in enumerate(MUTATIONS)]
-    # Padded back to the WHOLE count, so the arm can only be refused for the unmutated subject, never the floor.
-    no_draft = [m for m in MUTATIONS if m[1] != SUBJECTS[1]]
-    no_draft += [m for m in MUTATIONS if m[1] != SUBJECTS[1]][:len(MUTATIONS) - len(no_draft)]
+    # The WHOLE count kept, every entry pointed elsewhere, so the arm can only be refused for the unmutated subject.
+    no_draft = [(n, ROOT / "elsewhere.swift", o, w, k) for n, _p, o, w, k in MUTATIONS]
     arms = [("MUTATIONS emptied", {"MUTATIONS": []}),
             ("MUTATIONS one short of the floor", {"MUTATIONS": base["MUTATIONS"][:MIN_MUTATIONS - 1]}),
             ("the floor raised to %d" % (MIN_MUTATIONS + 1), {"MIN_MUTATIONS": MIN_MUTATIONS + 1}),
             ("EQUIVALENT one short of the floor", {"EQUIVALENT": base["EQUIVALENT"][:MIN_EQUIVALENT - 1]}),
             ("one entry's killers emptied", {"MUTATIONS": killers_gone}),
-            ("LoopFailure.swift unmutated, count padded back",
+            ("HazardCopy.swift unmutated, count kept",
              {"MUTATIONS": no_draft}),
-            ("a test file missing", {"TESTS": base["TESTS"][:1]})]
+            ("the test file missing", {"TESTS": base["TESTS"][:0]})]
     g = globals()
     refused = 0
     try:
@@ -139,7 +134,7 @@ def main(argv) -> int:
     eq = None
     try:
         if prove:
-            sys.stdout.write("PROVING NON-VACUITY: the three test files replaced by empty suites; every mutation "
+            sys.stdout.write("PROVING NON-VACUITY: the test file replaced by an empty suite; every mutation "
                              "must report MISSED.\n")
             for t in TESTS:
                 t.write_text(empty_suite(t), encoding="utf-8", newline="\n")

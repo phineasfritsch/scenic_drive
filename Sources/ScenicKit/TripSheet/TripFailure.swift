@@ -9,6 +9,7 @@ public enum TripFailure: String, CaseIterable, Equatable, Sendable {
     case unknownPlace
     case tooFewDays
     case ceilingBreached
+    case nothingPretty
     case planRefused
     case invalidRequest
     case refusedOnDevice
@@ -25,6 +26,7 @@ public enum TripFailure: String, CaseIterable, Equatable, Sendable {
         case .unknownPlace: return "We could not find that place. Try choosing it again."
         case .tooFewDays: return "That is more road than these days hold. Add a day and try again."
         case .ceilingBreached: return "Every scenic way ran past your extra time. Try a little more time."
+        case .nothingPretty: return "Nothing on the way there was pretty enough to show. Try another place to head for."
         case .planRefused: return "We could not settle on a scenic way this time. Try again."
         case .invalidRequest: return "Something about this trip did not add up. Try choosing again."
         case .refusedOnDevice: return "This trip cannot be planned from here. Check the start and the days."

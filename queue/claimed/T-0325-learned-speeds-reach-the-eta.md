@@ -1,13 +1,13 @@
 ---
 id: T-0325
 title: Learned corridor speeds reach the ETA - completed drive legs feed LearnedCorridorSpeeds.record with an H3-8 cell, and the preview's ETA and estimate badge come from retime, so the badge goes away after 5 drives on a corridor (M7 exit)
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T10:44:52Z
+lease_expires_at: 2026-10-09T22:44:52Z
+worktree: .worktrees/T-0325
+branch: task/T-0325
 exclusive: []
 touches: [Sources/ScenicKit/, Sources/ScenicAPIClient/, Sources/PlaceStore/, Tests/, apps/ios/Packages/ScenicApp/Sources/, services/api/src/, services/api/test/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-07, P-PRIV-05]
@@ -32,3 +32,4 @@ edge is learned (product invariant).
 ## Log
 - 2026-10-08T13:58:47Z filed by agent/claude-opus-5 (orchestrator) from T-0320's stillOpen 1.
 - 2026-10-08T13:59:22Z renumbered T-0324 -> T-0325 by agent/claude-opus-5 (orchestrator): task/T-0321 already holds a T-0324.
+- 2026-10-09T10:44:52Z claimed by agent/claude-opus-5; lease until 2026-10-09T22:44:52Z

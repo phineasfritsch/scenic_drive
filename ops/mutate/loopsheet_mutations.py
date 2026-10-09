@@ -38,14 +38,16 @@ RESPONSE = _API / "LoopResponse.swift"
 HANDOFF = ROOT / "Sources" / "Handoff" / "LoopHandoff.swift"
 DETECTOR = ROOT / "Sources" / "ScenicKit" / "Loop" / "RetraceDetector.swift"
 IDENTITY = _API / "IdentityHeaders.swift"
-SUBJECTS = (SHEET, FAILURE, BODY, READER, ERROR, CLIENT, PLANNER, RESPONSE, HANDOFF, DETECTOR, IDENTITY)
+DULL = _API / "LoopNothingPretty.swift"
+SUBJECTS = (SHEET, FAILURE, BODY, READER, ERROR, CLIENT, PLANNER, RESPONSE, HANDOFF, DETECTOR, IDENTITY, DULL)
 MUTATED_FILES = SUBJECTS
 
 TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "LoopSheet" / "LoopSheetTests.swift",
               ROOT / "Tests" / "ScenicAPIClientTests" / "LoopClientRequestTests.swift",
               ROOT / "Tests" / "ScenicAPIClientTests" / "LoopClientOutcomeTests.swift",
               ROOT / "Tests" / "ScenicAPIClientTests" / "LoopSheetGateTests.swift",
-              ROOT / "Tests" / "HandoffTests" / "LoopHandoffTests.swift")
+              ROOT / "Tests" / "HandoffTests" / "LoopHandoffTests.swift",
+              ROOT / "Tests" / "ScenicAPIClientTests" / "LoopNothingPrettyTests.swift")
 
 TABLE = "every state x every event lands whole"
 GATE = "P-SAFE-03: no loop ticket before the disclaimer is accepted, one after"
@@ -66,6 +68,12 @@ TEN = "ten pins are refused, never cut to nine"
 BOUND = "the device's retrace limit is 0.15 inclusive at every bound"
 DELEGATES = "the planner decides on the device's own measured fraction"
 ESTIMATE = "a 200 saying eta_is_estimate false reaches the sheet as a preview without the badge"
+DULL_ROWS = "a dull loop's 422 nothing_pretty is read whole at every bound, refused otherwise"
+DULL_SHEET = "a dull loop reaches the sheet as nothingPretty from one request"
+DULL_LINE = "a dull loop shows its own calm line"
+_DULL_ARM = ('        case (422, "nothing_pretty"?):\n'
+             "            guard let dull = body?.loopNothingPretty else { return .unexpectedResponse(status: status) }\n"
+             "            return .nothingPretty(dull)\n")
 
 _CATCH = "            reply = try await transport.send(request)\n        } catch {\n            throw .routingOffline\n        }"
 _RETRY = ("            reply = try await transport.send(request)\n        } catch {\n"
@@ -198,6 +206,17 @@ MUTATIONS = [
     ("58 the estimate badge always on", RESPONSE, _ETA, "etaIsEstimate: true,", [OUTCOME, ESTIMATE]),
     ("59 the detector's limit exclusive", DETECTOR, "        f <= maxRetraceFraction\n",
      "        f < maxRetraceFraction\n", [BOUND]),
+    ("60 nothing_pretty unread (T-0337)", READER, _DULL_ARM, "", [DULL_ROWS, DULL_SHEET]),
+    ("61 the minute floor at 9", DULL, "public static let minuteRange = 10...180",
+     "public static let minuteRange = 9...180", [DULL_ROWS]),
+    ("62 the minute ceiling at 181", DULL, "public static let minuteRange = 10...180",
+     "public static let minuteRange = 10...181", [DULL_ROWS]),
+    ("63 a fractional minute accepted", DULL, "guard minutes.isFinite, minutes == minutes.rounded(),",
+     "guard minutes.isFinite,", [DULL_ROWS]),
+    ("64 nothingPretty shown as unexpected", ERROR, "case .nothingPretty: return .nothingPretty",
+     "case .nothingPretty: return .unexpectedResponse", [MAPPING, DULL_SHEET, DULL_LINE]),
+    ("65 the dull loop's line reworded", FAILURE, '"No loop from here was pretty enough to show today.',
+     '"No loop from here was pretty enough to show.', [DULL_LINE]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -207,6 +226,6 @@ EQUIVALENT = [
      "the switch over LoopSheetState already names .preview and .failed; the other four are exactly what default covers"),
 ]
 
-MIN_MUTATIONS = 59
+MIN_MUTATIONS = 65
 MIN_EQUIVALENT = 1
-MIN_TEST_FILES = 5
+MIN_TEST_FILES = 6

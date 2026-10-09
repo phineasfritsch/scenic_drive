@@ -61,6 +61,7 @@ struct TripClientOutcomeTests {
         (.planningPaused, .planningPaused), (.routingOffline, .routingOffline), (.noRoute, .noRoute),
         (.regionUnsupported, .regionUnsupported), (.unknownPlace, .unknownPlace), (.tooFewDays, .tooFewDays),
         (.ceilingBreached, .ceilingBreached), (.planRefused(reason: "x"), .planRefused),
+        (.nothingPretty(TripNothingPretty(days: 5, extraBudgetPercent: 40)), .nothingPretty),
         (.invalidRequest(detail: "x"), .invalidRequest), (.refusedOnDevice(.daysOutOfRange), .refusedOnDevice),
         (.unexpectedResponse(status: 418), .unexpectedResponse),
     ])

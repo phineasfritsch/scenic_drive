@@ -26,6 +26,9 @@ enum TripReplyReader {
             return .tooFewDays
         case (422, "ceiling_breached"?):
             return .ceilingBreached
+        case (422, "nothing_pretty"?):
+            guard let dull = body?.tripNothingPretty else { return .unexpectedResponse(status: status) }
+            return .nothingPretty(dull)
         case (429, "quota_exhausted"?):
             guard let text = body?.resetsAt, let resetsAt = PlanResponseReader.instant(text) else {
                 return .unexpectedResponse(status: status)
