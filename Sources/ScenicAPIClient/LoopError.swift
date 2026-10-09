@@ -9,6 +9,8 @@ public enum LoopError: Error, Equatable, Sendable {
     case routingOffline
     case noRoute
     case noCleanLoop
+    /// 422 `nothing_pretty` (T-0337): every clean loop of today's seeds was too plain to show.
+    case nothingPretty(LoopNothingPretty)
     case regionUnsupported
     case invalidRequest(detail: String)
     case refusedOnDevice(LoopRefusal)
@@ -21,6 +23,7 @@ public enum LoopError: Error, Equatable, Sendable {
         case .routingOffline: return .routingOffline
         case .noRoute: return .noRoute
         case .noCleanLoop: return .noCleanLoop
+        case .nothingPretty: return .nothingPretty
         case .regionUnsupported: return .regionUnsupported
         case .invalidRequest: return .invalidRequest
         case .refusedOnDevice: return .refusedOnDevice

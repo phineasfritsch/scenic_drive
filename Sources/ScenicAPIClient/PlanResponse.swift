@@ -22,11 +22,14 @@ public struct PlanResponse: Equatable, Sendable {
     public let appleMapsURL: URL
     /// T-0319 R6: the token the Worker remembered this plan's pins and lambda under; nil when it remembered nothing.
     public let planToken: String?
+    /// T-0330 R2/R3: true exactly when the Worker built this answer as the rest of the recalled drive; false on a fresh
+    /// plan, and when the field is absent (fail toward saying more: the drive screen notes a new route).
+    public let continued: Bool
 
     public init(route: [Coordinate], distanceMeters: Double, etaSeconds: Double, fastestEtaSeconds: Double,
                 ceilingSeconds: Double, budgetSeconds: Double, lambda: Double, evaluations: Int, usedBudget: Bool,
                 etaIsEstimate: Bool, hazards: [PlanHazard], waypoints: [Coordinate], appleMapsURL: URL,
-                planToken: String? = nil) {
+                planToken: String? = nil, continued: Bool = false) {
         self.route = route
         self.distanceMeters = distanceMeters
         self.etaSeconds = etaSeconds
@@ -41,12 +44,13 @@ public struct PlanResponse: Equatable, Sendable {
         self.waypoints = waypoints
         self.appleMapsURL = appleMapsURL
         self.planToken = planToken
+        self.continued = continued
     }
 }
 
 extension PlanResponse: Decodable {
     enum CodingKeys: String, CodingKey {
-        case route, coordinates, lat, lon, lambda, evaluations, hazards, waypoints
+        case route, coordinates, lat, lon, lambda, evaluations, hazards, waypoints, continued
         case distanceMeters = "distance_m"
         case etaSeconds = "eta_s"
         case fastestEtaSeconds = "fastest_eta_s"
@@ -95,7 +99,8 @@ extension PlanResponse: Decodable {
             hazards: try top.decode([PlanHazard].self, forKey: .hazards),
             waypoints: waypoints,
             appleMapsURL: url,
-            planToken: try top.decodeIfPresent(String.self, forKey: .planToken)
+            planToken: try top.decodeIfPresent(String.self, forKey: .planToken),
+            continued: try top.decodeIfPresent(Bool.self, forKey: .continued) ?? false
         )
     }
 }

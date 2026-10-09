@@ -39,7 +39,9 @@ public struct DriveController: Sendable, Equatable {
     public mutating func rerouteArrived(ticket: Int, reply: RerouteReply) -> Bool {
         guard ticket == inFlight else { return false }
         inFlight = nil
-        return session.rerouteArrived(line: reply.line, waypoints: reply.waypoints, planToken: reply.planToken)
+        return session.rerouteArrived(line: reply.line, waypoints: reply.waypoints, planToken: reply.planToken,
+                                      etaSeconds: reply.etaSeconds, fastestEtaSeconds: reply.fastestEtaSeconds,
+                                      continued: reply.continued)
     }
 
     /// The reroute under `ticket` failed. Dropped (false, nothing changes) unless `ticket` is the one in flight.

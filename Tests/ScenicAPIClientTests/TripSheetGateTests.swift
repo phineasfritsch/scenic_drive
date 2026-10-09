@@ -78,4 +78,18 @@ struct TripSheetGateTests {
         }
         #expect(failure == .tooFewDays)
     }
+
+    @Test("a dull trip reaches the sheet as nothingPretty from one request")
+    func dullTripReachesSheet() async {
+        let body = #"{"error":"nothing_pretty","days":5,"extra_budget_pct":40}"#
+        let transport = CountingPlanTransport(reply: TripWire.reply(422, body))
+        var sheet = Self.ready(accepted: true)
+        await Self.drive(&sheet, transport)
+        guard case .failed(_, let failure) = sheet.state else {
+            Issue.record("the sheet is \(sheet.state), not failed")
+            return
+        }
+        #expect(failure == .nothingPretty)
+        #expect(await transport.count == 1)
+    }
 }

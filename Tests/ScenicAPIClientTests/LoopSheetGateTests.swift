@@ -129,4 +129,18 @@ struct LoopSheetGateTests {
                                    status: 429) == .quotaExhausted)
         #expect(await Self.failure(after: #"{"error":"no_clean_loop"}"#, status: 422) == .noCleanLoop)
     }
+
+    @Test("a dull loop reaches the sheet as nothingPretty from one request")
+    func dullLoopReachesSheet() async {
+        let transport = CountingPlanTransport(reply: LoopWire.reply(422, #"{"error":"nothing_pretty","minutes":45}"#))
+        var sheet = Self.ready(accepted: true)
+        await Self.drive(&sheet, transport)
+        guard case .failed(let ticket, let failure) = sheet.state else {
+            Issue.record("the sheet is \(sheet.state), not failed")
+            return
+        }
+        #expect(failure == .nothingPretty)
+        #expect(ticket.minutes == 45)
+        #expect(await transport.count == 1)
+    }
 }

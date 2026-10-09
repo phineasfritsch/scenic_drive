@@ -30,7 +30,7 @@ SUBJECT_MODULES = ("Sources/ScenicKit/LoopSheet/LoopSheet.swift", "Sources/Sceni
                    "Sources/ScenicAPIClient/LoopRequestBody.swift", "Sources/ScenicAPIClient/LoopReplyReader.swift",
                    "Sources/ScenicAPIClient/LoopError.swift", "Sources/ScenicAPIClient/LoopClient.swift",
                    "Sources/ScenicAPIClient/ClientLoopPlanner.swift", "Sources/ScenicAPIClient/LoopResponse.swift",
-                   "Sources/Handoff/LoopHandoff.swift")
+                   "Sources/Handoff/LoopHandoff.swift", "Sources/ScenicAPIClient/LoopNothingPretty.swift")
 
 from loopsheet_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)

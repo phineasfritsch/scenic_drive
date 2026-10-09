@@ -17,6 +17,8 @@ public struct DriveSession: Sendable, Equatable {
     public static let awayThresholdMeters: Double = 50
     /// Away for at least this long is off-route.
     public static let offRouteDwellSeconds: TimeInterval = 5
+    /// T-0330 R4: an ETA (or the fastest route's) outside 0...this many seconds is not one; exactly a day is.
+    public static let maxEtaSeconds: Double = 86_400
 
     public private(set) var mode: DriveMode = .guiding
     public private(set) var surface: DriveSurface = .minimal
@@ -28,15 +30,23 @@ public struct DriveSession: Sendable, Equatable {
     public let lambda: Double
     /// T-0328 R1: the token of the plan being driven - the preview's, then each taken reroute's; nil for none.
     public private(set) var planToken: String?
+    /// T-0330 R4: the current line's ETA and the fastest route's - the preview's, then each taken answer's.
+    public private(set) var etaSeconds: Double
+    public private(set) var fastestEtaSeconds: Double
+    /// T-0330 R3: whether the current line continues the planned drive - the plan itself does; a fresh answer does not.
+    public private(set) var continued = true
     private var pinVertices: [Int]
     private var awaySince: TimeInterval?
     private var latest: DriveFix?
 
-    /// nil unless the line is real, every pin is one of its vertices in route order, and lambda is finite.
+    /// nil unless the line is real, every pin is one of its vertices in route order, lambda is finite and both ETAs
+    /// are inside 0...maxEtaSeconds.
     public init?(line coordinates: [Coordinate], waypoints: [Coordinate], lambda: Double, online: Bool,
-                 planToken: String? = nil) {
-        guard lambda.isFinite, let line = DriveLine(coordinates),
+                 planToken: String? = nil, etaSeconds: Double = 0, fastestEtaSeconds: Double = 0) {
+        guard lambda.isFinite, Self.isEta(etaSeconds), Self.isEta(fastestEtaSeconds), let line = DriveLine(coordinates),
               let vertices = line.vertexIndices(of: waypoints) else { return nil }
+        self.etaSeconds = etaSeconds
+        self.fastestEtaSeconds = fastestEtaSeconds
         self.line = line
         self.waypoints = waypoints
         self.pinVertices = vertices
@@ -44,6 +54,16 @@ public struct DriveSession: Sendable, Equatable {
         self.isOnline = online
         self.planToken = planToken
     }
+
+    /// The drive a preview starts (T-0330 R4): its line, pins, lambda, plan token and ETA - what NavAdapter calls.
+    public init?(preview: PlanPreview, online: Bool) {
+        self.init(line: preview.route, waypoints: preview.waypoints, lambda: preview.lambda, online: online,
+                  planToken: preview.continuation?.token, etaSeconds: preview.etaSeconds,
+                  fastestEtaSeconds: preview.fastestEtaSeconds)
+    }
+
+    /// A finite ETA inside 0...maxEtaSeconds, both bounds included.
+    static func isEta(_ seconds: Double) -> Bool { seconds >= 0 && seconds <= maxEtaSeconds }
 
     /// One location fix. Returns the reroute to send, or nil. An unusable fix asks nothing and changes nothing but
     /// the surface, which goes minimal: unknown is moving.
@@ -84,14 +104,16 @@ public struct DriveSession: Sendable, Equatable {
         return request(from: latest.coordinate)
     }
 
-    /// The reroute landed: its line, pins and token (T-0328 R3) replace the plan's, the lambda stays. Ignored unless
-    /// a reroute is out; a reply that is not a usable line with its pins on it is a failure (rejoin mode). True when
-    /// taken.
+    /// The reroute landed: its line, pins and token (T-0328 R3), its ETA and whether it continues the drive (T-0330)
+    /// replace the plan's, the lambda stays - all together or none. Ignored unless a reroute is out; a reply that is
+    /// not a usable line with its pins on it, or whose ETA is not one, is a failure (rejoin mode). True when taken.
     @discardableResult
     public mutating func rerouteArrived(line coordinates: [Coordinate], waypoints: [Coordinate],
-                                        planToken: String? = nil) -> Bool {
+                                        planToken: String? = nil, etaSeconds: Double = 0,
+                                        fastestEtaSeconds: Double = 0, continued: Bool = false) -> Bool {
         guard mode == .rerouting else { return false }
-        guard let next = DriveLine(coordinates), let vertices = next.vertexIndices(of: waypoints) else {
+        guard Self.isEta(etaSeconds), Self.isEta(fastestEtaSeconds), let next = DriveLine(coordinates),
+              let vertices = next.vertexIndices(of: waypoints) else {
             mode = .rejoining
             return false
         }
@@ -99,6 +121,9 @@ public struct DriveSession: Sendable, Equatable {
         self.waypoints = waypoints
         pinVertices = vertices
         self.planToken = planToken
+        self.etaSeconds = etaSeconds
+        self.fastestEtaSeconds = fastestEtaSeconds
+        self.continued = continued
         progressSegment = 0
         awaySince = nil
         mode = .guiding

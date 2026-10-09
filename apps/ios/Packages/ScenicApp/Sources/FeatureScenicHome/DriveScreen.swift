@@ -9,8 +9,9 @@ import SwiftUI
 /// published display into it (R1). It reads `display` and nothing else about the drive's state (P-SAFE-09, R7).
 ///
 /// Moving (the minimal surface): the map, its credit and the one large action - the reroute or rejoin state is a
-/// caption inside that action. Stopped (full): a status banner, PlanPreview's ETA line with its estimate badge and
-/// the conditions line are added (Ferrostar's step durations are 0, so the ETA is the plan's).
+/// caption inside that action. Stopped (full): a status banner, the ETA line of the line being driven (DriveDisplay's -
+/// the plan's, then each taken reroute's; Ferrostar's step durations are 0) with PlanPreview's estimate badge, the
+/// fresh-route note when the Worker answered a new plan (T-0330 R3) and the conditions line are added.
 public struct DriveScreen: View {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -81,9 +82,17 @@ public struct DriveScreen: View {
     private var controls: some View {
         VStack(alignment: .leading, spacing: 12) {
             if display.showsDetails {
-                Text(preview.etaLine)
+                if let note = display.note {
+                    Text(note)
+                        .font(.subheadline)
+                        .foregroundStyle(DesignTokens.fg)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("drive.note")
+                }
+                Text(display.etaLine)
                     .font(.body)
                     .foregroundStyle(DesignTokens.fg)
+                    .accessibilityIdentifier("drive.eta")
                 if preview.showsEstimateBadge {
                     Text(PlanPreview.estimateBadge)
                         .font(.footnote)

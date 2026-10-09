@@ -64,6 +64,7 @@ struct LoopClientOutcomeTests {
         (LoopError.quotaExhausted(resetsAt: LoopClientOutcomeTests.resetsAt), LoopFailure.quotaExhausted),
         (.planningPaused, .planningPaused), (.routingOffline, .routingOffline), (.noRoute, .noRoute),
         (.noCleanLoop, .noCleanLoop), (.regionUnsupported, .regionUnsupported),
+        (.nothingPretty(LoopNothingPretty(minutes: 45)), .nothingPretty),
         (.invalidRequest(detail: "x"), .invalidRequest), (.refusedOnDevice(.minutesOutOfRange), .refusedOnDevice),
         (.unexpectedResponse(status: 418), .unexpectedResponse),
     ])

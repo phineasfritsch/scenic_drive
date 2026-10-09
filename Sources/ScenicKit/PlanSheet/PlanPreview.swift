@@ -46,10 +46,14 @@ public struct PlanPreview: Equatable, Sendable {
     public var extraMinutes: Int { max(0, Int(((etaSeconds - fastestEtaSeconds) / 60).rounded())) }
 
     /// "52 min · 14 min longer than the fastest way", or "· about as quick as the fastest way" when it is not longer.
-    public var etaLine: String {
-        let extra = extraMinutes
+    public var etaLine: String { Self.etaLine(etaSeconds: etaSeconds, fastestEtaSeconds: fastestEtaSeconds) }
+
+    /// The one ETA formatter: the preview's line, and the drive screen's for whatever line it is on (T-0330 R4).
+    public static func etaLine(etaSeconds: Double, fastestEtaSeconds: Double) -> String {
+        let minutes = Int((etaSeconds / 60).rounded())
+        let extra = max(0, Int(((etaSeconds - fastestEtaSeconds) / 60).rounded()))
         return extra == 0
-            ? "\(etaMinutes) min · about as quick as the fastest way"
-            : "\(etaMinutes) min · \(extra) min longer than the fastest way"
+            ? "\(minutes) min · about as quick as the fastest way"
+            : "\(minutes) min · \(extra) min longer than the fastest way"
     }
 }

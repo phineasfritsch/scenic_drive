@@ -23,13 +23,13 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-plan");
 
-export const MIN_MUTATIONS = 62;
+export const MIN_MUTATIONS = 68;
 export const SUBJECTS = ["src/lambdaSearch.ts", "src/planRequest.ts", "src/routePath.ts", "src/planWaypoints.ts",
   "src/appleMaps.ts", "src/hazards.ts", "src/scenicPlanner.ts", "src/plan.ts",
   "src/planToken.ts", "src/reroutePlanner.ts"];
 const TESTS = ["test/lambdaSearch.test.ts", "test/appleMaps.test.ts", "test/planRecorded.test.ts",
   "test/planPrivacy.test.ts", "test/planCost.test.ts", "test/planCeiling.test.ts", "test/planWaypoints.test.ts",
-  "test/planReroute.test.ts", "test/closuresCrossing.test.ts"];
+  "test/planReroute.test.ts", "test/closuresCrossing.test.ts", "test/planContinued.test.ts"];
 
 const NL = String.fromCharCode(10);
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
@@ -91,7 +91,10 @@ export const MUTATIONS = [
   m("reroute-other-place", "plan.ts", "recalled.place === request.destinationPlace &&", "true &&"),
   m("reroute-pin-count", "plan.ts", "reroute.firstPin <= recalled.pins.length", "reroute.firstPin < recalled.pins.length"),
   m("reroute-pin-skipped", "plan.ts", "usable.pins.slice(reroute.firstPin)", "usable.pins.slice(reroute.firstPin + 1)"),
-  m("reroute-token-dropped", "plan.ts", "plan_token: token }", "plan_token: null }"),
+  m("reroute-token-dropped", "plan.ts", "plan_token: token, continued }", "plan_token: null, continued }"),
+  m("continued-always", "plan.ts", "continued = rest !== null;", "continued = true;"),
+  m("continued-on-recall", "plan.ts", "continued = rest !== null;", "continued = usable !== null;"),
+  m("continued-never-sent", "plan.ts", "plan_token: token, continued }", "plan_token: token, continued: false }"),
   m("reroute-ceiling-plus", "reroutePlanner.ts", "if (!(durationSeconds(measured) <= ceiling)) return null;", "if (!(durationSeconds(measured) <= ceiling + 1)) return null;"),
   m("reroute-other-lambda", "reroutePlanner.ts", "SCENIC_PROFILE, buildCustomModel(lambda, closures));", "SCENIC_PROFILE, buildCustomModel(Math.min(8, lambda + 0.25), closures));"),
   m("reroute-evaluations", "reroutePlanner.ts", "evaluations: 1,", "evaluations: 2,"),

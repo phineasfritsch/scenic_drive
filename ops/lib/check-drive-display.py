@@ -43,6 +43,8 @@ APPROVED = [
     (SCREEN, ".onChange(of: display.line) { resolveMap() }"),
     (SCREEN, "if display.showsDetails, let status = display.status {"),
     (SCREEN, "if display.showsDetails {"),
+    (SCREEN, "if let note = display.note {"),
+    (SCREEN, "Text(display.etaLine)"),
     (SCREEN, 'Label(display.actionTitle, systemImage: "xmark.circle.fill")'),
     (SCREEN, "if !display.showsDetails, let status = display.status {"),
     (SCREEN, ".frame(maxWidth: .infinity, minHeight: display.actionMinHeight)"),
