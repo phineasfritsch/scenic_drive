@@ -34,7 +34,7 @@ public struct TripResponseDay: Equatable, Sendable {
 
 extension TripResponseDay: Decodable {
     enum CodingKeys: String, CodingKey {
-        case day, start, end, lat, lon, stops, overnight, leg, coordinates, kind
+        case day, start, end, lat, lon, stops, overnight, leg, coordinates, kind, hazards
         case driveSeconds = "drive_s"
         case distanceMeters = "distance_m"
         case ceilingSeconds = "ceiling_s"
@@ -63,6 +63,7 @@ extension TripResponseDay: Decodable {
                   driveSeconds: try top.decode(Double.self, forKey: .driveSeconds),
                   distanceMeters: try top.decode(Double.self, forKey: .distanceMeters),
                   ceilingSeconds: try top.decode(Double.self, forKey: .ceilingSeconds),
-                  stops: try top.decode([String].self, forKey: .stops), overnight: overnight, leg: leg)
+                  stops: try top.decode([String].self, forKey: .stops), overnight: overnight, leg: leg,
+                  hazards: try top.decode([PlanHazard].self, forKey: .hazards))
     }
 }

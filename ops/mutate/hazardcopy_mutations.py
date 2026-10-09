@@ -12,6 +12,8 @@ hazardcopy.py, runner hazardcopy_run.py (tripsheet's shape).
   * THE CLOSURE LINES (24-33, T-0341 R2): each line softened, dropped or reordered, a card left silent;
   * THE READER (34-44, T-0341 R3, ScenicAPIClient/ClosuresHazardReader.swift): every fail-closed arm opened, a
     field read by value, the reader unwired from PlanResponse.
+  * THE TRIP AND LOOP RUNS (45-53, T-0340 R3-R5): a day's runs or its day prefix lost, the wrong day named, the loop's
+    runs dropped, either reader made lenient, either planner dropping the runs, a run's indices swapped.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -25,11 +27,17 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 COPY = ROOT / "Sources" / "ScenicKit" / "Hazards" / "HazardCopy.swift"
 READER = ROOT / "Sources" / "ScenicAPIClient" / "ClosuresHazardReader.swift"
 PLAN_RESPONSE = ROOT / "Sources" / "ScenicAPIClient" / "PlanResponse.swift"
+TRIP_DAY = ROOT / "Sources" / "ScenicAPIClient" / "TripResponseDay.swift"
+LOOP_RESPONSE = ROOT / "Sources" / "ScenicAPIClient" / "LoopResponse.swift"
+TRIP_PLANNER = ROOT / "Sources" / "ScenicAPIClient" / "ClientTripPlanner.swift"
+LOOP_PLANNER = ROOT / "Sources" / "ScenicAPIClient" / "ClientLoopPlanner.swift"
+PLANNER = ROOT / "Sources" / "ScenicAPIClient" / "ClientPlanner.swift"
 SUBJECTS = (COPY, READER)
-MUTATED_FILES = (COPY, READER, PLAN_RESPONSE)
+MUTATED_FILES = (COPY, READER, PLAN_RESPONSE, TRIP_DAY, LOOP_RESPONSE, TRIP_PLANNER, LOOP_PLANNER, PLANNER)
 
 TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "Hazards" / "HazardCopyTests.swift",
-              ROOT / "Tests" / "ScenicAPIClientTests" / "ClosuresHazardTests.swift")
+              ROOT / "Tests" / "ScenicAPIClientTests" / "ClosuresHazardTests.swift",
+              ROOT / "Tests" / "ScenicAPIClientTests" / "TripLoopHazardsTests.swift")
 
 ROW = "every Worker hazard row reads its ruled line, whole"
 UNKNOWN = "an unlisted value or kind reads a safe line, never the raw key"
@@ -39,6 +47,8 @@ WIRE = "no copy line is empty, and none spells a wire key"
 CLOSE = "every closure condition reads its ruled lines, whole, on every route card"
 SHAPE = "every Worker closures_hazard reads its ruled lines on the plan, trip and loop cards"
 UNREAD = "an unreadable closures_hazard reads the safest line on every card, never silence and never a refusal"
+RUNS = "trip and loop answers read their hazard lines, whole"
+REFUSE = "a trip or loop whose hazards cannot be read is refused"
 
 MATCH = "if let line = runLines[run.kind]?[run.value] { return line }"
 GENERIC = '"Something on part of this route needs a closer look - check the road before you drive it"'
@@ -128,6 +138,22 @@ MUTATIONS = [
     ("44 the reader never wired into the plan", PLAN_RESPONSE,
      "closuresHazard: ClosuresHazardReader.read(top, forKey: .closuresHazard)", "closuresHazard: .clear",
      [SHAPE, UNREAD]),
+    ("45 a trip day's runs dropped", COPY, "day.hazards.map {", "day.hazards.prefix(0).map {", [RUNS]),
+    ("46 the day prefix lost", COPY, '"Day \\(day.day) · " + line(for: $0)', "line(for: $0)", [RUNS]),
+    ("47 the wrong day named", COPY, '"Day \\(day.day) · "', '"Day \\(day.day + 1) · "', [RUNS]),
+    ("48 the loop's runs dropped", COPY, "            + preview.hazards.map { run in line(for: run) }\n", "",
+     [RUNS]),
+    ("49 a trip day's hazards read leniently", TRIP_DAY, "hazards: try top.decode([PlanHazard].self, forKey: .hazards)",
+     "hazards: (try? top.decode([PlanHazard].self, forKey: .hazards)) ?? []", [REFUSE]),
+    ("50 the loop's hazards read leniently", LOOP_RESPONSE,
+     "hazards: try top.decode([PlanHazard].self, forKey: .hazards)",
+     "hazards: (try? top.decode([PlanHazard].self, forKey: .hazards)) ?? []", [REFUSE]),
+    ("51 the trip planner drops the runs", TRIP_PLANNER, "hazards: $0.hazards.map(ClientPlanner.run)", "hazards: []",
+     [RUNS]),
+    ("52 the loop planner drops the runs", LOOP_PLANNER, "hazards: response.hazards.map(ClientPlanner.run)",
+     "hazards: []", [RUNS]),
+    ("53 a run's indices swapped", PLANNER, "fromIndex: hazard.fromIndex, toIndex: hazard.toIndex",
+     "fromIndex: hazard.toIndex, toIndex: hazard.fromIndex", [RUNS]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -138,6 +164,6 @@ EQUIVALENT = [
      "the switch cases match distinct string literals, so at most one matches any kind and their order is moot"),
 ]
 
-MIN_MUTATIONS = 44
+MIN_MUTATIONS = 53
 MIN_EQUIVALENT = 1
-MIN_TEST_FILES = 2
+MIN_TEST_FILES = 3
