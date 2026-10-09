@@ -379,8 +379,11 @@ MUTATIONS = [
      "        self.continued", [K_SURF]),
     ("112 a day exactly refused", SESSION, "seconds >= 0 && seconds <= maxEtaSeconds",
      "seconds >= 0 && seconds < maxEtaSeconds", [K_BOUNDS]),
-    ("113 zero refused", SESSION, "seconds >= 0 && seconds <= maxEtaSeconds", "seconds > 0 && seconds <= maxEtaSeconds",
-     [K_BOUNDS]),
+    # A zero ETA refused everywhere makes every default-ETA session nil and crashes the run before the bound's own
+    # test reports, so the lower bound's zero is mutated per entry point: 113 the answer, 130 the preview.
+    ("113 an answer's zero ETA refused", SESSION,
+     "guard Self.isEta(etaSeconds), Self.isEta(fastestEtaSeconds), let next",
+     "guard Self.isEta(etaSeconds), etaSeconds > 0, Self.isEta(fastestEtaSeconds), let next", [K_BOUNDS]),
     ("114 no lower bound", SESSION, "seconds >= 0 && seconds <= maxEtaSeconds", "seconds <= maxEtaSeconds", [K_BOUNDS]),
     ("115 no upper bound", SESSION, "seconds >= 0 && seconds <= maxEtaSeconds", "seconds >= 0", [K_BOUNDS]),
     ("116 the day widened by a second", SESSION, "maxEtaSeconds: Double = 86_400", "maxEtaSeconds: Double = 86_401",
@@ -400,7 +403,7 @@ MUTATIONS = [
      "planToken: nil, etaSeconds", [K_SEED]),
     ("123 the note on the moving surface", DISPLAY, "note = moving || continued ? nil : Self.freshNote",
      "note = continued ? nil : Self.freshNote", [K_SURF]),
-    ("124 never a note", DISPLAY, "note = moving || continued ? nil : Self.freshNote", "note = nil", [K_SURF, K_WIRE]),
+    ("124 never a note", DISPLAY, "note = moving || continued ? nil : Self.freshNote", "note = nil", [K_SURF]),
     ("125 the display ignores the session's marker", DISPLAY, "continued: session.continued)", "continued: true)",
      [K_SURF, K_WIRE]),
     ("126 the display's ETA is the fastest", DISPLAY, "etaLine: PlanPreview.etaLine(etaSeconds: session.etaSeconds,",
@@ -411,6 +414,9 @@ MUTATIONS = [
      "etaSeconds: response.fastestEtaSeconds,", [K_REPLY]),
     ("129 an absent marker reads continued", RESPONSE, "forKey: .continued) ?? false", "forKey: .continued) ?? true",
      [K_REPLY, K_WIRE]),
+    ("130 a preview's zero ETA refused", SESSION, "planToken: preview.continuation?.token, etaSeconds: preview.etaSeconds,",
+     "planToken: preview.continuation?.token, etaSeconds: preview.etaSeconds > 0 ? preview.etaSeconds : -1,",
+     [K_BOUNDS]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -431,7 +437,7 @@ EQUIVALENT = [
      "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device run hears it (T-0329). What bounds it: ops/lib/check-drive-voice.py (P-SAFE-09's row) allows exactly this whole line and refuses its removal by name ('the navigator never asks DriveVoice'), and what DriveVoice returns is CAUGHT above (entries 82-99)"),
 ]
 
-MIN_MUTATIONS = 129
+MIN_MUTATIONS = 130
 EQUIVALENT.append(
     ("E5 (device-only) the navigator's session starts without the preview's token", NAVIGATOR,
      "guard let session = DriveSession(preview: preview, online: true) else { return nil }",
