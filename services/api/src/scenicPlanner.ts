@@ -7,15 +7,19 @@
  * remembered. Then the two guards ScenicPlanner owns, over values recomputed HERE:
  *   1. the ceiling - the chosen route's own `time` <= fastest + budget, else nothing is returned;
  *   2. actually different - Jaccard over OSM way ids < 0.6, else the "scenic" route is the fastest one.
+ * And after the closure re-request, T-0332's honest failure: the route that would ship is scored with RouteScore
+ * (routeScore.ts) and below 0.45 - or unscorable - nothing is returned but HonestFailure and its back-roads offer.
  */
 import type { ClosuresFor, PathGuard } from "./closuresNearest";
 import { buildCustomModel, formatMultiplier, rejectCustomModel } from "./customModel";
 import { appleMapsUrl } from "./appleMaps";
 import { hazardsOf, HAZARD_DETAILS, type Hazard } from "./hazards";
-import { searchLambda } from "./lambdaSearch";
+import { backRoadsEta, HonestFailure } from "./honestFailure";
+import { MAX_LAMBDA, searchLambda } from "./lambdaSearch";
 import type { LatLon } from "./latLon";
 import { decisionPoints } from "./planWaypoints";
 import { PLAN_UPSTREAM_COST } from "./quota";
+import { isHonestFailure, routeScoreOf } from "./routeScore";
 import { decodeRoutePath, durationSeconds, MAXIMUM_OVERLAP, overlap, RouteError, wayIds, type RoutePath } from "./routePath";
 import type { GuardedFetch } from "./upstream";
 
@@ -116,6 +120,11 @@ export async function planScenic(call: GuardedFetch, routerBase: string, origin:
       const again = await route(counted, routerBase, [origin, destination], SCENIC_PROFILE, buildCustomModel(outcome.lambda, swapped));
       return durationSeconds(again) <= ceiling && overlap(wayIds(again), wayIds(fastest)) < MAXIMUM_OVERLAP ? again : null;
     } : null);
+  if (isHonestFailure(routeScoreOf(chosen))) {
+    throw new HonestFailure(await backRoadsEta(used + 1 <= PLAN_UPSTREAM_COST
+      ? () => route(counted, routerBase, [origin, destination], SCENIC_PROFILE, buildCustomModel(MAX_LAMBDA, closures))
+      : null));
+  }
   const eta = durationSeconds(chosen);
 
   const waypoints = decisionPoints(chosen);

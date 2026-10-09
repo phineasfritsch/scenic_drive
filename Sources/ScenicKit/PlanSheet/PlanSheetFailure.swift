@@ -10,6 +10,8 @@ public enum PlanSheetFailure: String, CaseIterable, Equatable, Sendable {
     case attestUnsupported
     case offlineDuringDrive
     case noScenicAlternative
+    /// T-0332: the route the server would ship scores below RouteScore's honest-failure threshold.
+    case nothingPretty
     case unknownPlace
     case planRefused
     case invalidRequest

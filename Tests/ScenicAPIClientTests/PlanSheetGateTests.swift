@@ -127,6 +127,8 @@ struct PlanSheetGateTests {
         (PlanError.attestUnsupported, PlanSheetFailure.attestUnsupported),
         (PlanError.offlineDuringDrive, PlanSheetFailure.offlineDuringDrive),
         (PlanError.noScenicAlternative, PlanSheetFailure.noScenicAlternative),
+        (PlanError.nothingPretty(NothingPrettyOffer(budgetMinutes: 25, moreTimeMinutes: 65, backRoadsEtaSeconds: nil)),
+         PlanSheetFailure.nothingPretty),
         (PlanError.unknownPlace, PlanSheetFailure.unknownPlace),
         (PlanError.planRefused(reason: "ceiling_breached"), PlanSheetFailure.planRefused),
         (PlanError.invalidRequest(detail: "x"), PlanSheetFailure.invalidRequest),
@@ -141,7 +143,7 @@ struct PlanSheetGateTests {
 
     @Test("the failure table covers every PlanSheetFailure exactly once")
     func failureTableCount() {
-        #expect(PlanSheetFailure.allCases.count == 13)
+        #expect(PlanSheetFailure.allCases.count == 14)
         #expect(Self.errorRows.map(\.1) == PlanSheetFailure.allCases)
     }
 

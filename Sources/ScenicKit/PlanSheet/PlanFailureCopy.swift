@@ -33,6 +33,9 @@ public struct PlanFailureCopy: Equatable, Sendable {
         case .noScenicAlternative:
             return PlanFailureCopy(line: "The quickest way there is already the scenic one. Try another place.",
                                    action: .chooseAnotherPlace)
+        case .nothingPretty:
+            return PlanFailureCopy(line: "Not much pretty within reach of this drive. More time might find some.",
+                                   action: .chooseAnotherPlace)
         case .unknownPlace:
             return PlanFailureCopy(line: "That place isn't in our list anymore. Choose another one.",
                                    action: .chooseAnotherPlace)
