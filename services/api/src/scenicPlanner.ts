@@ -21,12 +21,14 @@ import { decisionPoints } from "./planWaypoints";
 import { PLAN_UPSTREAM_COST } from "./quota";
 import { isHonestFailure, routeScoreOf } from "./routeScore";
 import { decodeRoutePath, durationSeconds, MAXIMUM_OVERLAP, overlap, RouteError, wayIds, type RoutePath } from "./routePath";
+import { TIME_DETAIL, timeRunsOf, type TimeRun } from "./timeRuns";
 import type { GuardedFetch } from "./upstream";
 
 export const FAST_PROFILE = "car_fast";
 export const SCENIC_PROFILE = "car_scenic";
-/** The details ops/plan asks for, then the hazard details the Worker adds after the model gate (plan :120). */
-export const ROUTE_DETAILS = ["scenic_score", "road_class", "osm_way_id", ...HAZARD_DETAILS];
+/** The details ops/plan asks for, then the hazard details the Worker adds after the model gate (plan :120), then
+ *  (T-0342 R1) the per-edge times the answer passes through as time_runs. */
+export const ROUTE_DETAILS = ["scenic_score", "road_class", "osm_way_id", ...HAZARD_DETAILS, TIME_DETAIL];
 /** LambdaSearch's default; 1 fastest + 6 scenic = 7 requests, inside PLAN_UPSTREAM_COST (P-COST-04). */
 export const MAX_EVALUATIONS = 6;
 
@@ -55,6 +57,14 @@ export interface ScenicPlanResult {
   hazards: Hazard[];
   waypoints: LatLon[];
   apple_maps_url: string;
+  /** T-0342 R2: the shipped route's details=time runs; absent unless they tile route.coordinates (timeRuns.ts). */
+  time_runs?: TimeRun[];
+}
+
+/** T-0342 R2/R3: `{ time_runs }` from the path the answer ships, or nothing - one spelling for /plan and reroute. */
+export function timeRunsField(path: RoutePath): { time_runs?: TimeRun[] } {
+  const runs = timeRunsOf(path);
+  return runs === null ? {} : { time_runs: runs };
 }
 
 /** One router request through `points` in order - origin, any pins, destination (T-0319 R7). */
@@ -150,5 +160,6 @@ export async function planScenic(call: GuardedFetch, routerBase: string, origin:
     hazards: hazardsOf(chosen),
     waypoints,
     apple_maps_url: appleMapsUrl(origin, destination, waypoints),
+    ...timeRunsField(chosen),
   };
 }

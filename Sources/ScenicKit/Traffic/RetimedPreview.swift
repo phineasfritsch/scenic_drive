@@ -16,6 +16,7 @@ public enum RetimedPreview {
         return PlanPreview(route: preview.route, etaSeconds: retimed.etaSeconds,
                            fastestEtaSeconds: preview.fastestEtaSeconds, etaIsEstimate: retimed.isEstimate,
                            hazards: preview.hazards, waypoints: preview.waypoints, lambda: preview.lambda,
-                           continuation: preview.continuation)
+                           continuation: preview.continuation, closures: preview.closures,
+                           timeRuns: preview.timeRuns)
     }
 }
