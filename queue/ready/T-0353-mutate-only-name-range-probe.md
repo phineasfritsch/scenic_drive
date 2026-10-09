@@ -1,7 +1,7 @@
 ---
 id: T-0353
 title: check-mutate-only probes a range of two REAL ids for name-keyed populations (mjs drivers, substring drivers, plansheet E-ids), so an `A-B` name-range expansion in onlyIds.mjs / mutate_only is refused
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
