@@ -158,3 +158,12 @@ fail-closed, one line per condition, whole-copy equality, shots looked at.
   - STILL BLIND (documented in the guard's docstring): String(describing:) or interpolation over a whole
     TripItinerary/LoopPreview reaches the closures model without spelling an identifier. P-SAFE-03's card digest
     is the backstop for that.
+- 2026-10-09T14:12:00Z MERGED origin/main (b92f9b26, carrying T-0333's ScenicAPIClient clients: LoopClient,
+  PlanClient, TripClient, PlanFamilySend, PlanSessionProvider, SessionStore). The merge was clean, and the merged
+  linked-digests rows needed no re-approval. Gates on the merged head ca7ae2c8: bare check-safety-disclaimer exit=0;
+  check-hazard-copy-sites "ok - 12 sites, every one approved, in 5 files"; `swift test --filter
+  "ScenicAPIClientTests|ScenicKitTests"` "Test run with 549 tests in 101 suites passed", exit 0; queue-check
+  "QUEUE OK (333 tasks)"; check-pins-yaml "PINS-YAML ok pins=49 fields=395"; check-line-cap "538 Swift files
+  tracked ... none over 300 lines"; check-mutate-population "every added module is covered or allowlisted; the
+  floor of 147 holds". check-hazard-copy-sites.py is 202 lines. No Apple file changed in this round. ios-compile
+  was re-triggered because the merge brought Sources changes; the run is quoted in the PR.
