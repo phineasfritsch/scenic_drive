@@ -1478,7 +1478,7 @@
   },
   "P-NAV-01": {
     "swift": {
-      "filter": "ScenicKitTests\\.(DriveSessionTests|DriveRerouteTests|DriveControllerTests|DriveLegTests)",
+      "filter": "(ScenicKitTests\\.(DriveSessionTests|DriveRerouteTests|DriveControllerTests|DriveLegTests|DriveTokenTakeTests)|ScenicAPIClientTests\\.DriveReplanTests)",
       "tests": [
         "ScenicKitTests.DriveSessionTests/awayThresholdIsExact()",
         "ScenicKitTests.DriveSessionTests/eastThresholdAtLatitude34()",
@@ -1507,7 +1507,15 @@
         "ScenicKitTests.DriveLegTests/innerPinsCut()",
         "ScenicKitTests.DriveLegTests/endPinsCutNothing()",
         "ScenicKitTests.DriveLegTests/rerouteLegs()",
-        "ScenicKitTests.DriveLegTests/legLength()"
+        "ScenicKitTests.DriveLegTests/legLength()",
+        "ScenicAPIClientTests.DriveReplanTests/tokenByFirstPin()",
+        "ScenicAPIClientTests.DriveReplanTests/noRowIgnoresItsVariant()",
+        "ScenicAPIClientTests.DriveReplanTests/answerBecomesTheDrawnLine()",
+        "ScenicAPIClientTests.DriveReplanTests/lateAnswerDroppedByTicket()",
+        "ScenicAPIClientTests.DriveReplanTests/offlineSendsNothing()",
+        "ScenicAPIClientTests.DriveReplanTests/previewKeepsTheToken()",
+        "ScenicKitTests.DriveTokenTakeTests/takenTogetherOrNone()",
+        "ScenicKitTests.DriveTokenTakeTests/noRowIgnoresItsTokenVariant()"
       ]
     }
   },
