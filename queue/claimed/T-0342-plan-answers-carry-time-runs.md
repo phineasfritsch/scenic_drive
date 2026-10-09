@@ -90,3 +90,35 @@ now - merge it first (memory parallel-worker-prs-conflict).
   PlanResponse, ClientPlanner, PlanPreview, RetimedPreview; plansheet population gains the Swift mutants (A4).
   R7: closuresCrossing's row gains the answer's time_runs for the /plan routes (fresh and reroute): the runs over the
   row's final shape at SCENIC_MS / n, so a swap-ignoring read of measuredChosen is red there.
+- 2026-10-09T15:35:59Z RED then GREEN, PINS, MUTANTS (agent/claude-opus-5; code 76734a60, pins 9c7a1feb, 4eaeec55).
+  RED (A3), Worker, at 203e5dde plus the new tests only (src/ unchanged): `npx vitest run test/planTimeRuns.test.ts
+  test/closuresCrossing.test.ts test/planCeiling.test.ts` exit 1, "Tests 71 failed | 92 passed (163)": "fresh: every
+  row's 200 equals the plan without the detail plus the row's time_runs, whole", "reroute: every row's 200 equals ...",
+  "asks the router for the surface and road_access details the hazards are read from", every /plan and /plan reroute
+  row of "requests, areas, the returned path and the hazard equal the row's" and the three re-request rows per /plan
+  route ("the re-request exactly at the ceiling: the clear path is returned ..." among them); the meta row was red on
+  my own miscount (5 kept rows written, 4 in the table) and was corrected to 4 kept / 16 omitted before any src/ code.
+  RED, Swift, with the API surface stubbed (PlanResponse.timeRuns and PlanPreview.timeRuns stored, never decoded or
+  passed): `swift test --filter PlanTimeRunsTests` exit 1, "Test run with 2 tests in 1 suite failed ... with 22
+  issues" - "a 200's time_runs decode whole when they tile the route; absent is nil; every bound refused" (20 issues:
+  17 refusal rows decoded, 3 run rows nil) and "a response's runs reach the preview whole, and a retime keeps them" (2).
+  GREEN at 76734a60 (A1, A2): the five vitest files "Tests 184 passed (184)"; `swift test --filter 'PlanTimeRunsTests|
+  PlanResponseDecodeTests|PlanClientResponseTests|RetimedPreviewTests|PlanSheetTests|PlanRerouteWireTests'` "Executed 30
+  tests, with 0 failures" and "Test run with 18 tests in 4 suites passed". closuresCrossing's ceiling row now expects
+  the SWAPPED path's own run, [{from 0, to 1, ms PLAN_CEILING_MS}], never the first path's (R7).
+  PINS (A6): check-safety-disclaimer named the four changed files (ClientPlanner, PlanResponse, PlanPreview,
+  RetimedPreview), rows re-approved, exit 0; named-tests P-SAFE-07 filter widened by
+  `|ScenicAPIClientTests\\.PlanTimeRunsTests` and both tests bound: "NAMED P-SAFE-07 passed=18/18";
+  check-learned-speeds-sites "ok - 17 sites, every one approved, in 7 files" (no new site, R5).
+  POPULATION (A4): plansheet entries 49-54 (time_runs never read, the tiling check dropped, null read as absent, ms
+  read from `to`, ClientPlanner drops the runs, a retime drops the runs), RESPONSE and RETIMED added to SUBJECTS (the
+  first run refused with a KeyError on the unregistered file - fixed in 4eaeec55), FILTER gains PlanTimeRunsTests,
+  MIN_MUTATIONS 48 -> 54, MIN_TEST_FILES 5 -> 6. `python ops/mutate/plansheet.py --only 49,...,54` at 4eaeec55: "MUTATE
+  OK caught=6/6", 49-52 by the decode table, 53-54 by the preview test. check-mutate-population "every added module is
+  covered or allowlisted; the floor of 147 holds".
+  WORKER MUTANTS (A5), each alone over planTimeRuns, closuresCrossing, planCeiling, planReroute: "WORKER MUTANTS
+  caught=11/11" - W1 runs from measuredChosen (4 red: the /plan "the fixture ... router honours" rows, where the swap
+  ships another path), W2 the reroute's runs dropped (34 red), W3 first-from, W4 to past from, W5 isInteger for
+  isSafeInteger, W6 a negative ms kept, W7 the last-vertex check, W8 the some-time check, W10 a zero ms refused, W11
+  some time read as >= 0 (each 2 red: the fresh and reroute tables), W9 time not requested (3 red, the planCeiling
+  literal among them).
