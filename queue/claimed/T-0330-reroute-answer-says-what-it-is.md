@@ -83,3 +83,37 @@ after a reroute is taken.
   absent / non-boolean); ScenicKit DriveContinuedTests through DriveController and DriveDisplay(session:) over
   continued x surface vs literals, and the preview seeding; ScenicAPIClient DriveContinuedReplanTests through
   PlanRerouter and a recording transport. All bound by name in P-NAV-01.
+- 2026-10-09T07:47:57Z BUILT (owner). RED FIRST BY NAME: services/api at b6fdc928 + the tests only, `npx vitest run
+  test/planContinued.test.ts test/planRecorded.test.ts`: 4 failed | 2 passed - FAILED by name "a recalled token's
+  answer is planReroute's body, whole, with continued true", "every unusable token's answer is the fresh plan's body,
+  whole, with continued false", "meta: no fresh row ignores its variant - each opposite continues, and the marker is
+  the only difference in kind", "the response carries exactly the ruled fields (R8)"; with plan.ts's marker 17/17 green
+  (planReroute.test.ts included, unchanged: its fresh-equals-fresh rows hold with continued false on both sides).
+  Swift with the API present but unwired (DriveSession(preview:) seeding 0, DriveController/PlanRerouter/
+  DriveDisplay(session:) not passing ETA or marker): 20 tests, 6 FAILED by name - continuedBySurface, previewSeedsTheDrive,
+  etaBounds, refusedAnswerTakesNothing (DriveContinuedTests), continuedThroughTheRerouter, replyCarriesTheMarkerAndEta
+  (DriveContinuedReplanTests); the two meta-tests range over expectations only and were green. Wired: the whole root
+  suite 740 tests passed. Two T-0328 expectations moved with the ruling (R4): DriveDisplayTests' drawing() now carries
+  the default session's "0 min · about as quick as the fastest way", and DriveReplanTests.answerBecomesTheDrawnLine
+  expects the reply's ETA (900/800) and continued false (the body has no marker) - both literals.
+  MUTANTS: planMutants.mjs --only reroute-token-dropped,continued-always,continued-on-recall,continued-never-sent:
+  RESULT caught=4 missed=0 trap=0 of 4 (population 68, floor 62 -> 68). drive.py --only 61,67,72,76,81,107-129:
+  26 of 28 caught by name; WRONG KILLER 113 (zero refused in the shared isEta made every default-ETA session nil and
+  crashed the run before etaBounds reported - a trap, re-aimed per entry point: 113 an answer's zero, new 130 a
+  preview's zero) and 124 (never a note: K_WIRE's expected is built through the same public init, so it is not a
+  killer; named K_SURF only). --only 113,124,130: caught 3 of 3. Anchors 61/67/72/76/81 moved with the code (a trailing
+  argument now follows them) and are caught; E5 now mutates DriveNavigator's DriveSession(preview:online:) call (still
+  device-only; its seeding is CAUGHT through entries 120-122). Floor 106 -> 130, MIN_TEST_FILES 9 -> 11, FILTER adds
+  DriveContinuedTests|DriveContinuedReplanTests.
+  GUARDS: check-drive-display.py whitelists the screen's two new lines ("if let note = display.note {",
+  "Text(display.etaLine)"): 21 approved lines, --prove-red 6/6. Digests re-approved: 7 Sources rows in
+  check-safety-disclaimer-linked-digests.txt, DriveRehearsal/DriveScreen/DriveHost/DriveNavigator in
+  check-safety-disclaimer-pinned. DriveHost's guard now calls DriveSession(preview:online:) - the navigator's own
+  check, so a preview with an ETA outside 0...86400 s is refused there instead of crashing on the navigator's '!'.
+  P-NAV-01 binds 45 names (34 + 8 Swift + 3 vitest).
+  iOS CI at f0404eb3: ios-compile success (run 37898274367), ios-screenshot success (run 37898277672). LOOKED AT
+  drive-light and drive-dark: the KINKED road line (the rehearsal's reroute, taken through DriveController with its
+  ETA 1380/1200 and continued true, drawn from DriveDisplay.line), no caption (guiding), the footer "© MapLibre ·
+  Natural Earth · Route data © OpenStreetMap contributors" above the one large End drive action. The shots are the
+  MINIMAL surface (15 m/s fixes), so neither the ETA line nor the note is on them, as ruled (P-SAFE-09: moving adds
+  nothing); the full surface's two new Text lines are compiled (ios-compile) and whitelisted, not photographed.
