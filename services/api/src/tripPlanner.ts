@@ -16,16 +16,18 @@ import { searchLambda } from "./lambdaSearch";
 import type { LatLon } from "./latLon";
 import { budgetSeconds, planRoadTrip, type RoadTripEdge, type RoadTripOvernight, type RoadTripPlace } from "./roadTrip";
 import { decodeRoutePath, durationSeconds, RouteError, type RoutePath } from "./routePath";
+import { isHonestFailure, routeScoreOf } from "./routeScore";
 import { FAST_PROFILE, MAX_EVALUATIONS, SCENIC_PROFILE } from "./scenicPlanner";
 import type { GuardedFetch } from "./upstream";
 
 export const TRIP_UPSTREAM_COST = 12;
-export const TRIP_DETAILS = ["time", "distance"];
+/** time and distance cut the days; scenic_score is what the chosen route is scored with (T-0335 R2). */
+export const TRIP_DETAILS = ["time", "distance", "scenic_score"];
 /** R7: a day drives at most 6 h and 300 mi (1609.344 m a mile, to the metre). */
 export const MAX_DRIVE_MS_PER_DAY = 21_600_000;
 export const MAX_METERS_PER_DAY = 482_803;
 
-export type TripRefusal = "ceiling_breached" | "too_few_days" | "no_recorded_lambda";
+export type TripRefusal = "ceiling_breached" | "too_few_days" | "no_recorded_lambda" | "nothing_pretty";
 
 export class TripFailure extends Error {
   readonly reason: TripRefusal;
@@ -167,6 +169,10 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
     } : null);
   const { path: chosen, edges, split } = shown;
   if (!("plan" in split)) throw new TripFailure("too_few_days", `the route needs more than ${days} days`);
+  // T-0335 R2: the route that would ship, scored before any day leg is requested; dull or unscorable is refused.
+  if (isHonestFailure(routeScoreOf(chosen))) {
+    throw new TripFailure("nothing_pretty", "the chosen route scores below the honest-failure threshold");
+  }
 
   const totalMs = edges.reduce((sum, e) => sum + e.seconds, 0);
   const vertices = [edges[0]!.start, ...edges.map((e) => e.end)];

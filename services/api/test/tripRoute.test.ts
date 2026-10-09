@@ -11,12 +11,12 @@ import { buildCustomModel } from "../src/customModel";
 import { ROUTES, type Env } from "../src/index";
 import { TRIP_UPSTREAM_COST } from "../src/trip";
 import { fakeKv, fakeQuotaNamespace, type FakeQuota } from "./doFake";
-import { BIG_SUR, EDGE_M, EDGES, expectedTrip, NOW, ORIGIN, ROAD, SCENIC_EDGE_MS, TRIP_BODY, tripPath, tripRouter,
+import { BIG_SUR, PRETTY_RUNS, EDGE_M, EDGES, expectedTrip, NOW, ORIGIN, ROAD, SCENIC_EDGE_MS, TRIP_BODY, tripPath, tripRouter,
   type RouterOptions } from "./tripHarness";
 
 const DEVICE = "0f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
 const A_TO_B = [[ORIGIN.lon, ORIGIN.lat], [BIG_SUR.lon, BIG_SUR.lat]];
-const REQUEST = { points: A_TO_B, points_encoded: false, instructions: false, "ch.disable": true, details: ["time", "distance"] };
+const REQUEST = { points: A_TO_B, points_encoded: false, instructions: false, "ch.disable": true, details: ["time", "distance", "scenic_score"] };
 const SEARCHED = [0, 4, 6, 7, 7.5, 7.75];
 
 let quota: FakeQuota;
@@ -139,6 +139,7 @@ describe("the splitter's ceiling and day limits through ROUTES (R7)", () => {
   const scenicRuns = (lastMs: number, edgeMs: number, firstM = EDGE_M, pathMs = edgeMs * (EDGES - 1) + lastMs) => tripPath(ROAD, edgeMs, {
     time: Array.from({ length: EDGES }, (_, i) => [i, i + 1, i === EDGES - 1 ? lastMs : edgeMs]),
     distance: Array.from({ length: EDGES }, (_, i) => [i, i + 1, i === 0 ? firstM : EDGE_M]),
+    scenic_score: PRETTY_RUNS,
   }, pathMs);
 
   it("time runs summing to exactly fastest + 40% plan; one millisecond more is 422 ceiling_breached", async () => {
@@ -184,7 +185,7 @@ describe("the trip ceiling at every extra_budget_pct bound through ROUTES (P-SAF
   const PCTS = [0, 1, 10, 39, 40];
   const runsTo = (sumMs: number) => Array.from({ length: EDGES }, (_, i) => Math.floor(sumMs / EDGES) + (i < sumMs % EDGES ? 1 : 0));
   const scenicSumming = (sumMs: number) => tripPath(ROAD, 0, { time: runsTo(sumMs).map((ms, i) => [i, i + 1, ms]),
-    distance: runsTo(sumMs).map((_, i) => [i, i + 1, EDGE_M]) }, FASTEST);
+    distance: runsTo(sumMs).map((_, i) => [i, i + 1, EDGE_M]), scenic_score: PRETTY_RUNS }, FASTEST);
 
   it("an edge sum of exactly fastest + floor(fastest x pct / 100) plans (whole answer); one ms more is 422 (whole body)", async () => {
     const answered = [];

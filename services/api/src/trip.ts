@@ -44,7 +44,7 @@ export function tripDepsFromEnv(env: PlanEnv & RouterEnv & { DB?: D1Database }):
   return { ...plan, tripPlaces: d1TripPlaces(env.DB) };
 }
 
-function failure(error: unknown, days: number): Response {
+function failure(error: unknown, days: number, extraBudgetPct: number): Response {
   if (error instanceof UpstreamPaused) {
     const verdict = error.verdict;
     if (!verdict.ok && verdict.reason === "quota_exhausted") {
@@ -57,6 +57,7 @@ function failure(error: unknown, days: number): Response {
       return json({ error: "too_few_days", days, max_drive_s: MAX_DRIVE_MS_PER_DAY / 1000, max_distance_m: MAX_METERS_PER_DAY }, 422);
     }
     if (error.reason === "ceiling_breached") return json({ error: "ceiling_breached", detail: error.message }, 422);
+    if (error.reason === "nothing_pretty") return json({ error: "nothing_pretty", days, extra_budget_pct: extraBudgetPct }, 422);
     return json({ error: error.reason }, 500);
   }
   if (error instanceof BudgetError || error instanceof RouteError || error instanceof PlanBudgetExceeded) {
@@ -106,6 +107,6 @@ export async function handleTrip(req: Request, env: PlanEnv, deps: TripDeps | nu
         who.tier === "paid", picker.pick, picker.returned, places), TRIP_UPSTREAM_COST);
     return json(withClosuresHazard(trip, snapshot, picker.dropped(), picker.crosses()), 200);
   } catch (error) {
-    return failure(error, request.days);
+    return failure(error, request.days, request.extraBudgetPct);
   }
 }
