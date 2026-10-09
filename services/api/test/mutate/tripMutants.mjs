@@ -78,8 +78,7 @@ export const MUTATIONS = [
   m("planner-day-clip-start-inclusive", "tripPlanner.ts", "run.to_index > start)", "run.to_index >= start)"),
   m("planner-day-unclipped", "tripPlanner.ts", "from_index: Math.max(run.from_index, start), to_index: Math.min(run.to_index, end)", "from_index: run.from_index, to_index: run.to_index"),
   m("planner-day-vertex-off-by-one", "tripPlanner.ts", "pointOf[day.end_vertex]!", "pointOf[day.end_vertex - 1]!"),
-  m("planner-full-day-reads-route", "tripPlanner.ts", "      hazards = hazardsOf(path);
-", ""),
+  m("planner-full-day-reads-route", "tripPlanner.ts", "      hazards = hazardsOf(path);\n", ""),
   m("planner-day-hazards-empty", "tripPlanner.ts", "overnight: night(day.overnight), hazards, leg,", "overnight: night(day.overnight), hazards: [], leg,"),
   m("planner-search-7", "tripPlanner.ts", "}, MAX_EVALUATIONS);", "}, MAX_EVALUATIONS + 1);"),
   m("planner-pct-ignored", "tripPlanner.ts", "budgetSeconds(fastestMs, extraBudgetPct);", "budgetSeconds(fastestMs);"),

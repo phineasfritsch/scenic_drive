@@ -73,9 +73,7 @@ export const MUTATIONS = [
   m("loop-quota-503", "loop.ts", "resets_at: verdict.resetsAt }, 429)", "resets_at: verdict.resetsAt }, 503)"),
   m("loop-seed-epoch", "loop.ts", "dayKey(deps.upstream.now())", "dayKey(new Date(0))"),
   m("upstream-cap-12", "upstream.ts", "if (spent > budget) {", "if (spent > PLAN_UPSTREAM_COST) {"),
-  m("loop-hazards-dropped", "loopPlanner.ts", "    hazards: hazardsOf(chosen),
-", "    hazards: [],
-"),
+  m("loop-hazards-dropped", "loopPlanner.ts", "    hazards: hazardsOf(chosen),\n", "    hazards: [],\n"),
   m("upstream-reserve-12", "upstream.ts", "reserve(args.userId, budget, now, kind, args.tier);", "reserve(args.userId, PLAN_UPSTREAM_COST, now, kind, args.tier);"),
 ];
 
