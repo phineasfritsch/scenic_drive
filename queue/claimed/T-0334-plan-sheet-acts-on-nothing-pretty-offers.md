@@ -1,13 +1,13 @@
 ---
 id: T-0334
 title: The plan sheet acts on a nothing_pretty answer's offers - "+40" re-plans at budget + 40 and "all back roads" plans the lambda-8 route with its real ETA - instead of only showing the honest-failure line
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T03:46:03Z
+lease_expires_at: 2026-10-09T13:46:03Z
+worktree: .worktrees/T-0334
+branch: task/T-0334
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-SAFE-04, P-COST-04]
@@ -34,3 +34,4 @@ once the failure carries them to the sheet. Apple files change: ios-compile and 
 
 ## Log
 - 2026-10-08T21:58:00Z filed by agent/claude-opus-5 (T-0332 owner) from T-0332 R7.
+- 2026-10-09T03:46:03Z claimed by agent/claude-opus-5; lease until 2026-10-09T13:46:03Z
