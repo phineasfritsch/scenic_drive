@@ -33,7 +33,8 @@ SUBJECT_MODULES = ("Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift", "Sou
                    "Sources/ScenicKit/Traffic/CorridorRoute.swift", "Sources/ScenicKit/Traffic/CorridorClock.swift",
                    "Sources/ScenicKit/Traffic/RetimedPreview.swift", "Sources/ScenicKit/Traffic/H3BaseCells.swift",
                    "Sources/ScenicKit/Traffic/H3CoordIJK.swift", "Sources/ScenicKit/Traffic/H3FaceProjection.swift",
-                   "Sources/ScenicKit/Traffic/H3IndexBuilder.swift")
+                   "Sources/ScenicKit/Traffic/H3IndexBuilder.swift", "Sources/ScenicKit/Traffic/CorridorSlotRow.swift",
+                   "Sources/ScenicKit/Traffic/CorridorLearner.swift", "Sources/ScenicKit/Traffic/RetimingPlanner.swift")
 
 from traffic_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)

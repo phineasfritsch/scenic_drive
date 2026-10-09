@@ -40,14 +40,19 @@ H3_BASE = _DIR / "H3BaseCells.swift"
 H3_IJK = _DIR / "H3CoordIJK.swift"
 H3_FACE = _DIR / "H3FaceProjection.swift"
 H3_INDEX = _DIR / "H3IndexBuilder.swift"
+SLOT_ROW = _DIR / "CorridorSlotRow.swift"
+FEEDER = _DIR / "CorridorLearner.swift"
+PLANNER = _DIR / "RetimingPlanner.swift"
 SUBJECTS = (LEARNER, HOUR, RATIO, ROUTE, SLOT, CELL, EDGE, TIME_RUN, CROUTE, CLOCK, PREVIEW, H3_BASE, H3_IJK, H3_FACE,
-            H3_INDEX)
+            H3_INDEX, SLOT_ROW, FEEDER, PLANNER)
 MUTATED_FILES = SUBJECTS
 
 _TESTS = ROOT / "Tests" / "ScenicKitTests" / "Traffic"
 TEST_FILES = (_TESTS / "LearnedCorridorSpeedsTests.swift", _TESTS / "HourOfWeekTests.swift",
               _TESTS / "LearnedSpeedsPrivacyTests.swift", _TESTS / "CorridorCellTests.swift",
-              _TESTS / "CorridorRouteTests.swift", _TESTS / "CorridorClockTests.swift", _TESTS / "RetimedPreviewTests.swift")
+              _TESTS / "CorridorRouteTests.swift", _TESTS / "CorridorClockTests.swift", _TESTS / "RetimedPreviewTests.swift",
+              _TESTS / "LearnedSpeedsRestoreTests.swift", _TESTS / "CorridorLearnerTests.swift",
+              _TESTS / "RetimingPlannerTests.swift")
 
 BADGE = "the estimate badge: on at 0 and 4 samples, off at 5 and 6, and on whenever another edge is unlearned"
 EMPTY = "an empty route is an estimate with no edges"
@@ -67,6 +72,13 @@ DRIVES = "a clean drive teaches every edge once; a skip, a detour, a late start,
 COUNTS = "a fix after arrival teaches nothing more, and observe answers how many edges each fix taught"
 PREVIEW_BADGE = "the badge: on at 0 and 4 samples, off at 5 and 6, on with one edge unlearned, and kept without runs"
 FIVE = "five completed drives clear the badge and four do not"
+# T-0343: the restore, the drive's feed and the planner.
+RESTORE = "restore: every bound of hour, ratio and samples, alone and beside a good row; a repeated slot refuses all"
+ROWS = "rows answers every slot by cell then hour, and restoring them equals the learner that wrote them"
+FEED = "each fix teaches through the shipped entry: a save of the whole table exactly when an edge completes"
+RELAUNCH = "five drives, each followed by a relaunch, clear the planner's badge on the fifth and not before"
+RETIMES = "previews with runs are retimed at now(); a preview without runs, a failure and an offer pass unchanged"
+_SAVE_WHEN = "if (clock?.observe(controller.session, at: date, into: &speeds) ?? 0) > 0 {"
 _OFF_LINE = "            enteredAt = nil\n            previousOnLine = false\n"
 _FINISH = "            finished = true\n        }\n        return taught"
 
@@ -197,6 +209,36 @@ MUTATIONS = [
     ("63 arrival ignores the last-vertex check", CLOCK,
      "let arrived = end.vertex == route.coordinates.count - 1 && end.meters <= DriveSession.awayThresholdMeters",
      "let arrived = end.meters <= DriveSession.awayThresholdMeters", [DRIVES, FIVE]),
+    # T-0343: the restore's bounds, the export, the feed and the planner.
+    ("64 restore floor made strict", LEARNER, "row.ratio >= Self.floorRatio,", "row.ratio > Self.floorRatio,", [RESTORE]),
+    ("65 restore ceiling made strict", LEARNER, "row.ratio <= Self.ceilingRatio,", "row.ratio < Self.ceilingRatio,",
+     [RESTORE]),
+    ("66 restore floor dropped", LEARNER, "row.ratio >= Self.floorRatio,", "", [RESTORE]),
+    ("67 restore ceiling dropped", LEARNER, "row.ratio <= Self.ceilingRatio,", "", [RESTORE]),
+    ("68 restore takes zero samples", LEARNER, "row.samples >= 1 else", "row.samples >= 0 else", [RESTORE]),
+    ("69 a repeated slot accepted", LEARNER, "guard slots[slot] == nil else { return nil }", "", [RESTORE]),
+    ("70 the hour clamped, not refused", LEARNER, "guard let hour = HourOfWeek(row.hour),",
+     "guard let hour = HourOfWeek(min(max(row.hour, 0), 167)),", [RESTORE]),
+    ("71 a bad row skipped, the rest kept", LEARNER, "row.samples >= 1 else { return nil }",
+     "row.samples >= 1 else { continue }", [RESTORE]),
+    ("72 restored samples reset to one", LEARNER, "CorridorRatio(ratio: row.ratio, samples: row.samples)",
+     "CorridorRatio(ratio: row.ratio, samples: 1)", [RESTORE, ROWS, RELAUNCH]),
+    ("73 rows by hour then cell", LEARNER, "($0.cell, $0.hour) < ($1.cell, $1.hour)",
+     "($0.hour, $0.cell) < ($1.hour, $1.cell)", [ROWS]),
+    ("74 rows lose the hour", LEARNER, "hour: slot.hour.value,", "hour: 0,", [ROWS, FEED, RELAUNCH]),
+    ("75 a save on every fix", FEEDER, _SAVE_WHEN, _SAVE_WHEN.replace("?? 0) > 0", "?? 0) >= 0"), [FEED]),
+    ("76 the fix timed on another clock", FEEDER, "timestamp: date.timeIntervalSinceReferenceDate",
+     "timestamp: date.timeIntervalSince1970", [FEED, RELAUNCH]),
+    ("77 a partial table saved", FEEDER, "save(speeds.rows)", "save(Array(speeds.rows.prefix(1)))", [FEED, RELAUNCH]),
+    ("78 no clock for a drive", FEEDER, "return CorridorClock(route: route)", "return nil", [FEED, RELAUNCH]),
+    ("79 the planner departs at a fixed date", PLANNER, "departsAt: now()",
+     "departsAt: Date(timeIntervalSince1970: 1_791_190_740)", [RETIMES]),
+    ("80 the planner retimes by an empty learner", PLANNER, "by: speeds,",
+     "by: LearnedCorridorSpeeds(timeZone: speeds.timeZone),", [RETIMES, RELAUNCH]),
+    ("81 a kept row loses its hour", SLOT_ROW, "self.hour = hour", "self.hour = 0", [ROWS, RELAUNCH]),
+    # rv1-t0343 B2: MISSED at abe61917 (every restore was a UTC learner); a Los Angeles relaunch reads every slot 7 h off.
+    ("82 the restore reads every zone as UTC", LEARNER, "self.timeZone = timeZone\n        for row in rows {",
+     "self.timeZone = TimeZone(identifier: \"UTC\")!\n        for row in rows {", [RESTORE, ROWS, RELAUNCH]),
 ]
 
 EQUIVALENT = [
@@ -206,6 +248,6 @@ EQUIVALENT = [
      "guard), so min-then-max and max-then-min clamp every value to the same number"),
 ]
 
-MIN_MUTATIONS = 63
+MIN_MUTATIONS = 82
 MIN_EQUIVALENT = 1
-MIN_TEST_FILES = 7
+MIN_TEST_FILES = 10
