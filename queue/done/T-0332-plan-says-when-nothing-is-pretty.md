@@ -1,7 +1,7 @@
 ---
 id: T-0332
 title: /plan is honest when nothing pretty is reachable - the Worker scores the chosen route with RouteScore (parity with ScenicKit's, threshold 0.45) and answers a typed honest failure ("not much pretty within N minutes of this drive") with the +40 and all-back-roads offers, instead of presenting a dull route as scenic
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T20:54:45Z
@@ -11,7 +11,7 @@ branch: task/T-0332
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-PROD-01, P-SAFE-04]
-reviewer: null
+reviewer: agent/rv2-t0332
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -176,3 +176,21 @@ whether the +40 / all-back-roads offers are one more request each (budget ceilin
     file(s) (-linked)"). check-mutate-population exit 0 ("302 modules, 167 covered by 37 populations, 114 allowlisted,
     1 added by this branch ... the floor of 144 holds"). check-pins-yaml "PINS-YAML ok pins=48 fields=387" exit 0.
     check-line-cap "512 Swift files tracked ... none over 300 lines" exit 0. routeScoreBounds.test.ts is 110 lines.
+- 2026-10-09T01:46:44Z agent/rv2-t0332 (reviewer, round 2, not the owner): PASS on head a2ac12d5 (== origin/task/T-0332). Touched rows only.
+  - B2 re-applied: routeScore.ts scoredEdges row.meters > 0 -> row.meters >= 0 is RED by name, "meters bound: a 0 m
+    scored row is left out, so a 0.8 route is not an honest failure" ("Tests 1 failed | 38 passed (39)", "expected null
+    to deeply equal { value: 0.7133333333333333, ...}"). Own mutant on the same filter: the scenicScore !== null check
+    dropped is RED by name in 3 rows ("no scenic_score detail is null, never clamped", "an empty scenic_score detail is
+    null, never clamped", "encoded 10 and 0 are the ends of the scale; unscored metres are left out"; "Tests 3 failed
+    | 36 passed (39)"). Both restored with git checkout; the review worktree was clean afterwards. routeScoreOf is the
+    shipping symbol (scenicPlanner.ts:123, honestFailure.ts:40).
+  - B1 merge kept both sides: every path in main's linked-digests list is on the branch; the 6 rows that differ are
+    files this branch changes, plus the new NothingPrettyOffer row. named-tests P-SAFE-04 is main's entry plus 2
+    planHonest rows. Allowlist modules: main 113, branch 114 (+NothingPrettyOffer), none of main's dropped.
+  - Bare gates: check-safety-disclaimer exit 0; check-mutate-population.py exit 0 ("302 modules, 167 covered by 37
+    populations, 114 allowlisted, 1 added by this branch ... the floor of 144 holds"); queue-check exit 0 ("QUEUE OK
+    (326 tasks)"). gh pr checks 215: core pass 6m55s, pins-source-only pass 2m33s. ios-compile 37868133357 and
+    ios-screenshot 37868137344 success on 9578090c; 9578090c..a2ac12d5 changes only this task file (queue-only drift).
+  - Last: git merge-base --is-ancestor origin/main (309de74c) origin/task/T-0332 exit 0.
+  - Recordable, not blocking: routeScore.ts has no ops/mutate population (P-PROC-06 does not range over
+    services/api/src); a follow-up task could add one.
