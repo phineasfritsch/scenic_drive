@@ -119,9 +119,17 @@ jobs:
           alive() {
             ps -ww -o command= -p "$1" | grep ScenicDrive || { echo "ios-screenshot: ScenicDrive (pid $1) is not running $2 - it crashed"; exit 1; }
           }
-          for LOOK in light dark; do
-            xcrun simctl ui "$UDID" appearance "$LOOK"
-            for SHOT in collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty offered loop trip saved legal; do
+          for LOOK in light dark ax5; do
+            SIZE=()
+            LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty offered loop trip saved legal"
+            if [ "$LOOK" = ax5 ]; then
+              SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)
+              LIST="preview nothingPretty offered loop trip saved"
+              xcrun simctl ui "$UDID" appearance light
+            else
+              xcrun simctl ui "$UDID" appearance "$LOOK"
+            fi
+            for SHOT in $LIST; do
               DONE=(-safety.disclaimer.acknowledged.v1 YES -vehicle.profile.v1 standard)
               case "$SHOT" in
                 fastest) DETENT=collapsed ROW=0 SCREEN=home NAME=home-$LOOK-$SHOT ;;
@@ -134,7 +142,7 @@ jobs:
                   xcrun simctl location "$UDID" start --speed=15 34.0905,-118.6370 34.0880,-118.6250 34.0855,-118.6150 34.0830,-118.6050 ;;
                 *) DETENT=$SHOT ROW=default SCREEN=home NAME=home-$LOOK-$SHOT ;;
               esac
-              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN" "${DONE[@]}")
+              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN" "${DONE[@]}" "${SIZE[@]}")
               echo "$LAUNCHED"
               PID=${LAUNCHED##*: }
               case "$PID" in ''|*[!0-9]*) echo "ios-screenshot: simctl launch printed no pid: $LAUNCHED"; exit 1;; esac

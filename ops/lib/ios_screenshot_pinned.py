@@ -63,9 +63,17 @@ xcrun simctl install "$UDID" "$APP"
 alive() {
   ps -ww -o command= -p "$1" | grep ScenicDrive || { echo "ios-screenshot: ScenicDrive (pid $1) is not running $2 - it crashed"; exit 1; }
 }
-for LOOK in light dark; do
-  xcrun simctl ui "$UDID" appearance "$LOOK"
-  for SHOT in collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty offered loop trip saved legal; do
+for LOOK in light dark ax5; do
+  SIZE=()
+  LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty offered loop trip saved legal"
+  if [ "$LOOK" = ax5 ]; then
+    SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)
+    LIST="preview nothingPretty offered loop trip saved"
+    xcrun simctl ui "$UDID" appearance light
+  else
+    xcrun simctl ui "$UDID" appearance "$LOOK"
+  fi
+  for SHOT in $LIST; do
     DONE=(-safety.disclaimer.acknowledged.v1 YES -vehicle.profile.v1 standard)
     case "$SHOT" in
       fastest) DETENT=collapsed ROW=0 SCREEN=home NAME=home-$LOOK-$SHOT ;;
@@ -78,7 +86,7 @@ for LOOK in light dark; do
         xcrun simctl location "$UDID" start --speed=15 34.0905,-118.6370 34.0880,-118.6250 34.0855,-118.6150 34.0830,-118.6050 ;;
       *) DETENT=$SHOT ROW=default SCREEN=home NAME=home-$LOOK-$SHOT ;;
     esac
-    LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN" "${DONE[@]}")
+    LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN" "${DONE[@]}" "${SIZE[@]}")
     echo "$LAUNCHED"
     PID=${LAUNCHED##*: }
     case "$PID" in ''|*[!0-9]*) echo "ios-screenshot: simctl launch printed no pid: $LAUNCHED"; exit 1;; esac
@@ -137,10 +145,13 @@ CAPTURE = f"      - name: {CAPTURE_STEP}\n        run: |\n"
 GUARD = '          test -d "$DEVELOPER_DIR" || { echo "ios-screenshot: $DEVELOPER_DIR is not on this image"; exit 1; }\n'
 TEE = 'build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"\n'
 LAUNCH = ('              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW"'
-          ' -screen "$SCREEN" "${DONE[@]}")\n')
+          ' -screen "$SCREEN" "${DONE[@]}" "${SIZE[@]}")\n')
 ALIVE = '              alive "$PID" "${SETTLE}s after the $LOOK $SHOT launch"\n'
-SHOTS_LIST = ("            for SHOT in collapsed medium fastest settings paywall surprise drive onboarding disclaimer"
-              " preview nothingPretty offered loop trip saved legal; do\n")
+SHOTS_LIST = ('            LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer'
+              ' preview nothingPretty offered loop trip saved legal"\n')
+LOOKS = "          for LOOK in light dark ax5; do\n"
+AX5_SIZE = "              SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)\n"
+AX5_LIST = '              LIST="preview nothingPretty offered loop trip saved"\n'
 LS = '          ls -l "$SHOTS"\n'
 
 
@@ -187,12 +198,21 @@ MUTATIONS = [
     ("T-0324: the drive shot dropped", SHOTS_LIST, SHOTS_LIST.replace(" drive onboarding", " onboarding")),
     ("T-0336: the plan-sheet shots dropped", SHOTS_LIST,
      SHOTS_LIST.replace(" preview nothingPretty offered loop trip saved", "")),
+    ("T-0346: the AX5 pass dropped (no plan card seen at the largest text size)", LOOKS,
+     LOOKS.replace(" ax5;", ";")),
+    ("T-0346: the AX5 pass launched at the default text size", LAUNCH, LAUNCH.replace(' "${SIZE[@]}"', "")),
+    ("T-0346: the AX5 pass at a smaller accessibility size (AX3)", AX5_SIZE,
+     AX5_SIZE.replace("AccessibilityXXXL", "AccessibilityL")),
+    ("T-0346: the AX5 trip card dropped (the card this task was filed for)", AX5_LIST,
+     AX5_LIST.replace(" trip", "")),
+    ("T-0346: the AX5 pass shoots every home screen too (the 30-minute cap)", AX5_LIST,
+     SHOTS_LIST.replace("            ", "              ")),
     ("T-0336: the plan-offered shot dropped (T-0334's offer card unseen)", SHOTS_LIST,
      SHOTS_LIST.replace(" nothingPretty offered", " nothingPretty")),
     ("T-0336: the onboarding and legal shots dropped", SHOTS_LIST,
-     SHOTS_LIST.replace(" onboarding disclaimer", "").replace(" legal;", ";")),
+     SHOTS_LIST.replace(" onboarding disclaimer", "").replace(' legal"', '"')),
     ("T-0271: the settings and paywall shots dropped", SHOTS_LIST,
-     "            for SHOT in collapsed medium fastest; do\n"),
+     '            LIST="collapsed medium fastest"\n'),
     ("a hard-coded device instead of the one chosen from the image's own lists",
      '            -destination "platform=iOS Simulator,id=$UDID" \\\n', "            -destination 'platform=iOS Simulator,name=iPhone 16' \\\n"),
     ("the runtime list no longer printed first", "          xcrun simctl list runtimes\n", ""),

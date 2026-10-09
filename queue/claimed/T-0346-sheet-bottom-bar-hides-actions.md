@@ -30,3 +30,31 @@ owner's design pass.
 ## Log
 - 2026-10-09T15:24:28Z filed by agent/claude-opus-5 (orchestrator) from T-0341 stillOpen 2; T-0345 is held by task/T-0344.
 - 2026-10-09T15:45:25Z claimed by agent/claude-opus-5; lease until 2026-10-10T01:45:25Z
+- 2026-10-09T15:50:07Z MEASURE (default text size) by agent/claude-opus-5. Population: the six plan-sheet rehearsals the
+  screenshot job shoots (preview, nothingPretty, offered, loop, trip, saved). Source: ios-screenshot run 37945135739
+  (task/T-0341 at its final head, the last run before PR #227 merged; no Swift file changed on main since), shots
+  plan-*-light.png, 1206x2622 px = 402x874 pt @3x, looked at side by side. The bottom bar (the "Plan a road trip /
+  Just drive a loop" capsule, iOS 26 floating glass) spans about y 800-845 pt on every card. Each card's LAST control:
+  | card | last control | its y (pt, approx) | above the bar? |
+  | preview | "Choose another place" (then the attribution footer at ~765) | ~725 | yes |
+  | nothingPretty | "Choose another place" | ~231 | yes |
+  | offered | "Choose another place" | ~352 | yes |
+  | loop | "Change the loop" | ~674 | yes |
+  | trip | "Change the trip" | ~843 | NO - drawn behind the bar, half visible through the glass; the conditions line above it sits at ~790, against the bar's top edge |
+  | saved | "Delete" on the last row | ~437 | yes |
+  The defect reproduces on exactly one card at default size: the trip itinerary, a List longer than the screen whose
+  last row lands under the floating bar at rest. No AX5 shot exists anywhere yet - that half of the measurement needs
+  the screenshot job to shoot AX5, which is the first commit.
+- 2026-10-09T15:50:07Z R1 (the AX5 harness, before any code). The screenshot job gains a third pass, LOOK=ax5: light
+  appearance, the six plan cards only, launched with -UIPreferredContentSizeCategoryName
+  UICTContentSizeCategoryAccessibilityXXXL (the argument domain, per launch - the device setting is never changed, so
+  no other shot can inherit it). Six shots at ~18 s each add ~2 min to a ~19 min job, under the 30-minute cap; AX5 in
+  dark as well (+2 more min) is RULED OUT: dark changes colour, not layout. Guard rows raised by name in
+  ops/lib/ios_screenshot_pinned.py: "T-0346: the AX5 pass dropped", "...launched at the default text size", "...at a
+  smaller accessibility size (AX3)", "...the AX5 trip card dropped", "...shoots every home screen too (the 30-minute
+  cap)". Seen red then green:
+  - RED: python ops/lib/check-ios-compile-guardrails.py <main's ios-screenshot.yml> -> "IOS-COMPILE-GUARDRAILS:
+    workflow.jobs.simulator-screenshot.steps[4].run: differs from the pinned value (compared by equality)" rc=1
+  - GREEN: python ops/lib/check-ios-compile-guardrails.py -> both "IOS-COMPILE-GUARDRAILS OK" lines, rc=0
+  - python ops/lib/check-ios-compile-guardrails.py --prove-red -> each of the five T-0346 rows "[red rc=1]";
+    "PROVE-RED OK: 78 mutations red, 6 legitimate spellings green over 2 workflows, 0 unexpected result(s)" rc=0
