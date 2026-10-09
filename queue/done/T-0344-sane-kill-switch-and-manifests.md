@@ -1,7 +1,7 @@
 ---
 id: T-0344
 title: ops/sane --prod gains its reserved exit codes 6 (quota / kill switch tripped or near its trip) and 8 (the R2 corpus/tiles manifests disagree with this checkout's config), read-only, against the deployed Worker's own read-only endpoints
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T13:50:37Z
@@ -11,7 +11,7 @@ branch: task/T-0344
 exclusive: []
 touches: [ops/sane, ops/lib/, ops/mutate/, services/api/src/, services/api/test/, pins/PINS.yaml]
 pins_affected: [P-OPS-05, P-COST-01, P-COST-02, P-PROD-05]
-reviewer: null
+reviewer: agent/rv3-t0344
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
@@ -240,3 +240,12 @@ a whole-answer test.
   - A6: `PINS-YAML ok pins=50 fields=403`; `P-OPS-01: 202 files, 23 required present, all modes correct` rc=0;
     `QUEUE OK (338 tasks)` rc=0. `ops/check-pins --source-only` was not re-run to completion here (it now runs the
     138-case table, about 15-25 min on this Windows box); CI pins-source-only is the record for it.
+- 2026-10-09T19:03:34Z REVIEW PASS (round 3, ancestry only; agent/rv3-t0344, not the owner). Round 2 (rv2-t0344) passed all content
+  (mutants A/B/C RED by name, 138/138 table, exit order ok) and failed only on ancestry. On 9b7d080b (parents
+  553b1d46 + origin/main 9bd3ba57): merge-tree --write-tree of the parents = 433e4a3f = the commit tree (clean,
+  no hand edits); diff 9b7d080b^1..9b7d080b touches 11 files (ios-screenshot.yml, FeaturePlanSheet x5,
+  check-safety-disclaimer-pinned, ios_screenshot_pinned.py, queue T-0346/T-0350) and none of ops/sane,
+  ops/lib/sane_prod.py, ops/lib/check_sane_prod.py, ops/lib/check-sane-prod, services/api/src, so the 138-case
+  result carries over. CI run 37976475437 on headSha 9b7d080b: core pass 7m29s, pins-source-only pass 3m1s.
+  Last: merge-base --is-ancestor origin/main origin/task/T-0344 exit 1 with drift = fab48adc only
+  (queue/backlog/T-0351-sane-quota-fields-anchor.md, queue-only filing) - acceptable. Not merged by the reviewer.
