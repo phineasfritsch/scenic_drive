@@ -30,7 +30,8 @@ SUBJECT_MODULES = ("Sources/ScenicKit/TripSheet/TripSheet.swift", "Sources/Sceni
                    "Sources/ScenicAPIClient/TripRequestBody.swift", "Sources/ScenicAPIClient/TripReplyReader.swift",
                    "Sources/ScenicAPIClient/TripError.swift", "Sources/ScenicAPIClient/TripClient.swift",
                    "Sources/ScenicAPIClient/ClientTripPlanner.swift", "Sources/ScenicAPIClient/TripResponse.swift",
-                   "Sources/ScenicAPIClient/TripResponseDay.swift", "Sources/Handoff/TripDayHandoff.swift")
+                   "Sources/ScenicAPIClient/TripResponseDay.swift", "Sources/Handoff/TripDayHandoff.swift",
+                   "Sources/ScenicAPIClient/TripNothingPretty.swift")
 
 from tripsheet_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)

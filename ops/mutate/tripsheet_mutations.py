@@ -35,14 +35,16 @@ RESPONSE = _API / "TripResponse.swift"
 DAY = _API / "TripResponseDay.swift"
 HANDOFF = ROOT / "Sources" / "Handoff" / "TripDayHandoff.swift"
 IDENTITY = _API / "IdentityHeaders.swift"
-SUBJECTS = (SHEET, FAILURE, BODY, READER, ERROR, CLIENT, PLANNER, RESPONSE, DAY, HANDOFF, IDENTITY)
+DULL = _API / "TripNothingPretty.swift"
+SUBJECTS = (SHEET, FAILURE, BODY, READER, ERROR, CLIENT, PLANNER, RESPONSE, DAY, HANDOFF, IDENTITY, DULL)
 MUTATED_FILES = SUBJECTS
 
 TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "TripSheet" / "TripSheetTests.swift",
               ROOT / "Tests" / "ScenicAPIClientTests" / "TripClientRequestTests.swift",
               ROOT / "Tests" / "ScenicAPIClientTests" / "TripClientOutcomeTests.swift",
               ROOT / "Tests" / "ScenicAPIClientTests" / "TripSheetGateTests.swift",
-              ROOT / "Tests" / "HandoffTests" / "TripDayHandoffTests.swift")
+              ROOT / "Tests" / "HandoffTests" / "TripDayHandoffTests.swift",
+              ROOT / "Tests" / "ScenicAPIClientTests" / "TripNothingPrettyTests.swift")
 
 EVERY = "every state x every event lands whole"
 GATE = "P-SAFE-03: no trip ticket before the disclaimer is accepted, one after"
@@ -61,6 +63,12 @@ PREVIEW = "a preview reaches the sheet as exactly its itinerary: no path, so no 
 PINS = "a pin at the first vertex at or past each 20 km, never the ends"
 LONG = "one long step past two multiples is one pin, and the next pin waits for the next multiple"
 SPLIT = "a day splits into URLs of at most nine waypoints, chained end to start"
+DULL_ROWS = "a dull trip's 422 nothing_pretty is read whole at every bound, refused otherwise"
+DULL_SHEET = "a dull trip reaches the sheet as nothingPretty from one request"
+DULL_LINE = "a dull trip shows its own calm line"
+_DULL_ARM = ('        case (422, "nothing_pretty"?):\n'
+             "            guard let dull = body?.tripNothingPretty else { return .unexpectedResponse(status: status) }\n"
+             "            return .nothingPretty(dull)\n")
 
 QUOTA_OLD = ("guard let text = body?.resetsAt, let resetsAt = PlanResponseReader.instant(text) else {\n"
              "                return .unexpectedResponse(status: status)\n            }\n"
@@ -155,6 +163,25 @@ MUTATIONS = [
      "let stop = remaining[remaining.startIndex + cap - 1]", [SPLIT]),
     ("43 a pin dropped at each split", HANDOFF, "remaining = remaining.dropFirst(cap + 1)",
      "remaining = remaining.dropFirst(cap + 2)", [SPLIT]),
+    ("44 nothing_pretty unread (T-0337)", READER, _DULL_ARM, "", [DULL_ROWS, DULL_SHEET]),
+    ("45 the day floor at 0", DULL, "public static let dayRange = 1...5", "public static let dayRange = 0...5",
+     [DULL_ROWS]),
+    ("46 the day ceiling at 6", DULL, "public static let dayRange = 1...5", "public static let dayRange = 1...6",
+     [DULL_ROWS]),
+    ("47 the percent floor at -1", DULL, "public static let percentRange = 0...40",
+     "public static let percentRange = -1...40", [DULL_ROWS]),
+    ("48 the percent ceiling at 41", DULL, "public static let percentRange = 0...40",
+     "public static let percentRange = 0...41", [DULL_ROWS]),
+    ("49 a fractional day accepted", DULL, "guard days.isFinite, days == days.rounded(),", "guard days.isFinite,",
+     [DULL_ROWS]),
+    ("50 a fractional percent accepted", DULL, "guard percent.isFinite, percent == percent.rounded(),",
+     "guard percent.isFinite,", [DULL_ROWS]),
+    ("51 days and percent swapped", DULL, "self.init(days: Int(days), extraBudgetPercent: Int(percent))",
+     "self.init(days: Int(percent), extraBudgetPercent: Int(days))", [DULL_ROWS]),
+    ("52 nothingPretty shown as unexpected", ERROR, "case .nothingPretty: return .nothingPretty",
+     "case .nothingPretty: return .unexpectedResponse", [MAPPING, DULL_SHEET, DULL_LINE]),
+    ("53 the dull trip's line reworded", FAILURE, '"Nothing on the way there was pretty enough to show.',
+     '"Nothing along the way there was pretty enough to show.', [DULL_LINE]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -164,6 +191,6 @@ EQUIVALENT = [
      "with exactly two points the loop runs over 1..<1, which is empty, so the pins are [] either way"),
 ]
 
-MIN_MUTATIONS = 43
+MIN_MUTATIONS = 53
 MIN_EQUIVALENT = 1
-MIN_TEST_FILES = 5
+MIN_TEST_FILES = 6
