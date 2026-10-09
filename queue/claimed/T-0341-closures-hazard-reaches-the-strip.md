@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-09T21:49:42Z
 worktree: .worktrees/T-0341
 branch: task/T-0341
 exclusive: []
-touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-hazard-copy-sites.txt, ops/lib/named-tests.json, ops/mutate/, queue/]
+touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-hazard-copy-sites.txt, ops/lib/named-tests.json, ops/lib/mutate-population-allowlist.json, ops/mutate/, queue/]
 pins_affected: [P-SAFE-02, P-SAFE-03, P-SAFE-08]
 reviewer: null
 depends_on: [T-0339]
@@ -87,3 +87,48 @@ fail-closed, one line per condition, whole-copy equality, shots looked at.
     ClosuresHazardReader.swift; killers in HazardCopyTests and ClosuresHazardTests); no new driver.
   - R7 SCOPE: touches widened to the pinned digest table, the hazard-sites whitelist, named-tests.json, ops/mutate/
     and queue/ (each needed by A5-A8). /reroute and the isochrone are M4 - not read, not filed (not route cards).
+- 2026-10-09T13:29:28Z RULINGS AMENDED (before review; the dated entries above are left as written).
+  - R3a fetched_at must be a STRING; null reads unavailable too. The Worker sends null only with state unavailable
+    (M1), so every Worker shape reads the same; a stale or fresh body with a null fetched_at now reads unavailable
+    (fail-closed) instead of its state. A3 gains the row `fetched_at null` (28 variants per base).
+  - R4a the two test bodies' `{"state":"fresh"}` were REMOVED rather than replaced (the key absent IS the Worker's
+    fresh shape); the Worker shapes are carried by ClosuresHazardTests instead.
+  - R7a touches gains ops/lib/mutate-population-allowlist.json: ClosuresHazard.swift and ClosuresState.swift are
+    data types with no code (P-PROC-06 named both as added and unpopulated).
+- 2026-10-09T13:29:28Z ACCEPTANCE RUN (origin/main fetched and merged: "Already up to date" at e3567a6e; head
+  36030ee9 plus this Log commit, which touches no measured file).
+  - A4 RED (b727007d, the stub: the reader returning .clear, closureLines and the trip/loop lines returning []):
+    `swift test --filter "HazardCopyTests|ClosuresHazardTests"` "Test run with 8 tests in 2 suites failed ... with
+    392 issues"; by name: "every closure condition reads its ruled lines, whole, on every route card" 44, "every
+    Worker closures_hazard reads its ruled lines on the plan, trip and loop cards" 24 (the 8 shapes x 3 cards; the
+    absent rows passed, as they must), "an unreadable closures_hazard reads the safest line on every card, never
+    silence and never a refusal" 324 (3 x 4 x 27, every variant). T-0339's five tests passed throughout.
+  - A1-A3 GREEN (192e5eae on; 165b0a94 for A3's 28th row): "Test run with 8 tests in 2 suites passed". Touched
+    suites on the final head: `--filter "ScenicAPIClientTests|ScenicKitTests"` "Test run with 546 tests in 100
+    suites passed", exit 0.
+  - A5 the cards: TripItineraryCard and LoopPreviewCard render `HazardCopy.lines(for:)` of their model;
+    PlanPreviewCard unchanged. Seen RED before approval: bare check-safety-disclaimer exit=1 "P-SAFE-03: the pinned
+    render surface changed: ...LoopPreviewCard.swift content changed (sha256 911b88f5..., approved 1d73fc36...)",
+    PlanRehearsalFixtures 88756130 -> cd5068c7, TripItineraryCard 466e7b20 -> b6021519; check-hazard-copy-sites
+    "FAILED - 3 unapproved, 1 missing of 5 approved". Approved (diffs read: the 5-line ForEach per card and the
+    three fixture closures): GREEN "P-SAFE-03 hazard copy: ok - 7 sites, every one approved, in 5 files" and bare
+    check-safety-disclaimer exit=0. Line counts: HazardCopy.swift 142, ClosuresHazardReader.swift 38,
+    ClosuresHazard.swift 17, ClosuresState.swift 10, ClosuresHazardTests.swift 163, HazardCopyTests.swift 212,
+    TripItineraryCard.swift 78, LoopPreviewCard.swift 65.
+  - A6 ios-compile 37929393692 success and ios-screenshot 37929398054 success on 192e5eae (the last apps/ios
+    commit); re-run on 36030ee9 (after the reader change) ios-compile 37934422227 success, ios-screenshot
+    37934430486 success. LOOKED AT (37929398054): plan-preview-light - two warning lines, "This route crosses a
+    reported road closure - expect the road to be blocked and check before you drive" then "Local traffic only on
+    part of this route - you may not be allowed through"; plan-trip-light - "Road closure reports may be out of
+    date for this route - check for closures before you drive" under the estimate badge; plan-loop-dark - "Road
+    closures could not be checked for this route - check for closures before you drive" under the retrace line.
+    No raw key on any shot.
+  - A7 `python ops/mutate/hazardcopy.py --only 24..44` "caught by the test that names it: 21 of 21 (wrong killer
+    0, trapped 0, compile-only 0, MISSED 0, skipped 0)", "MUTATE OK caught=21/21"; `--prove-floor` "FLOOR PROOF
+    OK: 7 of 7 arms refused and the control did not" (floor 44, test files 2). Entries 1-23 and E1 are T-0339's,
+    unchanged, and were caught there; the full 45-entry run and --prove-vacuity were NOT re-run here (about 2 min
+    a mutant). `run-named-tests.py P-SAFE-08` "NAMED P-SAFE-08 passed=836/836" (833 vitest + the 3 Swift names).
+  - A8 check-mutate-population "every added module is covered or allowlisted; the floor of 147 holds" (refused
+    first: ClosuresHazard.swift and ClosuresState.swift added and unpopulated - allowlisted, R7a); check-line-cap
+    "536 Swift files tracked ... none over 300 lines"; check-pins-yaml "PINS-YAML ok pins=49 fields=395";
+    queue-check "QUEUE OK (332 tasks)"; linked digests re-approved for the 13 touched Sources files (3 added).
