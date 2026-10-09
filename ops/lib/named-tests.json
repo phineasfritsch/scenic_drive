@@ -130,6 +130,25 @@
       "test/ledgerIdentity.test.ts": [
         "/ledger's user is the session sub by behaviour (T-0304 R4) > no combination ignores the sub: every combination's expected answers and table differ between the two subs",
         "/ledger's user is the session sub by behaviour (T-0304 R4) > an apple or act claim and an x-scenic-device header beside a valid Bearer change nothing: GET, POST, GET answer the sub's rows and leave the sub's table, full equality"
+      ],
+      "test/accountDeletePlans.test.ts": [
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > every plan key of the user's devices is gone, every other key unchanged: apple claim x empty",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > every plan key of the user's devices is gone, every other key unchanged: apple claim x holding",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > every plan key of the user's devices is gone, every other key unchanged: act only x empty",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > every plan key of the user's devices is gone, every other key unchanged: act only x holding",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > every plan key of the user's devices is gone, every other key unchanged: apple claim with the device unbound x empty",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > every plan key of the user's devices is gone, every other key unchanged: apple claim with the device unbound x holding",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > every plan key of the user's devices is gone, every other key unchanged: no claims with the device unbound x empty",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > every plan key of the user's devices is gone, every other key unchanged: no claims with the device unbound x holding",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > no row ignores its variant: the holding store's expected sweep differs between the device sets and the empty store's is empty",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > a PLANS failure never fails the deletion: list throws for DEVICE, the first device swept",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > a PLANS failure never fails the deletion: one delete throws",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > a PLANS failure never fails the deletion: a page incomplete without a cursor",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > the sweep's operation bound: PLAN_SWEEP_MAX_OPS operations finish, one more leaves plans_pending",
+        "DELETE /account sweeps PLANS (T-0326, P-PRIV-04) > the shipped ROUTES['/account'] sweeps env.PLANS across pages"
+      ],
+      "test/planReroute.test.ts": [
+        "POST /plan reroute wire (T-0319 R2, P-PRIV-05) > a foreign device cannot read another device's token: its one read is its own key and it answers the fresh plan"
       ]
     }
   },
