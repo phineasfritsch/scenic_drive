@@ -133,3 +133,21 @@ now - merge it first (memory parallel-worker-prs-conflict).
   the floor of 147 holds"; check-pins-yaml "PINS-YAML ok pins=49 fields=395"; queue-check "QUEUE OK (336 tasks)";
   check-line-cap "548 Swift files tracked ... none over 300 lines". `ops/check-pins --source-only` did not finish
   inside 12 minutes on this loaded box (no output written) - left to CI's run of it, named in the PR.
+- 2026-10-09T16:28:49Z MERGE OF PR #227 (T-0341) and R8 (agent/claude-opus-5; merge fd1fdfac). PR #229 read CONFLICTING: main had
+  merged T-0341, which adds closures_hazard / closures to the same PlanResponse, PlanPreview and ClientPlanner init
+  lines and digest rows. Resolved as a union: PlanResponse(..., continued:, closuresHazard: = .clear, timeRuns: = nil),
+  PlanPreview(..., continuation:, closures: = .clear, timeRuns: = nil), ClientPlanner passes both; the four digest rows
+  re-approved over main's (main's other new rows kept). R8, found at the merge: main's RetimedPreview.of (T-0325) and
+  PlanPreview.closures (T-0341) landed in parallel, so a retime rebuilt the preview with closures DEFAULTED to .clear -
+  a retimed preview would have dropped an `unavailable` or crossing closures line. RetimedPreview now carries
+  `closures: preview.closures`; PlanTimeRunsTests' preview test runs both variants with closures `unavailable` and
+  compares the retimed preview whole; plansheet entry 55 "a retime drops the closures line" (closures: .clear, the
+  pre-merge behaviour) - MIN_MUTATIONS 54 -> 55; mutant 54's anchor narrowed to the `timeRuns:` argument.
+  RE-QUOTED on fd1fdfac: A1 "Test Files 5 passed (5)", "Tests 184 passed (184)"; A2 (plus ClosuresHazardTests and
+  PlanSheetTests) "Executed 30 tests, with 0 failures" and "Test run with 16 tests in 4 suites passed"; A4 `--only
+  49,...,55` "MUTATE OK caught=7/7", 55 by "a response's runs reach the preview whole, and a retime keeps them"; A6
+  check-safety-disclaimer exit 0, check-hazard-copy-sites "ok - 12 sites, every one approved, in 5 files",
+  check-learned-speeds-sites "ok - 17 sites"; A7 check-mutate-population "the floor of 147 holds", check-pins-yaml
+  "PINS-YAML ok pins=49 fields=395", check-line-cap "552 Swift files ... none over 300 lines". The earlier
+  `ops/check-pins --source-only` (on 15e23279) did finish after the entry above was written: "PINS ok=20 skipped=28
+  pending=1 expired=0 failed=0 tier=linux source-only", exit 0.
