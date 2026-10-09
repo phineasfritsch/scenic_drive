@@ -1,13 +1,13 @@
 ---
 id: T-0340
 title: The /trip and /loop answers carry the route's hazard runs, and the trip and loop cards render them from HazardCopy - today only /plan and /reroute report surface and road_access runs
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T19:11:58Z
+lease_expires_at: 2026-10-10T05:11:58Z
+worktree: .worktrees/T-0340
+branch: task/T-0340
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt]
 pins_affected: [P-SAFE-02]
@@ -28,3 +28,4 @@ tables - one at a time.
 
 ## Log
 - 2026-10-09T08:33:30Z filed by agent/claude-opus-5 from T-0339 R4.
+- 2026-10-09T19:11:58Z claimed by agent/claude-opus-5; lease until 2026-10-10T05:11:58Z
