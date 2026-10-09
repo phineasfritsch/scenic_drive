@@ -19,12 +19,22 @@ export const MORE_TIME_MINUTES = 40;
 export class HonestFailure extends Error {
   /** The back-roads route's own ETA in seconds, or null when there is no back-roads route worth offering. */
   readonly backRoadsEtaSeconds: number | null;
+  /** T-0334 R3: the whole minutes a back-roads plan must name to cover that ETA, or null past MAX_BUDGET_MINUTES. */
+  readonly backRoadsBudgetMinutes: number | null;
 
-  constructor(backRoadsEtaSeconds: number | null) {
+  constructor(backRoadsEtaSeconds: number | null, fastestSeconds: number) {
     super("the chosen route scores below the honest-failure threshold");
     this.backRoadsEtaSeconds = backRoadsEtaSeconds;
+    this.backRoadsBudgetMinutes = backRoadsBudget(backRoadsEtaSeconds, fastestSeconds);
     this.name = "HonestFailure";
   }
+}
+
+/** ceil((eta - fastest) / 60), never below 0; null with no ETA or past MAX_BUDGET_MINUTES (T-0334 R3). */
+export function backRoadsBudget(etaSeconds: number | null, fastestSeconds: number): number | null {
+  if (etaSeconds === null) return null;
+  const minutes = Math.max(0, Math.ceil((etaSeconds - fastestSeconds) / 60));
+  return minutes <= MAX_BUDGET_MINUTES ? minutes : null;
 }
 
 /** The back-roads ETA: `measure` routes at MAX_LAMBDA; a refusal, or a route that is itself dull, is no offer. */
@@ -48,5 +58,6 @@ export function honestFailureBody(budgetMinutes: number, failure: HonestFailure)
     budget_minutes: budgetMinutes,
     more_time_minutes: more <= MAX_BUDGET_MINUTES ? more : null,
     back_roads_eta_s: failure.backRoadsEtaSeconds,
+    back_roads_budget_minutes: failure.backRoadsBudgetMinutes,
   };
 }

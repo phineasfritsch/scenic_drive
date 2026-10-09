@@ -48,6 +48,10 @@
         "POST /loop honest failure (T-0335 A2, P-SAFE-04) > three dull loops answer nothing_pretty after exactly LOOP_UPSTREAM_COST requests, never a 200 loop",
         "POST /loop seed ladder at the uint32 wrap (T-0335 rv1 B2, P-SAFE-04) > seed 4294967294, scores [ 2, 2, 2 ]: the whole answer and every router seed stay uint32"
       ],
+      "test/planBackRoads.test.ts": [
+        "POST /plan all back roads (T-0334 A3, P-SAFE-04) > westwood-malibu back roads at the offered 32 minutes is one lambda-8 plan inside the ceiling",
+        "POST /plan all back roads (T-0334 A3, P-SAFE-04) > westwood-malibu back roads at 31 minutes is ceiling_breached, never an over-ceiling 200"
+      ],
       "test/lambdaSearch.test.ts": [
         "searchLambda - the LambdaSearch port > with nothing feasible it refuses no_feasible_lambda rather than returning an overshoot",
         "searchLambda - the LambdaSearch port > flags non-monotone curves and still returns only measured feasible lambdas"

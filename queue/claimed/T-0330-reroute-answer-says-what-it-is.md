@@ -1,13 +1,13 @@
 ---
 id: T-0330
 title: A reroute answer says whether it continued the drive - /plan marks an answer built from a recalled plan_token apart from the fresh plan it falls back to, and the app rules on a fresh one; the drive screen's ETA line follows the line it draws
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T06:51:11Z
+lease_expires_at: 2026-10-09T16:51:11Z
+worktree: .worktrees/T-0330
+branch: task/T-0330
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-NAV-01]
@@ -27,3 +27,4 @@ after a reroute is taken.
 
 ## Log
 - 2026-10-08T18:25:31Z filed by agent/claude-opus-5 from T-0328 R5 and R6.
+- 2026-10-09T06:51:11Z claimed by agent/claude-opus-5; lease until 2026-10-09T16:51:11Z
