@@ -5,14 +5,15 @@
  * day's point span, indexed into route.coordinates; a full day reads its own leg's runs, indexed into the leg.
  */
 import { describe, expect, it } from "vitest";
-import { FRESH_EMPTY } from "./closuresFake";
+import { FRESH_EMPTY, TEST_VERSION } from "./closuresFake";
+import type { ClosureSnapshot } from "../src/closuresStore";
 import { handleLoop } from "../src/loop";
 import type { Tier } from "../src/quota";
 import { ROUTE_DETAILS } from "../src/scenicPlanner";
 import { handleTrip, type TripDeps } from "../src/trip";
 import { BIG_SUR, EDGE_M, EDGES, expectedTrip, NOW, ROAD, ROUTER, SCENIC_EDGE_MS, TRIP_BODY, tripCounters, tripPath,
   tripRequest, tripRouter } from "./tripHarness";
-import { LOOP_BODY, loopHarness, loopRequest, squareLoop } from "./loopHarness";
+import { LOOP_BODY, loopHarness, loopPath, loopRequest, NOW as LOOP_NOW, outAndBack, squareLoop, START } from "./loopHarness";
 
 type Run = [number, number, string];
 const TRIP_DETAILS_SENT = ["time", "distance", "scenic_score", "surface", "road_access"];
@@ -106,5 +107,64 @@ describe("T-0340 /loop hazards (A2)", () => {
       expect({ hazards, status: response.status, got: json.hazards }).toEqual({ hazards, status: 200, got: expected[i] });
       expect(l.sent.map((s) => s.body.details)).toEqual([ROUTE_DETAILS]);
     }
+  });
+});
+
+/** Attempt k's runs (k = 0, 1, 2) and, written out by hand, the hazards those runs read as - each attempt's differ. */
+const ATTEMPT_RUNS: { surface: Run[]; access: Run[] }[] = [
+  { surface: [[0, 3, "gravel"], [3, 9, "asphalt"]], access: [[20, 22, "private"]] },
+  { surface: [[4, 6, "Dirt"]], access: [[30, 33, "destination"], [33, 40, "yes"]] },
+  { surface: [[10, 14, "sand"], [14, 20, "missing"]], access: [[50, 51, "NO"]] },
+];
+const ATTEMPT_HAZARDS = [
+  [h("surface", "gravel", 0, 3), h("road_access", "private", 20, 22)],
+  [h("surface", "dirt", 4, 6), h("road_access", "destination", 30, 33)],
+  [h("surface", "sand", 10, 14), h("road_access", "no", 50, 51)],
+];
+function withRuns(body: string, k: number): string {
+  const parsed = JSON.parse(body) as { paths: { details: Record<string, unknown> }[] };
+  parsed.paths[0]!.details = { ...parsed.paths[0]!.details, surface: ATTEMPT_RUNS[k]!.surface, road_access: ATTEMPT_RUNS[k]!.access };
+  return JSON.stringify(parsed);
+}
+
+/** The closure re-request (loopHonest's T-0286 fixture): X on the square's east side, stored but not sent, so a pretty
+ *  square buys ONE re-request at the same seed, answered with the square mirrored west - clear of X. */
+const SQ = squareLoop();
+const ring = (lon: number, lat: number, d: number) => [[[lon - d, lat - d], [lon + d, lat - d], [lon + d, lat + d], [lon - d, lat + d], [lon - d, lat - d]]];
+const area = (name: string, lon: number, lat: number, d: number) =>
+  ({ type: "Feature", properties: { lcs_index: name }, geometry: { type: "Polygon", coordinates: ring(lon, lat, d) } });
+const CROSSED: ClosureSnapshot = { version: TEST_VERSION, fetchedAt: LOOP_NOW.toISOString(), hazard: null,
+  closures: { type: "FeatureCollection", features: [...Array.from({ length: 50 }, (_, i) =>
+    area(`s-${i + 1}`, START.lon, START.lat - 0.001 - i * 0.0001, 0.00004)), area("x", SQ[30]![1], SQ[30]![0], 0.0005)] } as never };
+const WEST = SQ.map(([lat, lon]) => [lat, 2 * START.lon - lon] as [number, number]);
+const DIRTY = outAndBack(2000);
+
+/** Every planner path to a shipped loop: rows are functions of the attempts, `ships` the one whose route goes out. */
+const SHIP_ROWS = [
+  { name: "a retrace-dirty first attempt, re-seeded clean", answers: [loopPath(DIRTY), loopPath(SQ)], crossed: false, ships: 1 },
+  { name: "two dull loops, the third re-rolled pretty", answers: [loopPath(SQ, 2_700_000, 2), loopPath(SQ, 2_700_000, 2), loopPath(SQ)],
+    crossed: false, ships: 2 },
+  { name: "two retrace-dirty loops, the retrace-square attempt clean", answers: [loopPath(DIRTY), loopPath(DIRTY), loopPath(SQ)],
+    crossed: false, ships: 2 },
+  { name: "a pretty loop over a closure, re-requested pretty", answers: [loopPath(SQ), loopPath(WEST)], crossed: true, ships: 1 },
+  { name: "a pretty loop over a closure, re-requested dull - the first loop stays", answers: [loopPath(SQ), loopPath(WEST, 2_700_000, 2)],
+    crossed: true, ships: 0 },
+];
+
+describe("T-0340 /loop hazards come from the SHIPPED attempt (A2)", () => {
+  it.each(SHIP_ROWS)("$name: the 200's hazards are the shipped attempt's runs", async ({ answers, crossed, ships }) => {
+    const bodies = answers.map(withRuns);
+    const l = loopHarness(bodies);
+    const response = await handleLoop(loopRequest(LOOP_BODY), {}, crossed ? { ...l.deps, closures: async () => CROSSED } : l.deps);
+    const json = (await response.json()) as { route?: { coordinates: unknown }; hazards?: unknown; attempts?: unknown };
+    const shipped = (JSON.parse(bodies[ships]!) as { paths: { points: { coordinates: unknown } }[] }).paths[0]!.points.coordinates;
+    expect({ status: response.status, attempts: json.attempts, route: json.route?.coordinates, hazards: json.hazards })
+      .toEqual({ status: 200, attempts: answers.length, route: shipped, hazards: ATTEMPT_HAZARDS[ships] });
+  });
+
+  it("meta: every row ships one attempt and could read another's - no row lets a wrong attempt's runs pass", () => {
+    expect(SHIP_ROWS.map((r) => r.answers.length > 1 && r.answers.every((_, k) => k === r.ships
+      || JSON.stringify(ATTEMPT_HAZARDS[k]) !== JSON.stringify(ATTEMPT_HAZARDS[r.ships])))).toEqual(SHIP_ROWS.map(() => true));
+    expect(SHIP_ROWS.map((r) => r.ships)).toEqual([1, 2, 2, 1, 0]);
   });
 });
