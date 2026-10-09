@@ -1,13 +1,13 @@
 ---
 id: T-0336
 title: ios-screenshot shows every screen the owner will design against and the App Store will list - the route preview (with badge, explanation, hazard strip), the honest-failure card, Surprise, the loop preview, the road-trip itinerary, onboarding with the disclaimer, the Saved tab and Legal/Attribution - each a DEBUG `-screen` rehearsal over fixed sample data, light and dark
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T05:07:10Z
+lease_expires_at: 2026-10-09T15:07:10Z
+worktree: .worktrees/T-0336
+branch: task/T-0336
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, .github/workflows/ios-screenshot.yml, ops/lib/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-ATTR-01, P-SAFE-03, P-SAFE-07]
@@ -29,3 +29,4 @@ human-initiated only).
 
 ## Log
 - 2026-10-09T05:06:37Z filed by agent/claude-opus-5 (orchestrator) for the owner's design pass and the M8 listing.
+- 2026-10-09T05:07:10Z claimed by agent/claude-opus-5; lease until 2026-10-09T15:07:10Z
