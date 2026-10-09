@@ -14,7 +14,10 @@ pins_affected: []
 reviewer: null
 depends_on: [T-0337]
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "A1 MEASUREMENT, NO OFFER (R1-R3): loopHonest's dull rows driven through handleLoop (the handler ROUTES[\"/loop\"] calls) at minutes 45 and minutes 85 (45 + 40) answer the SAME verdict row for row - [2, 2, 2], [unscored x3], [5, 5, 5] and [retraced, 2, retraced] each answer 422 {error: nothing_pretty, minutes} after 3 requests at both, the [6] control answers 200 attempts 1 at both; the only request field minutes moves is round_trip.distance (30000 -> 56667). Quoted in the Log 2026-10-09T21:45:53Z. A longer loop from the same start and seed is not shown likelier to clear 0.45, so /loop gains no more_time_minutes and the app no 'Try a longer loop'."
+  - "A2 NO CODE: git diff --name-only origin/main...HEAD lists exactly queue/claimed/T-0338-loop-nothing-pretty-offer.md - no services/, Sources/, Tests/, apps/ios/ or ops/ file, so no digest row, pin, mutant population or iOS CI run is owed."
+  - "A3 GATES on the merged head: ops/queue-check, python ops/lib/check-pins-yaml.py, ops/lib/check-line-cap and python ops/lib/check-mutate-population.py exit 0; loopHonest.test.ts passes unedited."
 ---
 ## Brief
 
@@ -33,3 +36,42 @@ the offer is a promise the planner cannot keep, and this task closes with that m
 ## Log
 - 2026-10-09T07:34:39Z filed by agent/claude-opus-5 (T-0337 owner) from T-0337 R2.
 - 2026-10-09T21:38:36Z claimed by agent/claude-opus-5; lease until 2026-10-10T03:38:36Z
+- 2026-10-09T21:45:53Z MEASURE FIRST, before any ruling or code. A throwaway vitest file (services/api/test/t0338Measure.test.ts,
+  never staged, moved to the ignored .artifacts/t0338/ after the run) drove loopHonest's dull rows through handleLoop with
+  loopHarness/loopPath/squareLoop/outAndBack unedited, once at minutes 45 and once at minutes 85, and scored every
+  answer the router sent with routeScoreOf. `npx vitest run test/t0338Measure.test.ts --reporter=verbose` (1 passed):
+      [2, 2, 2] minutes 45: 422 {"error":"nothing_pretty","minutes":45} requests 3 distances [30000,30000,30000] scores ["0.020000","0.020000","0.020000"]
+      [2, 2, 2] minutes 85: 422 {"error":"nothing_pretty","minutes":85} requests 3 distances [56667,56667,56667] scores ["0.020000","0.020000","0.020000"]
+      [unscored x3] minutes 45: 422 {"error":"nothing_pretty","minutes":45} requests 3 distances [30000,30000,30000] scores ["null","null","null"]
+      [unscored x3] minutes 85: 422 {"error":"nothing_pretty","minutes":85} requests 3 distances [56667,56667,56667] scores ["null","null","null"]
+      [5, 5, 5] minutes 45: 422 {"error":"nothing_pretty","minutes":45} requests 3 distances [30000,30000,30000] scores ["0.425000","0.425000","0.425000"]
+      [5, 5, 5] minutes 85: 422 {"error":"nothing_pretty","minutes":85} requests 3 distances [56667,56667,56667] scores ["0.425000","0.425000","0.425000"]
+      [retraced, 2, retraced] minutes 45: 422 {"error":"nothing_pretty","minutes":45} requests 3 distances [30000,30000,30000] scores ["0.713333","0.020000","0.713333"]
+      [retraced, 2, retraced] minutes 85: 422 {"error":"nothing_pretty","minutes":85} requests 3 distances [56667,56667,56667] scores ["0.713333","0.020000","0.713333"]
+      [6] (control, pretty) minutes 45: 200 {"attempts":1,"minutes":45} requests 1 distances [30000] scores ["0.510000"]
+      [6] (control, pretty) minutes 85: 200 {"attempts":1,"minutes":85} requests 1 distances [56667] scores ["0.510000"]
+  Every dull row is the same 422 at both lengths; the pretty control is the same 200 at both. Not likelier.
+- 2026-10-09T21:45:53Z RULINGS (author rule, before any code):
+  - R1 Brief vs reality - the harness is minutes-blind. loopHarness answers the n-th request with answers[n] whatever
+    it asked for, so its rows cannot come out likelier at any length; the measurement above is the Brief's measurement
+    and it says "not likelier", but on its own it would say that about any offer. What it does show is the request
+    side: minutes moves exactly one field the router sees, round_trip.distance = roundTripDistance(minutes) (30000 ->
+    56667). The seed (loopSeed(user, UTC day)), the seed ladder (S, S+1, S+2), the custom model
+    (buildCustomModel(LOOP_LAMBDA 2, the same feed)) and the start are identical at 45 and 85. Ruled: the decision
+    turns on whether the PLANNER has any mechanism that makes a longer loop prettier, read from src, not from the fake.
+  - R2 the planner has none. planLoop holds lambda at LOOP_LAMBDA and asks for a longer round trip on the same seed;
+    nothing in it steers toward scenery as minutes grow. RouteScore (routeScore.ts) is metre-weighted: mean, p90 and
+    dud fraction are intensive (a longer loop over the same mix of roads scores the same - the [5, 5, 5] row's 0.425
+    is length-free), and only the episode term grows with length, capped at EPISODE_WEIGHT 0.10 once 3 episodes of
+    >= 800 m above 0.6 exist. Whether 40 more minutes reaches different scenery is a property of the graph around
+    the start that the Worker does not know when it refuses. Contrast /plan's offer (honestFailure.ts
+    MORE_TIME_MINUTES): there the budget is the ceiling the lambda sweep is held to, so +40 admits more scenic
+    candidates - a mechanism the planner can keep. /loop has no ceiling to relax.
+  - R3 so the Brief's own branch applies: "If it is not, the offer is a promise the planner cannot keep, and this
+    task closes with that measurement instead." /loop's nothing_pretty keeps its body {error, minutes}; the client's
+    LoopNothingPretty and the loop screen are unchanged (T-0337 R2 stands). An offer that re-plans costs the user a
+    second LOOP allowance on the same seed for no shown gain. No code; acceptance A1-A3 above.
+  - R4 what would reopen it: a measurement over a real graph, not the fake - GraphHopper round_trip from a set of LA
+    starts whose 45-minute loop at the day seed scores < 0.45, re-asked at 85, counting how many clear 0.45. That is a
+    container run over the LA graph (services/routing/work/graph-cache holds only the Vermont slice) and, per
+    CLAUDE.md, a measurement task, not an acceptance; left to the owner to file if the offer is still wanted.
