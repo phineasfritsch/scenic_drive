@@ -97,3 +97,15 @@ each field missing / mistyped refused, whole-copy equality for the new rows, the
 - 2026-10-09T08:11:44Z A6 iOS CI on 8a40d41e: ios-compile 37901075343 success (3m15s); ios-screenshot 37901079042
   success (11m46s). Bare gates on 8a40d41e: `P-SRC-02: 525 Swift files tracked ... none over 300 lines`; `PINS-YAML ok
   pins=49 fields=395`; `QUEUE OK (329 tasks)`.
+- 2026-10-09T09:07:57Z FINAL ACCEPTANCE re-run on bb5a7dca (8a40d41e + Log, merged with origin/main bdb77ca6 = PR #221 T-0336 and the
+  T-0339 queue; no conflicts, no switch over TripFailure/LoopFailure in T-0336's app files):
+  - A1/A2/A3: `swift test --filter ScenicAPIClientTests|TripSheetTests|LoopSheetTests|PlanSheet` -> `Test run with 137
+    tests in 29 suites passed`, `Executed 50 tests, with 0 failures`, exit=0 (TripNothingPrettyTests 156 + meta,
+    LoopNothingPrettyTests 13 + meta, both gate rows, both failure-mapping tables, both copy rows whole).
+  - A4: red quoted above on c74c4e21. A5: 16 of 16 caught on 8a40d41e (no subject or test changed since).
+  - A6: `P-SRC-02: 528 Swift files tracked ... none over 300 lines`; `PINS-YAML ok pins=49 fields=395`; `QUEUE OK
+    (330 tasks)`; `P-PROC-06: every added module is covered or allowlisted; the floor of 146 holds`; `ops/check-pins
+    --source-only` -> `PINS ok=20 skipped=28 pending=1 expired=0 failed=0` exit=0 (an earlier run on 02b4d40c
+    failed P-SAFE-05 only, its unscratched `swift test --filter SolarFixtureTests` cold-building beside a parallel
+    build; re-run bare it printed `Test run with 6 tests in 1 suite passed` and the whole check went 20/0). iOS CI on
+    bb5a7dca: ios-compile 37907300587 success (3m40s), ios-screenshot 37907306722 success (17m56s).
