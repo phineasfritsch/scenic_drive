@@ -7,15 +7,15 @@ import Testing
 /// operation's expected value ignores the state it starts from.
 @Suite("SurpriseCardHistoryTests") struct SurpriseCardHistoryTests {
     typealias Shown = SurpriseHistory.Shown
-    static let today = SurpriseShowingTests.today
-    static let yesterday = SurpriseShowingTests.yesterday
+    static let today = SurpriseShownFixture.today
+    static let yesterday = SurpriseShownFixture.yesterday
     static let older = CivilDate(year: 2026, month: 8, day: 1)
-    static let a = SurpriseShowingTests.a
-    static let b = SurpriseShowingTests.b
-    static let c = SurpriseShowingTests.place("1111111", .cafe, "malibu")
-    static let d = SurpriseShowingTests.place("2222222", .beach, "pch")
+    static let a = SurpriseShownFixture.a
+    static let b = SurpriseShownFixture.b
+    static let c = SurpriseShownFixture.place("1111111", .cafe, "malibu")
+    static let d = SurpriseShownFixture.place("2222222", .beach, "pch")
 
-    static func shown(_ p: SurpriseCandidate, _ date: CivilDate) -> Shown { SurpriseShowingTests.shown(p, date) }
+    static func shown(_ p: SurpriseCandidate, _ date: CivilDate) -> Shown { SurpriseShownFixture.shown(p, date) }
     static func feedback(_ p: SurpriseCandidate, _ reason: SurpriseFeedback.Reason) -> SurpriseFeedback {
         SurpriseFeedback(candidateId: p.id, category: p.category, roundTripMinutes: 60, date: today, reason: reason)
     }
