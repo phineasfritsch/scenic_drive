@@ -1,7 +1,7 @@
 ---
 id: T-0336
 title: ios-screenshot shows every screen the owner will design against and the App Store will list - the route preview (with badge, explanation, hazard strip), the honest-failure card, Surprise, the loop preview, the road-trip itinerary, onboarding with the disclaimer, the Saved tab and Legal/Attribution - each a DEBUG `-screen` rehearsal over fixed sample data, light and dark
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T05:07:10Z
@@ -11,7 +11,7 @@ branch: task/T-0336
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, .github/workflows/ios-screenshot.yml, ops/lib/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-ATTR-01, P-SAFE-03, P-SAFE-07]
-reviewer: null
+reviewer: agent/rv1-t0336
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
@@ -131,3 +131,33 @@ human-initiated only).
   lines are low-contrast grey on the dark sheet; (4) paywall: no product renders on CI (no StoreKit configuration in the
   simulator), so the listing's paywall shot needs one; (5) the plan sheet's bottom toolbar pair (`Plan a road trip` /
   `Just drive a loop`) changes meaning per tab - a design question for the owner's pass.
+- 2026-10-09T06:40:42Z agent/rv1-t0336 (reviewer, not the owner) REVIEW PASS on 6d8b64e2 (PR #221), detached worktree
+  .worktrees/rv1-t0336. BARE on the head, every one exit 0: check-safety-disclaimer, check-map-attribution,
+  check-store-links.py, check-drive-display.py, check-ios-compile-guardrails.py (both workflows equal the pinned ones),
+  check-pbxproj-graph.py (28 assertions, 0 failed), check-screen-rehearsals.py ("11 approved -screen sites, every read
+  inside #if DEBUG, PlanRehearsalFixtures.swift wholly DEBUG-only"), check-screen-rehearsals.py --prove-red ("PROVE-RED
+  OK: 11/11 refused by name"), ios_screenshot_pinned.py, check-line-cap (518 Swift files, none over 300),
+  check-pins-yaml.py (pins=49 fields=395), queue-check (QUEUE OK, 327 tasks). gh pr checks 221: core pass,
+  pins-source-only pass. gh run list --branch task/T-0336 on the head 6d8b64e2: ios-compile 37891403662 success,
+  ios-screenshot 37891406542 success (also dfde674f: 37889171643 success, 37889174904 success). merge-base
+  --is-ancestor origin/main (4537e7d4) origin/task/T-0336: yes, no drift. Diff touches neither project.pbxproj nor
+  either Package.swift; the new files import only Foundation and ScenicKit; the shell's one change is
+  isPlanning = PlanRehearsal.opensSheet (nil-backed, false outside DEBUG).
+  SHOTS LOOKED AT (run 37891406542, 30 PNGs, every one): plan-preview light/dark - Zuma Beach, 55 min / 20 min longer,
+  the estimate badge, the hazard row, "Conditions change. Verify locally." bold, Save / Start the drive / Choose another
+  place, and the "Route data (c) OpenStreetMap contributors" footer under the drawn outline; nothingPretty - the honest
+  card and Choose another place; loop and trip - badge and the conditions line in both; saved - three corpus rows;
+  legal - the ODbL notice; onboarding - the vehicle step; disclaimer - Before you drive, the bold conditions line, Back,
+  I understand; surprise - the real card (Tongva Peak / Surfrider Beach) with the badge, the map credit pill visible
+  below it; home collapsed / medium / fastest light and dark - the credit pill above the sheet at both detents;
+  settings and paywall - their own screens now (Standard car, Subscription Unavailable). Nothing required is clipped.
+  The owner's five follow-up candidates are confirmed as seen (the Plan a drive button over the first chip; raw
+  road_access key; the rest as written); none hides a required element.
+  REVIEWER MUTANTS (each applied alone, restored, tree clean after): RV-M1 PlanRehearsal's read under
+  "#if DEBUG || true" - refused BY NAME by check-screen-rehearsals.py ("reads the -screen argument outside #if DEBUG"),
+  also by the digest pins. RV-M3 a new FeaturePlanSheet/PlanMapPreview.swift mounting MapView(styleURL:..., route:)
+  with no AttributionFooter - refused BY NAME by check-map-attribution's (f) map-surface whitelist. RV-M2
+  OnboardingRehearsal.atLaunch calling onboarding.send(.next) outside the #if DEBUG arm (release skips the vehicle step;
+  the disclaimer still gates) - refused only by the sha256 digest pins (OnboardingRehearsal.swift content changed), the
+  rehearsal guard stays green: its whitelist covers -screen reads, not unconditional machine events in a rehearsal
+  type. Recorded, not blocking: no safety gate is bypassed and the digest is a refusal by file name.
