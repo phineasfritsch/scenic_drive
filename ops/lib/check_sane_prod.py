@@ -137,8 +137,7 @@ CASES: list[tuple[str, tuple[int, object], object, int, dict]] = [
      {"backend": "FAIL", "version": None, "quota": None, "manifest": "FAIL"}),
 ]
 
-# T-0344 R9/R10: the mistyped-field rows are GENERATED as field x variant, x-<field>-<variant>, value and exit both
-# functions of the field's kind. REQUIRED is the literal the meta-check holds every field to.
+# T-0344 R9/R10: GENERATED rows x-<field>-<variant>, value and exit functions of the kind; REQUIRED rows per kind.
 QUOTA_KINDS = {"kill_switch": "bool", "upstream_month": "month", "upstream_calls": "int0", "upstream_trip_at": "int1"}
 MANIFEST_KINDS = {"version": "str", "schema_version": "intsv", "min_app_build": "int1", "sha256": "sha", "bytes": "int1"}
 UNIVERSAL = ("absent", "null", "true", "false", "string", "empty-string", "list", "object", "number")
@@ -186,10 +185,11 @@ def meta_problems() -> list[str]:
     import sane_prod
     names = [c[0] for c in CASES]
     out = []
-    if set(MANIFEST_KINDS) != set(sane_prod.MANIFEST_FIELDS) or set(MANIFEST_KINDS) != set(MANIFEST):
-        out.append(f"manifest fields {sorted(MANIFEST_KINDS)} != shipped {sorted(sane_prod.MANIFEST_FIELDS)}")
-    if set(QUOTA_KINDS) != set(HEALTH) - {"ok", "db", "git_sha"}:
-        out.append(f"quota fields {sorted(QUOTA_KINDS)} != /__health fixture fields")
+    shipped_m, shipped_q = getattr(sane_prod, "MANIFEST_FIELDS", ()), getattr(sane_prod, "QUOTA_FIELDS", ())
+    if set(MANIFEST_KINDS) != set(shipped_m) or set(MANIFEST_KINDS) != set(MANIFEST):
+        out.append(f"manifest fields {sorted(MANIFEST_KINDS)} != shipped MANIFEST_FIELDS {sorted(shipped_m)}")
+    if set(QUOTA_KINDS) != set(shipped_q):
+        out.append(f"quota fields {sorted(QUOTA_KINDS)} != shipped QUOTA_FIELDS {sorted(shipped_q)}")
     for field, kind in {**QUOTA_KINDS, **MANIFEST_KINDS}.items():
         missing = [v for v in REQUIRED[kind] if f"x-{field}-{v}" not in names]
         if missing:

@@ -53,3 +53,19 @@ q-green, but the anchor compares a table to itself), and the field-list half of 
      before restoring: anchor half - (a) "upstream_month" dropped from shipped QUOTA_FIELDS, (b) "bytes" dropped
      from shipped MANIFEST_FIELDS, (c) the new check against the pre-change sane_prod.py (no QUOTA_FIELDS);
      coverage half - (d) the "negative" variant dropped from the generator's int branch; then the full table green.
+- 2026-10-09T19:52:19Z CODE: sane_prod.py gains QUOTA_FIELDS and quota() reads `kill, month, calls, trip = (h.get(k)
+  for k in QUOTA_FIELDS)`; check_sane_prod.meta_problems() compares set(QUOTA_KINDS) to
+  set(getattr(sane_prod, "QUOTA_FIELDS", ())) only (the HEALTH-fixture comparison is gone) and the manifest side to
+  getattr(sane_prod, "MANIFEST_FIELDS", ()) (plus MANIFEST, unchanged). `wc -l`: sane_prod.py 113,
+  check_sane_prod.py 300 (the R10 comment folded to one line to make room). RED, `python .build-t0351/drive.py`
+  (each mutant alone, ops/lib/__pycache__ purged, 1.1 s before a byte-checked restore):
+    MUTANT a-anchor-quota-field-dropped: exit=2 pass_lines=0 RED-AS-REQUIRED
+       SANE-PROD refuse   meta: quota fields ['kill_switch', 'upstream_calls', 'upstream_month', 'upstream_trip_at'] != shipped QUOTA_FIELDS ['kill_switch', 'upstream_calls', 'upstream_trip_at']
+    MUTANT b-anchor-manifest-field-dropped: exit=2 pass_lines=0 RED-AS-REQUIRED
+       SANE-PROD refuse   meta: manifest fields ['bytes', 'min_app_build', 'schema_version', 'sha256', 'version'] != shipped MANIFEST_FIELDS ['min_app_build', 'schema_version', 'sha256', 'version']
+    MUTANT c-anchor-pre-change-sane-prod: exit=2 pass_lines=0 RED-AS-REQUIRED
+       SANE-PROD refuse   meta: quota fields ['kill_switch', 'upstream_calls', 'upstream_month', 'upstream_trip_at'] != shipped QUOTA_FIELDS []
+    MUTANT d-coverage-variant-dropped: exit=2 pass_lines=0 RED-AS-REQUIRED
+       SANE-PROD refuse   meta: field upstream_calls has no row for ['negative']; field upstream_trip_at has no row for ['negative']; field schema_version has no row for ['negative']; field min_app_build has no row for ['negative']; field bytes has no row for ['negative']
+    DRIVER 4/4 mutants red as required
+  Each refused by the meta line with exit 2 and zero `SANE-PROD pass` lines - before any case ran.
