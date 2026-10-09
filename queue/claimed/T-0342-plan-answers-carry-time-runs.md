@@ -122,7 +122,7 @@ now - merge it first (memory parallel-worker-prs-conflict).
   isSafeInteger, W6 a negative ms kept, W7 the last-vertex check, W8 the some-time check, W10 a zero ms refused, W11
   some time read as >= 0 (each 2 red: the fresh and reroute tables), W9 time not requested (3 red, the planCeiling
   literal among them).
-- 2026-10-09T16:12:40Z ACCEPTANCE RE-QUOTED on the merged head 15e23279 (agent/claude-opus-5; origin/main be0960a8
+- 2026-10-09T16:02:18Z ACCEPTANCE RE-QUOTED on the merged head 15e23279 (agent/claude-opus-5; origin/main be0960a8
   merged - one queue filing, T-0346 - no conflict; T-0341 and T-0344 are not on main yet).
   A1 the five vitest files: "Test Files 5 passed (5)", "Tests 184 passed (184)". A2 `swift test --filter
   'PlanTimeRunsTests|PlanResponseDecodeTests|PlanClientResponseTests|RetimedPreviewTests'`: "Executed 30 tests, with 0
