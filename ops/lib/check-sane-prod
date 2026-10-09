@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# check-sane-prod - ops/sane --prod's exits 6 and 8 against a LOCAL fake Worker (T-0344, pin P-OPS-08).
+#   bash ops/lib/check-sane-prod [--sane PATH] [--only name,name]
+# The cases, the fake and the assertions live in ops/lib/check_sane_prod.py; this wrapper only finds Python.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+exec "$PY" ops/lib/check_sane_prod.py "$@"
