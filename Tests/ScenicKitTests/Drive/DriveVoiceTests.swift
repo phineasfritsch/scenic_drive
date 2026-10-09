@@ -165,14 +165,18 @@ struct DriveVoiceTests {
     func offlineThenANewWay() throws {
         let short = Array(Self.line[0...1])
         var session = try #require(DriveSession(line: short, waypoints: [], lambda: 0.5, online: false))
-        let away = Self.east(0.007, north: 0.002)
-        let rerouted = [away, Self.east(0.017, north: 0.002)]
+        let away = Self.east(0.006, north: 0.002)
+        // What the shipping request makes: from the fix it was asked at to the SAME destination, ~497 m along it.
+        let rerouted = [away, short[1]]
+        var asked: RerouteRequest?
         let said = Self.run(&session, [
             Self.at(Self.east(0.007), 0), Self.at(away, 1), Self.at(away, 6),
-            { _ = $0.connectivity(online: true) }, { $0.rerouteArrived(line: rerouted, waypoints: []) },
-            Self.at(Self.east(0.0135, north: 0.002), 7),
+            { asked = $0.connectivity(online: true) }, { $0.rerouteArrived(line: rerouted, waypoints: []) },
+            Self.at(Self.east(0.008, north: 0.001), 7), Self.at(Self.east(0.0098, north: 0.0001), 8),
         ])
-        #expect(said == [[Self.destination], [], [Self.leftOffline], [], [Self.newWay], [Self.destination]])
+        #expect(asked?.destination == rerouted.last && rerouted.last == short.last && rerouted != short)
+        #expect(said == [[Self.destination], [], [Self.leftOffline], [], [Self.newWay], [Self.destination],
+                         [Self.arrived]])
     }
 
     /// Each cue state the voice can be in before leaving: the longitude it is said at, what is said there, and the
@@ -211,33 +215,49 @@ struct DriveVoiceTests {
         }
     }
 
+    /// A landed reroute as the shipping request makes it: to the SAME destination (DriveSession.request sends
+    /// line.destination), five vertices with the pin at v2 so the old state's vertex numbers collide; crossed over
+    /// which part of the line changed, so no partial "is this a new line" key passes.
+    static let reroutes: [(name: String, line: [Coordinate])] = [
+        ("the start moved", [east(0, north: 0.002)] + Array(line[1...])),
+        ("the middle moved", [line[0], east(0.01, north: 0.0003), line[2], east(0.03, north: 0.0003), line[4]]),
+    ]
+
     @Test("P-SAFE-09: a landed reroute after a pin's approach, the destination's, or the arrival says the new line's cues, online or offline")
     func landedRerouteSaysTheNewLine() throws {
-        var before: [(online: Bool, said: [[String]])] = []
-        for state in Self.cueStates {
-            for online in [true, false] {
-                var session = try #require(
-                    DriveSession(line: Self.line, waypoints: [Self.line[2]], lambda: 0.5, online: online))
-                // The same shape as the old line (5 vertices, pin at v2), 0.002 N, starting at the away fix.
-                let fresh = DriveFixtures.line(latitude: 0.002, firstLongitude: state.at, count: 5)
-                var steps: [(inout DriveSession) -> Void] = [Self.at(Self.east(state.at), 0), Self.at(fresh[0], 1),
-                                                             Self.at(fresh[0], 6)]
-                if !online { steps.append { _ = $0.connectivity(online: true) } }
-                let landing = steps.count
-                steps.append { _ = $0.rerouteArrived(line: fresh, waypoints: [fresh[2]]) }
-                for (t, ahead) in [0.017, 0.037, 0.0398].enumerated() {
-                    steps.append(Self.at(Self.east(state.at + ahead, north: 0.002), Double(7 + t)))
+        let (start, middle) = (Self.reroutes[0].line, Self.reroutes[1].line)
+        #expect(start[0] != Self.line[0] && Array(start[1...]) == Array(Self.line[1...]))
+        #expect(middle.first == Self.line.first && middle.last == Self.line.last && middle != Self.line)
+        var before: [(row: String, said: [[String]])] = []
+        for reroute in Self.reroutes {
+            for state in Self.cueStates {
+                for online in [true, false] {
+                    var session = try #require(
+                        DriveSession(line: Self.line, waypoints: [Self.line[2]], lambda: 0.5, online: online))
+                    let away = Self.east(state.at, north: 0.002)
+                    var asked: RerouteRequest?
+                    var steps: [(inout DriveSession) -> Void] = [Self.at(Self.east(state.at), 0), Self.at(away, 1),
+                                                                 { asked = $0.observe(DriveFixtures.fix(away, at: 6)) }]
+                    if !online { steps.append { asked = $0.connectivity(online: true) } }
+                    let landing = steps.count
+                    steps.append { _ = $0.rerouteArrived(line: reroute.line, waypoints: [reroute.line[2]]) }
+                    for (t, ahead) in [0.017, 0.037, 0.0398].enumerated() {
+                        steps.append(Self.at(Self.east(ahead), Double(7 + t)))
+                    }
+                    let left: [[String]] = online ? [[Self.leftOnline]] : [[Self.leftOffline], []]
+                    let said = Self.run(&session, steps)
+                    let row = "\(reroute.name) \(state.said) online \(online)"
+                    #expect(asked?.destination == reroute.line.last && reroute.line.last == Self.line.last
+                            && reroute.line.count == Self.line.count && reroute.line[2] == Self.line[2], "\(row)")
+                    #expect(said == [[state.said], []] + left + [[Self.newWay], [Self.next], [Self.destination],
+                                                                 [Self.arrived]], "\(row)")
+                    before.append(("\(reroute.name) \(online)", Array(said.prefix(landing))))
                 }
-                let left: [[String]] = online ? [[Self.leftOnline]] : [[Self.leftOffline], []]
-                let said = Self.run(&session, steps)
-                #expect(said == [[state.said], []] + left + [[Self.newWay], [Self.next], [Self.destination],
-                                                             [Self.arrived]], "\(state.said) online \(online)")
-                before.append((online, Array(said.prefix(landing))))
             }
         }
-        for online in [true, false] {
-            let rows = before.filter { $0.online == online }.map { "\($0.said)" }
-            #expect(rows.count == Self.cueStates.count && Set(rows).count == rows.count, "online \(online)")
+        for key in Set(before.map(\.row)) {
+            let rows = before.filter { $0.row == key }.map { "\($0.said)" }
+            #expect(rows.count == Self.cueStates.count && Set(rows).count == rows.count, "\(key)")
         }
     }
 
