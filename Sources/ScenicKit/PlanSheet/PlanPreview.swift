@@ -22,10 +22,13 @@ public struct PlanPreview: Equatable, Sendable {
     public let lambda: Double
     /// T-0328 R1: how a reroute continues this plan; nil when the Worker remembered nothing (no plan_token).
     public let continuation: PlanContinuation?
+    /// T-0342 R4: the router's per-edge free-flow times over `route`, as the Worker sent them; nil when it sent none,
+    /// and then RetimedPreview has nothing to retime and the estimate badge stays.
+    public let timeRuns: [CorridorTimeRun]?
 
     public init(route: [Coordinate], etaSeconds: Double, fastestEtaSeconds: Double, etaIsEstimate: Bool,
                 hazards: [PlanHazardRun], waypoints: [Coordinate] = [], lambda: Double = 0,
-                continuation: PlanContinuation? = nil) {
+                continuation: PlanContinuation? = nil, timeRuns: [CorridorTimeRun]? = nil) {
         self.route = route
         self.etaSeconds = etaSeconds
         self.fastestEtaSeconds = fastestEtaSeconds
@@ -34,6 +37,7 @@ public struct PlanPreview: Equatable, Sendable {
         self.waypoints = waypoints
         self.lambda = lambda
         self.continuation = continuation
+        self.timeRuns = timeRuns
     }
 
     /// Whether the badge is drawn: whenever the ETA is an estimate.

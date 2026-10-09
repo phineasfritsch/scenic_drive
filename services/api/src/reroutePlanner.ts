@@ -17,7 +17,7 @@ import type { LatLon } from "./latLon";
 import { decisionPoints } from "./planWaypoints";
 import { PLAN_UPSTREAM_COST } from "./quota";
 import { durationSeconds } from "./routePath";
-import { FAST_PROFILE, route, SCENIC_PROFILE, type ScenicPlanResult } from "./scenicPlanner";
+import { FAST_PROFILE, route, SCENIC_PROFILE, timeRunsField, type ScenicPlanResult } from "./scenicPlanner";
 import type { GuardedFetch } from "./upstream";
 
 export async function planReroute(call: GuardedFetch, routerBase: string, origin: LatLon, destination: LatLon,
@@ -57,5 +57,6 @@ export async function planReroute(call: GuardedFetch, routerBase: string, origin
     hazards: hazardsOf(chosen),
     waypoints,
     apple_maps_url: appleMapsUrl(origin, destination, waypoints),
+    ...timeRunsField(chosen),
   };
 }

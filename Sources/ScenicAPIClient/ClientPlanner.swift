@@ -36,7 +36,8 @@ public struct ClientPlanner: RoutePlanning {
     }
 
     /// The preview's view of a Worker 200: the line, both ETAs, the estimate flag and every hazard run, in order, and
-    /// (T-0328 R1) the plan's continuation - its token with the ticket's place and budget - exactly when it has one.
+    /// (T-0328 R1) the plan's continuation - its token with the ticket's place and budget - exactly when it has one,
+    /// and (T-0342 R4) the route's time runs as the Worker sent them.
     public static func preview(of response: PlanResponse, place: Int64, budgetMinutes: Int) -> PlanPreview {
         PlanPreview(route: response.route, etaSeconds: response.etaSeconds,
                     fastestEtaSeconds: response.fastestEtaSeconds, etaIsEstimate: response.etaIsEstimate,
@@ -45,6 +46,6 @@ public struct ClientPlanner: RoutePlanning {
                     }, waypoints: response.waypoints, lambda: response.lambda,
                     continuation: response.planToken.map {
                         PlanContinuation(token: $0, place: place, budgetMinutes: budgetMinutes)
-                    })
+                    }, timeRuns: response.timeRuns)
     }
 }

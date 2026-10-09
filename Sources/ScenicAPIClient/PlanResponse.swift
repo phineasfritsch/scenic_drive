@@ -25,11 +25,13 @@ public struct PlanResponse: Equatable, Sendable {
     /// T-0330 R2/R3: true exactly when the Worker built this answer as the rest of the recalled drive; false on a fresh
     /// plan, and when the field is absent (fail toward saying more: the drive screen notes a new route).
     public let continued: Bool
+    /// T-0342 R4: the router's per-edge free-flow times over `route`, whole ms; nil when the Worker sent none.
+    public let timeRuns: [CorridorTimeRun]?
 
     public init(route: [Coordinate], distanceMeters: Double, etaSeconds: Double, fastestEtaSeconds: Double,
                 ceilingSeconds: Double, budgetSeconds: Double, lambda: Double, evaluations: Int, usedBudget: Bool,
                 etaIsEstimate: Bool, hazards: [PlanHazard], waypoints: [Coordinate], appleMapsURL: URL,
-                planToken: String? = nil, continued: Bool = false) {
+                planToken: String? = nil, continued: Bool = false, timeRuns: [CorridorTimeRun]? = nil) {
         self.route = route
         self.distanceMeters = distanceMeters
         self.etaSeconds = etaSeconds
@@ -45,12 +47,13 @@ public struct PlanResponse: Equatable, Sendable {
         self.appleMapsURL = appleMapsURL
         self.planToken = planToken
         self.continued = continued
+        self.timeRuns = timeRuns
     }
 }
 
 extension PlanResponse: Decodable {
     enum CodingKeys: String, CodingKey {
-        case route, coordinates, lat, lon, lambda, evaluations, hazards, waypoints, continued
+        case route, coordinates, lat, lon, lambda, evaluations, hazards, waypoints, continued, from, to, ms
         case distanceMeters = "distance_m"
         case etaSeconds = "eta_s"
         case fastestEtaSeconds = "fastest_eta_s"
@@ -60,6 +63,7 @@ extension PlanResponse: Decodable {
         case etaIsEstimate = "eta_is_estimate"
         case appleMapsURL = "apple_maps_url"
         case planToken = "plan_token"
+        case timeRuns = "time_runs"
     }
 
     public init(from decoder: Decoder) throws {
@@ -81,6 +85,7 @@ extension PlanResponse: Decodable {
             waypoints.append(Coordinate(latitude: try point.decode(Double.self, forKey: .lat),
                                         longitude: try point.decode(Double.self, forKey: .lon)))
         }
+        let timeRuns = try Self.timeRuns(top, over: coordinates)
         let link = try top.decode(String.self, forKey: .appleMapsURL)
         guard let url = URL(string: link) else {
             throw DecodingError.dataCorruptedError(forKey: .appleMapsURL, in: top, debugDescription: "not a URL")
@@ -100,7 +105,26 @@ extension PlanResponse: Decodable {
             waypoints: waypoints,
             appleMapsURL: url,
             planToken: try top.decodeIfPresent(String.self, forKey: .planToken),
-            continued: try top.decodeIfPresent(Bool.self, forKey: .continued) ?? false
+            continued: try top.decodeIfPresent(Bool.self, forKey: .continued) ?? false,
+            timeRuns: timeRuns
         )
+    }
+
+    /// T-0342 R4: absent is nil; present must be a list of {from, to, ms} integers that CorridorRoute accepts over
+    /// `route` - the shipping tiling rule - or the answer is refused. null is refused: the Worker omits, never nulls.
+    static func timeRuns(_ top: KeyedDecodingContainer<CodingKeys>, over route: [Coordinate]) throws -> [CorridorTimeRun]? {
+        guard top.contains(.timeRuns) else { return nil }
+        var list = try top.nestedUnkeyedContainer(forKey: .timeRuns)
+        var runs: [CorridorTimeRun] = []
+        while !list.isAtEnd {
+            let run = try list.nestedContainer(keyedBy: CodingKeys.self)
+            runs.append(CorridorTimeRun(from: try run.decode(Int.self, forKey: .from), to: try run.decode(Int.self, forKey: .to),
+                                        milliseconds: try run.decode(Int.self, forKey: .ms)))
+        }
+        guard CorridorRoute(route: route, timeRuns: runs) != nil else {
+            throw DecodingError.dataCorruptedError(forKey: .timeRuns, in: top,
+                                                   debugDescription: "the time runs do not tile the route")
+        }
+        return runs
     }
 }

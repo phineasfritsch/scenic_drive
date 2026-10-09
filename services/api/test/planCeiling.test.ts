@@ -114,7 +114,7 @@ describe("POST /plan hazards (R8)", () => {
     const { h } = await plan(curveRouter(1_000_000, () => 1_100_000, FAST_WAYS, SCENIC_WAYS), 25);
     expect(h.sent).toHaveLength(7);
     for (const sent of h.sent) {
-      expect(sent.body.details).toEqual(["scenic_score", "road_class", "osm_way_id", "surface", "road_access"]);
+      expect(sent.body.details).toEqual(["scenic_score", "road_class", "osm_way_id", "surface", "road_access", "time"]);
       expect(sent.body.points_encoded).toBe(false);
       expect(sent.body["ch.disable"]).toBe(true);
     }
