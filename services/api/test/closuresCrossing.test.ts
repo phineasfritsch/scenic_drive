@@ -95,13 +95,15 @@ export function shapeOf(x: Feature, shape: Shape): Pos[] {
   if (shape === "inside") return [half(c, v0), half(c, v1), half(c, v2)];
   return [add(c, sub(half(v0, v1), c), sub(half(v0, v1), c)), add(c, sub(half(v2, v3), c), sub(half(v2, v3), c))];
 }
-/** A router answer over `coords`: per-edge time, distance and way runs, the time split evenly in whole ms. */
+/** A router answer over `coords`: per-edge time, distance and way runs, the time split evenly in whole ms, and a
+ *  scenic_score of 8 per edge so the route is a pretty one (T-0332: an unscored route is an honest failure). */
 export function answer(coords: Pos[], totalMs: number): string {
   const n = coords.length - 1;
   const runs = (v: (i: number) => number) => Array.from({ length: n }, (_, i) => [i, i + 1, v(i)]);
   const edgeMs = totalMs / n;
   return JSON.stringify({ paths: [{ time: edgeMs * n, distance: 10_000 * n, points: { type: "LineString", coordinates: coords },
-    details: { time: runs(() => edgeMs), distance: runs(() => 10_000), osm_way_id: runs((i) => 100 + i) } }] });
+    details: { time: runs(() => edgeMs), distance: runs(() => 10_000), osm_way_id: runs((i) => 100 + i),
+      scenic_score: runs(() => 8) } }] });
 }
 const SCENIC_MS: Record<Route, number> = { "/plan": 1_200_000, "/loop": 2_700_000, "/trip": 14_400_000, "/plan reroute": 1_200_000 };
 const PLAN_CEILING_MS = 1_000_000 + SANTA_MONICA_TOPANGA_BODY.budget_minutes * 60_000; // the 1000 s fastest + the budget

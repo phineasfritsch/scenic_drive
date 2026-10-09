@@ -7,6 +7,8 @@
  *   2b. The origin outside the served region (servedRegion.ts, T-0293) -> 422 region_unsupported. Costs nothing.
  *   3. The destination place id -> its coordinate, or 404. Not an upstream call; costs no plan.
  *   3b. T-0319 R5: a `reroute` token is recalled from PLANS; an unusable one is simply the fresh plan below.
+ *   3c. T-0332: a fresh plan whose route scores below RouteScore's 0.45 is 422 nothing_pretty with its offers
+ *      (honestFailure.ts); a reroute is exempt - the driver already accepted the drive.
  *   4. guardedPlan: the quota is read and RESERVED before the first router request; every request goes through
  *      the `call` it hands out, which refuses a 13th (P-COST-04).
  * Deps are injected so the tests count real fetch invocations; ROUTES["/plan"] builds them from env (T-0256:
@@ -17,6 +19,7 @@ import { closurePicker } from "./closuresNearest";
 import { withClosuresHazard, type ClosureSnapshot } from "./closuresStore";
 import { killSwitch, type KillEnv } from "./killSwitch";
 import type { LatLon } from "./latLon";
+import { HonestFailure, honestFailureBody } from "./honestFailure";
 import { BudgetError } from "./lambdaSearch";
 import { d1PlaceResolver } from "./placeResolver";
 import { parsePlanRequest } from "./planRequest";
@@ -57,7 +60,7 @@ export function planDepsFromEnv(env: PlanEnv & RouterEnv & { DB?: D1Database; PL
   return { ...router, resolvePlace: d1PlaceResolver(env.DB), plans: env.PLANS ? kvPlanTokens(env.PLANS) : null };
 }
 
-function failure(error: unknown): Response {
+function failure(error: unknown, budgetMinutes: number): Response {
   if (error instanceof UpstreamPaused) {
     const verdict = error.verdict;
     if (!verdict.ok && verdict.reason === "quota_exhausted") {
@@ -65,6 +68,7 @@ function failure(error: unknown): Response {
     }
     return json({ error: "planning_paused" }, 503);
   }
+  if (error instanceof HonestFailure) return json(honestFailureBody(budgetMinutes, error), 422);
   if (error instanceof PlanFailure) {
     if (error.reason === "no_scenic_alternative") return json({ error: "no_scenic_alternative" }, 422);
     return json({ error: error.reason }, 500);
@@ -120,6 +124,6 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
       pins: plan.waypoints, lambda: plan.lambda }) : null;
     return json({ ...withClosuresHazard(plan, snapshot, picker.dropped(), picker.crosses()), plan_token: token }, 200);
   } catch (error) {
-    return failure(error);
+    return failure(error, request.budgetMinutes);
   }
 }

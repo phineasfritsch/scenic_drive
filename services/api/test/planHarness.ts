@@ -107,14 +107,15 @@ export function harness(
   return { deps, sent, events, reserved, maxInFlight: () => peak };
 }
 
-/** A synthetic GraphHopper body: `points` evenly along a line, one osm_way_id run per way. */
+/** A synthetic GraphHopper body: `points` evenly along a line, one osm_way_id run per way, and (T-0332 R3) one
+ *  scenic_score run of 8 over the whole path unless `extra` names its own - so a synthetic route is a pretty one. */
 export function syntheticPath(timeMs: number, ways: number[], extra: Record<string, unknown[]> = {}): string {
   const points = ways.length + 1;
   const coordinates = Array.from({ length: points }, (_, i) => [-118.5 + i * 0.01, 34.0 + i * 0.005]);
   const runs = ways.map((way, i) => [i, i + 1, way]);
   return JSON.stringify({
     paths: [{ time: timeMs, distance: 1000 * ways.length, points: { type: "LineString", coordinates },
-      details: { osm_way_id: runs, ...extra } }],
+      details: { osm_way_id: runs, scenic_score: [[0, ways.length, 8]], ...extra } }],
   });
 }
 

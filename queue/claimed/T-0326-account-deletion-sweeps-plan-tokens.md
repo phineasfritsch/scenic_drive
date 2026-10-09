@@ -1,13 +1,13 @@
 ---
 id: T-0326
 title: Account deletion sweeps PLANS - a deleted user's remembered plan tokens (device id, place, Worker-computed pins) are gone with the account, not after the 12 h TTL (P-PRIV-04)
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T01:48:20Z
+lease_expires_at: 2026-10-09T09:48:20Z
+worktree: .worktrees/T-0326
+branch: task/T-0326
 exclusive: []
 touches: [services/api/src/, services/api/test/, ops/lib/named-tests.json, pins/PINS.yaml, queue/]
 pins_affected: [P-PRIV-04]
@@ -35,3 +35,4 @@ unchanged, compared whole; bind it under P-PRIV-04 and update the row's count in
 
 ## Log
 - 2026-10-08T15:23:40Z filed by agent/claude-opus-5 (T-0319 owner, fix round 1) from rv1-t0319's P-PRIV-04 note.
+- 2026-10-09T01:48:20Z claimed by agent/claude-opus-5; lease until 2026-10-09T09:48:20Z
