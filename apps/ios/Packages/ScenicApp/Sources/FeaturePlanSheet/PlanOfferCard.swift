@@ -12,25 +12,26 @@ struct PlanOfferCard: View {
     let onAction: (PlanFailureAction) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(copy.line)
-                .font(.body)
-                .foregroundStyle(DesignTokens.fg)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("plan.offer")
-            if let moreTime = copy.moreTime {
-                filled(moreTime, action: onMoreTime).accessibilityIdentifier("plan.offer.moreTime")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(copy.line)
+                    .font(.body)
+                    .foregroundStyle(DesignTokens.fg)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("plan.offer")
+                if let moreTime = copy.moreTime {
+                    filled(moreTime, action: onMoreTime).accessibilityIdentifier("plan.offer.moreTime")
+                }
+                if let backRoads = copy.backRoads {
+                    filled(backRoads, action: onBackRoads).accessibilityIdentifier("plan.offer.backRoads")
+                }
             }
-            if let backRoads = copy.backRoads {
-                filled(backRoads, action: onBackRoads).accessibilityIdentifier("plan.offer.backRoads")
-            }
-            Button(copy.action.title) { onAction(copy.action) }
-                .font(.headline)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .accessibilityIdentifier("plan.offer.action")
-            Spacer(minLength: 0)
+            .padding(20)
         }
-        .padding(20)
+        .safeAreaInset(edge: .bottom) {
+            PlanCardExit(copy.action.title) { onAction(copy.action) }
+                .accessibilityIdentifier("plan.offer.action")
+        }
     }
 
     private func filled(_ title: String, action: @escaping () -> Void) -> some View {
@@ -39,6 +40,7 @@ struct PlanOfferCard: View {
                 .font(.headline)
                 .foregroundStyle(DesignTokens.onPrimary)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DesignTokens.primary))
         }
