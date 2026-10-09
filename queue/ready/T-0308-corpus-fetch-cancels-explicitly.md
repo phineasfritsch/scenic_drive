@@ -1,7 +1,7 @@
 ---
 id: T-0308
 title: The corpus fetcher cancels a refused response explicitly (dataTask.cancel() beside completionHandler(.cancel)) so the refusal path completes the same way on Darwin and on swift-corelibs-foundation, and the 404 / wrong-range rows catch the error-order swap off Darwin too
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
