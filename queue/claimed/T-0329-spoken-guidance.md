@@ -120,3 +120,30 @@ xcodeproj lock.
   structure and to UNSKIPPABLE). After the fix: check-safety-disclaimer exit 0, check-map-attribution exit 0,
   check-ios-compile-guardrails exit 0 and `--prove-red` "PROVE-RED OK: 69 mutations red". ios-compile 37856383059
   success and ios-screenshot 37856393175 success on the merged head.
+- 2026-10-09T01:26:34Z PRE-REVIEW SURVIVORS CLOSED BY CLASS (fable pass at 53006b98; both in DriveVoice.swift, outside
+  entries 82-99). RULED: both are test holes, not code defects - the shipping DriveVoice keeps `approached`/`arrived`
+  across a mode change on the SAME line (R3 "nothing repeated") and decides the last leg by `end.vertex ==
+  segmentCount`; no Sources/ change, so no digest row moves (DriveVoice.swift's row stays 6dbf66f5...).
+  CLASS 1 (an utterance in a quiet state after a mode round trip on the same line; M1 `approached = []` and its
+  sibling `arrived = false` on a transition): new `roundTripRepeatsNothing` - every cue state the voice can hold
+  before leaving (pin approach at 0.017, destination approach at 0.037, arrival at 0.0398; pin at v2) x both round
+  trips (online: leave -> rerouting -> rerouteFailed -> rejoining -> back; offline: leave -> rejoining -> back), the
+  expected [[String]] a function of both (the said cue; the transitions' lines), compared whole; the return fix is
+  inside the same cue's bound, so the only right answer after it is [back].
+  CLASS 2 (a trigger bound off by one: the last-leg decision; M2 `>= segmentCount - 1`): new `pinAtEveryVertex` - a pin
+  at every interior vertex (v1, v2, v3) or none, crossed with a fix ~334 m before every vertex v1..v4; expected per
+  fix = pin's vertex -> [next], v4 -> [destination], else [] (rows a function of the pin variant), compared whole.
+  Both named under P-SAFE-09 in ops/lib/named-tests.json (19 -> 21). Population entries 100 (approaches forgotten),
+  101 (arrival forgotten), 102 (last leg one vertex early), floor 99 -> 102, committed BEFORE the tests (2eeb16a0):
+  `drive.py --only 100,101,102` "MISSED 100 / MISSED 101 / MISSED 102 ... caught by the test that names it: 0 of 3
+  (... MISSED 3 ...) MUTATE FAILED"; after the tests (bc2d1854): "caught 100 / 101 by: P-SAFE-09: a mode round trip
+  on the same line repeats no cue ...; caught 102 by: P-SAFE-09: with a pin at every interior vertex, or none ...;
+  caught by the test that names it: 3 of 3 (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0) MUTATE
+  OK". drive_run FILTER list: "Test run with 51 tests in 8 suites passed" (49 + 2); `run-named-tests.py P-SAFE-09`
+  "NAMED P-SAFE-09 passed=21/21"; check-mutate-population, check-drive-voice, check-line-cap (DriveVoiceTests.swift
+  213 lines), check-safety-disclaimer, check-map-attribution, check-pins-yaml, queue-check exit 0.
+  NON-BLOCKING NOTE (--built-products discovery seen only green): now seen red - `check-background-modes.py
+  --built-products` on an empty products dir "expected exactly one ScenicDrive.app/Info.plist ..., found 0" exit 1;
+  with two ScenicDrive.app copies "found 2" exit 1; with one (the source plist) exit 0 "... in the source plist and
+  the BUILT one". No Apple or Sources/ file changed in this round, so ios-compile 37856383059 / ios-screenshot
+  37856393175 (both success, merged head) stand and are not re-triggered.
