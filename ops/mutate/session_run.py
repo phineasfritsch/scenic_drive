@@ -21,7 +21,7 @@ from session_mutations import ROOT
 SCRATCH = os.environ.get("SESSION_MUTATE_SCRATCH", ".build/mutate-session")
 # The suites every `killers` entry names, by their type names.
 FILTER = ("AttestClientTests|KeychainDecisionTests|SessionStoreTests|SurpriseLedgerWriteTests|SurpriseShowingTests"
-          "|SessionAccountTests|PlanBearerTests|SessionSkewTests")
+          "|SessionAccountTests|PlanBearerTests|SessionSkewTests|PlanSessionRetryTests")
 # `Test "<display name>" recorded an issue`. ASCII only: the failure glyph mis-decodes on this console.
 FAIL_LINE = re.compile(r'Test\s+(?:"([^"]*)"|([A-Za-z_]\w*\(\)))\s+recorded an issue')
 
