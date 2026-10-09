@@ -599,4 +599,6 @@ def main(argv) -> int:
 
 
 if __name__ == "__main__":
+    import mutate_only  # ops/mutate/ is sys.path[0] for a driver run as a script
+    mutate_only.refuse_unsupported(sys.argv[1:])
     raise SystemExit(main(sys.argv[1:]))

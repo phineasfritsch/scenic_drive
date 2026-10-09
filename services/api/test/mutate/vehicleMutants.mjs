@@ -19,6 +19,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { onlyIds } from "./onlyIds.mjs";
 
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-vehicle");
@@ -114,6 +115,7 @@ function verdict(run) {
 }
 
 function main(argv) {
+  const only = onlyIds(argv, MUTATIONS.map((x) => x.id));
   if (argv.includes("--prove-floor")) {
     const arms = [
       ["empty table", floorRefusal([])],
@@ -137,10 +139,6 @@ function main(argv) {
   const dirty = spawnSync("git", ["status", "--porcelain", "--", "src"], { cwd: API, encoding: "utf8" });
   if (dirty.status !== 0 || dirty.stdout.trim() !== "") { console.log("REFUSING TO RUN: services/api/src is not clean"); return 2; }
 
-  const onlyArg = argv.find((a) => a.startsWith("--only="));
-  const only = onlyArg ? onlyArg.slice("--only=".length).split(",") : null;
-  const unknown = (only ?? []).filter((id) => !MUTATIONS.some((x) => x.id === id));
-  if (unknown.length) { console.log(`REFUSING TO RUN: --only names no entry ${unknown.join(", ")}`); return 2; }
   const chosen = only ? MUTATIONS.filter((x) => only.includes(x.id)) : MUTATIONS;
   const prove = argv.includes("--prove-vacuity");
   const extra = prove ? ["-t", "^no test is named this$", "--passWithNoTests"] : [];
