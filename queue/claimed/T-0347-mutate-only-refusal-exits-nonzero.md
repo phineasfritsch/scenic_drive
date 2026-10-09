@@ -87,3 +87,14 @@ entry of this population" and still exits 0, so a range typo looks like a pass w
   isochrone quota region tier vehicle) refuse `STALE <id>: anchor occurs 0 times in src/...` and plan/loop/trip
   report a red baseline - not established here whether that is a cwd-relative read (the drivers may expect
   cwd services/api) or tables stale against src; it no longer decides an `--only` typo, which now refuses first.
+- 2026-10-09T20:49:23Z ACCEPTANCE re-run by agent/claude-opus-5 on 22d23611 after `git fetch origin`: origin/main
+  is b048be30, already an ancestor (`git merge-base --is-ancestor origin/main HEAD` true), so there was nothing to
+  merge. (1) MEASURE: the table of 2026-10-09T19:59:02Z above. (2) every driver exits 64 on an `--only` that names
+  no entry or does not parse: `MUTATE-ONLY OK: 110 of 110 driver runs refused with exit 64 (55 drivers x 2
+  probes)`, exit 0; ranges refused everywhere (R3); one parser per language (R6). (3) the meta-check seen red with
+  one driver reverted (plansheet.py, then vehicleMutants.mjs: `MUTATE-ONLY FAILED: 108 of 110`, exit 1 each) and
+  green as quoted. Gates, bare: check-mutate-population.py exit 0 (`every added module is covered or allowlisted;
+  the floor of 147 holds`); check-exec-bits `P-OPS-01: 204 files, 23 required present, all modes correct`;
+  check-pins-yaml `PINS-YAML ok pins=50 fields=403`; `bash ops/queue-check` `QUEUE OK (340 tasks)`. NOT closed
+  here: `ops/check-pins --source-only` was started at 20:15Z on this shared box and had not finished when this was
+  written (sibling swift/vitest runs were holding the CPU), so its verdict is CI's.
