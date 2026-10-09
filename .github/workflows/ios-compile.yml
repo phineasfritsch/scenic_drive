@@ -73,6 +73,10 @@ jobs:
       # now (T-0167) and the build runs with -disableAutomaticPackageResolution, so a resolution that drifts
       # from it fails the build rather than being rewritten in place; this step remains the record of what
       # the run left in the tree, printed rather than asserted.
+      # T-0329 R5 (P-PRIV-02): the BUILT app's UIBackgroundModes is exactly the ruled set - the key Apple reads.
+      - name: P-PRIV-02 on the built plist
+        run: python3 ops/lib/check-background-modes.py --built-products "$GITHUB_WORKSPACE/DerivedData/Build/Products"
+
       - name: what the build wrote into the tree
         if: always()
         run: |
