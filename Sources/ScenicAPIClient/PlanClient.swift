@@ -64,7 +64,8 @@ public struct PlanClient: Sendable {
         }
     }
 
-    /// One validated body, encoded with sorted keys, as ONE request carrying IdentityHeaders' set; the reply by R6.
+    /// One validated body, encoded with sorted keys, as ONE request carrying IdentityHeaders' set (a second only after a
+    /// 401 to its Bearer, T-0333 R3 - PlanFamilySend); the reply by R6.
     private func send(_ body: PlanRequestBody, installID: any InstallIDProvider) async throws(PlanError) -> PlanResponse {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
@@ -72,14 +73,12 @@ public struct PlanClient: Sendable {
         guard let bytes = try? encoder.encode(body) else { throw .refusedOnDevice(.originOutOfRange) }
 
         let account = await accountToken?.accountToken()
-        let bearer = await session?.planSession(account: account)
-        let request = PlanHTTPRequest(url: base.appendingPathComponent("plan"), method: "POST",
-                                      headers: IdentityHeaders.json(device: installID.installID(),
-                                                                     account: account, bearer: bearer),
-                                      body: bytes)
         let reply: PlanHTTPReply
         do {
-            reply = try await transport.send(request)
+            // T-0333 R3: a 401 to a Bearer is handed back, the session asked again, and the same bytes sent once more.
+            reply = try await PlanFamilySend.send(base.appendingPathComponent("plan"), body: bytes,
+                                                  device: installID.installID(), account: account, session: session,
+                                                  transport: transport)
         } catch {
             throw .routingOffline
         }

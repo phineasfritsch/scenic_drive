@@ -8,7 +8,7 @@ import { readClosures, type ClosureSnapshot } from "./closuresStore";
 import type { QuotaCounter } from "./QuotaCounter";
 import type { Tier } from "./quota";
 import { countersFromNamespace } from "./quotaCounters";
-import { AUTHORIZATION_HEADER, identifyCaller, type SessionEnv } from "./sessionIdentity";
+import { AUTHORIZATION_HEADER, identifySession, SESSION_REJECTED, type SessionEnv } from "./sessionIdentity";
 import type { UpstreamDeps } from "./upstream";
 
 /** Every request to our GraphHopper carries this, valued ROUTER_SECRET; the VPS refuses without it (P-COST-03). */
@@ -35,6 +35,8 @@ export interface RouterEnv extends SessionEnv {
 export interface Identity {
   userId: string;
   tier: Tier;
+  /** T-0333 R1: the Bearer did not verify and the flag is closed - /plan, /trip and /loop answer 401, reserving nothing. */
+  rejected?: true;
 }
 
 export interface RouterDeps {
@@ -80,10 +82,13 @@ export function routerDepsFromEnv(env: RouterEnv): RouterDeps | null {
     routerBase: base,
     // The bucket is the install (R2); a live entitlement of x-scenic-account-token lifts anon to paid (T-0272 R1-R4).
     // T-0278 R6: a verified session JWT first; the header identity above only without the secret or under the flag.
-    identify: (req) => identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => {
-      const device = deviceIdentity(req);
-      return (await accountTier(req, env.DB, now().getTime())) === "paid" ? { ...device, tier: "paid" } : device;
-    }),
+    identify: async (req) => {
+      const who = await identifySession(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => {
+        const device = deviceIdentity(req);
+        return (await accountTier(req, env.DB, now().getTime())) === "paid" ? { ...device, tier: "paid" } : device;
+      });
+      return who === SESSION_REJECTED ? { userId: UNIDENTIFIED_DEVICE, tier: "anon", rejected: true } : who;
+    },
     closures: () => readClosures(env.CLOSURES, now().getTime()),
   };
 }

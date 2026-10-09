@@ -31,7 +31,7 @@ SUBJECT_MODULES = ("Sources/ScenicAPIClient/AttestClient.swift", "Sources/Scenic
                    "Sources/ScenicAPIClient/KeychainWrite.swift", "Sources/ScenicAPIClient/InstallIDDecision.swift",
                    "Sources/ScenicAPIClient/SessionRecord.swift", "Sources/ScenicAPIClient/SessionStep.swift",
                    "Sources/ScenicAPIClient/SessionStore.swift", "Sources/ScenicAPIClient/LedgerSurpriseSource.swift",
-                   "Sources/ScenicKit/Surprise/SurpriseShowing.swift")
+                   "Sources/ScenicKit/Surprise/SurpriseShowing.swift", "Sources/ScenicAPIClient/PlanFamilySend.swift")
 
 from session_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)

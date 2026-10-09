@@ -9,7 +9,8 @@ import Foundation
 /// A session is handed out only while its act is the purchase asked about (nil for none): the Worker reads a verified
 /// Bearer's act and ignores the header beside it, so a session issued before a purchase is never sent for it.
 /// A 401 hands the token back (`sessionRejected`): it is dropped for this launch and the next call renews if the
-/// acquisition is unspent. An assertion the Worker rejects forgets the key, so the next launch attests a new one. No
+/// acquisition is unspent. T-0333 R4: a plan-family 401 (`planSessionRejected`) drops it the same way and, the FIRST
+/// time in a launch for that purchase value, returns the value's acquisition - at most two per value per launch. An assertion the Worker rejects forgets the key, so the next launch attests a new one. No
 /// session, for any reason, is nil: the ledger is not called, and a plan-family request carries no Bearer.
 public actor SessionStore: LedgerSessionProvider, PlanSessionProvider {
     let client: AttestClient
@@ -25,6 +26,8 @@ public actor SessionStore: LedgerSessionProvider, PlanSessionProvider {
     private var current: KeychainRead<SessionRecord> = .absent
     /// The purchase token values ("" for none) whose one acquisition this launch has spent.
     private var spent: Set<String> = []
+    /// The purchase token values whose one re-acquisition after a plan-family 401 this launch has granted (T-0333 R4).
+    private var regranted: Set<String> = []
 
     public init(client: AttestClient, attester: any AppAttesting, storage: any SessionStorage,
                 account: (any AccountTokenProvider)?, now: @escaping @Sendable () -> Date) {
@@ -47,6 +50,13 @@ public actor SessionStore: LedgerSessionProvider, PlanSessionProvider {
         guard case .valid(let record) = current, record.token == token else { return }
         current = .valid(SessionRecord(keyId: record.keyId, token: record.token, expiresAt: .distantPast,
                                        act: record.act))
+    }
+
+    public func planSessionRejected(_ token: String) async {
+        guard case .valid(let record) = current, record.token == token else { return }
+        await sessionRejected(token)
+        let act = record.act ?? ""
+        if regranted.insert(act).inserted { spent.remove(act) }
     }
 
     private func session(for account: UUID?) async -> String? {
