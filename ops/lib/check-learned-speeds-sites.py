@@ -36,7 +36,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 WHITELIST = pathlib.Path(__file__).resolve().parent / "check-learned-speeds-sites.txt"
 SCANNED = ("Sources", "apps")
 SKIP_DIRS = {".build", "DerivedData", ".swiftpm"}
-IDENTIFIERS = ("LearnedCorridorSpeeds", "CorridorSlot", "CorridorRatio", "RetimedRoute", "TrafficProvider", "CorridorClock")
+IDENTIFIERS = ("LearnedCorridorSpeeds", "CorridorSlot", "CorridorRatio", "RetimedRoute", "TrafficProvider", "CorridorClock",
+               "CorridorSlotRow", "CorridorLearner", "CorridorRatioRecord", "CorridorRatioStore")
 NAMES = re.compile(r"\b(?:%s)\b" % "|".join(IDENTIFIERS))
 
 
@@ -114,6 +115,14 @@ RED_ROWS = (
      "CorridorClock: Sendable, Equatable {", "CorridorClock: Sendable, Equatable, Codable {"),
     ("the app holds a corridor clock (T-0325)", "apps/ios/Packages/ScenicApp/Sources/Probe/ClockProbe.swift", None,
      "var probe: CorridorClock?\n"),
+    ("CorridorSlotRow gains Codable (T-0343)", "Sources/ScenicKit/Traffic/CorridorSlotRow.swift",
+     "CorridorSlotRow: Equatable, Sendable {", "CorridorSlotRow: Equatable, Sendable, Codable {"),
+    ("the kept record gains Encodable (T-0343)", "Sources/PlaceStore/CorridorRatioRecord.swift",
+     "CorridorRatioRecord: Sendable, Equatable {", "CorridorRatioRecord: Sendable, Equatable, Encodable {"),
+    ("Telemetry reads the store (T-0343)", "Sources/Telemetry/StoreProbe.swift", None,
+     "func probe(_ store: CorridorRatioStore) {}\n"),
+    ("a feature holds the learner (T-0343)", "apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/LearnerProbe.swift",
+     None, "var probe: CorridorLearner?\n"),
 )
 
 
