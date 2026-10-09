@@ -100,3 +100,25 @@ P-SAFE-02's layers still see each hazard; shots looked at.
     A4 (one line per run, in order). No PINS.yaml edit.
   - R6 Population: a new driver family ops/mutate/hazardcopy*.py (tripsheet's three-file shape), subject
     HazardCopy.swift, registered in DRIVERS and COVERED_FLOOR.
+- 2026-10-09T09:16:30Z ACCEPTANCE RUN (origin/main fetched and merged: "Already up to date" at bdb77ca6; head e3da9c12
+  plus this Log commit, which touches no measured file).
+  - A6 RED (54ef92e0, the stub): `swift test --filter HazardCopyTests` exit=1, Suite "HazardCopyTests" failed with
+    592 issues; recorded issues by name: "every Worker hazard row reads its ruled line, whole" 20, "an unlisted value
+    or kind reads a safe line, never the raw key" 546, "every hazard flag reads its ruled line, whole" 17, "the strip
+    keeps one line per hazard, in order" 2, "no copy line is empty, and none spells a wire key" 7.
+  - A1-A5 GREEN (2c15dbb6 on): exit=0, all five named tests passed. Touched suites on the final head:
+    `--filter "HazardCopyTests|HazardStrip"` "Test run with 34 tests in 3 suites passed".
+  - A7: grep run.kind / run.value over apps/ios/Packages/ScenicApp/Sources: 0 lines; HazardCopy referenced only in
+    FeaturePlanSheet/PlanPreviewCard.swift. Line counts: HazardCopy.swift 106, HazardCopyTests.swift 175,
+    PlanPreviewCard.swift 93.
+  - A8: `python ops/mutate/hazardcopy.py` "caught by the test that names it: 23 of 23 (wrong killer 0, trapped 0,
+    compile-only 0, MISSED 0, skipped 0)", E1 MISSED as required, "MUTATE OK caught=23/23 equivalent_caught=0";
+    `--prove-vacuity` "VACUITY PROOF OK: ... caught=0 (need 0) and MISSED=23 of 23"; `--prove-floor` "FLOOR PROOF
+    OK: 7 of 7 arms refused and the control did not".
+  - A9: check-mutate-population exit 0 ("every added module is covered or allowlisted; the floor of 145 holds");
+    check-line-cap exit 0 ("526 Swift files ... none over 300 lines"); check-pins-yaml exit 0 ("pins=49
+    fields=395"); queue-check "QUEUE OK (331 tasks)"; bare check-safety-disclaimer-linked exit 0 with the
+    HazardCopy.swift row approved. ios-compile 37906862915 success, ios-screenshot 37906867328 success (both on
+    2c15dbb6, the last commit touching apps/ios or Sources). LOOKED AT: plan-preview-light - the strip reads a
+    warning glyph and "Local traffic only on part of this route - you may not be allowed through", no raw key;
+    plan-trip-light and plan-loop-dark - no hazard line, as M2/R4 rule (their bodies carry none; T-0340).
