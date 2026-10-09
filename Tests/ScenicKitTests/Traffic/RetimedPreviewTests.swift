@@ -63,26 +63,34 @@ import Testing
                                   departsAt: Self.departs) == Self.server)
     }
 
-    /// The M7 exit on the Linux path: drives through DriveSession and CorridorClock clear the badge at the fifth.
+    /// The M7 exit on the Linux path: drives through DriveSession and CorridorClock clear the badge at the fifth,
+    /// under every pin variant (rv1-t0325 B1): the preview carries the variant's line, runs and pins.
     @Test("five completed drives clear the badge and four do not")
     func fiveDrivesClearTheBadge() {
-        var speeds = LearnedCorridorSpeeds(timeZone: Self.utc)
-        var oracle = LearnedCorridorSpeeds(timeZone: Self.utc)
         let clean = [CorridorClockTests.f0, CorridorClockTests.f1, CorridorClockTests.f2, CorridorClockTests.f3,
                      CorridorClockTests.arrive]
         let actual = [100.0, 150, 50, 100]
-        for drive in 1...5 {
-            speeds = CorridorClockTests.drive(clean, into: speeds)
-            for edge in 0..<4 {
-                oracle.record(cell: Self.c[edge], hourOfWeek: HourOfWeek(Self.hours[edge])!,
-                              actualSeconds: actual[edge], freeFlowSeconds: Self.freeFlow[edge])
+        for variant in CorridorClockTests.variants {
+            let server = PlanPreview(route: variant.line, etaSeconds: 333, fastestEtaSeconds: 250, etaIsEstimate: true,
+                                     hazards: Self.server.hazards, waypoints: variant.pins, lambda: 1.5,
+                                     continuation: Self.server.continuation)
+            var speeds = LearnedCorridorSpeeds(timeZone: Self.utc)
+            var oracle = LearnedCorridorSpeeds(timeZone: Self.utc)
+            for drive in 1...5 {
+                speeds = CorridorClockTests.drive(clean, variant, into: speeds).speeds
+                for edge in 0..<4 {
+                    oracle.record(cell: Self.c[edge], hourOfWeek: HourOfWeek(Self.hours[edge])!,
+                                  actualSeconds: actual[edge], freeFlowSeconds: Self.freeFlow[edge])
+                }
+                #expect(speeds == oracle, "\(variant.name): drive \(drive)")
+                let answer = RetimedPreview.of(server, timeRuns: variant.runs, by: speeds, departsAt: Self.departs)
+                let learnedEta = (0..<4).map { Self.freeFlow[$0] / oracle.slots[CorridorSlot(
+                    cell: Self.c[$0], hour: HourOfWeek(Self.hours[$0])!)]!.ratio }.reduce(0, +)
+                let expected = PlanPreview(route: variant.line, etaSeconds: drive < 5 ? 310 : learnedEta,
+                                           fastestEtaSeconds: 250, etaIsEstimate: drive < 5, hazards: server.hazards,
+                                           waypoints: variant.pins, lambda: 1.5, continuation: server.continuation)
+                #expect(answer == expected, "\(variant.name): drive \(drive)")
             }
-            #expect(speeds == oracle, "drive \(drive)")
-            let answer = RetimedPreview.of(Self.server, timeRuns: Self.runs, by: speeds, departsAt: Self.departs)
-            let learnedEta = (0..<4).map { Self.freeFlow[$0] / oracle.slots[CorridorSlot(
-                cell: Self.c[$0], hour: HourOfWeek(Self.hours[$0])!)]!.ratio }.reduce(0, +)
-            #expect(answer == Self.expected(eta: drive < 5 ? 310 : learnedEta, estimate: drive < 5),
-                    "drive \(drive)")
         }
     }
 }
