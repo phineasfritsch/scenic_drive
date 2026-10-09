@@ -2,7 +2,10 @@
 # IS THE STATE SANE. One command, one line per check, distinct exit codes, never mutates anything.
 #
 #   ops/sane            repo-only checks (2)
-#   ops/sane --prod     + deployed version vs this checkout (3), backend health (7), legal URLs (9)
+#   ops/sane --prod     + deployed version vs this checkout (3), backend health (7), quota/kill switch (6),
+#                         legal URLs (9), corpus manifest (8)
+#   SANE_SCOPE=prod     skips the local checks (2, 4, 10) and prints a skip row for each - ops/lib/check-sane-prod
+#                         drives the --prod checks this way against a local fake Worker
 #
 # Exit codes (the FIRST failing check in this order decides; all checks still run and print):
 #   2  repo not sane: untracked .swift inside a buildable/package folder, CRLF in tracked files, autocrlf=true,
@@ -10,11 +13,15 @@
 #   7  backend down: /__health unreachable or not ok, or no API URL to ask
 #   3  deployed Worker != this checkout: live git_sha is not in HEAD's history, or services/api changed since it
 #      (only reachable when 7 passed - the version check runs inside the "backend is up" branch)
+#   6  quota / kill switch: /__health says the kill switch is set, or the month's upstream calls have reached the
+#      trip point or are within 10% of it (calls*10 >= trip_at*9), or the fields cannot be read (T-0344)
 #   9  legal URLs (Terms, Privacy) not returning 200
+#   8  corpus manifest != this checkout: the published manifest (CORPUS_MANIFEST_URL or ops/corpus-manifest-url)
+#      is unreachable, or fails CorpusManifest's field rules, or its schema_version != schema.py's (T-0344)
 #   4  region extract out of bounds: a built work/<region>/meta.json disagrees with the counts recorded
 #      in regions/<region>/region.json by more than the tolerance, or cannot be read at all (T-0024)
 #  10  another worktree holds work that is not on origin - invisible to every other check here
-#   5/6/8 reserved: golden routes, quota/kill switch, R2 manifests - added with T-0008/T-0014.
+#   5 reserved: golden routes live against the router - added with T-0008.
 #
 # That list is a comment, and a comment cannot be enforced. EXIT_ORDER below says the same thing as DATA, and
 # ops/lib/check-sane-exit-order (pin P-OPS-05) refuses when it disagrees with the order the fail() calls in
@@ -24,22 +31,27 @@ cd "$(git rev-parse --show-toplevel)"
 PY="${PYTHON:-$(command -v python3 || command -v python)}"
 CR=$(printf '\r')
 prod=0; [[ "${1:-}" == "--prod" ]] && prod=1
+local_checks=1; [[ "${SANE_SCOPE:-}" == "prod" ]] && local_checks=0
 rc=0
 # The documented precedence, as data. Read by ops/lib/check-sane-exit-order, which compares it against the
 # order the fail() calls below appear in. Reorder a check block and this array must move with it.
-EXIT_ORDER=(2 7 3 9 4 10)
+EXIT_ORDER=(2 7 3 6 9 8 4 10)
 say()  { printf '%-9s %-6s %s\n' "$1" "$2" "$3"; }
 fail() { say "$1" "FAIL" "$2"; [[ $rc -eq 0 ]] && rc=$3; }
 ok()   { say "$1" "ok" "$2"; }
 skip() { say "$1" "skip" "$2"; }
 
 # ---- 2. repo ----------------------------------------------------------------------------------------
+if [[ $local_checks -eq 0 ]]; then
+  skip "repo" "SANE_SCOPE=prod"
+else
 stray="$(git status --porcelain --untracked-files=all -- Sources Tests apps/ios 2>/dev/null | grep -E '^\?\? .*\.swift$' | head -3 | tr '\n' ' ')"
 if [[ -n "$stray" ]]; then fail "repo" "untracked .swift is IN the build (buildable folders): $stray" 2; else ok "repo" "no stray .swift"; fi
 crlf="$(git ls-files -z | xargs -0 grep -lI "$CR" -- 2>/dev/null | head -3 | tr '\n' ' ')"
 if [[ -n "$crlf" ]]; then fail "crlf" "tracked files with CRLF: $crlf" 2; else ok "crlf" "none"; fi
 if [[ "$(git config --get core.autocrlf || echo false)" == "true" ]]; then fail "autocrlf" "true" 2; else ok "autocrlf" "$(git config --get core.autocrlf || echo unset)"; fi
 if grep -qE '^\* text=auto eol=lf' .gitattributes 2>/dev/null; then ok "gitattrs" "eol=lf"; else fail "gitattrs" "missing eol=lf" 2; fi
+fi
 
 # ---- 3 / 7 / 9. production --------------------------------------------------------------------------
 if [[ $prod -eq 1 ]]; then
@@ -65,6 +77,9 @@ if [[ $prod -eq 1 ]]; then
       else
         ok "version" "live $(git rev-parse --short "$live") == Worker code at HEAD $(git rev-parse --short "$head")"
       fi
+      # 6: the kill switch and the month's upstream counter, from the /__health answer already fetched above.
+      qout="$(printf '%s' "$health" | "$PY" ops/lib/sane_prod.py quota 2>&1)"; qrc=$?
+      if [[ $qrc -eq 0 ]]; then ok "quota" "$qout"; else fail "quota" "$qout" 6; fi
     fi
   fi
   if [[ -f ops/legal-urls ]]; then
@@ -76,9 +91,22 @@ if [[ $prod -eq 1 ]]; then
   else
     skip "legal" "no ops/legal-urls yet (Terms + Privacy pages land with M6)"
   fi
+  # 8: the published corpus manifest, read from the URL the app fetches; the Worker has no R2 binding to ask.
+  murl="${CORPUS_MANIFEST_URL:-$(cat ops/corpus-manifest-url 2>/dev/null || true)}"
+  if [[ -z "$murl" ]]; then
+    skip "manifest" "no corpus manifest URL (CORPUS_MANIFEST_URL or ops/corpus-manifest-url) - nothing published yet"
+  else
+    mbody="$(curl -fsS --max-time 10 -A scenic-ops-sane/1 "$murl" 2>/dev/null)"; mrc=$?
+    if [[ $mrc -ne 0 ]]; then
+      fail "manifest" "$murl -> unreachable or not 200 (curl exit $mrc)" 8
+    else
+      mout="$(printf '%s' "$mbody" | "$PY" ops/lib/sane_prod.py manifest services/etl/etl/schema.py 2>&1)"; mprc=$?
+      if [[ $mprc -eq 0 ]]; then ok "manifest" "$mout"; else fail "manifest" "$mout" 8; fi
+    fi
+  fi
+  skip "tiles" "no tiles manifest shape exists yet (BasemapResolver reads tiles/la.pmtiles) - T-0345"
   skip "corpus" "T-0008 (graph hash, counts, gate parity)"
   skip "goldens" "T-0008 (live routing goldens)"
-  skip "quota" "T-0014 (kill switch, projected calls)"
 fi
 
 # ---- 4. region extract bounds -----------------------------------------------------------------------
@@ -93,7 +121,9 @@ fi
 # a dead backend plus one out-of-band extract exited 4 where the table said 7 - the same defect check 10 had
 # already been moved down here to fix. EXIT_ORDER at the top of this file and ops/lib/check-sane-exit-order
 # (P-OPS-05) now make that disagreement a failing check rather than something a reader has to notice.
-if [[ -d services/etl/etl ]]; then
+if [[ $local_checks -eq 0 ]]; then
+  skip "bounds" "SANE_SCOPE=prod"
+elif [[ -d services/etl/etl ]]; then
   bounds="$(cd services/etl && "$PY" -m etl.checkbounds 2>&1)"; brc=$?
   first="$(printf '%s\n' "$bounds" | head -1)"
   rest="$(printf '%s\n' "$bounds" | tail -n +2 | head -3 | tr '\n' ' ')"
@@ -118,7 +148,9 @@ fi
 # ending 7, 9, 10, and `fail` keeps the first code it is given. When this block sat above the production
 # section, a dead backend plus one stranded worktree exited 10 instead of 7 - the code contradicted the
 # table three lines above it.
-if [[ -f ops/lib/check-worktrees ]]; then
+if [[ $local_checks -eq 0 ]]; then
+  skip "worktrees" "SANE_SCOPE=prod"
+elif [[ -f ops/lib/check-worktrees ]]; then
   wt_out="$(bash ops/lib/check-worktrees 2>&1)"; wt_rc=$?
   # Read the counts the check EMITS. The previous version derived them with `grep -c '^  '` over this
   # output, which also matched the continuation lines of the check's own summary, and printed "6

@@ -68,6 +68,7 @@ struct PlanPreviewCard: View {
         }
         .safeAreaInset(edge: .bottom) {
             AttributionFooter(text: PlanPreview.attribution)
+                .background(.bar)
         }
     }
 
