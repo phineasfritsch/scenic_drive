@@ -1,13 +1,13 @@
 ---
 id: T-0353
 title: check-mutate-only probes a range of two REAL ids for name-keyed populations (mjs drivers, substring drivers, plansheet E-ids), so an `A-B` name-range expansion in onlyIds.mjs / mutate_only is refused
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T23:39:59Z
+lease_expires_at: 2026-10-10T03:39:59Z
+worktree: .worktrees/T-0353
+branch: task/T-0353
 exclusive: []
 touches: [ops/lib/check-mutate-only.py, ops/mutate/mutate_only.py, services/api/test/mutate/onlyIds.mjs]
 pins_affected: [P-PROC-06]
@@ -31,3 +31,4 @@ branch red with its own mutant (T-0347 owner stillOpen 2).
 
 ## Log
 - 2026-10-09T23:40:00Z filed by agent/claude-opus-5 (orchestrator) from rv2-t0347 recordable 2.
+- 2026-10-09T23:40:00Z claimed by agent/claude-opus-5; lease until 2026-10-10T03:39:59Z
