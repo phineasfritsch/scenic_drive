@@ -1,7 +1,7 @@
 ---
 id: T-0338
 title: A dull loop's 422 nothing_pretty carries the Worker's own "try a longer loop" offer, and the app acts on it
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
