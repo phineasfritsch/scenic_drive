@@ -22,6 +22,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { onlyIds } from "./onlyIds.mjs";
 
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-closures");
@@ -221,6 +222,7 @@ function verdict(run) {
 }
 
 function main(argv) {
+  const only = onlyIds(argv, MUTATIONS.map((x) => x.id));
   if (argv.includes("--prove-floor")) {
     const arms = [
       ["empty table", floorRefusal([])],
@@ -245,9 +247,6 @@ function main(argv) {
   if (dirty.status !== 0 || dirty.stdout.trim() !== "") { console.log("REFUSING TO RUN: services/api/src is not clean"); return 2; }
 
   const prove = argv.includes("--prove-vacuity");
-  const only = argv.find((a) => a.startsWith("--only="))?.slice("--only=".length).split(",") ?? null;
-  const unknown = (only ?? []).filter((id) => !MUTATIONS.some((x) => x.id === id));
-  if (only !== null && (only.length === 0 || unknown.length > 0)) { console.log(`REFUSING: unknown --only id(s) ${unknown.join(",")}`); return 2; }
   const run = only === null ? MUTATIONS : MUTATIONS.filter((x) => only.includes(x.id));
   const extra = prove ? ["-t", "^no test is named this$", "--passWithNoTests"] : [];
   console.log(`population mutations=${MUTATIONS.length} (floor ${MIN_MUTATIONS}) equivalent=${EQUIVALENT.length} `

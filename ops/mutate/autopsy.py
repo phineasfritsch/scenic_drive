@@ -27,6 +27,8 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import mutate_only
+
 # A stale .pyc of the population is a false verdict (see straightline.py): none is written, none is read.
 sys.dont_write_bytecode = True
 shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_errors=True)
@@ -102,6 +104,7 @@ def prove_floor() -> int:
 
 
 def main(argv) -> int:
+    only = mutate_only.select_only(argv, [e[0] for e in MUTATIONS + EQUIVALENT], split=False)
     if "--prove-floor" in argv:
         return prove_floor()
     prove = "--prove-vacuity" in argv
@@ -110,11 +113,6 @@ def main(argv) -> int:
         sys.stdout.write("REFUSING TO RUN: %s\n" % refusal)
         return 2
     # `--only NAME` (repeatable): run just the named entries - the floor above still judges the whole file.
-    only = [argv[i + 1] for i, a in enumerate(argv[:-1]) if a == "--only"]
-    unknown = [n for n in only if n not in {e[0] for e in MUTATIONS + EQUIVALENT}]
-    if unknown:
-        sys.stdout.write("REFUSING: --only names no entry: %s\n" % ", ".join(unknown))
-        return 2
     population = [m for m in MUTATIONS if not only or m[0] in only]
     equivalent = [e for e in EQUIVALENT if not only or e[0] in only]
     sys.stdout.write("population  mutations=%d (floor %d)  equivalent=%d (floor %d)  subjects=%s  test "
