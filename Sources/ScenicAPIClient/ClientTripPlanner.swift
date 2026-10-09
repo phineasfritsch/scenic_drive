@@ -27,6 +27,6 @@ public struct ClientTripPlanner: TripPlanning {
                           TripItineraryDay(day: $0.day, driveSeconds: $0.driveSeconds,
                                            distanceMeters: $0.distanceMeters, overnight: $0.overnight,
                                            path: $0.leg)
-                      })
+                      }, closures: response.closuresHazard)
     }
 }

@@ -15,10 +15,13 @@ public struct TripResponse: Equatable, Sendable {
     public let lambda: Double
     public let etaIsEstimate: Bool
     public let days: [TripResponseDay]
+    /// T-0341 R3: the answer's closures_hazard, read fail-closed by ClosuresHazardReader; `.clear` when absent.
+    public let closuresHazard: ClosuresHazard
 
     public init(isFull: Bool, route: [Coordinate], distanceMeters: Double, etaSeconds: Double,
                 fastestEtaSeconds: Double, ceilingSeconds: Double, budgetSeconds: Double, extraBudgetPercent: Int,
-                lambda: Double, etaIsEstimate: Bool, days: [TripResponseDay]) {
+                lambda: Double, etaIsEstimate: Bool, days: [TripResponseDay], closuresHazard: ClosuresHazard = .clear) {
+        self.closuresHazard = closuresHazard
         self.isFull = isFull
         self.route = route
         self.distanceMeters = distanceMeters
@@ -56,6 +59,7 @@ extension TripResponse: Decodable {
         case budgetSeconds = "budget_s"
         case extraBudgetPercent = "extra_budget_pct"
         case etaIsEstimate = "eta_is_estimate"
+        case closuresHazard = "closures_hazard"
     }
 
     public init(from decoder: Decoder) throws {
@@ -75,6 +79,7 @@ extension TripResponse: Decodable {
                   extraBudgetPercent: try top.decode(Int.self, forKey: .extraBudgetPercent),
                   lambda: try top.decode(Double.self, forKey: .lambda),
                   etaIsEstimate: try top.decode(Bool.self, forKey: .etaIsEstimate),
-                  days: try top.decode([TripResponseDay].self, forKey: .days))
+                  days: try top.decode([TripResponseDay].self, forKey: .days),
+                  closuresHazard: ClosuresHazardReader.read(top, forKey: .closuresHazard))
     }
 }

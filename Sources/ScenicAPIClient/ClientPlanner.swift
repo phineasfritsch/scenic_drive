@@ -45,6 +45,6 @@ public struct ClientPlanner: RoutePlanning {
                     }, waypoints: response.waypoints, lambda: response.lambda,
                     continuation: response.planToken.map {
                         PlanContinuation(token: $0, place: place, budgetMinutes: budgetMinutes)
-                    })
+                    }, closures: response.closuresHazard)
     }
 }

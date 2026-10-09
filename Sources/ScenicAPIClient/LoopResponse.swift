@@ -12,9 +12,12 @@ public struct LoopResponse: Equatable, Sendable {
     public let minutes: Double
     public let etaIsEstimate: Bool
     public let waypoints: [Coordinate]
+    /// T-0341 R3: the answer's closures_hazard, read fail-closed by ClosuresHazardReader; `.clear` when absent.
+    public let closuresHazard: ClosuresHazard
 
     public init(route: [Coordinate], distanceMeters: Double, durationSeconds: Double, retraceFraction: Double,
-                minutes: Double, etaIsEstimate: Bool, waypoints: [Coordinate]) {
+                minutes: Double, etaIsEstimate: Bool, waypoints: [Coordinate], closuresHazard: ClosuresHazard = .clear) {
+        self.closuresHazard = closuresHazard
         self.route = route
         self.distanceMeters = distanceMeters
         self.durationSeconds = durationSeconds
@@ -32,6 +35,7 @@ extension LoopResponse: Decodable {
         case durationSeconds = "duration_s"
         case retraceFraction = "retrace_fraction"
         case etaIsEstimate = "eta_is_estimate"
+        case closuresHazard = "closures_hazard"
     }
 
     public init(from decoder: Decoder) throws {
@@ -61,6 +65,7 @@ extension LoopResponse: Decodable {
                   retraceFraction: try top.decode(Double.self, forKey: .retraceFraction),
                   minutes: try top.decode(Double.self, forKey: .minutes),
                   etaIsEstimate: try top.decode(Bool.self, forKey: .etaIsEstimate),
-                  waypoints: waypoints)
+                  waypoints: waypoints,
+                  closuresHazard: ClosuresHazardReader.read(top, forKey: .closuresHazard))
     }
 }

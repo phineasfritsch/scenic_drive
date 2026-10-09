@@ -31,6 +31,6 @@ public struct ClientLoopPlanner: LoopPlanning {
         return .preview(LoopPreview(path: response.route, waypoints: response.waypoints,
                                     durationSeconds: response.durationSeconds,
                                     distanceMeters: response.distanceMeters, retraceFraction: fraction,
-                                    etaIsEstimate: response.etaIsEstimate))
+                                    etaIsEstimate: response.etaIsEstimate, closures: response.closuresHazard))
     }
 }

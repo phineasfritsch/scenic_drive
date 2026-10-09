@@ -68,9 +68,38 @@ public enum HazardCopy {
         }
     }
 
-    /// The strip: one line per run, in the order the Worker reported them. Nothing is merged or dropped.
+    /// T-0341 R2: the returned path still crosses a stored closure. Never softened.
+    public static let closureCrosses =
+        "This route crosses a reported road closure - expect the road to be blocked and check before you drive"
+    /// T-0341 R2: the set was the last good one, past the Worker's freshness bound.
+    public static let closuresStale =
+        "Road closure reports may be out of date for this route - check for closures before you drive"
+    /// T-0341 R2: no set at all, or a closures_hazard the app could not read.
+    public static let closuresUnavailable =
+        "Road closures could not be checked for this route - check for closures before you drive"
+    /// T-0341 R2: the Worker left some stored closures out of the request.
+    public static let closuresDropped =
+        "Not every reported road closure near this route was checked - check for closures before you drive"
+
+    /// One line per closure condition (T-0341 R2): crosses, then the state (none when fresh), then dropped.
+    public static func closureLines(for closures: ClosuresHazard) -> [String] {
+        []
+    }
+
+    /// The strip: the closure lines, then one line per run in the order the Worker reported them. Nothing is merged
+    /// or dropped.
     public static func lines(for preview: PlanPreview) -> [String] {
         preview.hazards.map { line(for: $0) }
+    }
+
+    /// The itinerary card's hazard lines (T-0341 R2): the closure lines; /trip carries no runs (T-0339 M2).
+    public static func lines(for itinerary: TripItinerary) -> [String] {
+        []
+    }
+
+    /// The loop card's hazard lines (T-0341 R2): the closure lines; /loop carries no runs (T-0339 M2).
+    public static func lines(for preview: LoopPreview) -> [String] {
+        []
     }
 
     /// The line one derived flag reads, its times in `timeZone`.

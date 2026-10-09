@@ -9,8 +9,12 @@ public struct LoopPreview: Equatable, Sendable {
     public let retraceFraction: Double
     public let etaIsEstimate: Bool
 
+    /// T-0341 R1: what the answer said about road closures; the loop card reads its lines.
+    public let closures: ClosuresHazard
+
     public init(path: [Coordinate], waypoints: [Coordinate], durationSeconds: Double, distanceMeters: Double,
-                retraceFraction: Double, etaIsEstimate: Bool) {
+                retraceFraction: Double, etaIsEstimate: Bool, closures: ClosuresHazard = .clear) {
+        self.closures = closures
         self.path = path
         self.waypoints = waypoints
         self.durationSeconds = durationSeconds
