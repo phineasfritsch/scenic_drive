@@ -46,10 +46,11 @@ APP_WIDE = {
     "AppStore.sync()": [(ST, "try await AppStore.sync()")],
     "manageSubscriptionsSheet": [(ST, ".manageSubscriptionsSheet(isPresented: $isShowingManage)")],
     "PaywallScreen(": [(ST, "PaywallScreen()")],
-    "LegalAttributionScreen(": [(ST, "LegalAttributionScreen()")],
+    "LegalAttributionScreen(": [(ST, "LegalAttributionScreen()"), (ST, "LegalAttributionScreen()")],
     "SettingsScreen(": [(SHELL, SETTINGS_MOUNT)],
     "LaunchScreen.atLaunch": [
         (SHELL, "@State private var isShowingSettings = LaunchScreen.atLaunch != .home"),
+        (ST, "@State private var isShowingLegal = LaunchScreen.atLaunch == .legal"),
         (SHELL, SETTINGS_MOUNT),
         (SHELL, "_isShowingCorpusDownload = State(initialValue: LaunchScreen.atLaunch == .home && corpus.offersDownload "
                 "&& VehicleSetting.isChosen)"),
@@ -102,10 +103,10 @@ SEQUENCES = [
 # lines, joined by LF, hash to this sha256. Any code change there - a modifier that hides or disarms a pinned control,
 # a /* */ block, a view extension - is refused until a reviewed commit re-approves the digest.
 FROZEN = {
-    LS: "d500a4c892eb06ebdefcf662007619af9be05af88f26b0738283c6d3facfe8ae",
+    LS: "57f6af62de6787d5c129bee12dbf45bc6fefd70292806c3415b0376c8e075d71",
     LG: "b72965b1635d4d8b109a0f966e6cfe8fd1f1fe9d7bdf4bd9bac2148f081e30a6",
     PW: "333b33ed55630cb3ec5f0bf57c17b44bfdb334d1d33ea2b2d5057ab830579ba9",
-    ST: "7a2fb5547c2aee2b158a2b1c2dde0b9d36d56a06c07601202cca84aab7e5e19b",
+    ST: "7727c2bfd3996030b9be0a69d611c92d35cffcf4aa5a071b1b50f51aa60e2b6d",
     SC: "6da6ddadc509df44f9a9dadec770e0c3a84738af14715eeb6cee9c221bf63706",
     CD: "7e63f62eb351c5b45c5bed74cf5a63beff43e9b697747c01973e40eefe060906",
 }

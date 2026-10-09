@@ -80,3 +80,54 @@ human-initiated only).
   check-ios-compile-guardrails.py reads the workflow through (c).
   R5 NO DESIGN CHANGE: no view's layout, copy or token changes; what is clipped or illegible is filed, not fixed.
   Snapshot references are not recorded (CLAUDE.md).
+- 2026-10-09T05:53:29Z agent/claude-opus-5 (owner) RED then GREEN by name, iOS CI, every shot LOOKED AT.
+  Correction to the 05:15 entry: the corpus offer's default is `LiveCorpus.manifestURLKey` (not "corpus.manifest"); the
+  measured fact (absent on CI, so offersDownload is false) stands. R6 (ruled during build): the capture step's cap is
+  timeout-minutes 30, held; MEASURED on run 37884547218 the first launch took 5.7 min and each later shot ~18 s, so
+  16 more shots fit (this run: capture 10m16s, 05:40:57-05:51:13).
+  Guards, each seen red before its row was raised: check-ios-compile-guardrails.py with the workflow edited and the pin
+  not: `IOS-COMPILE-GUARDRAILS: workflow.jobs.simulator-screenshot.steps[4].run: differs from the pinned value`, then
+  OK; `--prove-red` `PROVE-RED OK: 72 mutations red` (69 + T-0336's three: onboarding done for no shot, the plan-sheet
+  shots dropped, the onboarding and legal shots dropped). check-safety-disclaimer: `the app shell ScenicDriveApp line 3
+  of 41 ...: approved \`@State private var isPlanning = false\`, found \`@State private var isPlanning =
+  PlanRehearsal.opensSheet\`` then `FeatureScenicHome's file set is not the approved one: added
+  OnboardingRehearsal.swift.` until FROZEN_APP_SHELL and -pinned's rows (SafetyDisclaimer, OnboardingRehearsal,
+  LaunchScreen, SettingsScreen, PlanSheetScreen, SavedDrivesList, PlanRehearsal, PlanRehearsalFixtures, the shell) were
+  re-typed; then green. check-store-links.py: the frozen Entitlements hashes for LaunchScreen/SettingsScreen, then
+  `LegalAttributionScreen(: an unapproved line ... \`LegalAttributionScreen()\`` and `LaunchScreen.atLaunch: an
+  unapproved line ... \`@State private var isShowingLegal = LaunchScreen.atLaunch == .legal\``; approved in
+  store_links_pinned.py; green, `--prove-red` `33/33 rows as required`. NEW check-screen-rehearsals.py (P-SAFE-03's
+  assertion): green `11 approved -screen sites, every read inside #if DEBUG, PlanRehearsalFixtures.swift wholly
+  DEBUG-only`; `--prove-red` `PROVE-RED OK: 11/11 refused by name` (each read moved out of DEBUG or into #else, the
+  fixtures compiled in release or closed early, the shell reading -screen, a new feature file reading it, the
+  fixtures used from the shell). check-map-attribution green with no surface row raised (no new map mount).
+  iOS CI on dfde674f: ios-compile 37889171643 success; ios-screenshot 37889174904 success, 30 PNGs. R1 HELD: the
+  argument-domain acknowledgement is read by @AppStorage - home, settings, paywall and surprise show their own screens
+  for the first time. LOOKED AT every PNG (light | dark):
+  home collapsed/medium/fastest: the demo-tile map with the Saddle Peak lines, MapLibre logo, the credit pill
+  `© MapLibre · Natural Earth · © OpenStreetMap contributors` above the sheet at both detents and both looks; the sheet
+  "Saddle Peak · Topanga to Malibu", three chips (Fastest 6.1 km, +13 min 21.5 km, +18 min 26.2 km), the conditions
+  line, Open in Apple Maps; medium adds the road list and the copy. settings: Subscription (Not subscribed, Scenic Drive
+  Pro, Restore, Manage), Vehicle Standard car, Offline places toggle, About cut at the bottom edge (a scroll, fine).
+  paywall: "Subscription Unavailable - unavailable in the current storefront" (the simulator has no StoreKit config),
+  Terms/Privacy links. surprise: the card over the map (light Tongva Peak, dark Surfrider Beach - the deck picks
+  differently per launch), the estimate badge on the round-trip line, Not this one? four reasons; the map credit pill
+  stays visible below the card. drive: unchanged from T-0324 (minimal surface, composed credit, End drive).
+  onboarding: "What are you driving?", Standard car checked, four disabled rows, Continue. disclaimer: "Before you
+  drive", the body, the bold conditions line, Back, I understand. preview: "Zuma Beach", the route outline, `55 min ·
+  20 min longer than the fastest way`, the badge `estimate · no traffic data` (P-SAFE-07), `road_access: destination`,
+  bold `Conditions change. Verify locally.` (P-SAFE-03), Save this drive, Start the drive, Choose another place, the
+  footer `Route data © OpenStreetMap contributors`. nothingPretty: "Not much pretty within reach of this drive. More time
+  might find some." and Choose another place. loop: "A loop from Topanga and back", About 58 min, 32 mi, asked for 60,
+  the badge, doubles back 4% inside 15%, Open the loop in Apple Maps, conditions, Change the loop. trip: "2 days to Leo
+  Carrillo State Beach", 2 h 30 min, 40 min more, the badge, Day 1 1 h 30 min · 43 mi with the night's-stop note, Day 2
+  1 h 0 min · 31 mi, conditions, Change the trip. saved: Mulholland Scenic Overlook (Needs a re-plan · 60 min extra),
+  Top of Topanga Overlook (45), Zuma Beach (30), each with Drive it again / Rename / Delete. legal: Legal & Attribution,
+  the ODbL notice word for word, openstreetmap.org/copyright.
+  FOLLOW-UP CANDIDATES (seen, not fixed - R5): (1) home: the `Plan a drive` button overlays the first menu chip - the
+  chip's own text ("Saddle Peak", "Westwood loop") shows through behind it, at every home shot, both looks; (2) preview:
+  the hazard strip prints raw API keys (`road_access: destination`), and the route outline is drawn in unscaled
+  lon/lat with no basemap, so it reads as a chart, not a road; (3) onboarding: the disabled vehicle rows' explanation
+  lines are low-contrast grey on the dark sheet; (4) paywall: no product renders on CI (no StoreKit configuration in the
+  simulator), so the listing's paywall shot needs one; (5) the plan sheet's bottom toolbar pair (`Plan a road trip` /
+  `Just drive a loop`) changes meaning per tab - a design question for the owner's pass.
