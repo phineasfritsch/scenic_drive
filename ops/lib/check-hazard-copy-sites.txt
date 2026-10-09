@@ -1,0 +1,5 @@
+apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	            .accessibilityIdentifier("plan.hazards")
+apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	            Text(HazardCopy.noneFlagged)
+apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	        let lines = HazardCopy.lines(for: preview)
+apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	        hazards: [PlanHazardRun(kind: "road_access", value: "destination", fromIndex: 2, toIndex: 3)])
+apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	                           hazards: [], waypoints: [], lambda: 0.5)

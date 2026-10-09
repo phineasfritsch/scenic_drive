@@ -21,9 +21,9 @@ acceptance:
   - "A4 THE STRIP KEEPS EVERY HAZARD (P-SAFE-02's layer): HazardCopy.lines(for: preview) over the plan-preview rehearsal runs and a three-run mix (known, fallback, unknown kind) returns one line per run, in run order, equal to the map of line(for:). Test: 'the strip keeps one line per hazard, in order'."
   - "A5 NO WIRE KEY IN ANY LINE: no line in runLines, the two fallbacks, genericLine or noneFlagged is empty or contains '_' or ':' (every multi-word wire key and the 'kind: value' rendering carry one; single-word keys like surface or gravel are English words the copy may use). Test: 'no copy line is empty, and none spells a wire key'."
   - "A6 RED FIRST BY NAME: the tests land with a stub HazardCopy whose lines are the shipped '<kind>: <value>' rendering, and A1-A5's named tests record issues; then the table lands and they are green. Both runs quoted in the Log."
-  - "A7 APP RENDERS ONLY THE TABLE: PlanPreviewCard's strip renders HazardCopy.lines(for: preview) and HazardCopy.noneFlagged; grep over apps/ios/Packages/ScenicApp/Sources for 'run.kind' and 'run.value' prints nothing and HazardCopy is referenced only from PlanPreviewCard.swift."
+  - "A7 APP RENDERS ONLY THE TABLE: PlanPreviewCard's strip renders HazardCopy.lines(for: preview) and HazardCopy.noneFlagged; ops/lib/check-hazard-copy-sites.py (a whole-line WHITELIST of every apps/ line naming hazards, PlanHazardRun, HazardCopy, HazardStrip, HazardFlag or Mirror; run by P-SAFE-03's assertion) exits 0, and its --prove-red reports every row red by name with the control green."
   - "A8 POPULATION: ops/mutate/hazardcopy.py (registered in DRIVERS and COVERED_FLOOR) catches every mutation by a named test and its --prove-vacuity reports every mutation MISSED; floors equal the shipped population."
-  - "A9 GATES: digests re-approved in ops/lib/check-safety-disclaimer-linked-digests.txt; check-mutate-population, check-line-cap, check-pins-yaml, queue-check, the bare safety-disclaimer-linked guard and swift test over the touched suites pass on the merged head; ios-compile success and ios-screenshot success on task/T-0339, with plan-preview (the strip reads R3's destination line), plan-trip and plan-loop looked at."
+  - "A9 GATES: digests re-approved in ops/lib/check-safety-disclaimer-linked-digests.txt and ops/lib/check-safety-disclaimer-pinned; check-mutate-population, check-line-cap, check-pins-yaml, queue-check, the bare check-safety-disclaimer guard (which runs -pinned and -linked) and swift test over the touched suites pass on the merged head; ios-compile success and ios-screenshot success on task/T-0339, with plan-preview (the strip reads R3's destination line), plan-trip and plan-loop looked at."
 ---
 ## Brief
 
@@ -128,3 +128,27 @@ P-SAFE-02's layers still see each hazard; shots looked at.
   (a second digest table, separate from -linked-digests.txt, which this run did not measure). The re-approval edit
   was refused by this session's permission classifier; it waits on the owner's say-so. Not done, and nothing has
   been worked around.
+- 2026-10-09T10:00:32Z PRE-REVIEW FINDINGS CLOSED BY CLASS (fable pass: no mutant survived; two findings).
+  - F1 CLASS "a gate claimed green that was not measured": A9 was quoted at 09:16:30Z before the second digest table
+    (ops/lib/check-safety-disclaimer-pinned:251) was read, so at 91344cf6 P-SAFE-03 refused the shipped card and the
+    bypass alike and could not tell them apart (MISSED - the 09:25:10Z entry and PR #224's core/pins-source-only
+    quote it). Re-approved: PlanPreviewCard.swift 44bac72a... -> 9056a618a123c03a733c924d277d0648294121eba1efbbf198
+    c7f6b0b45e6e86, the sha of the reviewed card (its diff is this PR's 11-line strip change, read). CAUGHT: bare
+    `bash ops/lib/check-safety-disclaimer` exit=0 on the card; with the bypass `let lines = preview.hazards.map(\.kind)`
+    in place, exit=1 "P-SAFE-03: the pinned render surface changed: Packages/ScenicApp/Sources/FeaturePlanSheet/
+    PlanPreviewCard.swift content changed (sha256 aa192bae..., approved 9056a618...)"; card restored (sha 9056a618).
+    A9 now names both digest tables and the bare check-safety-disclaimer guard.
+  - F2 CLASS "a spelling blacklist where the Brief implies a whitelist": A7's grep for `run.kind`/`run.value` saw only
+    two spellings. Replaced by ops/lib/check-hazard-copy-sites.py (learned-speeds-sites' shape): every line of every
+    *.swift under apps/ naming hazards, PlanHazardRun, HazardCopy, HazardStrip, HazardFlag or Mirror must be an
+    approved (file, line) in ops/lib/check-hazard-copy-sites.txt (5 sites in 3 files). Wired into P-SAFE-03's
+    assertion in pins/PINS.yaml (P-SAFE-03 is the pin that holds the card; R5: no P-SAFE-02 row exists). A7 reworded
+    to it. Seen RED: whitelist absent, exit=2 "REFUSING - the whitelist check-hazard-copy-sites.txt is missing or
+    empty"; the live bypass above, exit=1 "REFUSED site not on the whitelist: ...PlanPreviewCard.swift: let lines =
+    preview.hazards.map(\.kind)". --prove-red, MISSED by the old A7 grep then CAUGHT by name, per row: key-path map
+    of raw kinds, closure reading kind+value, helper taking a PlanHazardRun, new file reading p.hazards, Mirror over
+    the preview, trailing-comment code line, approved line repeated, table call removed - each "A7-grep=MISSED
+    sites=CAUGHT by name exit=1"; HazardCopy used from TripItineraryCard "A7-grep=caught sites=CAUGHT by name";
+    "PROVE-RED OK: 9 of 9 rows red by name, control 0". Green: "P-SAFE-03 hazard copy: ok - 5 sites, every one
+    approved, in 3 files". CANNOT SEE: interpolation or String(describing:) over a whole PlanPreview (no identifier
+    spelled); the digest table still refuses any byte change to the card.
