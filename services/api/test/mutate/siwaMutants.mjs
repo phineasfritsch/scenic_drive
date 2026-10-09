@@ -29,11 +29,11 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-siwa");
 
-export const MIN_MUTATIONS = 124;
+export const MIN_MUTATIONS = 136;
 /** T-0291: the attacker's public modulus for rv4-keys-attacker-jwk (2048 bits, base64url; its private half is discarded). */
 const RV4_N = "3nrQ6bwDGzN394X5_0ls0xUZAQAjeNUO5m6aIeQXS30RBAdFF5ysukMbZHLi74ARGizNxgmEpdoLtzBBYPjR4FSV_OTnFKIwhlHVqu8I3zPhC84XewPY0iW_b6nzibasfYsJoFt4yATvmf-xM91130GQuS9NIhzgAilsBEY5-q1WL5OlDGtCradrgD5Ugy7tmE87Nx0SavteiTBipN71Uvw1YkzqJ-nInrDbELBAqbwOBei81d9WBWhvmd7TvghpLvNS1Axbw0CF55gulGA9FqB-vwTe-KcjWcXTtNfFtFEWi1jRARwbZ5prl2-Kdnq_jjsaOGRhkyObP8zaalgXtw";
-export const SUBJECTS = ["src/appleJwks.ts", "src/appleIdentity.ts", "src/accountStore.ts", "src/account.ts", "src/appleClient.ts", "src/sessionJwt.ts"];
-const TESTS = ["test/authAppleToken.test.ts", "test/authAppleFields.test.ts", "test/authAppleBind.test.ts", "test/accountDelete.test.ts", "test/requestReadSites.test.ts", "test/routes.test.ts"];
+export const SUBJECTS = ["src/appleJwks.ts", "src/appleIdentity.ts", "src/accountStore.ts", "src/account.ts", "src/appleClient.ts", "src/sessionJwt.ts", "src/planSweep.ts"];
+const TESTS = ["test/authAppleToken.test.ts", "test/authAppleFields.test.ts", "test/authAppleBind.test.ts", "test/accountDelete.test.ts", "test/accountDeletePlans.test.ts", "test/requestReadSites.test.ts", "test/routes.test.ts"];
 const PIN_TEST = "test/identityVerifierPin.test.ts";
 let runTests = TESTS;
 
@@ -167,6 +167,19 @@ export const MUTATIONS = [
   m("sess-apple-not-signed", "sessionJwt.ts", ",\n    ...(claims.apple ? { apple: claims.apple } : {}) };", " };"),
   m("sess-apple-not-returned", "sessionJwt.ts", ", ...(typeof apple === \"string\" ? { apple } : {}) };", " };"),
   m("sess-apple-key-refused", "sessionJwt.ts", "filter((k) => k !== \"act\" && k !== \"apple\")", "filter((k) => k !== \"act\")"),
+  // T-0326: DELETE /account sweeps PLANS (planSweep.ts) for every one of the user's devices (account.ts).
+  m("sweep-stops-on-empty-page", "planSweep.ts", "if (page.list_complete) break;", "if (page.list_complete || page.keys.length === 0) break;"),
+  m("sweep-ignores-cursor", "planSweep.ts", "kv.list(cursor === undefined ? { prefix } : { prefix, cursor })", "kv.list({ prefix })"),
+  m("sweep-key-shape-prefix-only", "planSweep.ts", "name.startsWith(prefix) && PLAN_TOKEN.test(name.slice(prefix.length))", "name.startsWith(prefix)"),
+  m("sweep-delete-failure-ignored", "planSweep.ts", "if (settled.some((s) => s.status === \"rejected\")) whole = false;", ""),
+  m("sweep-list-failure-aborts", "planSweep.ts", "        whole = false;\n        break;\n      }\n      const mine", "        return false;\n      }\n      const mine"),
+  m("sweep-no-cursor-complete", "planSweep.ts", "if (typeof page.cursor !== \"string\" || page.cursor === \"\") {\n        whole = false;", "if (typeof page.cursor !== \"string\" || page.cursor === \"\") {"),
+  m("sweep-deletes-unbounded", "planSweep.ts", "mine.slice(0, PLAN_SWEEP_MAX_OPS - ops)", "mine"),
+  m("sweep-list-bound-off-by-one", "planSweep.ts", "if (ops >= PLAN_SWEEP_MAX_OPS) return false;", "if (ops > PLAN_SWEEP_MAX_OPS) return false;"),
+  m("sweep-bound-raised", "planSweep.ts", "PLAN_SWEEP_MAX_OPS = 900;", "PLAN_SWEEP_MAX_OPS = 1000;"),
+  m("acct-sweep-session-device-only", "account.ts", "[user.deviceId, ...bindings.map((b) => b.deviceId)]", "[user.deviceId]"),
+  m("acct-sweep-pending-dropped", "account.ts", "plans_pending: !swept", "plans_pending: false"),
+  m("acct-sweep-unwired", "account.ts", "plans: env.PLANS ?? null", "plans: null"),
 ];
 
 export const EQUIVALENT = [];

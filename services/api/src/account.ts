@@ -5,12 +5,14 @@
  * appleJwks.ts, the nonce the hash of the Bearer itself), exchanges the code for a refresh token only with the owner's
  * APPLE_CLIENT_SECRET, binds the Apple sub to the session's device and answers the session JWT re-signed with apple
  * (R2-R6). Every defect is 400 invalid_identity_token with nothing written. /account revokes every stored refresh token
- * of the user, then deletes every user row of every D1 table in one batch and answers {deleted, revoke_pending} (R7).
+ * of the user, then deletes every user row of every D1 table in one batch and answers {deleted, revoke_pending} (R7);
+ * T-0326 then sweeps PLANS for every one of the user's devices and adds plans_pending (planSweep.ts).
  */
 import { bindApple, deleteUser, userBindings, type AccountUser } from "./accountStore";
 import { appleClient, clientSecret, type AppleClient } from "./appleClient";
 import { IdentityRejected, sessionNonce, verifyIdentityToken } from "./appleIdentity";
 import { AppleUnavailable, appleKey, emptyJwksCache, type JwksCache } from "./appleJwks";
+import { sweepPlans, type PlanSweepKv } from "./planSweep";
 import { AUTHORIZATION_HEADER, BEARER } from "./sessionIdentity";
 import { sessionSecret, signSession, verifySession, type SessionClaims } from "./sessionJwt";
 
@@ -19,6 +21,8 @@ export interface AccountEnv {
   SESSION_JWT_SECRET?: string;
   /** Owner secret: the pre-signed Sign in with Apple client-secret JWT; absent, no exchange and revoke_pending. */
   APPLE_CLIENT_SECRET?: string;
+  /** T-0326: the remembered plans (planToken.ts); unbound, nothing is stored there. */
+  PLANS?: PlanSweepKv;
 }
 
 export interface AccountDeps {
@@ -30,6 +34,8 @@ export interface AccountDeps {
   apple: AppleClient;
   jwks: JwksCache;
   now: () => Date;
+  /** null when PLANS is unbound. */
+  plans: PlanSweepKv | null;
 }
 
 /** One per isolate: the production JWKS cache. */
@@ -37,7 +43,8 @@ export const PRODUCTION_JWKS: JwksCache = emptyJwksCache();
 
 export function accountDepsFromEnv(env: AccountEnv): AccountDeps {
   return { db: env.DB, secret: sessionSecret(env.SESSION_JWT_SECRET), clientSecret: clientSecret(env.APPLE_CLIENT_SECRET),
-    apple: appleClient((url, init) => fetch(url, init)), jwks: PRODUCTION_JWKS, now: () => new Date() };
+    apple: appleClient((url, init) => fetch(url, init)), jwks: PRODUCTION_JWKS, now: () => new Date(),
+    plans: env.PLANS ?? null };
 }
 
 const json = (body: unknown, status = 200) =>
@@ -147,5 +154,7 @@ export async function handleDeleteAccount(req: Request, deps: AccountDeps): Prom
   } catch {
     return STORE_DOWN();
   }
-  return json({ deleted: true, revoke_pending: pending });
+  const devices = [...new Set([user.deviceId, ...bindings.map((b) => b.deviceId)])].sort();
+  const swept = deps.plans === null || (await sweepPlans(deps.plans, devices));
+  return json({ deleted: true, revoke_pending: pending, plans_pending: !swept });
 }

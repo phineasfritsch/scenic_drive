@@ -67,7 +67,7 @@ async function deletion(session: R, o: { secret?: boolean; spec?: FakeApple; bef
   return { pre, got, post: await allTables(), calls: apple.calls };
 }
 
-const DONE = (pending: boolean) => ({ status: 200, json: { deleted: true, revoke_pending: pending } });
+const DONE = (pending: boolean) => ({ status: 200, json: { deleted: true, revoke_pending: pending, plans_pending: false } });
 const FULL = { act: ACCOUNT, apple: APPLE_USER };
 
 beforeEach(async () => {

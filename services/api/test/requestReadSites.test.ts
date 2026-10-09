@@ -44,7 +44,8 @@ const APPROVED: Record<string, string[]> = {
   // bindings -> binding through both handlers; every line naming one is the session the Authorization header carried.
   "../src/account.ts": [
     "* APPLE_CLIENT_SECRET, binds the Apple sub to the session's device and answers the session JWT re-signed with apple",
-    "* of the user, then deletes every user row of every D1 table in one batch and answers {deleted, revoke_pending} (R7).",
+    "* of the user, then deletes every user row of every D1 table in one batch and answers {deleted, revoke_pending} (R7);",
+    "* T-0326 then sweeps PLANS for every one of the user's devices and adds plans_pending (planSweep.ts).",
     "/** Owner secret: the pre-signed Sign in with Apple client-secret JWT; absent, no exchange and revoke_pending. */",
     "async function caller(req: Request, secret: string, nowMs: number): Promise<{ token: string; claims: SessionClaims } | null> {",
     'const match = BEARER.exec(req.headers.get(AUTHORIZATION_HEADER) ?? "");',
@@ -69,6 +70,9 @@ const APPROVED: Record<string, string[]> = {
     "for (const binding of bindings) {",
     "if (secret === null || binding.refreshToken === null || !(await revoked(deps, secret, binding.refreshToken))) pending = true;",
     "await deleteUser(deps.db, user);",
+    "const devices = [...new Set([user.deviceId, ...bindings.map((b) => b.deviceId)])].sort();",
+    "const swept = deps.plans === null || (await sweepPlans(deps.plans, devices));",
+    "return json({ deleted: true, revoke_pending: pending, plans_pending: !swept });",
   ],
   "../src/accountTier.ts": [
     "* The caller's quota tier (T-0272 R1-R5): paid exactly when the purchase id in x-scenic-account-token has a live",

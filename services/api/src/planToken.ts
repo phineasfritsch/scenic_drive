@@ -3,7 +3,9 @@
  * one 2-dp coordinate and nothing else that locates anyone.
  *
  * Every 200 from /plan is remembered under a fresh token - the device it was planned for, the destination place,
- * the pins it answered and the lambda it chose - in the PLANS KV namespace for PLAN_TOKEN_TTL_SECONDS. A reroute
+ * the pins it answered and the lambda it chose - in the PLANS KV namespace for PLAN_TOKEN_TTL_SECONDS, keyed
+ * `plan:<device>:<token>` (T-0326 R1): recall builds the key from the CALLER's device, so a foreign device reads only
+ * its own key, and account deletion (planSweep.ts) lists every plan of a device by its prefix. A reroute
  * names the token and the index of its first remaining pin; the Worker reads the pins back itself, so they never
  * travel from the device. A token that cannot be used for any reason recalls as null (R5: the fresh plan).
  */
@@ -16,6 +18,9 @@ export const PLAN_TOKEN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
 /** 12 h: the longest drive is a fastest of hours plus a 180-minute budget (R3). */
 export const PLAN_TOKEN_TTL_SECONDS = 43_200;
 const KEY_PREFIX = "plan:";
+
+/** Every plan key of `device` starts with this; the token follows it (T-0326 R1). */
+export const planKeyPrefix = (device: string): string => `${KEY_PREFIX}${device}:`;
 
 /** What a plan token remembers. */
 export interface RememberedPlan {
@@ -32,8 +37,8 @@ export interface PlanTokenKv {
 }
 
 export interface PlanTokens {
-  /** The remembered plan, or null: unknown, expired, unreadable or malformed are all null. */
-  recall(token: string): Promise<RememberedPlan | null>;
+  /** `device`'s remembered plan, or null: unknown, expired, unreadable or malformed are all null. */
+  recall(device: string, token: string): Promise<RememberedPlan | null>;
   /** A fresh token now naming `plan`, or null when the write failed - the plan is answered either way (R6). */
   remember(plan: RememberedPlan): Promise<string | null>;
 }
@@ -67,10 +72,10 @@ export function rememberedPlan(text: string): RememberedPlan | null {
 
 export function kvPlanTokens(kv: PlanTokenKv, mint: () => string = () => crypto.randomUUID()): PlanTokens {
   return {
-    async recall(token) {
+    async recall(device, token) {
       let text: string | null;
       try {
-        text = await kv.get(KEY_PREFIX + token);
+        text = await kv.get(planKeyPrefix(device) + token);
       } catch {
         return null;
       }
@@ -80,7 +85,7 @@ export function kvPlanTokens(kv: PlanTokenKv, mint: () => string = () => crypto.
       const token = mint();
       const value = JSON.stringify({ device: plan.device, place: plan.place, pins: plan.pins, lambda: plan.lambda });
       try {
-        await kv.put(KEY_PREFIX + token, value, { expirationTtl: PLAN_TOKEN_TTL_SECONDS });
+        await kv.put(planKeyPrefix(plan.device) + token, value, { expirationTtl: PLAN_TOKEN_TTL_SECONDS });
       } catch {
         return null;
       }
