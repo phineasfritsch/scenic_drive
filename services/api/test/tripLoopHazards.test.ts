@@ -182,26 +182,45 @@ const X_LEG = area("x", ne(36)[0], ne(36)[1], 0.0005);
 const carries = (body: Record<string, unknown>, x: typeof X_LEG) =>
   JSON.stringify((body.custom_model as { areas?: unknown } | undefined)?.areas ?? null).includes(JSON.stringify(x.geometry.coordinates));
 
-/** Each answer's runs and, by hand, what it reads as: preview per day (clipped at the night, point 20) or a day-2 leg. */
+/** Each answer's runs and, by hand, what it reads as: preview per day (clipped at the night - road vertex 20, which is
+ *  point 20 of the crossing route, 40 of the re-request cut in two, 60 of the refused one cut in three) or a day-2 leg.
+ *  rv2-t0340: every re-request tiles its runs differently from the crossing answer, so the vertex->point map read
+ *  from a pre-swap path puts the night at the wrong point. */
 const ROUTE_RUNS: Record<Answer, { surface: Run[]; access: Run[]; days: unknown[][] }> = {
   crossing: { surface: [[5, 8, "gravel"]], access: [[30, 32, "PRIVATE"]],
     days: [[h("surface", "gravel", 5, 8)], [h("road_access", "private", 30, 32)]] },
-  reRequest: { surface: [[12, 26, "Dirt"], [26, 40, "asphalt"]], access: [[2, 4, "destination"]],
-    days: [[h("surface", "dirt", 12, 20), h("road_access", "destination", 2, 4)], [h("surface", "dirt", 20, 26)]] },
-  refused: { surface: [[0, 3, "sand"]], access: [], days: [[h("surface", "sand", 0, 3)], []] },
+  reRequest: { surface: [[24, 52, "Dirt"], [52, 80, "asphalt"]], access: [[4, 8, "destination"]],
+    days: [[h("surface", "dirt", 24, 40), h("road_access", "destination", 4, 8)], [h("surface", "dirt", 40, 52)]] },
+  refused: { surface: [[57, 66, "sand"]], access: [], days: [[h("surface", "sand", 57, 60)], [h("surface", "sand", 60, 66)]] },
 };
 const LEG1 = { surface: [[0, 1, "Gravel"]] as Run[], access: [] as Run[], hazards: [h("surface", "gravel", 0, 1)] };
 const LEG2_RUNS: Record<Answer, { surface: Run[]; access: Run[]; hazards: unknown[] }> = {
   crossing: { surface: [], access: [[1, 2, "no"]], hazards: [h("road_access", "no", 1, 2)] },
-  reRequest: { surface: [[0, 1, "compacted"]], access: [[0, 1, "customers"]],
-    hazards: [h("surface", "compacted", 0, 1), h("road_access", "customers", 0, 1)] },
-  refused: { surface: [[0, 1, "ground"]], access: [], hazards: [h("surface", "ground", 0, 1)] },
+  reRequest: { surface: [[1, 3, "compacted"]], access: [[0, 1, "customers"]],
+    hazards: [h("surface", "compacted", 1, 3), h("road_access", "customers", 0, 1)] },
+  refused: { surface: [[1, 3, "ground"]], access: [], hazards: [h("surface", "ground", 1, 3)] },
 };
-function answer(points: [number, number][], edgeMs: number, runs: { surface: Run[]; access: Run[] }, timeMs?: number) {
-  const per = (v: number) => points.slice(1).map((_, i) => [i, i + 1, v]);
-  return tripPath(points, edgeMs, { time: per(edgeMs), distance: per(EDGE_M), scenic_score: per(8), surface: runs.surface,
-    road_access: runs.access }, timeMs);
+/** `points` with every segment cut into `k` (the k - 1 new points evenly inside it, the old points kept exactly). */
+const cut = (points: [number, number][], k: number): [number, number][] => points.flatMap((p, i) => i === 0 ? [p]
+  : Array.from({ length: k }, (_, j): [number, number] => j === k - 1 ? p
+    : [points[i - 1]![0] + ((p[0] - points[i - 1]![0]) * (j + 1)) / k, points[i - 1]![1] + ((p[1] - points[i - 1]![1]) * (j + 1)) / k]));
+/** A router answer over `points` cut `k` ways: one time/distance/scenic_score run per ORIGINAL segment, spanning k. */
+function answer(points: [number, number][], edgeMs: number, runs: { surface: Run[]; access: Run[] }, timeMs?: number, k = 1) {
+  const per = (v: number) => points.slice(1).map((_, i) => [i * k, (i + 1) * k, v]);
+  return tripPath(cut(points, k), edgeMs, { time: per(edgeMs), distance: per(EDGE_M), scenic_score: per(8), surface: runs.surface,
+    road_access: runs.access }, timeMs ?? (points.length - 1) * edgeMs);
 }
+const ROUTE_ANSWER: Record<Answer, string> = {
+  crossing: answer(DETOUR, SCENIC_EDGE_MS, ROUTE_RUNS.crossing),
+  reRequest: answer(ROAD, SCENIC_EDGE_MS, ROUTE_RUNS.reRequest, undefined, 2),
+  refused: answer(ROAD, 10 * SCENIC_EDGE_MS, ROUTE_RUNS.refused, undefined, 3),
+};
+const LEG2_ANSWER: Record<Answer, string> = {
+  crossing: answer([ROAD[20]!, ne(36), ROAD[40]!], 1000, LEG2_RUNS.crossing),
+  reRequest: answer([ROAD[20]!, ROAD[40]!], 1000, LEG2_RUNS.reRequest, undefined, 4),
+  refused: answer([ROAD[20]!, ROAD[40]!], 1000, LEG2_RUNS.refused, 99_000_000, 3),
+};
+const coordinatesOf = (body: string) => (JSON.parse(body) as { paths: { points: { coordinates: unknown } }[] }).paths[0]!.points.coordinates;
 
 /** Rows: {preview, full} x the re-request {ships, refused}; `ships` is the answer whose path goes out. */
 const TRIP_SHIP_ROWS: { name: string; full: boolean; reply: "reRequest" | "refused"; ships: Answer }[] = [
@@ -226,12 +245,10 @@ async function shipTrip(full: boolean, reply: "reRequest" | "refused") {
       scenic += 1;
       if (scenic === 1) return new Response(tripPath(ROAD, FAST_EDGE_MS));
       if (full) return new Response(answer(ROAD, SCENIC_EDGE_MS, ROUTE_RUNS.crossing));
-      if (!carries(body, x)) return new Response(answer(DETOUR, SCENIC_EDGE_MS, ROUTE_RUNS.crossing));
-      return new Response(answer(ROAD, reply === "refused" ? 10 * SCENIC_EDGE_MS : SCENIC_EDGE_MS, ROUTE_RUNS[reply]));
+      return new Response(ROUTE_ANSWER[carries(body, x) ? reply : "crossing"]);
     }
     if (JSON.stringify(points[1]) !== JSON.stringify(ROAD[40])) return new Response(answer(points, 1000, LEG1));
-    if (!carries(body, x)) return new Response(answer([points[0]!, ne(36), points[1]!], 1000, LEG2_RUNS.crossing));
-    return new Response(answer(points, 1000, LEG2_RUNS[reply], reply === "refused" ? 99_000_000 : undefined));
+    return new Response(LEG2_ANSWER[carries(body, x) ? reply : "crossing"]);
   };
   const deps: TripDeps = {
     upstream: { counters: tripCounters([]).counters, fetchImpl, now: () => NOW, killed: () => false },
@@ -251,9 +268,9 @@ async function shipTrip(full: boolean, reply: "reRequest" | "refused") {
 
 describe("T-0340 /trip hazards come from the SHIPPED path (A1)", () => {
   it.each(TRIP_SHIP_ROWS)("$name: the trip's day hazards are the shipped path's runs", async ({ full, reply, ships }) => {
-    const legs = [[ROAD[0], ROAD[20]], ships === "crossing" ? [ROAD[20], ne(36), ROAD[40]] : [ROAD[20], ROAD[40]]];
+    const legs = [[ROAD[0], ROAD[20]], coordinatesOf(LEG2_ANSWER[ships])];
     expect(await shipTrip(full, reply)).toEqual({ status: 200, reRequested: 1,
-      route: !full && ships === "crossing" ? DETOUR : ROAD, legs: full ? legs : [null, null],
+      route: full ? ROAD : coordinatesOf(ROUTE_ANSWER[ships]), legs: full ? legs : [null, null],
       hazards: full ? [LEG1.hazards, LEG2_RUNS[ships].hazards] : ROUTE_RUNS[ships].days });
   });
 
@@ -262,6 +279,17 @@ describe("T-0340 /trip hazards come from the SHIPPED path (A1)", () => {
     const answers: Answer[] = ["crossing", "reRequest", "refused"];
     expect(TRIP_SHIP_ROWS.map((r) => answers.every((a) => a === r.ships || read(r.full, a) !== read(r.full, r.ships))))
       .toEqual(TRIP_SHIP_ROWS.map(() => true));
+    // rv2-t0340: each row's answers (the crossing one and the row's reply) tile differently - a different point count
+    // and a different vertex->point map - so a map read from a path that did not ship cannot pass for the shipped one.
+    const tiling = (full: boolean, a: Answer) => {
+      const path = (JSON.parse(full ? LEG2_ANSWER[a] : ROUTE_ANSWER[a]) as { paths: { points: { coordinates: unknown[] };
+        details: { time: number[][] } }[] }).paths[0]!;
+      return { points: path.points.coordinates.length, map: JSON.stringify([0, ...path.details.time.map((run) => run[1])]) };
+    };
+    expect(TRIP_SHIP_ROWS.map((r) => (["crossing", r.reply] as Answer[]).every((a) => a === r.ships
+      || (tiling(r.full, a).points !== tiling(r.full, r.ships).points && tiling(r.full, a).map !== tiling(r.full, r.ships).map))))
+      .toEqual(TRIP_SHIP_ROWS.map(() => true));
+    expect(answers.map((a) => [tiling(false, a).points, tiling(true, a).points])).toEqual([[41, 3], [81, 5], [121, 4]]);
     expect(TRIP_SHIP_ROWS.map((r) => [r.full, r.ships])).toEqual([[false, "reRequest"], [false, "crossing"], [true, "reRequest"], [true, "crossing"]]);
   });
 });

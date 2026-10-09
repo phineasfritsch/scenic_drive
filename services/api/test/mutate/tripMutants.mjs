@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
 
-export const MIN_MUTATIONS = 102;
+export const MIN_MUTATIONS = 103;
 export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts", "src/tripPlaces.ts",
   "migrations/0009_trip_places.sql"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
@@ -81,6 +81,7 @@ export const MUTATIONS = [
   m("planner-full-day-reads-route", "tripPlanner.ts", "      hazards = hazardsOf(path);\n", ""),
   // T-0340 rv1: the runs of the path that SHIPS, never the pre-closure-swap one.
   m("planner-route-hazards-pre-swap", "tripPlanner.ts", "const routeHazards = hazardsOf(chosen);", "const routeHazards = hazardsOf(measuredChosen);"),
+  m("planner-pointof-pre-swap", "tripPlanner.ts", "...(chosen.details.time ?? [])", "...(measuredChosen.details.time ?? [])"),
   m("planner-leg-hazards-pre-swap", "tripPlanner.ts", "      hazards = hazardsOf(path);\n", "      hazards = hazardsOf(legPath);\n"),
   m("planner-day-hazards-empty", "tripPlanner.ts", "overnight: night(day.overnight), hazards, leg,", "overnight: night(day.overnight), hazards: [], leg,"),
   m("planner-search-7", "tripPlanner.ts", "}, MAX_EVALUATIONS);", "}, MAX_EVALUATIONS + 1);"),
