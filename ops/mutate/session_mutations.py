@@ -21,6 +21,8 @@ the ledger write (LedgerSurpriseSource.swift, LedgerClient.swift's 401 hand-back
     dropped beside it, each client dropping the session or asking for no purchase, a refused request acquiring).
   * T-0322 REVIEW ROUND 1, B1(b) (77-81): the expiry kept on the device's clock - the reply's instant kept instead,
     exp equal to iat read, the base64 padding dropped, the url alphabet unread, the fallback guessing an hour.
+  * T-0333, THE PLAN FAMILY RECOVERS A REJECTED SESSION (82-90): the 401 unread, no hand-back, a Bearer-less resend,
+    the second 401 kept, a third request, every or no rejection re-granted, the resend's purchase or renewal dropped.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -46,15 +48,17 @@ IDENTITY = API / "IdentityHeaders.swift"
 PLANCLIENT = API / "PlanClient.swift"
 TRIPCLIENT = API / "TripClient.swift"
 LOOPCLIENT = API / "LoopClient.swift"
+FAMILY = API / "PlanFamilySend.swift"
 SUBJECTS = (CLIENT, READER, WRITE, INSTALL, RECORD, STEP, STORE, SOURCE, LEDGER, SHOWING, IDENTITY, PLANCLIENT,
-            TRIPCLIENT, LOOPCLIENT)
+            TRIPCLIENT, LOOPCLIENT, FAMILY)
 MUTATED_FILES = SUBJECTS
 
 TESTS = ROOT / "Tests" / "ScenicAPIClientTests"
 TEST_FILES = (TESTS / "AttestClientTests.swift", TESTS / "KeychainDecisionTests.swift",
               TESTS / "SessionStoreTests.swift", TESTS / "SurpriseLedgerWriteTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "Surprise" / "SurpriseShowingTests.swift",
-              TESTS / "SessionAccountTests.swift", TESTS / "PlanBearerTests.swift", TESTS / "SessionSkewTests.swift")
+              TESTS / "SessionAccountTests.swift", TESTS / "PlanBearerTests.swift", TESTS / "SessionSkewTests.swift",
+              TESTS / "PlanSessionRetryTests.swift")
 
 REQ = "Each App Attest request is exactly its URL, its one header and its sorted-key body"
 TABLE = "Every Worker answer is one typed outcome after exactly one request - never a retry"
@@ -83,6 +87,8 @@ NOSTALE = ("a failed renewal for the purchase is that token's one try: never the
 ROWS = "every plan-family request names the purchase and carries the Bearer exactly when its act is that purchase"
 STALE = "a session issued before the purchase is never sent: the header alone rides until it is renewed"
 NOACQ = "a request refused on the device acquires no session"
+RETRY = "a 401 hands the session back, re-acquires once and resends the same bytes once; never a third request"
+PURCHASE = "the resend carries the same purchase: the renewal names it and the Bearer is the renewed session's"
 SKEW = "a session is kept on the device's clock and used for exactly lifetime - margin seconds after receipt"
 LIFE = "a token's lifetime is exactly exp - iat of its payload, at every bound"
 FALLBACK = "a token with no readable lifetime keeps the reply's expires_at"
@@ -218,14 +224,15 @@ MUTATIONS = [
     ("69 the Bearer without its scheme", IDENTITY, '"Bearer " + bearer', "bearer", [ROWS]),
     ("70 the account header dropped beside a Bearer", IDENTITY, "if let account { headers[accountHeader]",
      "if let account, bearer == nil { headers[accountHeader]", [ROWS]),
-    ("71 PlanClient drops the session", PLANCLIENT, "let bearer = await session?.planSession(account: account)",
-     "let bearer: String? = nil", [ROWS]),
-    ("72 TripClient drops the session", TRIPCLIENT, "let bearer = await session?.planSession(account: account)",
-     "let bearer: String? = nil", [ROWS]),
-    ("73 LoopClient drops the session", LOOPCLIENT, "let bearer = await session?.planSession(account: account)",
-     "let bearer: String? = nil", [ROWS]),
-    ("74 PlanClient asks for no purchase", PLANCLIENT, "planSession(account: account)", "planSession(account: nil)",
-     [ROWS]),
+    # 71-74 re-anchored by T-0333: the clients hand their session to PlanFamilySend, which asks it.
+    ("71 PlanClient drops the session", PLANCLIENT, "account: account, session: session,",
+     "account: account, session: nil,", [ROWS]),
+    ("72 TripClient drops the session", TRIPCLIENT, "account: account, session: session,",
+     "account: account, session: nil,", [ROWS]),
+    ("73 LoopClient drops the session", LOOPCLIENT, "account: account, session: session,",
+     "account: account, session: nil,", [ROWS]),
+    ("74 the family send asks for no purchase", FAMILY, "let bearer = await session?.planSession(account: account)",
+     "let bearer = await session?.planSession(account: nil)", [ROWS]),
     ("75 TripClient acquires before the device refusal", TRIPCLIENT,
      "guard let installID else { throw .refusedOnDevice(.noInstallID) }",
      "_ = await session?.planSession(account: nil)\n        guard let installID else { throw .refusedOnDevice(.noInstallID) }",
@@ -247,6 +254,27 @@ MUTATIONS = [
      "var payload = String(parts[1])", [LIFE]),
     ("81 the fallback guesses an hour", STORE, "now().addingTimeInterval($0) } ?? expiresAt",
      "now().addingTimeInterval($0) } ?? now().addingTimeInterval(3600)", [FALLBACK]),
+    # 82-90: T-0333 R3, R4 - the plan family recovers a rejected session, once.
+    ("82 the 401 unread", FAMILY, "static let rejectedStatus = 401", "static let rejectedStatus = 0", [RETRY]),
+    ("83 resent without the hand-back", FAMILY, "        await session.planSessionRejected(bearer)\n", "", [RETRY]),
+    ("84 a Bearer-less request resent", FAMILY,
+     "guard first.status == rejectedStatus, let bearer, let session else { return first }\n"
+     "        await session.planSessionRejected(bearer)",
+     "guard first.status == rejectedStatus, let session else { return first }\n"
+     "        if let bearer { await session.planSessionRejected(bearer) }", [RETRY]),
+    ("85 the second 401 keeps its token", FAMILY,
+     "if second.status == rejectedStatus, let renewed { await session.planSessionRejected(renewed) }", "", [RETRY]),
+    ("86 a third request", FAMILY, "        return second\n",
+     "        guard second.status == rejectedStatus else { return second }\n"
+     "        return try await transport.send(request(await session.planSession(account: account)))\n", [RETRY]),
+    ("87 every rejection re-granted", STORE, "if regranted.insert(act).inserted { spent.remove(act) }",
+     "spent.remove(act)", [RETRY]),
+    ("88 never re-granted", STORE, "if regranted.insert(act).inserted { spent.remove(act) }",
+     "_ = regranted.insert(act)", [RETRY]),
+    ("89 the resend asks for no purchase", FAMILY, "let renewed = await session.planSession(account: account)",
+     "let renewed = await session.planSession(account: nil)", [PURCHASE]),
+    ("90 the resend skips the renewal", FAMILY, "let renewed = await session.planSession(account: account)",
+     "let renewed: String? = nil", [RETRY]),
 ]
 
 # (name, path, old, new, witness): cannot change behaviour, so anything but MISSED is a failure.
@@ -269,6 +297,6 @@ EQUIVALENT = [
      "takes only its keyId and the act ASKED FOR, and keep writes a new record - the dropped record's act is never read"),
 ]
 
-MIN_MUTATIONS = 81
+MIN_MUTATIONS = 90
 MIN_EQUIVALENT = 3
-MIN_TEST_FILES = 8
+MIN_TEST_FILES = 9

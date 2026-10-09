@@ -1,7 +1,8 @@
 import Foundation
 import ScenicKit
 
-/// POST /trip (T-0313 R1, R3). One request per call and no retries: the body is validated on the device first (a
+/// POST /trip (T-0313 R1, R3). One request per call and no retries - but ONE resend after a 401 to its Bearer
+/// (T-0333 R3, PlanFamilySend): the body is validated on the device first (a
 /// refusal sends nothing), sent once with the install id PlanClient sends, and the reply read once through
 /// TripReplyReader. A transport throw is routingOffline.
 public struct TripClient: Sendable {
@@ -36,14 +37,12 @@ public struct TripClient: Sendable {
         guard let bytes = try? encoder.encode(body) else { throw .refusedOnDevice(.originOutOfRange) }
 
         let account = await accountToken?.accountToken()
-        let bearer = await session?.planSession(account: account)
-        let request = PlanHTTPRequest(url: base.appendingPathComponent("trip"), method: "POST",
-                                      headers: IdentityHeaders.json(device: installID.installID(),
-                                                                     account: account, bearer: bearer),
-                                      body: bytes)
         let reply: PlanHTTPReply
         do {
-            reply = try await transport.send(request)
+            // T-0333 R3: a 401 to a Bearer is handed back, the session asked again, and the same bytes sent once more.
+            reply = try await PlanFamilySend.send(base.appendingPathComponent("trip"), body: bytes,
+                                                  device: installID.installID(), account: account, session: session,
+                                                  transport: transport)
         } catch {
             throw .routingOffline
         }

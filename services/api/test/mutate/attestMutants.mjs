@@ -27,11 +27,11 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-attest");
 
-export const MIN_MUTATIONS = 85;
+export const MIN_MUTATIONS = 92;
 export const SUBJECTS = ["src/cbor.ts", "src/appAttest.ts", "src/x509.ts", "src/attestStore.ts", "src/attest.ts", "src/sessionJwt.ts",
-  "src/sessionIdentity.ts", "src/routerDeps.ts"];
+  "src/sessionIdentity.ts", "src/routerDeps.ts", "src/plan.ts", "src/trip.ts", "src/loop.ts"];
 const TESTS = ["test/attestVerify.test.ts", "test/attestAccept.test.ts", "test/sessionIdentity.test.ts", "test/requestReadSites.test.ts",
-  "test/asnRootPin.test.ts"];
+  "test/asnRootPin.test.ts", "test/sessionCarriesAct.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -125,7 +125,15 @@ export const MUTATIONS = [
   m("ident-inactive-paid", "sessionIdentity.ts", ").status === \"active\" ? \"paid\" : \"anon\";", ").status !== \"none\" ? \"paid\" : \"anon\";"),
   m("ident-bearer-any-case", "sessionIdentity.ts", "const BEARER = /^Bearer ([A-Za-z0-9_.-]+)$/;", "const BEARER = /^Bearer ([A-Za-z0-9_.-]+)$/i;"),
   m("ident-secret-only-without-bearer", "sessionIdentity.ts", "if (secret === null) return legacy();", "if (secret === null && bearer === null) return legacy();"),
-  m("deps-bearer-not-read", "routerDeps.ts", "identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env,", "identifyCaller(null, env,"),
+  m("deps-bearer-not-read", "routerDeps.ts", "identifySession(req.headers.get(AUTHORIZATION_HEADER), env,", "identifySession(null, env,"),
+  // T-0333 R1: the flag closed, a present authorization that does not verify is 401 on /plan, /trip and /loop.
+  m("reject-never", "sessionIdentity.ts", "  if (claims === null && bearer !== null && env.IDENTITY_HEADERS !== \"1\") return SESSION_REJECTED;\n", ""),
+  m("reject-under-flag", "sessionIdentity.ts", " && env.IDENTITY_HEADERS !== \"1\") return SESSION_REJECTED;", ") return SESSION_REJECTED;"),
+  m("reject-absent-header", "sessionIdentity.ts", "claims === null && bearer !== null &&", "claims === null &&"),
+  m("reject-unmarked", "routerDeps.ts", "tier: \"anon\", rejected: true } : who;", "tier: \"anon\" } : who;"),
+  m("reject-plan-unanswered", "plan.ts", "  if (who.rejected === true) return json({ error: \"session_rejected\" }, 401);\n", ""),
+  m("reject-trip-unanswered", "trip.ts", "  if (who.rejected === true) return json({ error: \"session_rejected\" }, 401);\n", ""),
+  m("reject-loop-unanswered", "loop.ts", "  if (who.rejected === true) return json({ error: \"session_rejected\" }, 401);\n", ""),
 ];
 
 export const EQUIVALENT = [

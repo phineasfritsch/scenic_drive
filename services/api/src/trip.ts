@@ -92,6 +92,7 @@ export async function handleTrip(req: Request, env: PlanEnv, deps: TripDeps | nu
   if (destination === null) return json({ error: "unknown_place" }, 404);
 
   const who = await deps.identify(req);
+  if (who.rejected === true) return json({ error: "session_rejected" }, 401);
   const snapshot = await deps.closures();
   const picker = closurePicker(snapshot.closures);
   let places: RoadTripPlace[] | null;

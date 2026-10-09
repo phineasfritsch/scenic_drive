@@ -204,9 +204,11 @@ const APPROVED: Record<string, string[]> = {
     'const raw = (req.headers.get(DEVICE_HEADER) ?? "").toLowerCase();',
     'return { userId: DEVICE_ID.test(raw) ? raw : UNIDENTIFIED_DEVICE, tier: "anon" };',
     "const headers = new Headers(init?.headers);",
-    "identify: (req) => identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => {",
+    "identify: async (req) => {",
+    "const who = await identifySession(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => {",
     "const device = deviceIdentity(req);",
     'return (await accountTier(req, env.DB, now().getTime())) === "paid" ? { ...device, tier: "paid" } : device;',
+    'return who === SESSION_REJECTED ? { userId: UNIDENTIFIED_DEVICE, tier: "anon", rejected: true } : who;',
   ],
   "../src/scenicPlanner.ts": ["const path = decodeRoutePath(await response.text());"],
   "../src/trip.ts": [

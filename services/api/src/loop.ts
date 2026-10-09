@@ -75,6 +75,7 @@ export async function handleLoop(req: Request, env: PlanEnv, deps: LoopDeps | nu
   if (deps === null) return json({ error: "planning_unavailable" }, 503);
 
   const who = await deps.identify(req);
+  if (who.rejected === true) return json({ error: "session_rejected" }, 401);
   const snapshot = await deps.closures();
   const picker = closurePicker(snapshot.closures);
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
