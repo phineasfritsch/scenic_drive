@@ -9,12 +9,20 @@ lease_expires_at: 2026-10-09T21:49:42Z
 worktree: .worktrees/T-0341
 branch: task/T-0341
 exclusive: []
-touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt]
-pins_affected: [P-SAFE-02]
+touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-hazard-copy-sites.txt, ops/lib/named-tests.json, ops/mutate/, queue/]
+pins_affected: [P-SAFE-02, P-SAFE-03, P-SAFE-08]
 reviewer: null
 depends_on: [T-0339]
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "A1 CLOSURE COPY, WHOLE (full equality): HazardCopy.closureLines(for:) over the whole cross product state {fresh, stale, unavailable} x dropped {no, yes} x crosses {no, yes} (12 rows) EQUALS a list written out in HazardCopyTests independently of HazardCopy, each row a function of its variant: crosses line first, then the state line (none for fresh), then the dropped line, each line R2's sentence whole; fresh/no/no is the empty list."
+  - "A2 EVERY WORKER SHAPE, EVERY ROUTE CARD, THROUGH THE SHIPPING ENTRY POINTS: over M1's 9 shapes (absent, fresh+dropped, fresh+crosses, fresh+both, stale, stale+dropped, stale+crosses, stale+both, unavailable) x {plan, trip, loop}, a 200 whose closures_hazard is that shape, sent through PlanClient.plan -> ClientPlanner.preview, TripClient.trip -> ClientTripPlanner.itinerary and LoopClient.loop -> ClientLoopPlanner.outcome, reads HazardCopy.lines(for:) EQUAL to the shape's expected list (a function of the shape); the plan's list is the closure lines then the run lines."
+  - "A3 FAIL-CLOSED ON EVERY FIELD (rows as functions of input): over plan/trip/loop x {closures_hazard null, number, string, array; state removed, null, number, unknown spellings 'Fresh', 'STALE', ' stale', 'expired', ''; version removed, null, number; fetched_at removed, number, bool; dropped present as 0, -1, null, string; crosses present as [], null, string, [1]} the answer still decodes to a route (never a refusal) and reads R3's lines for that variant, whole - never the empty list; a meta-check asserts no variant's expected list is empty."
+  - "A4 RED FIRST BY NAME: A1-A3's named tests land against a stub (closure readers that drop closures_hazard, closureLines returning []), the run is quoted with each named test failing; then the code lands and they are green."
+  - "A5 EVERY ROUTE CARD SHOWS IT, ONLY THROUGH HAZARDCOPY: PlanPreviewCard (unchanged; its strip is HazardCopy.lines(for: preview)), TripItineraryCard and LoopPreviewCard render HazardCopy.lines(for:) of their model; check-hazard-copy-sites.txt approves exactly the new sites; the bare check-hazard-copy-sites guard and check-safety-disclaimer pass with the two card digests re-approved; shown RED once with a bypass."
+  - "A6 SHOTS LOOKED AT: PlanRehearsalFixtures puts crosses on the plan preview, stale on the itinerary and unavailable on the loop; ios-compile and ios-screenshot green on the last commit touching apps/ios or Sources, and plan-preview, plan-trip and plan-loop shots are looked at and quoted."
+  - "A7 POPULATION AND PINS: ops/mutate/hazardcopy_mutations.py gains closure mutants (each line softened, order changed, a condition dropped, the reader's fail-closed arms flipped) killed by the named test; floors raised to the shipped count; P-SAFE-08's named tests gain the A2/A3 Swift tests by name (run-named-tests.py P-SAFE-08 green)."
+  - "A8 GATES: linked digests re-approved for every touched Sources file; touched suites green; bare guards check-safety-disclaimer and check-hazard-copy-sites; check-mutate-population, check-line-cap, check-pins-yaml, queue-check; origin/main fetched and merged last."
 ---
 ## Brief
 
@@ -28,3 +36,54 @@ fail-closed, one line per condition, whole-copy equality, shots looked at.
 ## Log
 - 2026-10-09T08:33:30Z filed by agent/claude-opus-5 from T-0339 R4.
 - 2026-10-09T11:49:42Z claimed by agent/claude-opus-5; lease until 2026-10-09T21:49:42Z
+- 2026-10-09T11:54:27Z MEASURED (at e3567a6e, before any code).
+  - M1 WHAT THE WORKER SENDS. services/api/src/closuresStore.ts: `ClosuresHazard {state: "fresh"|"stale"|
+    "unavailable"; version: string; fetched_at: string|null; dropped?: number; crosses?: string[]}`.
+    withClosuresHazard (:93-97): with dropped 0 and no crosses the key is ABSENT on a fresh snapshot and the
+    snapshot's hazard otherwise (stale: {state, version, fetched_at: ISO string}; unavailable: {state, version
+    "none", fetched_at null}); dropped > 0 adds `dropped` (a count), a non-empty crosses adds `crosses` (ids), and a
+    fresh snapshot then carries state "fresh". Callers: plan.ts:129, trip.ts:108, loop.ts:86 (all three with
+    picker.dropped() and picker.crosses()), isochrone.ts:80/86 (snapshot only). So the shapes are: absent;
+    fresh+dropped; fresh+crosses; fresh+both; stale; stale+dropped; stale+crosses; stale+both; unavailable (an
+    unavailable read has no set, so the picker has nothing to drop or cross).
+  - M2 NO SWIFT READER. grep closures_hazard over Sources and apps/ios: 0 hits. PlanResponse, TripResponse and
+    LoopResponse ignore the key. Two test bodies carry it: Tests/ScenicAPIClientTests/TripWire.swift:24 and
+    LoopWire.swift:25, both `{"state":"fresh"}` - a shape the Worker never sends (no version, no fetched_at).
+  - M3 ROUTE CARDS: PlanPreviewCard (strip = HazardCopy.lines(for: preview)), TripItineraryCard and LoopPreviewCard
+    (no hazard line at all; T-0339 R4). Models: PlanPreview, TripItinerary, LoopPreview (Sources/ScenicKit), built by
+    ClientPlanner.preview, ClientTripPlanner.itinerary, ClientLoopPlanner.outcome. All three cards are content
+    pinned in ops/lib/check-safety-disclaimer-pinned (:244 loop, :251 plan, :259 trip); app sites naming HazardCopy
+    are whitelisted in ops/lib/check-hazard-copy-sites.txt (3 PlanPreviewCard rows).
+  - M4 OUT OF CARD SCOPE: /reroute (reroutePlanner.ts) sends no closures_hazard and PlanRerouter's reply is the drive
+    screen, not a route card; the isochrone body (SurpriseIsochrone) draws reach, not a route. Neither is read here.
+  - M5 PINS: P-SAFE-02 has no row in pins/PINS.yaml (grep: 0). P-SAFE-08 ("closure cron freshness <= 30 min; route
+    never crosses an active closure polygon") runs ops/lib/run-named-tests.py P-SAFE-08, vitest only today.
+- 2026-10-09T11:54:27Z RULINGS.
+  - R1 MODEL (ScenicKit, Linux): `ClosuresState` {fresh, stale, unavailable} and `ClosuresHazard {state, dropped:
+    Bool, crosses: Bool}` with `.clear` (fresh, no, no), each its own file under Sources/ScenicKit/Hazards/.
+    PlanPreview, TripItinerary and LoopPreview gain `closures` (default .clear); PlanResponse, TripResponse and
+    LoopResponse gain `closuresHazard`, read by one non-throwing reader `ClosuresHazardReader` (ScenicAPIClient).
+  - R2 THE COPY, ruled into HazardCopy (calm, the meaning never softened):
+    crosses "This route crosses a reported road closure - expect the road to be blocked and check before you drive";
+    stale "Road closure reports may be out of date for this route - check for closures before you drive";
+    unavailable "Road closures could not be checked for this route - check for closures before you drive";
+    dropped "Not every reported road closure near this route was checked - check for closures before you drive".
+    One line per condition, in that order (crosses, state, dropped); fresh adds no state line. The plan strip reads
+    the closure lines and then the run lines; when any closure line shows, noneFlagged does not (the strip is not
+    empty). Trip and loop cards show the closure lines in their first section, nothing when the list is empty.
+  - R3 FAIL-CLOSED READER (the safest TRUE line, never silence, never a refusal to route - closuresStore.ts:8):
+    key absent -> .clear (the Worker's fresh contract, M1). Present but null or not an object -> unavailable. state
+    missing, not a string, or not exactly fresh|stale|unavailable -> unavailable. version not a string, or fetched_at
+    missing or neither a string nor null -> unavailable (the record did not read). `dropped` PRESENT with any value
+    -> dropped line; `crosses` PRESENT with any value -> crosses line (the Worker adds each key only to say so; a
+    garbled value cannot un-say it). A whole object that does not read claims no crossing: "could not be checked" is
+    the true line. Nothing in closures_hazard can fail the decode of the route.
+  - R4 FIXTURES: TripWire/LoopWire's `{"state":"fresh"}` is not a Worker shape (M2) and under R3 reads unavailable;
+    they become M1 shapes (trip: stale, loop: fresh+dropped) with expected values to match.
+  - R5 PINS: no P-SAFE-02 row exists (M5), so nothing binds to it. P-SAFE-08 gains a swift section naming A2 and A3's
+    tests: the driver being told a route crosses a closure, or that closures were not current, is the app half of
+    "never crosses an active closure". P-SAFE-03 holds the cards (digests + check-hazard-copy-sites).
+  - R6 POPULATION: the existing hazardcopy driver family takes the new mutants (subjects HazardCopy.swift and
+    ClosuresHazardReader.swift; killers in HazardCopyTests and ClosuresHazardTests); no new driver.
+  - R7 SCOPE: touches widened to the pinned digest table, the hazard-sites whitelist, named-tests.json, ops/mutate/
+    and queue/ (each needed by A5-A8). /reroute and the isochrone are M4 - not read, not filed (not route cards).
