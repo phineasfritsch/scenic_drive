@@ -217,3 +217,24 @@ xcodeproj lock.
   line.coordinates[0]`; at 4198d63c every fixture moved the start too, so it is expected MISSED there; killer the
   landed table, through its middle-moved rows only). Committed BEFORE the tests and run `--only 105,106`; floor
   104 -> 106. DriveVoiceTests.swift stays under 300 lines, so FILTER and TEST_FILES do not change.
+- 2026-10-09T03:53:54Z rv2 B1 CLOSED BY CLASS (agent/claude-opus-5). BEFORE the tests (7b345434, entries 105/106
+  and floor 104 -> 106 committed alone): `drive.py --only 105,106` "MISSED 105 the line-change reset keyed on the
+  destination exit=0 no test objected"; "MISSED 106 the line-change reset keyed on the first vertex exit=0 no test
+  objected"; "caught by the test that names it: 0 of 2 (wrong killer 0, trapped 0, compile-only 0, MISSED 2, skipped
+  0) MUTATE FAILED". AFTER (b5d95f00, tests only): `drive.py --only 103,105,106` "caught 103 a landed reroute keeps
+  the arrival by: P-SAFE-09: a landed reroute ..."; "caught 105 the line-change reset keyed on the destination by:
+  P-SAFE-09: offline says head back; ... | P-SAFE-09: a landed reroute ..."; "caught 106 the line-change reset keyed
+  on the first vertex by: P-SAFE-09: a landed reroute ..."; "caught by the test that names it: 3 of 3 (wrong killer
+  0, trapped 0, compile-only 0, MISSED 0, skipped 0) MUTATE OK". landedRerouteSaysTheNewLine is now 2 reroute
+  variants x 3 cue states x online/offline = 12 rows compared whole, each asserting the RerouteRequest the session
+  returned has `destination` == the fixture's last vertex == the old line's destination; the pre-reroute-distinct
+  meta-check is keyed per (variant, online). offlineThenANewWay reroutes [away, short's destination] (~497 m) and
+  hears the destination's approach and the arrival on it. The destination meta-check was not run red on its own
+  (any fixture that moves the destination also changes the spoken rows); RECORDED. RECORDABLE 3 (keys on plan token
+  or waypoints): the start-moved rows keep the pins and pass no token, so a token- or waypoint-keyed reset is the
+  same blind spot; not run this round, RECORDED for the reviewer. No Sources/ change; no digest row moves.
+  DriveVoiceTests.swift 287 lines. origin/main e3de4d78 is already an ancestor (merge: "Already up to date").
+  ON HEAD b5d95f00: touched suites "Test run with 53 tests in 8 suites passed"; "NAMED P-SAFE-09 passed=23/23" exit
+  0; check-mutate-population bare exit 0 ("P-PROC-06: every added module is covered or allowlisted; the floor of 144
+  holds"); check-line-cap "514 Swift files ... none over 300 lines" exit 0; check-drive-voice exit 0 ("7 approved
+  whole lines"); queue-check "QUEUE OK (326 tasks)".
