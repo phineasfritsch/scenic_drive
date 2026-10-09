@@ -14,7 +14,16 @@ pins_affected: [P-SAFE-07, P-PRIV-05]
 reviewer: null
 depends_on: [T-0320, T-0317]
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "MEASURE then RULE (a)-(d) in a dated Log entry before any code (the 2026-10-09T10:50:51Z entry)."
+  - "H3-8 on the device (R1): CorridorCell.containing(latitudeDegrees:longitudeDegrees:) - Telemetry's internal latLngToCell port (uber/h3 v4.1.0) copied into ScenicKit and run at resolution 8 - equals h3-py 4.1.2 latlng_to_cell by FULL EQUALITY over a generated table (LA and Bay Area points, the 12 pentagon centres, both poles, the antimeridian, 200 seeded random points) at resolution 8, and the same port at resolution 5 equals h3-py over the same table (the Telemetry parity: the code Telemetry ships at 5 answers uber/h3 at 8); nil for NaN, infinities and every out-of-range bound (latitude -90 / 90 accepted, nextafter outside refused; longitude -180 / 180 accepted, nextafter outside refused)."
+  - "Per-edge free-flow (R2): CorridorRoute(route:timeRuns:) over GraphHopper details=time runs (from, to, whole milliseconds) - one CorridorEdge per maximal stretch of consecutive runs whose first vertex lies in the same H3-8 cell, freeFlowSeconds = summed ms / 1000 - nil unless the runs tile 0...count-1 edge for edge (tripPlanner.ts edgesOf's rule) with ms >= 0, not all zero, and every vertex a cell; a full-equality table over every bound (no runs, first.from 1, a gap, an overlap, from == to, last.to one short and one long, ms -1 / 0 / all zero, a vertex out of range, one route, a route whose cells repeat non-adjacently)."
+  - "Completed legs (R3): CorridorClock.observe(_ session: DriveSession, at: Date, into: inout LearnedCorridorSpeeds) records exactly one record(cell:hourOfWeek:actualSeconds:freeFlowSeconds:) per corridor edge driven from its entry to the next edge's entry with every observation between on the line (legEnd non-nil), actual = exit date - entry date, hour = HourOfWeek.of(entry, in: speeds.timeZone); the first edge is entered at the drive's first on-line observation in it, the last closes on arrival (legEnd at the line's last vertex within DriveSession.awayThresholdMeters); a skipped edge, an off-line observation inside an edge, and everything after the session's line changes (a reroute) record nothing. Table over those transitions with the learner's slots compared WHOLE."
+  - "The preview from retime (R4): RetimedPreview.of(_ preview:, timeRuns:, by: TrafficProvider, departsAt:) answers the preview with etaSeconds and etaIsEstimate from retime over CorridorRoute(route: preview.route, timeRuns:), every other field equal; with no route (no or bad runs) the preview unchanged - the badge stays. Table: every edge at 0 / 4 / 5 / 6 samples x one edge unlearned x no runs, previews compared WHOLE; the badge is off only when every edge is learned (P-SAFE-07)."
+  - "End to end on the Linux path (R5): five completed drives through CorridorClock on one route clear RetimedPreview's badge and four do not (the M7 exit), the learner compared whole."
+  - "P-PRIV-05 (R6): ops/lib/check-learned-speeds-sites.py's whitelist extended to every new line naming a guarded identifier, CorridorClock and CorridorObservation added to the guarded identifiers, seen red then green; LearnedSpeedsPrivacyTests covers the new types (none Encodable or Decodable); no new line in ScenicAPIClient, Telemetry or apps/ names a guarded identifier."
+  - "Tests RED first by name against stubbed bodies, then green; P-SAFE-07 binds the new tests by name; digest rows for every new or changed Sources/ file; ops/mutate/traffic population extended to every new subject with a raised literal floor, the new entries CAUGHT by name; check-mutate-population, check-line-cap, check-pins-yaml, queue-check green; ios-compile and ios-screenshot CI success."
+  - "The rest FILED as follow-ups with ids (R7): the Worker passes details=time through /plan (and reroute) and ScenicAPIClient/PlanPreview carry the runs; the app wiring (NavAdapter feeds CorridorClock, PlanAdapter shows RetimedPreview) with the learner persisted across launches in PlaceStore."
 ---
 ## Brief
 
@@ -33,3 +42,43 @@ edge is learned (product invariant).
 - 2026-10-08T13:58:47Z filed by agent/claude-opus-5 (orchestrator) from T-0320's stillOpen 1.
 - 2026-10-08T13:59:22Z renumbered T-0324 -> T-0325 by agent/claude-opus-5 (orchestrator): task/T-0321 already holds a T-0324.
 - 2026-10-09T10:44:52Z claimed by agent/claude-opus-5; lease until 2026-10-09T22:44:52Z
+- 2026-10-09T10:50:51Z MEASURE then RULE (agent/claude-opus-5, before any code).
+  MEASURED. (a) Sources/Telemetry/H3*.swift is 482 lines (H3BaseCells 53, H3Cell 37, H3CoordIJK 139,
+  H3FaceProjection 140, H3IndexBuilder 113), all internal; the port is resolution-generic -
+  H3FaceProjection.faceIJK(latitude:longitude:resolution:) and H3IndexBuilder.index(face:coord:resolution:) take
+  the resolution, the Class III rotation is `resolution % 2 == 1` - and only H3Cell fixes `resolution = 5`. Root
+  Package.swift: ScenicKitTests depends on ["ScenicKit"] only, TelemetryTests on ["Telemetry"] only (serial file,
+  not in touches). h3-py 4.1.2 imports on this box (`python -c "import h3"`). (b) services/api/src/scenicPlanner.ts
+  ROUTE_DETAILS = scenic_score, road_class, osm_way_id + HAZARD_DETAILS - no `time`; ScenicPlanResult carries eta_s
+  only; tripPlanner.ts already asks GraphHopper for TRIP_DETAILS ["time", "distance", "scenic_score"] and edgesOf
+  holds the runs to tile [0, last point] edge for edge with whole-millisecond values - so the router answers
+  details=time today. (c) DriveSession exposes progressSegment (DriveLine.progress, a forward-only search), legEnd
+  (nil before the first usable fix and while it is away from the line), line (replaced whole by a taken reroute)
+  and awayThresholdMeters 50; DriveNavigator.swift:73 stamps each DriveFix with
+  location.timestamp.timeIntervalSinceReferenceDate, a wall clock. (d) PlanPreview.etaIsEstimate is the server's
+  eta_is_estimate, always true (scenicPlanner.ts `eta_is_estimate: true`); showsEstimateBadge reads it.
+  RULED. R1 (a): no Package.swift change - the four internal files H3BaseCells, H3CoordIJK, H3FaceProjection and
+  H3IndexBuilder are copied unchanged in body into Sources/ScenicKit/Traffic/ (internal, same names - internal
+  types of two modules never meet - Apache-2.0 notice kept), and CorridorCell gains containing(latitudeDegrees:
+  longitudeDegrees:) at resolution 8. Parity with Telemetry is by the shared oracle: the copy run at 5 AND at 8
+  equals h3-py 4.1.2 over one generated table (Telemetry's own res-5 tests already pin its copy to uber/h3). The
+  duplicate is the price of the serial file; folding Telemetry onto ScenicKit's copy needs Package.swift and is
+  named in stillOpen. R2 (b): the device does NOT split the ETA by length. Worked example: a route of two
+  equal-length cells, a freeway one taking 2 min and a back-road one 8 min at free flow; the length split gives
+  each 5 min, a free-flow drive observes ratios 5/2 = 2.5 (clamped to 1.0) and 5/8 = 0.625, and retime answers
+  5/1.0 + 5/0.625 = 13 min against a true 10 - and after five drives the badge would go away on a 30% wrong ETA.
+  Per-edge free-flow is GraphHopper's details=time, passed through by the Worker; the device's half ships here
+  (CorridorRoute over the runs, edges grouped by the cell of each run's first vertex - a run longer than a cell is
+  attributed wholly to its start's cell). The Worker field and its PlanResponse/PlanPreview decode are a
+  follow-up: T-0333 is changing the Worker and ScenicAPIClient now (memory parallel-worker-prs-conflict). Until it
+  lands no preview carries runs and RetimedPreview leaves the badge on - it fails safe. R3 (c): CorridorClock reads
+  the shipped DriveSession after each observe plus the wall Date of the fix; only edges driven end to end on the
+  line are recorded, so a partial, skipped or detoured edge never teaches a ratio; after a reroute nothing more is
+  recorded this drive (a reroute answer carries no runs until the R2 follow-up). Persistence across launches is
+  the PlaceStore follow-up (GRDB suites run only in CI linux-core); until then the learner is in memory. R4 (d):
+  RetimedPreview.of replaces etaSeconds and etaIsEstimate only; fastestEtaSeconds stays the server's (the fastest
+  route carries no runs). The ceiling invariant (returned ETA <= fastest + budget) is the Worker's, on free-flow
+  times both sides; a retimed ETA is the device's re-estimate of the same route and does not re-run that check.
+  R5: the M7 exit is shown on the Linux path end to end (five drives clear the badge, four do not). R6: P-PRIV-05's
+  whole-line whitelist grows by every new site and two identifiers. R7: this task is the device slice; the Worker
+  pass-through and the app wiring with PlaceStore persistence are filed as follow-ups.
