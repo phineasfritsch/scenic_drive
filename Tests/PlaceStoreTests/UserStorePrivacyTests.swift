@@ -34,6 +34,7 @@ struct UserStorePrivacyTests {
             "saved_drive": ["id", "name", "lambda_e5", "budget_minutes", "created_at", "needs_replan"],
             "saved_drive_segment": ["drive_id", "position", "segment_id", "mid_lat_e5", "mid_lon_e5"],
             "surprise_shown": ["place_id", "category", "corridor", "day"],
+            "corridor_ratio": ["cell", "hour", "ratio", "samples"],
         ])
     }
 }

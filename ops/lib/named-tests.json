@@ -230,7 +230,7 @@
       ]
     },
     "swift": {
-      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests|SurpriseShownRecordFieldsTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests)|ScenicKitTests\\.LearnedSpeedsPrivacyTests",
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests|SurpriseShownRecordFieldsTests|CorridorRatioRecordFieldsTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests)|ScenicKitTests\\.LearnedSpeedsPrivacyTests",
       "tests": [
         "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
         "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
@@ -252,7 +252,8 @@
         "ScenicAPIClientTests.PlanVehicleWireTests/wireValuesAreTheWorkerTable()",
         "ScenicAPIClientTests.PlanVehicleWireTests/everyProfileWhole()",
         "ScenicAPIClientTests.PlanVehicleWireTests/defaultIsStandard()",
-        "ScenicKitTests.LearnedSpeedsPrivacyTests/noLearnedTypeIsCodable()"
+        "ScenicKitTests.LearnedSpeedsPrivacyTests/noLearnedTypeIsCodable()",
+        "PlaceStoreTests.CorridorRatioRecordFieldsTests/fieldsAndNoCodable()"
       ]
     }
   },
@@ -1632,7 +1633,7 @@
   },
   "P-SAFE-07": {
     "swift": {
-      "filter": "ScenicKitTests\\.(LearnedCorridorSpeedsTests|HourOfWeekTests|CorridorCellTests|CorridorRouteTests|CorridorClockTests|RetimedPreviewTests)|ScenicAPIClientTests\\.PlanTimeRunsTests",
+      "filter": "ScenicKitTests\\.(LearnedCorridorSpeedsTests|HourOfWeekTests|CorridorCellTests|CorridorRouteTests|CorridorClockTests|RetimedPreviewTests|LearnedSpeedsRestoreTests|CorridorLearnerTests|RetimingPlannerTests)|ScenicAPIClientTests\\.PlanTimeRunsTests",
       "tests": [
         "ScenicAPIClientTests.PlanTimeRunsTests/decodeTable()",
         "ScenicAPIClientTests.PlanTimeRunsTests/previewCarriesRuns()",
@@ -1651,7 +1652,12 @@
         "ScenicKitTests.CorridorClockTests/transitionTable()",
         "ScenicKitTests.CorridorClockTests/countsAndFinish()",
         "ScenicKitTests.RetimedPreviewTests/badgeTable()",
-        "ScenicKitTests.RetimedPreviewTests/fiveDrivesClearTheBadge()"
+        "ScenicKitTests.RetimedPreviewTests/fiveDrivesClearTheBadge()",
+        "ScenicKitTests.LearnedSpeedsRestoreTests/restoreBounds()",
+        "ScenicKitTests.LearnedSpeedsRestoreTests/rowsRoundTrip()",
+        "ScenicKitTests.CorridorLearnerTests/feedTable()",
+        "ScenicKitTests.CorridorLearnerTests/fiveDrivesAcrossRelaunch()",
+        "ScenicKitTests.RetimingPlannerTests/outcomeTable()"
       ]
     }
   }

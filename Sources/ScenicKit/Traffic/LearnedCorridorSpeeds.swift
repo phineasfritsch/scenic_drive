@@ -22,6 +22,27 @@ public struct LearnedCorridorSpeeds: TrafficProvider, Equatable {
         self.timeZone = timeZone
     }
 
+    /// The learner a previous launch kept (T-0343 R2): nil unless EVERY row has its hour in 0...167, its ratio in
+    /// [0.3, 1.0] (NaN is in neither) and samples >= 1, and no two rows share a cell and an hour - a store that
+    /// holds one bad row restores nothing, and the badge stays. The cell is not checked: no route has a stray one.
+    public init?(timeZone: TimeZone, restoring rows: [CorridorSlotRow]) {
+        self.timeZone = timeZone
+        for row in rows {
+            guard let hour = HourOfWeek(row.hour), row.ratio >= Self.floorRatio, row.ratio <= Self.ceilingRatio,
+                  row.samples >= 1 else { return nil }
+            let slot = CorridorSlot(cell: CorridorCell(index: row.cell), hour: hour)
+            guard slots[slot] == nil else { return nil }
+            slots[slot] = CorridorRatio(ratio: row.ratio, samples: row.samples)
+        }
+    }
+
+    /// Every slot as a row, by cell then hour: what the store keeps, and what `init(timeZone:restoring:)` takes.
+    public var rows: [CorridorSlotRow] {
+        slots.map { slot, learned in
+            CorridorSlotRow(cell: slot.cell.index, hour: slot.hour.value, ratio: learned.ratio, samples: learned.samples)
+        }.sorted { ($0.cell, $0.hour) < ($1.cell, $1.hour) }
+    }
+
     /// Teaches one driven edge. False, with nothing changed, when either time is NaN, infinite, zero or negative.
     @discardableResult
     public mutating func record(cell: CorridorCell, hourOfWeek: HourOfWeek, actualSeconds: Double,
