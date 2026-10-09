@@ -80,9 +80,9 @@ export const MUTATIONS = [
   m("planner-day-vertex-off-by-one", "tripPlanner.ts", "pointOf[day.end_vertex]!", "pointOf[day.end_vertex - 1]!"),
   m("planner-full-day-reads-route", "tripPlanner.ts", "      hazards = hazardsOf(path);\n", ""),
   // T-0340 rv1: the runs of the path that SHIPS, never the pre-closure-swap one.
-  m("planner-route-hazards-pre-swap", "tripPlanner.ts", "const routeHazards = hazardsOf(chosen);", "const routeHazards = hazardsOf(measuredChosen);"),
-  m("planner-pointof-pre-swap", "tripPlanner.ts", "...(chosen.details.time ?? [])", "...(measuredChosen.details.time ?? [])"),
-  m("planner-leg-hazards-pre-swap", "tripPlanner.ts", "      hazards = hazardsOf(path);\n", "      hazards = hazardsOf(legPath);\n"),
+  m("planner-route-hazards-pre-swap", "tripPlanner.ts", "const routeHazards = hazardsOf(shipped);", "const routeHazards = hazardsOf(measuredChosen);"),
+  m("planner-pointof-pre-swap", "tripPlanner.ts", "...(shipped.details.time ?? [])", "...(measuredChosen.details.time ?? [])"),
+  m("planner-leg-hazards-pre-swap", "tripPlanner.ts", "      hazards = hazardsOf(shippedLeg);\n", "      hazards = hazardsOf(legPath);\n"),
   m("planner-day-hazards-empty", "tripPlanner.ts", "overnight: night(day.overnight), hazards, leg,", "overnight: night(day.overnight), hazards: [], leg,"),
   m("planner-search-7", "tripPlanner.ts", "}, MAX_EVALUATIONS);", "}, MAX_EVALUATIONS + 1);"),
   m("planner-pct-ignored", "tripPlanner.ts", "budgetSeconds(fastestMs, extraBudgetPct);", "budgetSeconds(fastestMs);"),
