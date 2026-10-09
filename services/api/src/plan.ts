@@ -118,7 +118,8 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
       const budget = request.budgetMinutes * 60;
       const rest = usable && reroute ? await planReroute(call, deps.routerBase, request.origin, destination, budget,
         usable.pins.slice(reroute.firstPin), usable.lambda, picker.pick, picker.returned) : null;
-      return rest ?? planScenic(call, deps.routerBase, request.origin, destination, budget, picker.pick, picker.returned);
+      return rest ?? planScenic(call, deps.routerBase, request.origin, destination, budget, picker.pick, picker.returned,
+        request.allBackRoads);
     });
     const token = plans ? await plans.remember({ device: who.userId, place: request.destinationPlace,
       pins: plan.waypoints, lambda: plan.lambda }) : null;

@@ -28,15 +28,16 @@ public struct PlanClient: Sendable {
     }
 
     /// Plans `origin` -> the corpus place `place` with `budgetMinutes` of extra time, for `vehicle` (T-0311 R6:
-    /// `.standard` unless named - the only profile the stored read can return today).
+    /// `.standard` unless named - the only profile the stored read can return today). `allBackRoads` sends
+    /// `back_roads: true` (T-0334 R2): the Worker plans its MAX_LAMBDA route alone, inside this budget's ceiling.
     public func plan(from origin: Coordinate, to place: Int64, budgetMinutes: Int,
-                     departsAt: Date? = nil, vehicle: VehicleProfile = .standard)
+                     departsAt: Date? = nil, vehicle: VehicleProfile = .standard, allBackRoads: Bool = false)
         async throws(PlanError) -> PlanResponse {
         // No install id, no request: without x-scenic-device the Worker bills the shared unidentified bucket.
         guard let installID else { throw .refusedOnDevice(.noInstallID) }
         let body: PlanRequestBody
         switch PlanRequestBody.validated(origin: origin, place: place, budgetMinutes: budgetMinutes,
-                                         departsAt: departsAt, vehicle: vehicle) {
+                                         departsAt: departsAt, vehicle: vehicle, backRoads: allBackRoads) {
         case .failure(let refusal):
             throw .refusedOnDevice(refusal)
         case .success(let validated):

@@ -222,7 +222,7 @@ final class PlanClientResponseTests: XCTestCase {
         for status in 100...599 {
             for code in codes {
                 let body = #"{"error":"\#(code)","detail":"d","resets_at":"2026-10-06T00:00:00.000Z","#
-                    + #""budget_minutes":25,"more_time_minutes":65,"back_roads_eta_s":null}"#
+                    + #""budget_minutes":25,"more_time_minutes":65,"back_roads_eta_s":null,"back_roads_budget_minutes":null}"#
                 if await literal(status, body) != Self.fallback(status) { left.append("\(status) \(code)") }
             }
         }
