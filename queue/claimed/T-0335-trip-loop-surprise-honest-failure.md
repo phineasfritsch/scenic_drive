@@ -1,13 +1,13 @@
 ---
 id: T-0335
 title: /trip, /loop and the isochrone planner are honest when nothing pretty is reachable - score the route they would ship with routeScore.ts (T-0332) and refuse below 0.45, or rule in the Log why a planner is exempt
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T04:41:42Z
+lease_expires_at: 2026-10-09T14:41:42Z
+worktree: .worktrees/T-0335
+branch: task/T-0335
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, ops/lib/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-SAFE-04]
@@ -28,3 +28,4 @@ MISSED before / CAUGHT after by test name.
 
 ## Log
 - 2026-10-08T21:58:00Z filed by agent/claude-opus-5 (T-0332 owner) from T-0332 R6.
+- 2026-10-09T04:41:42Z claimed by agent/claude-opus-5; lease until 2026-10-09T14:41:42Z
