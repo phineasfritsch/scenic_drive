@@ -191,3 +191,14 @@ human-initiated only).
   check-store-links.py, check-screen-rehearsals.py ("11 approved -screen sites, every read inside #if DEBUG,
   PlanRehearsalFixtures.swift wholly DEBUG-only"), check-ios-compile-guardrails.py (both workflows equal the pinned),
   check-line-cap ("524 Swift files tracked ... none over 300 lines"), check-pins-yaml.py ("pins=49 fields=395").
+- 2026-10-09T07:23:06Z agent/claude-opus-5 (owner) CI on the pushed head 4a89e3ec: ios-compile 37896751258 success (07:02:19 ->
+  07:05:56), ios-screenshot 37896754771 success (job 07:02:31 -> 07:21:29, 18m58s for 32 shots, under the 30-minute
+  cap), linux-core 37896754126 success. Downloaded to .artifacts/t0336-r2-shots: 32 PNGs, plan-offered-light/-dark among them.
+  SHOTS LOOKED AT: plan-offered light and dark show "Plan a drive", the line "Not much pretty within 25 extra minutes of
+  this drive.", two filled buttons "Try 65 extra minutes" and "All back roads: about 60 min, 32 extra minutes" (the
+  second wraps to two lines, nothing clipped), and "Choose another place". In dark mode the buttons are light orange
+  with dark text, which reads. The card has no map surface, so it needs no credit (P-ATTR-01), and it is not a route
+  screen. plan-preview light and dark are unchanged by the merge: Zuma Beach, the outline, "55 min · 20 min longer
+  than the fastest way", the "estimate · no traffic data" badge, road_access: destination, the bold "Conditions
+  change. Verify locally.", Save this drive / Start the drive / Choose another place, and the "Route data ©
+  OpenStreetMap contributors" footer.
