@@ -122,3 +122,33 @@ wrong TTL, malformed} x {flag 1, closed} for the Worker answer, and for the clie
   answers the 401 only after guardedPlan has reserved (a body that fetches nothing), so status, body and fetch count
   match the reference and only the quota state differs; it must be CAUGHT by name by the EMPTY-quota rows (R2);
   MIN_MUTATIONS 92 -> 93.
+- 2026-10-09T13:16:08Z FIX ROUND 1 and ACCEPTANCE RE-QUOTED (agent/claude-opus-5) on head f73ecf64. `git fetch origin`
+  then `git merge-base --is-ancestor origin/main HEAD` -> exit 0 (main has not moved since 20358065's merge; no merge
+  commit needed), so f73ecf64 IS the merged head. Since 20358065 only PlanSessionRetryTests.swift, session_mutations.py,
+  attestMutants.mjs and this file changed; no Sources/ or apps/ios file, so no digest row moves.
+  B1: `python ops/mutate/session.py --only 91` at 0c233e4d (population committed, table not yet) -> `MISSED 91 the
+  failed renewal resends the rejected token exit=0 no test objected`, `MUTATE FAILED caught=0/1`; at f73ecf64 (the
+  renewal variant in the table) -> `caught by the test that names it: 1 of 1 (wrong killer 0, trapped 0, compile-only
+  0, MISSED 0, skipped 0)`, `MUTATE OK caught=1/1`. Floor 90 -> 91; `--prove-floor` -> `FLOOR PROOF OK: 7 of 7 arms
+  refused and the control did not`.
+  B2: `node services/api/test/mutate/attestMutants.mjs --only=reject-plan-after-reservation` -> `population
+  mutations=93 (floor 93)`, `CAUGHT reject-plan-after-reservation by "/plan, Bearer expired, IDENTITY_HEADERS unset,
+  header live: the answer is the ruled reference"`, `RESULT caught=1 missed=0 trap=0 of 1`; `--prove-floor` -> every
+  arm REFUSED (population 92 is below the floor 93, ...), real population quiet.
+  A1 `npx vitest run test/sessionCarriesAct.test.ts test/sessionIdentity.test.ts test/requestReadSites.test.ts` ->
+  `Test Files 3 passed (3)`, `Tests 225 passed (225)`.
+  A2 `swift test --filter "PlanSessionRetryTests|SessionStoreTests|SessionAccountTests|PlanBearerTests"` -> `Test run
+  with 17 tests in 4 suites passed`; PlanSessionRetryTests alone: `a 401 hands the session back, ... never a third
+  request" with 108 test cases passed`, `the resend carries the same purchase ... with 4 test cases passed`, `no row
+  ignores its variant: held, Worker and renewal each change some row's requests, and every action is bounded passed`.
+  A3 the changed table's red by name is mutant 91 above (MISSED before the table changed, CAUGHT by
+  rejectedSessionRecovers after); the earlier RED-first entries (2026-10-09T11:12:00Z) stand.
+  A4 Worker population 93 (reject-never, reject-under-flag, reject-plan-after-reservation, reject-absent-header,
+  reject-unmarked, reject-{plan,trip,loop}-unanswered); Swift population 91 (82-91). `python
+  ops/lib/check-mutate-population.py` -> `P-PROC-06: every added module is covered or allowlisted; the floor of 147
+  holds`, exit 0.
+  A5 `python ops/lib/run-named-tests.py P-STORE-02` -> `NAMED P-STORE-02 passed=246/246` (no new test function, so the
+  named table and its count are unchanged); `P-COST-04` -> `NAMED P-COST-04 passed=27/27`; `python
+  ops/lib/check-pins-yaml.py` -> `PINS-YAML ok pins=49 fields=395`; `bash ops/queue-check` -> `QUEUE OK (332 tasks)`;
+  `git diff --name-only origin/main...HEAD -- apps/ios` -> 0 files.
+  Not closed here (rv1 RECORDABLE 2): the `record.token == token` guard in planSessionRejected has no EQUIVALENT entry.
