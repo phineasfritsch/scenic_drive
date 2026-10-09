@@ -13,9 +13,12 @@ public struct TripResponseDay: Equatable, Sendable {
     public let stops: [String]
     public let overnight: Bool
     public let leg: [Coordinate]?
+    /// T-0340 R3: the day's hazard runs (tripPlanner.ts dayHazards / the leg's own), REQUIRED as /plan's are.
+    public let hazards: [PlanHazard]
 
     public init(day: Int, start: Coordinate, end: Coordinate, driveSeconds: Double, distanceMeters: Double,
-                ceilingSeconds: Double, stops: [String], overnight: Bool, leg: [Coordinate]?) {
+                ceilingSeconds: Double, stops: [String], overnight: Bool, leg: [Coordinate]?,
+                hazards: [PlanHazard] = []) {
         self.day = day
         self.start = start
         self.end = end
@@ -25,6 +28,7 @@ public struct TripResponseDay: Equatable, Sendable {
         self.stops = stops
         self.overnight = overnight
         self.leg = leg
+        self.hazards = hazards
     }
 }
 

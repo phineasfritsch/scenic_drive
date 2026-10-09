@@ -7,12 +7,16 @@ public struct TripItineraryDay: Equatable, Sendable {
     public let distanceMeters: Double
     public let overnight: Bool
     public let path: [Coordinate]?
+    /// T-0340 R4: the day's hazard runs as the Worker sent them, in order; the card reads their lines.
+    public let hazards: [PlanHazardRun]
 
-    public init(day: Int, driveSeconds: Double, distanceMeters: Double, overnight: Bool, path: [Coordinate]?) {
+    public init(day: Int, driveSeconds: Double, distanceMeters: Double, overnight: Bool, path: [Coordinate]?,
+                hazards: [PlanHazardRun] = []) {
         self.day = day
         self.driveSeconds = driveSeconds
         self.distanceMeters = distanceMeters
         self.overnight = overnight
         self.path = path
+        self.hazards = hazards
     }
 }

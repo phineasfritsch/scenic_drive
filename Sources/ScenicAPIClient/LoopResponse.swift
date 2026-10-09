@@ -14,10 +14,14 @@ public struct LoopResponse: Equatable, Sendable {
     public let waypoints: [Coordinate]
     /// T-0341 R3: the answer's closures_hazard, read fail-closed by ClosuresHazardReader; `.clear` when absent.
     public let closuresHazard: ClosuresHazard
+    /// T-0340 R3: the loop's hazard runs (loopPlanner.ts hazardsOf), REQUIRED as /plan's are.
+    public let hazards: [PlanHazard]
 
     public init(route: [Coordinate], distanceMeters: Double, durationSeconds: Double, retraceFraction: Double,
-                minutes: Double, etaIsEstimate: Bool, waypoints: [Coordinate], closuresHazard: ClosuresHazard = .clear) {
+                minutes: Double, etaIsEstimate: Bool, waypoints: [Coordinate], closuresHazard: ClosuresHazard = .clear,
+                hazards: [PlanHazard] = []) {
         self.closuresHazard = closuresHazard
+        self.hazards = hazards
         self.route = route
         self.distanceMeters = distanceMeters
         self.durationSeconds = durationSeconds

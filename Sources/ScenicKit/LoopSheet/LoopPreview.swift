@@ -11,10 +11,14 @@ public struct LoopPreview: Equatable, Sendable {
 
     /// T-0341 R1: what the answer said about road closures; the loop card reads its lines.
     public let closures: ClosuresHazard
+    /// T-0340 R4: the loop's hazard runs as the Worker sent them, in order; the card reads their lines.
+    public let hazards: [PlanHazardRun]
 
     public init(path: [Coordinate], waypoints: [Coordinate], durationSeconds: Double, distanceMeters: Double,
-                retraceFraction: Double, etaIsEstimate: Bool, closures: ClosuresHazard = .clear) {
+                retraceFraction: Double, etaIsEstimate: Bool, closures: ClosuresHazard = .clear,
+                hazards: [PlanHazardRun] = []) {
         self.closures = closures
+        self.hazards = hazards
         self.path = path
         self.waypoints = waypoints
         self.durationSeconds = durationSeconds
