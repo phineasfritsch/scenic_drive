@@ -78,7 +78,7 @@ export const MUTATIONS = [
   m("planner-day-clip-start-inclusive", "tripPlanner.ts", "run.to_index > start)", "run.to_index >= start)"),
   m("planner-day-unclipped", "tripPlanner.ts", "from_index: Math.max(run.from_index, start), to_index: Math.min(run.to_index, end)", "from_index: run.from_index, to_index: run.to_index"),
   m("planner-day-vertex-off-by-one", "tripPlanner.ts", "pointOf[day.end_vertex]!", "pointOf[day.end_vertex - 1]!"),
-  m("planner-full-day-reads-route", "tripPlanner.ts", "      hazards = hazardsOf(path);\n", ""),
+  m("planner-full-day-reads-route", "tripPlanner.ts", "      hazards = hazardsOf(shippedLeg);\n", ""),
   // T-0340 rv1: the runs of the path that SHIPS, never the pre-closure-swap one.
   m("planner-route-hazards-pre-swap", "tripPlanner.ts", "const routeHazards = hazardsOf(shipped);", "const routeHazards = hazardsOf(measuredChosen);"),
   m("planner-pointof-pre-swap", "tripPlanner.ts", "...(shipped.details.time ?? [])", "...(measuredChosen.details.time ?? [])"),

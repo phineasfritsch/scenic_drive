@@ -85,12 +85,12 @@ export const MUTATIONS = [
   m("loop-re-corridor", "loopPlanner.ts", "(a) => a.path.coordinates, start, start,", "(a) => a.path.coordinates, start, { lat: start.lat - 1, lon: start.lon },"),
   m("trip-search-reserve-ignored", "tripPlanner.ts", "used + 1 + (full ? days : 0) <= TRIP_UPSTREAM_COST", "used + 1 <= TRIP_UPSTREAM_COST"),
   m("trip-preview-reserves", "tripPlanner.ts", "(full ? days : 0)", "days"),
-  m("trip-leg-reserve-ignored", "tripPlanner.ts", "used + 1 + (split.plan.length - index - 1) <= TRIP_UPSTREAM_COST", "used + 1 <= TRIP_UPSTREAM_COST"),
+  m("trip-leg-reserve-ignored", "tripPlanner.ts", "used + 1 + after <= TRIP_UPSTREAM_COST", "used + 1 <= TRIP_UPSTREAM_COST"),
   m("trip-search-re-unchecked", "tripPlanner.ts", "return \"plan\" in again.split ? again : null;", "return again;"),
   m("trip-leg-re-unchecked", "tripPlanner.ts", "return again.timeMs > ceiling ? null : again;", "return again;"),
   m("trip-re-lambda-0", "tripPlanner.ts", "buildCustomModel(outcome.lambda, swapped)))", "buildCustomModel(0, swapped)))"),
-  m("trip-leg-re-corridor", "tripPlanner.ts", "const path = await returned(legPath, (p) => p.coordinates, from, to,",
-    "const path = await returned(legPath, (p) => p.coordinates, origin, destination,"),
+  m("trip-leg-re-corridor", "tripPlanner.ts", "return returned(legPath, (p) => p.coordinates, from, to,",
+    "return returned(legPath, (p) => p.coordinates, origin, destination,"),
   m("trip-fastest-uncounted", "tripPlanner.ts", "const fastest = await route(counted, routerBase,", "const fastest = await route(call, routerBase,"),
 ];
 
