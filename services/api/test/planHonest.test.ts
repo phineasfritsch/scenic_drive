@@ -48,7 +48,8 @@ describe("POST /plan honest failure (T-0332 A3, P-SAFE-04)", () => {
   it("westwood-malibu +25 (RouteScore 0.226) answers nothing_pretty with both offers, never a 200 route", async () => {
     const { h, status, body } = await send(WESTWOOD_MALIBU, 25);
     expect({ status, body }).toEqual({ status: 422, body: {
-      error: "nothing_pretty", budget_minutes: 25, more_time_minutes: 65, back_roads_eta_s: timeSeconds(l4Raw) } });
+      error: "nothing_pretty", budget_minutes: 25, more_time_minutes: 65, back_roads_eta_s: timeSeconds(l4Raw),
+      back_roads_budget_minutes: Math.ceil((timeSeconds(l4Raw) - timeSeconds(fastestRaw)) / 60) } });
     expect(h.sent.length).toBeLessThanOrEqual(PLAN_UPSTREAM_COST);
     expect(h.sent.filter((s) => isBackRoads(s.body.custom_model))).toHaveLength(1);
     expect(h.reserved).toHaveLength(1);
@@ -69,7 +70,8 @@ describe("POST /plan honest-failure offers (T-0332 A4/A5)", () => {
     const { more, back } = expected as { more: number | null; back: number | null };
     const { h, status, body } = await send(router, budget);
     expect({ status, body }).toEqual({ status: 422, body: {
-      error: "nothing_pretty", budget_minutes: budget, more_time_minutes: more, back_roads_eta_s: back } });
+      error: "nothing_pretty", budget_minutes: budget, more_time_minutes: more, back_roads_eta_s: back,
+      back_roads_budget_minutes: back === null ? null : Math.ceil((back - 1_200) / 60) } });
     const backRoads = h.sent.filter((s) => s.body.profile === "car_scenic" && isBackRoads(s.body.custom_model));
     expect(backRoads).toHaveLength(1);
     expect(h.sent.length).toBeLessThanOrEqual(PLAN_UPSTREAM_COST);
@@ -81,7 +83,8 @@ describe("POST /plan honest-failure offers (T-0332 A4/A5)", () => {
       { scenic_score: [] });
     const { status, body } = await send(unscored, 25);
     expect({ status, body }).toEqual({ status: 422, body: {
-      error: "nothing_pretty", budget_minutes: 25, more_time_minutes: 65, back_roads_eta_s: null } });
+      error: "nothing_pretty", budget_minutes: 25, more_time_minutes: 65, back_roads_eta_s: null,
+      back_roads_budget_minutes: null } });
   });
 
   it("a pretty chosen route still answers 200 (the default synthetic score is 8)", async () => {

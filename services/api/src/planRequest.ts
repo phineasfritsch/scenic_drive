@@ -18,7 +18,7 @@ export const MAX_PLACE_ID_LENGTH = 128;
 export const PLACE_ID = /^[A-Za-z0-9:._-]+$/;
 const INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?Z$/;
 
-const BODY_KEYS = ["origin", "destination", "budget_minutes", "departs_at", "vehicle", "reroute"];
+const BODY_KEYS = ["origin", "destination", "budget_minutes", "departs_at", "vehicle", "reroute", "back_roads"];
 const REROUTE_KEYS = ["token", "first_pin"];
 const ORIGIN_KEYS = ["lat", "lon"];
 const DESTINATION_KEYS = ["place"];
@@ -30,6 +30,8 @@ export interface PlanRequest {
   departsAt: string | null;
   /** T-0319 R2: the plan this request continues, and the index of its first pin not yet passed. */
   reroute: { token: string; firstPin: number } | null;
+  /** T-0334 R2: plan the MAX_LAMBDA route alone (the honest failure's "all back roads" offer), at budgetMinutes. */
+  allBackRoads: boolean;
 }
 
 export type Parsed = { ok: true; request: PlanRequest } | { ok: false; problem: string };
@@ -123,9 +125,14 @@ export function parsePlanRequest(body: unknown): Parsed {
     reroute = { token: fields.token, firstPin: pin };
   }
 
+  // T-0334 R2: the literal true only - it carries no coordinate - and never beside a reroute, which keeps its lambda.
+  if (body.back_roads !== undefined && body.back_roads !== true) return refuse("back_roads must be true when present");
+  const allBackRoads = body.back_roads === true;
+  if (allBackRoads && reroute !== null) return refuse("back_roads cannot ride with reroute");
+
   return {
     ok: true,
     request: { origin: { lat: origin.lat as number, lon: origin.lon as number }, destinationPlace: place,
-      budgetMinutes: minutes, departsAt, reroute },
+      budgetMinutes: minutes, departsAt, reroute, allBackRoads },
   };
 }

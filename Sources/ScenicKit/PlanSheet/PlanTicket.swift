@@ -7,11 +7,14 @@ public struct PlanTicket: Equatable, Sendable {
     /// The destination's corpus `place_id`.
     public let place: Int64
     public let budgetMinutes: Int
+    /// T-0334 R2: plan the MAX_LAMBDA route alone - the "all back roads" offer - at `budgetMinutes`.
+    public let allBackRoads: Bool
 
-    init(serial: Int, origin: Coordinate, place: Int64, budgetMinutes: Int) {
+    init(serial: Int, origin: Coordinate, place: Int64, budgetMinutes: Int, allBackRoads: Bool = false) {
         self.serial = serial
         self.origin = origin
         self.place = place
         self.budgetMinutes = budgetMinutes
+        self.allBackRoads = allBackRoads
     }
 }

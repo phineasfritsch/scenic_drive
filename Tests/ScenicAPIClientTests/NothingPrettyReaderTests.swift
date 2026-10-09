@@ -15,6 +15,7 @@ final class NothingPrettyReaderTests: XCTestCase {
         var fields = [#""error":"nothing_pretty""#, #""budget_minutes":\#(budget)"#]
         if let more { fields.append(#""more_time_minutes":\#(more)"#) }
         if let back { fields.append(#""back_roads_eta_s":\#(back)"#) }
+        fields.append(#""back_roads_budget_minutes":null"#)
         return "{" + fields.joined(separator: ",") + "}"
     }
 
