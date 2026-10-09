@@ -134,3 +134,8 @@ after a reroute is taken.
   environment) and local ops/test 4928/76 with 7 vitest STACK_TRACE_ERRORs in /auth/apple and /waitlist files this
   task does not touch (environment). CI on 898ae585: core ops/test TESTS linux=4969/76 failed=0, check-pins PINS ok=46
   failed=0 tier=linux, pins-source-only PINS ok=20 failed=0.
+- 2026-10-09T09:32:15Z MERGED origin/main again (PR #221 T-0336, clean) at c7a85406; bare guards exit 0 (check-drive-display 21 lines,
+  check-screen-rehearsals, check-pins-yaml, check-line-cap, check-mutate-population floor 144, queue-check 329 tasks,
+  check-safety-disclaimer-pinned). CI on c7a85406: linux-core success (core + pins-source-only pass), ios-compile success
+  (run 37908636620), ios-screenshot success (run 37908640959); drive-light LOOKED AT: the kinked taken-reroute line,
+  minimal surface, no caption, the full credit footer above End drive - as before.
