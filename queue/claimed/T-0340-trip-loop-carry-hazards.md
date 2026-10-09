@@ -77,3 +77,34 @@ tables - one at a time.
     line(for: run) - a trip's driver needs which day; the prefix spells no wire key. Nothing merged or dropped.
   - R6 P-SAFE-02 stays held by name in tests (one line per run, in order); no PINS.yaml edit (M5).
   - R7 Cards are not edited (M4); only fixtures gain runs for the shots.
+- 2026-10-09T20:50:56Z ACCEPTANCE RUN (origin/main fetched and merged last: 65fa0e74, a merge of fcf657f9 and
+  origin/main b048be30 - queue files and the T-0350 screenshot workflow only, no file this task touches).
+  - A5 RED BY NAME. Worker (tests at 91b20fc5's test files over the shipped planners): `npx vitest run
+    test/tripLoopHazards.test.ts` "Tests 2 failed (2)": "every trip day carries its own hazard runs, whole" and "the
+    loop carries its hazard runs, whole", each AssertionError. Swift (13737639, the stub - models carry runs,
+    readers ignore them, lines(for:) closure-only): `swift test --filter TripLoopHazardsTests` "Test run with 2
+    tests in 1 suite failed ... with 114 issues": "trip and loop answers read their hazard lines, whole" 6 issues,
+    "a trip or loop whose hazards cannot be read is refused" 108 issues (3 answers x 2 bases x 18 rows).
+  - A1, A2 GREEN: both named Worker tests pass; touched vitest files on 65fa0e74 "Test Files 8 passed (8), Tests
+    139 passed (139)" (tripLoopHazards, tripFull, tripRoute, loopShape, loopHonest, tripHonest,
+    closuresCrossingTrip, accountTier). The whole Worker suite at 91b20fc5: 2570 passed; its only reds were the
+    whole-answer tests this task updated (hazards: [] added, the trip details literal extended) and two
+    timeouts on this loaded box (configAnswerPath, waitlistDedupe), each green alone.
+  - A3, A4 GREEN: touched suites on 65fa0e74 "Test run with 99 tests in 19 suites passed"; the whole root suite at
+    00db8f26 "Test run with 774 tests in 150 suites passed".
+  - A6: cards unchanged (git diff origin/main -- TripItineraryCard.swift LoopPreviewCard.swift: empty).
+    check-hazard-copy-sites seen RED with the fixtures before the whitelist: exit=1 "FAILED - 3 unapproved, 1
+    missing of 12 approved"; then "ok - 14 sites, every one approved, in 5 files"; --prove-red "PROVE-RED OK: 13
+    of 13 rows red by name, control 0". Bare check-safety-disclaimer exit=0 with the 8 linked Sources rows and the
+    pinned PlanRehearsalFixtures row re-approved (each sha the reviewed file's).
+  - A7 SHOTS: ios-compile 37983563080 success, ios-screenshot 37983569122 success, both on 00db8f26 (the last commit
+    touching apps/ios or Sources). LOOKED AT: plan-trip-light - under the stale-closures line, a warning glyph and
+    "Day 2 · Gravel on part of this route - check it suits your car"; plan-loop-dark - under "Road closures could
+    not be checked ...", "Local traffic only on part of this route - you may not be allowed through". No raw key.
+  - A8 POPULATION. tripMutants.mjs --only (8 new / re-pointed): "RESULT caught=8 missed=0 trap=0 of 8", floor
+    "mutations=100 (floor 100)"; loopMutants.mjs --only loop-hazards-dropped "caught=1 ... of 1", "mutations=44
+    (floor 44)"; both --prove-floor refuse their arms. hazardcopy.py --only 45-53: first run MISSED 9 of 9 - the
+    runner's FILTER named only the T-0339/T-0341 suites (fcf657f9 adds TripLoopHazardsTests); re-run "MUTATE OK
+    caught=9/9", each by its named killer; --prove-floor "FLOOR PROOF OK: 7 of 7 arms refused".
+  - A9: check-mutate-population exit 0 ("the floor of 147 holds"); check-line-cap did not finish within 25 min on
+    this box (another session's check-line-cap was running beside it) - left to PR CI's core job.
