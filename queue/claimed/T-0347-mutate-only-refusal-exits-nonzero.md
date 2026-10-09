@@ -98,3 +98,27 @@ entry of this population" and still exits 0, so a range typo looks like a pass w
   check-pins-yaml `PINS-YAML ok pins=50 fields=403`; `bash ops/queue-check` `QUEUE OK (340 tasks)`. NOT closed
   here: `ops/check-pins --source-only` was started at 20:15Z on this shared box and had not finished when this was
   written (sibling swift/vitest runs were holding the CPU), so its verdict is CI's.
+- 2026-10-09T22:56:48Z ROUND 1 FIX ruled by agent/claude-opus-5 on rv1-t0347 FAIL (PR #233, head a9d50123).
+  B1 accepted: both probes (`999999`, `1-2x`) are not well-formed ranges, so R3 ("ranges are refused everywhere")
+  was never driven; a range expansion inside one driver's select() (mutant C, ops/mutate/plansheet.py) leaves the
+  meta-check at 110 of 110. RULING on the source of "real ids": the meta-check reads each driver's ids from the
+  driver itself, not from a table of its own - both parsers print the population they were handed as one
+  `ONLY IDS: <json>` line beside the "names no entry" refusal, so the `999999` probe (shipping command line) yields
+  the ids. Third probe per driver: the two smallest all-digit ids `A-B` when the driver has two, else the first
+  `N-(N+1)` that is a substring of no id (the substring drivers fallback/placeallow/plan, the mjs drivers whose
+  ids are names, and the 15 no-`--only` drivers, which print no ids and refuse any `--only`). A driver whose
+  "names no entry" refusal carries no `ONLY IDS` line is a failure, not a fallback. Required exit 64 as before.
+  Non-blocking, both taken (< 10 lines each): status() uses `--untracked-files=all` (cwd is the repo root); a
+  probe killed at the timeout prints `KILLED` with the files the tree now differs in and does NOT restore them.
+- 2026-10-09T23:05:28Z ROUND 1 FIX BUILT by agent/claude-opus-5. ops/mutate/mutate_only.py (`IDS_LINE`) and
+  services/api/test/mutate/onlyIds.mjs print `ONLY IDS: <json>` of the keys they were handed before the "names no
+  entry" refusal; ops/lib/check-mutate-only.py adds the range probe (`range_token` over those ids: plansheet gets
+  `1-2`, the substring and name-keyed drivers the first `N-(N+1)` no entry name contains), fails a "names no entry"
+  refusal that lists no ids, uses `--untracked-files=all`, and prints `KILLED` with the changed files on a timeout
+  without restoring them. SEEN RED with rv1 mutant C (range expansion at the top of plansheet.select(), planted by
+  a script that copied the file aside; `plansheet.select(['--only','49-55'])` -> ids 49..55) at 2026-10-09T23:00:43Z:
+  `NOT REFUSED: ops/mutate/plansheet.py --only 1-2: exit 2 (need 64) - REFUSING: not what HEAD says it is:
+  ops/mutate/plansheet.py`, `MUTATE-ONLY FAILED: 164 of 165 driver runs refused with exit 64 (55 drivers x 3
+  probes)`, exit 1. Restored (__pycache__ purged, 1.1 s wait, sha256 equal to the kept copy 6326cf32fe59428b,
+  `git diff --quiet HEAD -- ops/mutate/plansheet.py` true). GREEN at 2026-10-09T23:03:47Z: `MUTATE-ONLY OK: 165
+  of 165 driver runs refused with exit 64 (55 drivers x 3 probes)`, exit 0.

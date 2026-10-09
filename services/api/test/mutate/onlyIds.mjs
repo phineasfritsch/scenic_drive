@@ -4,8 +4,10 @@
 // EXIT_ONLY_REFUSED (64, sysexits EX_USAGE) - a status no other refusal in these drivers uses (STALE anchors,
 // a dirty src/ and a red baseline are 2). Both `--only A,B` and `--only=A,B` are accepted, repeatable; a token is
 // one mutation id, never a range (`49-55` is one unknown id); EVERY token must name a mutation. The drivers call it
-// as the first statement of main, before any STALE check, git or vitest run. ops/lib/check-mutate-only.py runs
-// every driver with a selection that names nothing and one that does not parse, and refuses unless each exits 64.
+// as the first statement of main, before any STALE check, git or vitest run. A selection that names nothing also
+// prints the population as one `ONLY IDS: <json>` line. ops/lib/check-mutate-only.py runs every driver with a
+// selection that names nothing, one that does not parse and a well-formed range of the ids that line lists, and
+// refuses unless each exits 64.
 
 export const EXIT_ONLY_REFUSED = 64;
 const FLAG = "--only";
@@ -39,6 +41,9 @@ export function onlyIds(argv, ids) {
   if (tokens === null) return null;
   const known = new Set(ids);
   const unknown = tokens.filter((t) => !known.has(t));
-  if (unknown.length > 0) refuse(`${FLAG} names no entry of this population: ${unknown.join(", ")} (a token is one mutation id, never a range)`);
+  if (unknown.length > 0) {
+    process.stdout.write(`ONLY IDS: ${JSON.stringify([...ids])}\n`);
+    refuse(`${FLAG} names no entry of this population: ${unknown.join(", ")} (a token is one mutation id, never a range)`);
+  }
   return [...new Set(tokens)];
 }

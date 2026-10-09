@@ -9,18 +9,26 @@ run over ZERO mutations. Each reads as something other than "you typed it wrong"
 The population is the DRIVERS whitelist of ops/lib/mutate_population_table.py (the same list P-PROC-06 already
 holds every runnable ops/mutate/*.py to) plus every services/api/test/mutate/*Mutants.mjs, each with a literal
 floor so a table emptied by a bad merge is a refusal and not `0 of 0`. Every driver is run, as the shipping
-command line, with `--only 999999` (names no entry) and `--only 1-2x` (does not parse as an id or a range), and
-must exit EXIT_ONLY_REFUSED (64) with a `REFUSING TO RUN: ` line. 64 and not "non-zero": 2 is non-zero and is what
-a driver that reached its baseline gate returns, so "non-zero" would pass a driver that never looked at --only.
+command line, with `--only 999999` (names no entry), `--only 1-2x` (does not parse as an id or a range) and a
+well-formed RANGE of the driver's own ids, and must exit EXIT_ONLY_REFUSED (64) with a `REFUSING TO RUN: ` line.
+The ids come from the driver: the `999999` refusal prints the population it was handed as one `ONLY IDS: <json>`
+line, and the range is the two smallest all-digit ids `A-B` (a range expansion anywhere in the driver would
+select them), else the first `N-(N+1)` that no id contains (substring drivers, name-keyed ids, and the drivers
+with no `--only`, whose refusal lists no ids). A "names no entry" refusal with no `ONLY IDS` line fails.
+64 and not "non-zero": 2 is non-zero and is what a driver that reached its baseline gate returns, so "non-zero"
+would pass a driver that never looked at --only.
 The parsers themselves (ops/mutate/mutate_only.py, services/api/test/mutate/onlyIds.mjs) are also exercised in
 process for the selections that must NOT refuse, so a parser that refuses everything is not green.
-The tree's `git status` is compared before and after: a driver that ignored the flag and began mutating is named.
+The tree's `git status` (untracked files included) is compared before and after: a driver that ignored the flag
+and began mutating is named. A probe killed at the timeout is reported with the files it left changed; they are
+NOT restored here.
 Exit 0 all refused; 1 a driver did not refuse as required; 2 this check could not run (floor, git, a parser control).
 """
 from __future__ import annotations
 
 import json
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -34,12 +42,15 @@ import mutate_only  # noqa: E402
 EXIT_ONLY_REFUSED = 64
 PY_FLOOR = 38
 MJS_FLOOR = 17
-PROBES = (["--only", "999999"], ["--only", "1-2x"])
+NAMES_NOTHING = ["--only", "999999"]
+PROBES = (NAMES_NOTHING, ["--only", "1-2x"])
+RANGE_PROBES = 1
+NO_ONLY = "this driver has no --only"
 TIMEOUT_S = 120
 
 
 def status() -> str:
-    p = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT, capture_output=True,
+    p = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=ROOT, capture_output=True,
                        text=True)
     if p.returncode != 0:
         raise SystemExit("check-mutate-only: git status failed (exit %d): REFUSING" % p.returncode)
@@ -77,6 +88,32 @@ def drivers() -> list:
     return [([sys.executable if k == "python" else k, str(f)], f.relative_to(ROOT).as_posix()) for k, f in py + mjs]
 
 
+def range_token(ids: list) -> str:
+    """A well-formed range over the driver's real ids: its two smallest all-digit ids, else the first N-(N+1)
+    that no id contains (so a substring driver cannot select an entry with it)."""
+    digits = sorted((i for i in ids if re.fullmatch(r"[0-9]+", i)), key=int)
+    first = ["%s-%s" % (digits[0], digits[1])] if len(digits) >= 2 else []
+    n = 1
+    while True:
+        for token in first + ["%d-%d" % (n, n + 1)]:
+            if not any(token in i for i in ids):
+                return token
+        first, n = [], n + 1
+
+
+def probe_once(cmd: list, name: str, probe: list, before: str) -> tuple:
+    try:
+        p = subprocess.run(cmd + probe, cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=TIMEOUT_S)
+        code, out = p.returncode, p.stdout + p.stderr
+    except subprocess.TimeoutExpired:
+        moved = sorted(set(status().splitlines()) ^ set(before.splitlines()))
+        print("KILLED: %s %s still running after %ds - NOT restored; the tree now differs in: %s"
+              % (name, " ".join(probe), TIMEOUT_S, "; ".join(moved) or "(no file)"))
+        code, out = None, "(killed at %ds: it ignored the flag and started a run)" % TIMEOUT_S
+    return code, [l for l in out.replace("\r", "").split("\n") if l.strip()]
+
+
 def main() -> int:
     bad = parser_controls()
     if bad:
@@ -87,14 +124,16 @@ def main() -> int:
     before = status()
     failed = []
     for cmd, name in runs:
-        for probe in PROBES:
-            try:
-                p = subprocess.run(cmd + probe, cwd=ROOT, capture_output=True, text=True, timeout=TIMEOUT_S)
-                code, out = p.returncode, p.stdout + p.stderr
-            except subprocess.TimeoutExpired:
-                code, out = None, "(still running after %ds: it ignored the flag and started a run)" % TIMEOUT_S
-            lines = [l for l in out.replace("\r", "").split("\n") if l.strip()]
+        ids = []
+        for probe in list(PROBES) + [None] * RANGE_PROBES:
+            probe = probe or ["--only", range_token(ids)]
+            code, lines = probe_once(cmd, name, probe, before)
             ok = code == EXIT_ONLY_REFUSED and any(l.startswith("REFUSING TO RUN: ") for l in lines)
+            if probe == NAMES_NOTHING:
+                listed = [l[len(mutate_only.IDS_LINE):] for l in lines if l.startswith(mutate_only.IDS_LINE + " ")]
+                ids = json.loads(listed[0]) if listed else []
+                if not listed and not any(NO_ONLY in l for l in lines):
+                    ok, lines = False, lines + ["the refusal lists no %s line" % mutate_only.IDS_LINE]
             if not ok:
                 failed.append("%s %s: exit %s (need %d) - %s" % (name, " ".join(probe), code, EXIT_ONLY_REFUSED,
                                                                  lines[-1][:120] if lines else "(no output)"))
@@ -104,9 +143,10 @@ def main() -> int:
     if after != before:
         print("TREE CHANGED during the run - a driver mutated files:\n%s" % after)
         return 1
+    total = (len(PROBES) + RANGE_PROBES) * len(runs)
     print("MUTATE-ONLY %s: %d of %d driver runs refused with exit %d (%d drivers x %d probes)"
-          % ("OK" if not failed else "FAILED", 2 * len(runs) - len(failed), 2 * len(runs), EXIT_ONLY_REFUSED,
-             len(runs), len(PROBES)))
+          % ("OK" if not failed else "FAILED", total - len(failed), total, EXIT_ONLY_REFUSED,
+             len(runs), len(PROBES) + RANGE_PROBES))
     return 0 if not failed else 1
 
 

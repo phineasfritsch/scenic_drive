@@ -9,14 +9,17 @@ baseline and build refusals are 2) - and the caller never gets to run anything a
     EVERY token must select an entry   `--only 1,49-55` refuses; it does not run 1 and drop the rest
 
 A driver with no `--only` calls refuse_unsupported(): ignoring the flag would run the WHOLE population under a
-command line that asked for a part of it. ops/lib/check-mutate-only.py runs every driver with a selection that
-names nothing and one that does not parse, and refuses unless each exits 64.
+command line that asked for a part of it. A selection that names nothing also prints the population as one
+`ONLY IDS: <json>` line. ops/lib/check-mutate-only.py runs every driver with a selection that names nothing, one
+that does not parse and a well-formed range of the ids that line lists, and refuses unless each exits 64.
 """
 from __future__ import annotations
 
+import json
 import sys
 
 EXIT_ONLY_REFUSED = 64
+IDS_LINE = "ONLY IDS:"
 FLAG = "--only"
 
 
@@ -68,6 +71,7 @@ def select_only(argv, keys, substring: bool = False, split: bool = True) -> set 
             unknown.append(token)
         chosen.update(hit)
     if unknown:
+        sys.stdout.write("%s %s\n" % (IDS_LINE, json.dumps(keys)))
         refuse("%s names no entry of this population: %s (a token is %s, never a range)"
                % (FLAG, ", ".join(unknown), "a fragment of an entry name" if substring else "one entry id"))
     return chosen
