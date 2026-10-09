@@ -113,6 +113,19 @@ public struct DriveSession: Sendable, Equatable {
     /// The current line cut at its pins: the steps NavAdapter hands Ferrostar (T-0321 R4).
     public var legs: [DriveLeg] { DriveLeg.split(line, at: pinVertices) }
 
+    /// Where the current leg ends - the first pin vertex past the progress, else the last vertex - and the metres
+    /// to it ALONG the line from the latest usable fix (T-0329 R2). nil before the first one, and while that fix is
+    /// away from the current line (R8: a driver off the line is not on any leg).
+    public var legEnd: (vertex: Int, meters: Double)? {
+        guard let at = latest?.coordinate, line.distanceMeters(from: at) <= Self.awayThresholdMeters else { return nil }
+        let end = pinVertices.first { $0 > progressSegment } ?? line.segmentCount
+        var meters = Geo.distanceMeters(at, line.coordinates[progressSegment + 1])
+        for vertex in (progressSegment + 1)..<end {
+            meters += Geo.distanceMeters(line.coordinates[vertex], line.coordinates[vertex + 1])
+        }
+        return (end, meters)
+    }
+
     private func request(from origin: Coordinate) -> RerouteRequest {
         let passed = pinVertices.firstIndex { $0 > progressSegment } ?? pinVertices.count
         return RerouteRequest(origin: origin, remainingWaypoints: Array(waypoints[passed...]),

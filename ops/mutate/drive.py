@@ -32,7 +32,8 @@ SUBJECT_MODULES = ("Sources/ScenicKit/Drive/DriveSession.swift", "Sources/Scenic
                    "Sources/ScenicKit/Drive/DriveLeg.swift", "Sources/ScenicKit/Drive/RerouteUnavailable.swift",
                    "Sources/ScenicKit/Drive/DriveDisplay.swift", "Sources/ScenicKit/Drive/RerouteReply.swift",
                    "Sources/ScenicKit/PlanSheet/PlanPreview.swift", "Sources/ScenicKit/PlanSheet/PlanContinuation.swift",
-                   "Sources/ScenicAPIClient/PlanRerouter.swift", "Sources/ScenicAPIClient/ClientPlanner.swift")
+                   "Sources/ScenicAPIClient/PlanRerouter.swift", "Sources/ScenicAPIClient/ClientPlanner.swift",
+                   "Sources/ScenicKit/Drive/DriveVoice.swift")
 
 from drive_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)
