@@ -141,3 +141,32 @@ owner's design pass.
   material behind it (.background(.bar)), so scrolled content no longer shows through the credit. Acceptance row 3
   now reads: plan-preview-light/dark unchanged from main with "Choose another place" above the footer and the bar,
   and plan-preview-ax5's footer opaque; the preview's AX5 exit is reachable by scrolling (R3), not claimed at rest.
+- 2026-10-09T17:44:00Z FINAL RUNS on head 0e5b6241: ios-compile run 37965736348 success; ios-screenshot run
+  37965740394 success (17m55s, 38 shots, under the 30-minute cap). All 18 plan shots looked at (light, dark, AX5
+  side by side):
+  - plan-trip-light/dark: "Change the trip" on the bar material directly above the bottom bar, fully legible; Day 2
+    is the last list row on screen. plan-trip-ax5: "Change the trip" at AX5 above the bar, legible. FIXED.
+  - plan-loop-light/dark/ax5: "Change the loop" pinned above the bar, legible at all three.
+  - plan-offered-light/dark: the two filled offers as before; "Choose another place" pinned above the bar.
+    plan-offered-ax5: "Try 65 extra minutes" on two lines, "All back roads:" wraps and its lower line scrolls under
+    the pinned exit at rest (R3: reachable by scrolling); "Choose another place" legible above the bar. No truncated
+    label (main: three).
+  - plan-preview-light/dark: the same layout as main - "Choose another place" at ~725 pt above the footer, the
+    footer "Route data (c) OpenStreetMap contributors" above the bar, now on a bar-material band. plan-preview-ax5:
+    the four-line footer is opaque (main: content showed through); "Choose another place" below the fold (R5).
+  - plan-nothingPretty-light/dark/ax5 and plan-saved-light/dark/ax5: unchanged from the measurement.
+  - The bottom bar itself: the same two items, labels and size at every shot (PlanSheetScreen.swift untouched).
+- 2026-10-09T17:44:00Z ACCEPTANCE re-run on 0e5b6241 (before the merge with main):
+  1. measured first - the 15:50 and 16:55 entries above (runs 37945135739, 37959095574). MET.
+  2. AX5 pass in the job, under the cap (17m55s); eight T-0346 guard rows red then green (R1, R2). MET.
+  3. run 37965740394: trip/loop/offered exits above the bar at light, dark and AX5; offered-ax5 untruncated;
+     preview-light/dark unchanged from main, preview-ax5 footer opaque; 18 shots quoted above. MET as amended by R5.
+  4. P-ATTR-01: footer on screen in all three preview shots; bash ops/lib/check-map-attribution rc=0; PlanSheetScreen
+     untouched. MET.
+  5. PlanCardExit: minHeight 44, .font(.body) (Dynamic Type), multi-line. MET.
+  6. ios-compile success (37965736348). Bare guards at a9bcb01e (code identical but PlanPreviewCard): check-safety-
+     disclaimer rc=0 ("Frozen (-frozen); 29 feature file(s), shell, footer pinned (-pinned); ... LAST all 87 app .swift,
+     then 270 root + pbxproj file(s) (-linked)"), check-map-attribution rc=0, check-screen-rehearsals.py rc=0 ("11
+     approved -screen sites"), check-ios-compile-guardrails.py rc=0, check-hazard-copy-sites.py rc=0 ("12 sites, every
+     one approved, in 5 files"), check-line-cap rc=0 ("552 Swift files ... none over 300 lines"), check-pins-yaml rc=0
+     ("pins=49 fields=395"), queue-check rc=0 ("QUEUE OK (336 tasks)"). Re-run on the merged head: quoted in the PR.
