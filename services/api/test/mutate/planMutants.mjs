@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-plan");
 
-export const MIN_MUTATIONS = 60;
+export const MIN_MUTATIONS = 62;
 export const SUBJECTS = ["src/lambdaSearch.ts", "src/planRequest.ts", "src/routePath.ts", "src/planWaypoints.ts",
   "src/appleMaps.ts", "src/hazards.ts", "src/scenicPlanner.ts", "src/plan.ts",
   "src/planToken.ts", "src/reroutePlanner.ts"];
@@ -84,6 +84,8 @@ export const MUTATIONS = [
   m("token-grammar-long", "planToken.ts", "[0-9a-f]{12}$/;", "[0-9a-f]{12,13}$/;"),
   m("token-ttl-day", "planToken.ts", "PLAN_TOKEN_TTL_SECONDS = 43_200;", "PLAN_TOKEN_TTL_SECONDS = 86_400;"),
   m("token-failed-write-named", "planToken.ts", "        return null;" + NL + "      }" + NL + "      return token;", "        return token;" + NL + "      }" + NL + "      return token;"),
+  m("token-recall-any-device", "planToken.ts", "kv.get(planKeyPrefix(device) + token)", "kv.get(\"plan:\" + token)"),
+  m("token-remember-unkeyed", "planToken.ts", "kv.put(planKeyPrefix(plan.device) + token", "kv.put(\"plan:\" + token"),
   m("token-lambda-range", "planToken.ts", "raw.lambda > LAMBDA_MAX) return null;", "raw.lambda > LAMBDA_MAX + 1) return null;"),
   m("reroute-foreign-device", "plan.ts", "recalled.device === who.userId &&", "true &&"),
   m("reroute-other-place", "plan.ts", "recalled.place === request.destinationPlace &&", "true &&"),

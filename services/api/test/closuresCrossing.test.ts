@@ -42,7 +42,7 @@ export const ROUTE_NAMES: Route[] = ["/plan", "/loop", "/trip", "/plan reroute"]
 /** T-0319: a reroute is /plan carrying a usable token - ROUTES["/plan"] runs with PLANS remembering REMEMBERED. */
 const HANDLER: Record<Route, "/plan" | "/loop" | "/trip"> = { "/plan": "/plan", "/loop": "/loop", "/trip": "/trip", "/plan reroute": "/plan" };
 const TOKEN = "0f1e2d3c-4b5a-4968-8776-655443322110"; const REMEMBERED = { device: DEVICE, place: "la:topanga", pins: [{ lat: 34.03, lon: -118.52 }, { lat: 34.05, lon: -118.56 }], lambda: 7.75 };
-const plansKv = () => ({ get: async (k: string) => (k === `plan:${TOKEN}` ? JSON.stringify(REMEMBERED) : null), put: async () => {} });
+const plansKv = () => ({ get: async (k: string) => (k === `plan:${DEVICE}:${TOKEN}` ? JSON.stringify(REMEMBERED) : null), put: async () => {} });
 const BODIES: Record<Route, unknown> = { "/plan": SANTA_MONICA_TOPANGA_BODY, "/loop": LOOP_BODY, "/trip": { ...TRIP_BODY, days: 1 },
   "/plan reroute": { ...SANTA_MONICA_TOPANGA_BODY, reroute: { token: TOKEN, first_pin: 0 } } };
 const CORRIDOR: Record<Route, [Pt, Pt]> = {

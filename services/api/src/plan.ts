@@ -106,7 +106,7 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
   const who = await deps.identify(req);
   const plans = deps.plans ?? null;
   const reroute = request.reroute;
-  const recalled = reroute && plans ? await plans.recall(reroute.token) : null;
+  const recalled = reroute && plans ? await plans.recall(who.userId, reroute.token) : null;
   const usable: RememberedPlan | null = recalled && reroute && recalled.device === who.userId &&
     recalled.place === request.destinationPlace && reroute.firstPin <= recalled.pins.length ? recalled : null;
   try {

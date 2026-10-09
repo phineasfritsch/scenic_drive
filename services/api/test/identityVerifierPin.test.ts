@@ -28,7 +28,7 @@ async function sha256Hex(s: string): Promise<string> {
 
 /** The approved bytes, LF-normalised. Changing a pinned file means changing its hash here, in the same diff. */
 const APPROVED_SHA256: Record<string, string> = {
-  "../src/account.ts": "3c0cadcb09780d85f00aca1dc11c87e53c2aabec7ec060bee3b203612a4a790e",
+  "../src/account.ts": "edbb07f6ea4481c47505e5ed8ee86f788a398348f8f3e37546d1b14baaa69bb9",
   "../src/appleClient.ts": "74a07ff6eaf8c0844930c53adb2edbe429ed02e4543e2726d5ccfe6e8d33a294",
   "../src/appleIdentity.ts": "8d1a0bbe9ed785b48ffb60f79c14846e6cc37230077b1a3c976959a04f97aff6",
   "../src/appleJwks.ts": "05c3dcfdafe01558d6d6cffe2c35e890cb6416dc5e91ba2142d164572d58592f",
