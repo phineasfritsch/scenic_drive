@@ -122,3 +122,13 @@ entry of this population" and still exits 0, so a range typo looks like a pass w
   probes)`, exit 1. Restored (__pycache__ purged, 1.1 s wait, sha256 equal to the kept copy 6326cf32fe59428b,
   `git diff --quiet HEAD -- ops/mutate/plansheet.py` true). GREEN at 2026-10-09T23:03:47Z: `MUTATE-ONLY OK: 165
   of 165 driver runs refused with exit 64 (55 drivers x 3 probes)`, exit 0.
+- 2026-10-09T23:10:52Z ACCEPTANCE re-run by agent/claude-opus-5 on e1dab4f3, the merge of origin/main 8f538744 (T-0343, T-0351,
+  T-0352 filed) into 19fe7325, after `git fetch origin` in the main checkout. (1) MEASURE: the table of
+  2026-10-09T19:59:02Z above. (2) every driver exits 64 on an `--only` that names no entry, does not parse, or is a
+  well-formed range of its own ids (R3): `MUTATE-ONLY OK: 165 of 165 driver runs refused with exit 64 (55 drivers x
+  3 probes)`, exit 0 (2026-10-09T23:08:12Z); one parser per language (R6). (3) the meta-check seen red with
+  plansheet.py and vehicleMutants.mjs reverted (2026-10-09T20:11:54Z, 20:14:16Z) and with rv1 mutant C
+  (2026-10-09T23:00:43Z, `164 of 165`, exit 1), green as quoted. Gates, bare: check-mutate-population.py exit 0
+  (`every added module is covered or allowlisted; the floor of 147 holds`); check-exec-bits `P-OPS-01: 204 files,
+  23 required present, all modes correct`; check-pins-yaml `PINS-YAML ok pins=50 fields=403`; `bash
+  ops/queue-check` `QUEUE OK (343 tasks)`.
