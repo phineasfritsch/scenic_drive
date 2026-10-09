@@ -62,11 +62,19 @@ async function attestSession(p: Purchase, head = lead(p)) {
   return postAttest(body, testDeps(ATTESTED));
 }
 
+/** A fresh quota: both buckets at the anon limit (`seeded`), or empty - where a reservation shows in the state (T-0333 R2). */
+function freshQuota(seeded: boolean): FakeQuota {
+  const q = fakeQuotaNamespace();
+  if (seeded) for (const who of [DEVICE, "unidentified"]) q.seed(`device:${who}`, "daily", { day: "2026-10-06", plan: 3, loop: 1, trip: 1 });
+  return q;
+}
+
 /** One request of `path` through the shipped ROUTES with the `header` purchase beside an optional Bearer. */
-async function drive(path: RouteName, bearer: string | null, flag: boolean, header: Header) {
-  quota = fakeQuotaNamespace();
-  for (const who of [DEVICE, "unidentified"]) quota.seed(`device:${who}`, "daily", { day: "2026-10-06", plan: 3, loop: 1, trip: 1 });
-  vi.stubGlobal("fetch", path === "/trip" ? tripRouter().fetchImpl : recordingRouter(SANTA_MONICA_TOPANGA, loopPath(squareLoop())).fetchImpl);
+async function drive(path: RouteName, bearer: string | null, flag: boolean, header: Header, seeded = true) {
+  quota = freshQuota(seeded);
+  const router = path === "/trip" ? tripRouter().fetchImpl : recordingRouter(SANTA_MONICA_TOPANGA, loopPath(squareLoop())).fetchImpl;
+  let fetches = 0;
+  vi.stubGlobal("fetch", (url: string, init?: RequestInit) => { fetches += 1; return router(url, init); });
   const e = { DB: env.DB, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns, ROUTER_URL: "https://router.test",
     ROUTER_SECRET: "test-router-secret", CLOSURES: liveClosures(), SESSION_JWT_SECRET: SECRET, ...(flag ? { IDENTITY_HEADERS: "1" } : {}) };
   const account = HEADERS[header];
@@ -74,7 +82,8 @@ async function drive(path: RouteName, bearer: string | null, flag: boolean, head
     ...(account ? { [HEADER]: account } : {}), ...(bearer === null ? {} : { authorization: `Bearer ${bearer}` }) };
   const req = new Request(`https://scenic-api.test${path}`, { method: "POST", headers, body: JSON.stringify(BODIES[path]) });
   const response = await ROUTES[path]!(req, e as unknown as Env, new URL(req.url));
-  return { answer: { status: response.status, json: await response.json() }, state: quota.state(), logged: spies.flatMap((s) => s.mock.calls) };
+  return { answer: { status: response.status, json: await response.json() }, state: quota.state(), fetches,
+    logged: spies.flatMap((s) => s.mock.calls) };
 }
 
 beforeAll(async () => {
@@ -108,13 +117,14 @@ type Bearer = (typeof BEARERS)[number];
 const FLAGS = ["1", "unset"] as const;
 type Flag = (typeof FLAGS)[number];
 const HEADER_NAMES = Object.keys(HEADERS) as Header[];
-type Ruled = "paid" | "device anon" | "unidentified anon";
+type Ruled = "paid" | "device anon" | "unidentified anon" | "rejected";
 
-/** The rule (T-0322 B1), from its text: a verified Bearer is the device and its act's tier; any other reads as none. */
+/** The rule (T-0322 B1, T-0333 R1), from its text: a verified Bearer is the device and its act's tier; under "1" any other
+ *  reads as none; with the flag closed an unverifiable Bearer is rejected and no Bearer is the unidentified bucket. */
 function ruled(bearer: Bearer, flag: Flag, header: Header): Ruled {
   if (bearer === "session act live") return "paid";
   if (bearer === "session act expired" || bearer === "session no act") return "device anon";
-  if (flag !== "1") return "unidentified anon";
+  if (flag !== "1") return bearer === "absent" ? "unidentified anon" : "rejected";
   return header === "live" ? "paid" : "device anon";
 }
 
@@ -145,14 +155,19 @@ describe("the session carries the purchase; the Worker decides the tier (T-0322)
     return ((await assertSession(p)).json as { token: string }).token;
   }
 
+  /** T-0333 R1, R2: the literal 401, the quota exactly as seeded (nothing reserved), no upstream request, nothing logged. */
+  const rejected = (seeded: boolean) => ({ answer: { status: 401, json: { error: "session_rejected" } }, state: freshQuota(seeded).state(),
+    fetches: 0, logged: [] });
+
   /** The reference each row must EQUAL - a function of `ruled` only, never of the answer under test. */
-  function reference(path: RouteName, r: Ruled) {
+  async function reference(path: RouteName, r: Ruled) {
+    if (r === "rejected") return rejected(true);
     if (r === "paid") return drive(path, null, true, "live");
     return r === "device anon" ? drive(path, null, true, "absent") : drive(path, null, false, "absent");
   }
 
   it("no row ignores its variant: every value of every dimension changes some row's tier when it alone changes", () => {
-    const tier = (r: Ruled) => (r === "paid" ? "paid" : "anon");
+    const tier = (r: Ruled) => (r === "paid" ? "paid" : r === "rejected" ? "rejected" : "anon");
     const dims = [[...BEARERS], [...FLAGS], HEADER_NAMES] as const;
     const rows = BEARERS.flatMap((b) => FLAGS.flatMap((f) => HEADER_NAMES.map((h) => [b, f, h] as [Bearer, Flag, Header])));
     const at = (row: [Bearer, Flag, Header]) => tier(ruled(...row));
@@ -174,5 +189,18 @@ describe("the session carries the purchase; the Worker decides the tier (T-0322)
     const got = await drive(path, await bearerOf(bearer), flag === "1", header);
     expect(got).toEqual(await reference(path, ruled(bearer, flag, header)));
     expect(got.logged).toEqual([]);
+  });
+
+  const UNVERIFIABLE = BEARERS.filter((b) => ruled(b, "unset", "absent") === "rejected");
+  const EMPTY_ROWS = ROUTE_NAMES.flatMap((path) => UNVERIFIABLE.flatMap((bearer) => FLAGS.map((flag) => [path, bearer, flag] as const)));
+
+  it("the rejected Bearers are exactly the four that never verify, and an empty quota is not the seeded one", () => {
+    expect(UNVERIFIABLE).toEqual(["expired", "wrong secret", "wrong TTL", "malformed"]);
+    expect([freshQuota(false).state(), freshQuota(true).state()].map((s) => Object.keys(s).length)).toEqual([0, 2]);
+  });
+
+  it.each(EMPTY_ROWS)("%s, Bearer %s, IDENTITY_HEADERS %s, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)", async (path, bearer, flag) => {
+    const got = await drive(path, await bearerOf(bearer), flag === "1", "absent", false);
+    expect(got).toEqual(flag === "1" ? await drive(path, null, true, "absent", false) : rejected(false));
   });
 });

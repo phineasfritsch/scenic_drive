@@ -620,18 +620,46 @@
         "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer absent, IDENTITY_HEADERS 1, header absent: the answer is the ruled reference",
         "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer absent, IDENTITY_HEADERS unset, header live: the answer is the ruled reference",
         "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer absent, IDENTITY_HEADERS unset, header expired: the answer is the ruled reference",
-        "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer absent, IDENTITY_HEADERS unset, header absent: the answer is the ruled reference"
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer absent, IDENTITY_HEADERS unset, header absent: the answer is the ruled reference",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > the rejected Bearers are exactly the four that never verify, and an empty quota is not the seeded one",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /plan, Bearer expired, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /plan, Bearer expired, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /plan, Bearer wrong secret, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /plan, Bearer wrong secret, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /plan, Bearer wrong TTL, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /plan, Bearer wrong TTL, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /plan, Bearer malformed, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /plan, Bearer malformed, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /trip, Bearer expired, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /trip, Bearer expired, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /trip, Bearer wrong secret, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /trip, Bearer wrong secret, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /trip, Bearer wrong TTL, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /trip, Bearer wrong TTL, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /trip, Bearer malformed, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /trip, Bearer malformed, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer expired, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer expired, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer wrong secret, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer wrong secret, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer wrong TTL, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer wrong TTL, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer malformed, IDENTITY_HEADERS 1, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)",
+        "the session carries the purchase; the Worker decides the tier (T-0322) > /loop, Bearer malformed, IDENTITY_HEADERS unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)"
       ]
     },
     "swift": {
-      "filter": "ScenicAPIClientTests\\.(AccountTokenHeaderTests|AccountTokenCandidateTests)",
+      "filter": "ScenicAPIClientTests\\.(AccountTokenHeaderTests|AccountTokenCandidateTests|PlanSessionRetryTests)",
       "tests": [
         "ScenicAPIClientTests.AccountTokenHeaderTests/planRequest(_:)",
         "ScenicAPIClientTests.AccountTokenHeaderTests/tripRequest(_:_:)",
         "ScenicAPIClientTests.AccountTokenHeaderTests/loopRequest(_:)",
         "ScenicAPIClientTests.AccountTokenHeaderTests/refusalReadsNothing()",
         "ScenicAPIClientTests.AccountTokenHeaderTests/rowsFollowThePurchase()",
-        "ScenicAPIClientTests.AccountTokenCandidateTests/latest(_:)"
+        "ScenicAPIClientTests.AccountTokenCandidateTests/latest(_:)",
+        "ScenicAPIClientTests.PlanSessionRetryTests/rejectedSessionRecovers(_:)",
+        "ScenicAPIClientTests.PlanSessionRetryTests/resendKeepsThePurchase(_:)",
+        "ScenicAPIClientTests.PlanSessionRetryTests/rowsFollowTheirVariant()"
       ]
     }
   },

@@ -10,6 +10,8 @@
  *      T-0330 R2: every 200 says which - `continued` is true exactly when the body is planReroute's answer.
  *   3c. T-0332: a fresh plan whose route scores below RouteScore's 0.45 is 422 nothing_pretty with its offers
  *      (honestFailure.ts); a reroute is exempt - the driver already accepted the drive.
+ *   3d. T-0333 R1: a rejected session (a Bearer that does not verify, the flag closed) is 401 session_rejected - after
+ *      identify, before any recall, reservation or upstream request.
  *   4. guardedPlan: the quota is read and RESERVED before the first router request; every request goes through
  *      the `call` it hands out, which refuses a 13th (P-COST-04).
  * Deps are injected so the tests count real fetch invocations; ROUTES["/plan"] builds them from env (T-0256:
@@ -109,6 +111,7 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
   const picker = closurePicker(snapshot.closures);
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   const who = await deps.identify(req);
+  if (who.rejected === true) return json({ error: "session_rejected" }, 401);
   const plans = deps.plans ?? null;
   const reroute = request.reroute;
   const recalled = reroute && plans ? await plans.recall(who.userId, reroute.token) : null;
