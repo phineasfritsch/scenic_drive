@@ -136,9 +136,11 @@ describe("the shared-env worker after an authenticated sweep (T-0292, P-COST-01)
     const row = (r: Rig, path: string) => [r.name, path, r.killed ? PAUSED[path] : "served"];
     expect(got).toEqual(RIGS.flatMap((r) => KILLABLE.map((path) => row(r, path))));
     // Over the WHOLE run (sweep + this table): a killed source reached no router, wrote no point, reserved nothing.
+    // The one quota instance is the global counter, opened and left EMPTY by the sweep's GET /__health, which READS
+    // the month's upstream calls for ops/sane (T-0344) - a reservation would have stored a record in it.
     const killed = RIGS.filter((r) => r.killed);
     expect(killed.map((r) => [r.name, hosts.filter((h) => h === r.host).length, r.writes.length, r.quota.state()]))
-      .toEqual(killed.map((r) => [r.name, 0, 0, {}]));
+      .toEqual(killed.map((r) => [r.name, 0, 0, { global: {} }]));
     // Meta: the rows are functions of the source, and the fakes are reached when nothing kills.
     expect(RIGS.filter((r) => !r.killed).map((r) => [r.name, hosts.includes(r.host), r.writes.length > 0]))
       .toEqual(RIGS.filter((r) => !r.killed).map((r) => [r.name, true, true]));

@@ -15,9 +15,9 @@ reviewer: null
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
-  - "A1 Fake-Worker table, through the SHIPPED ops/sane --prod: `bash ops/lib/check-sane-prod` exits 0 printing `SANE-PROD ok` with every case passed - a local python fake Worker on 127.0.0.1 (never prod) serving /__health, /__version (live git_sha = HEAD) and a corpus manifest; cases: quota green, kill_switch true, upstream_calls at trip_at, at the near bound (calls*10 == trip_at*9), one below the near bound (green), null, absent, boolean and negative calls, kill_switch a string, trip_at 0; manifest green, not an object, missing key, extra key, schema_version 2 and the string 3, version empty, sha256 uppercase and 63 chars, bytes 0, boolean min_app_build, manifest 404; no manifest URL (skip); precedence 6 over 8, 7 over 6 and 8 (health 503). Each red case asserts the exact exit code (6, 8 or 7) and the FAIL row's check name; each green case asserts the ok row and an exit outside {3,6,7,8,9}."
+  - "A1 Fake-Worker table, through the SHIPPED ops/sane --prod: `bash ops/lib/check-sane-prod` exits 0 printing `SANE-PROD ok` with every case passed - a local python fake Worker on 127.0.0.1 (never prod) serving /__health, /__version (live git_sha = HEAD) and a corpus manifest; cases: quota green, kill_switch true, upstream_calls at trip_at, at the near bound (calls*10 == trip_at*9), one below the near bound (green), null, absent, boolean and negative calls, kill_switch a string, trip_at 0; manifest green, not an object, missing key, extra key, schema_version 2 and the string 3, version empty, sha256 uppercase and 63 chars, bytes 0, boolean min_app_build, manifest 404; no manifest URL (skip); precedence 6 over 8, 7 over 6 and 8 (health 503). Each red case asserts the exact exit code (6, 8 or 7) and the FAIL row's check name; each green case asserts the ok row and exit 0 exactly (SANE_SCOPE=prod skips the local checks 2/4/10, R8)."
   - "A2 Never mutates: every check-sane-prod case asserts the fake received only GET requests and that `git status --porcelain` and HEAD are byte-identical before and after the ops/sane run."
-  - "A3 RED first: check-sane-prod against the pre-change ops/sane FAILS (quoted in the Log), then green; and three one-line ops/sane mutants (near bound `>=` -> `>`, the schema_version compare dropped, the kill_switch arm dropped) each turn it red by case name, restored green."
+  - "A3 RED first: check-sane-prod against the pre-change ops/sane FAILS (quoted in the Log), then green; and three one-line mutants of ops/sane's verdict helper ops/lib/sane_prod.py (near bound `>=` -> `>`, the schema_version compare dropped, the kill_switch arm dropped) each turn it red by case name, restored green."
   - "A4 P-OPS-05: EXIT_ORDER becomes (2 7 3 6 9 8 4 10); `bash ops/lib/check-sane-exit-order` seen exit 1 with the new fail() 6/8 calls in place and EXIT_ORDER unchanged, then exit 0."
   - "A5 Worker read-only fields, whole-answer: services/api/test/healthQuota.test.ts asserts the WHOLE /__health answer (status and body by toEqual) through the shipped worker.fetch over {QUOTA with 0 and with N reserved, QUOTA absent, QUOTA readMonthly throwing, QUOTA readMonthly a non-count} x {no kill, env KILL=1, KV KILL=1, KV get throwing} plus D1 down (503, ok false, quota fields still present), and that upstream_trip_at is the least count killSwitchTripped refuses; seen RED by name before the src change; `npx vitest run test/healthQuota.test.ts test/routes.test.ts test/sharedEnvWorker.test.ts test/killSwitchRoutes.test.ts` green."
   - "A6 Pin P-OPS-08 runs check-sane-prod; on the merged head: `bash ops/sane` (repo-only) prints no FAIL row but the environmental worktrees row (other agents' worktrees, quoted), and check-sane-exit-order, check-exec-bits, check-pins-yaml, queue-check and `ops/check-pins --source-only` are green."
@@ -88,3 +88,38 @@ a whole-answer test.
     files from a temp directory and logs every request's method.
   - R7 `bash ops/sane` repo-only cannot exit 0 on this box while other agents' worktrees are dirty (exit 10,
     measured above; testers find and do not fix). Green = no FAIL row except that environmental worktrees row.
+- 2026-10-09T14:21:53Z R8 (ruled during the build, before the acceptance re-run): ops/sane gains SANE_SCOPE=prod,
+  which skips the local checks 2, 4 and 10 with a skip row each. Measured: one pre-change ops/sane --prod run costs
+  ~60 s on this box (check-worktrees over 97 worktrees), and its exit is 10 here whatever 6/8 say, so the green
+  cases could only assert "not 6/8"; under SANE_SCOPE=prod they assert exit 0 exactly. The --prod checks run the
+  same code either way; the acceptance's A1/A3 wording was amended to match (exit 0; the mutants are of
+  ops/lib/sane_prod.py, the verdict helper ops/sane calls).
+- 2026-10-09T14:21:53Z BUILT + SEEN RED THEN GREEN (agent/claude-opus-5):
+  - A3 red first, harness against the PRE-CHANGE ops/sane (`--only q-kill,q-near-bound,m-schema-other,m-404`):
+    `SANE-PROD FAIL q-kill: exit 10, want 6; row quota ['skip'], want [FAIL]; row manifest None, want [ok]` (same
+    shape for the other three) -> `SANE-PROD FAIL 4 of 4 cases failed (sane=ops/sane)`, rc=1.
+  - A4 P-OPS-05 red: new fail() 6/8 in place, EXIT_ORDER unchanged -> `SANE-EXIT-ORDER FAIL ... EXIT_ORDER
+    (documented) = 2,7,3,9,4,10; fail() calls, file order = 2,7,3,6,9,8,4,10; first divergence at position 4:
+    documented 9, code 6.` rc=1. Green after EXIT_ORDER=(2 7 3 6 9 8 4 10): `SANE-EXIT-ORDER ok
+    documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=18` rc=0.
+  - A1 green: `bash ops/lib/check-sane-prod` -> 37 `SANE-PROD pass` rows (q-green ... p-7-over-6-and-8 exit=7) and
+    `SANE-PROD ok 37/37 cases passed`, rc=0 (7m50s on this box).
+  - A3 mutants of ops/lib/sane_prod.py (.artifacts/t0344_mutants.py, restored byte-identical: `restored: True`):
+    near-bound `>=` -> `>`: `FAIL q-near-bound: exit 0, want 6` and `FAIL q-near-bound-small-trip: exit 0, want 6`
+    (q-below-near still pass) rc=1; schema compare -> `if False:`: `FAIL m-schema-other: exit 0, want 8` rc=1;
+    kill arm -> `if False:`: `FAIL q-kill: exit 0, want 6` rc=1.
+  - A5 red first by name before the src change: `x the whole /__health answer over every QUOTA reading x every kill
+    source, D1 up and down, through the shipped worker.fetch, and the quota state is untouched` (first label `D1 up /
+    nothing reserved / no kill source`) and `x upstream_trip_at is the least monthly count killSwitchTripped refuses`
+    (trip undefined) -> Tests 2 failed (2). After src: the four touched files `Tests 19 passed (19)`.
+  - Full Worker suite then caught two consequences, both ruled and fixed in this diff: (1) sharedEnvWorker.test.ts
+    `after the sweep, ...` asserted killed rigs' quota state {} - the sweep's GET /__health now READS the global
+    counter, which opens an EMPTY "global" instance in the fake; the expectation is now exactly { global: {} } (a
+    reservation would store a record there, so "reserved nothing" still holds by full equality). (2)
+    configAnswerPath.test.ts's content pin over index.ts and quota.ts re-approved: index.ts 951d55d9...8551069,
+    quota.ts 0e5c24b0...e4817eb (quota.ts: isCount exported, UPSTREAM_TRIP_AT added; no new src import). Full
+    suite after: `Test Files 89 passed`, `Tests 2579 passed` (2578 + the re-approved pin).
+  - P-OPS-08 added (assertion `bash ops/lib/check-sane-prod`, linux); P-OPS-05's why extended; check-pins-yaml
+    `PINS-YAML ok pins=50 fields=403`; check-exec-bits `P-OPS-01: 202 files, 23 required present, all modes correct`
+    (ops/lib/check-sane-prod committed 100755; sane_prod.py and check_sane_prod.py data 100644).
+  - Follow-up filed: queue/backlog/T-0345 (tiles manifest shape + its exit-8 arm, R5).
