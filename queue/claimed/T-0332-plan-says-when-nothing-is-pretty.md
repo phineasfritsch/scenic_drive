@@ -150,3 +150,29 @@ whether the +40 / all-back-roads offers are one more request each (budget ceilin
   right: main took PR #214 (T-0328). I merge origin/main last, union the digest, named-tests and allowlist rows,
   re-approve digests from the merged tree, re-run the touched A1-A7 rows on the merged head and re-dispatch ios-compile
   and ios-screenshot (T-0328 brings apps/ios changes).
+- 2026-10-09T01:30:42Z B2 CLOSED (R12): routeScoreBounds.test.ts gained two rows in "meters bound", on routeScoreOf.
+  One is a 0 m scored row (duplicated point, score 7, between 8-scored metres), which equals single(haversineMeters(A, B),
+  0.8, 0, 1) and is not an honest failure. The other is a row one ulp of longitude long, which is kept and scored as
+  single(h, 0.8, 0, 0). Reviewer mutant scoredEdges `row.meters > 0` -> `>= 0` (.artifacts/t0332/b2-mutant.sh,
+  restored): with 074b8d55's tests, planHonest + routeScoreParity + routeScoreBounds gave "Tests 37 passed (37)",
+  MISSED. With the new rows, the same files gave "Tests 1 failed | 38 passed (39)", RED by name: "meters bound: a 0 m scored
+  row is left out, so a 0.8 route is not an honest failure" ("expected null to deeply equal { value:
+  0.7133333333333333, ...}"), CAUGHT. Second mutant `> 0` -> `> 1e-6` is RED by name "meters bound: a row one ulp of
+  longitude long (the next length above 0 m) is kept and scored", CAUGHT.
+- 2026-10-09T01:30:42Z B1 CLOSED: `git fetch origin`; merged origin/main 309de74c (PR #214, T-0328) as 9578090c. The
+  digest conflict was resolved as main's rows plus T-0332's six re-approved Sources rows and the NothingPrettyOffer row. Every
+  Sources row was re-hashed from the merged tree ("rows re-approved: 0"; the diff against origin/main is exactly those 7 rows).
+  named-tests.json and mutate-population-allowlist.json auto-merged as a union (both parse). `git merge-base
+  --is-ancestor origin/main HEAD` is true.
+- 2026-10-09T01:30:42Z ACCEPTANCE re-run on merged head 9578090c (touched rows, per faster-verification):
+  - A1-A5 Worker: `npx vitest run` over planHonest, routeScoreParity, routeScoreBounds, planReroute, planWire,
+    planCeiling, planCost, closuresCrossing, reflectionSites, requestReadSites, planWaypoints, planPrivacy and planRecorded
+    gave "Test Files 13 passed (13) / Tests 261 passed (261)".
+  - A1/A6 Swift: `swift test --filter "RouteScoreParityTests|PlanFailureCopyTests|PlanSheetGateTests|
+    NothingPrettyReaderTests|PlanClientResponseTests|RouteScore|DriveReplanTests|DriveDisplayTests"` gave XCTest
+    "Executed 30 tests, with 0 failures" and "Test run with 50 tests in 8 suites passed".
+  - A7: ios-compile run 37868133357 success and ios-screenshot run 37868137344 success, both on 9578090c. linux-core
+    run 37868136721 success. Bare check-safety-disclaimer exit 0 ("LAST all 82 app .swift, then 252 root + pbxproj
+    file(s) (-linked)"). check-mutate-population exit 0 ("302 modules, 167 covered by 37 populations, 114 allowlisted,
+    1 added by this branch ... the floor of 144 holds"). check-pins-yaml "PINS-YAML ok pins=48 fields=387" exit 0.
+    check-line-cap "512 Swift files tracked ... none over 300 lines" exit 0. routeScoreBounds.test.ts is 110 lines.
