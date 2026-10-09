@@ -11,7 +11,7 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "corpusfetch.py", "corpusota.py", "drive.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
            "hazards.py", "ledger.py", "menu.py", "normalise.py", "onboarding.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py",
            "roadtrip.py", "routescore.py",
-           "loopsheet.py", "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py",
+           "loopsheet.py", "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py", "hazardcopy.py",
            "scenic_tags.py",
            "segmentgeometry.py", "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py",
            "telemetry.py", "traffic.py")
@@ -82,6 +82,7 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Plan/ScenicPlanner.swift", "Sources/ScenicPlanCLI/PlanArguments.swift",
     "Sources/ScenicKit/Guidance/GuidanceSign.swift", "Sources/ScenicKit/Hazards/HazardFlag.swift",
     "Sources/ScenicKit/Hazards/HazardStrip.swift", "Sources/ScenicKit/Loop/RetraceDetector.swift",
+    "Sources/ScenicKit/Hazards/HazardCopy.swift",
     "Sources/ScenicKit/Scoring/RouteScore.swift", "Sources/ScenicKit/Scoring/SegmentScore.swift",
     "Sources/ScenicKit/Scoring/SegmentTerms.swift",
     "Sources/ScenicKit/Menu/RouteMenu.swift", "Sources/ScenicKit/Menu/MenuRow.swift",
