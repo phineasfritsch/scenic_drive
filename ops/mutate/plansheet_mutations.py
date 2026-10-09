@@ -17,6 +17,8 @@ plansheet_run.py (surprise's three-file shape).
   * THE REROUTE ON THE WIRE (38-48, T-0319 R9): the device's 2-dp rounding of the fix dropped, truncated or bypassed,
     each bound of first_pin and of the token grammar widened, the first_pin key renamed, the pin index shifted, the
     token sent in another spelling.
+  * THE TIME RUNS (49-54, T-0342 R4): time_runs never read, the tiling check dropped, null read as absent, ms read
+    from another key, ClientPlanner or a retime dropping the runs;
   * THE VEHICLE ON THE WIRE (33-37, T-0311 R8): PlanRequestBody's enabled-profile guard dropped or answering the
     wrong refusal, the wire key renamed, and PlanClient sending a fixed profile or defaulting to a disabled one.
 
@@ -42,6 +44,8 @@ PLANNER = ROOT / "Sources" / "ScenicAPIClient" / "ClientPlanner.swift"
 ERROR = ROOT / "Sources" / "ScenicAPIClient" / "PlanError.swift"
 BODY = ROOT / "Sources" / "ScenicAPIClient" / "PlanRequestBody.swift"
 CLIENT = ROOT / "Sources" / "ScenicAPIClient" / "PlanClient.swift"
+RESPONSE = ROOT / "Sources" / "ScenicAPIClient" / "PlanResponse.swift"
+RETIMED = ROOT / "Sources" / "ScenicKit" / "Traffic" / "RetimedPreview.swift"
 SUBJECTS = (SHEET, COPY, ACTION, FAILURE, PREVIEW, TICKET, PLACE, HAZARD, PLANNER, ERROR, BODY, CLIENT)
 MUTATED_FILES = SUBJECTS
 
@@ -49,7 +53,8 @@ TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "PlanSheet" / "PlanSheetTests.
               ROOT / "Tests" / "ScenicKitTests" / "PlanSheet" / "PlanFailureCopyTests.swift",
               ROOT / "Tests" / "ScenicAPIClientTests" / "PlanSheetGateTests.swift",
               ROOT / "Tests" / "ScenicAPIClientTests" / "PlanVehicleWireTests.swift",
-              ROOT / "Tests" / "ScenicAPIClientTests" / "PlanRerouteWireTests.swift")
+              ROOT / "Tests" / "ScenicAPIClientTests" / "PlanRerouteWireTests.swift",
+              ROOT / "Tests" / "ScenicAPIClientTests" / "PlanTimeRunsTests.swift")
 
 GATE = "first launch: no ticket until the disclaimer is accepted, then one"
 SAFE = "P-SAFE-03: from first launch no plan request is made before the disclaimer is accepted"
@@ -75,6 +80,8 @@ ROUNDING = "the origin is each axis to the nearest hundredth, half away from zer
 EVERY_PROFILE = ("every profile: an enabled one is sent as its raw value, the body equal to its recomputation; "
                  "a disabled one is refused with zero requests")
 DEFAULT_PROFILE = "a plan that names no vehicle is sent as standard"
+DECODE_RUNS = "a 200's time_runs decode whole when they tile the route; absent is nil; every bound refused"
+PREVIEW_RUNS = "a response's runs reach the preview whole, and a retime keeps them"
 
 STATE_ARMS = "        case .chosen, .preview, .failed: break\n        case .idle, .searching, .planning: return nil"
 GATE_HEAD = ("        guard disclaimerAccepted, let start, let destination else { return nil }\n        switch state {\n"
@@ -186,6 +193,18 @@ MUTATIONS = [
      "firstPin: request.firstRemainingWaypoint + 1) {", [WHOLE_R, ROUND_R, REFUSE_R]),
     ("48 the token sent in another spelling", BODY, "try reroute.encode(rerouteToken, forKey: .token)",
      "try reroute.encode(rerouteToken.uppercased(), forKey: .token)", [WHOLE_R, ROUND_R, REFUSE_R]),
+    ("49 time_runs never read", RESPONSE, "            timeRuns: timeRuns\n", "            timeRuns: nil\n",
+     [DECODE_RUNS]),
+    ("50 the tiling check dropped", RESPONSE, "guard CorridorRoute(route: route, timeRuns: runs) != nil else {",
+     "guard true else {", [DECODE_RUNS]),
+    ("51 null read as absent", RESPONSE, "guard top.contains(.timeRuns) else { return nil }",
+     "guard (try? top.decodeNil(forKey: .timeRuns)) == false else { return nil }", [DECODE_RUNS]),
+    ("52 ms read from to", RESPONSE, "milliseconds: try run.decode(Int.self, forKey: .ms)",
+     "milliseconds: try run.decode(Int.self, forKey: .to)", [DECODE_RUNS]),
+    ("53 ClientPlanner drops the runs", PLANNER, "}, timeRuns: response.timeRuns)", "}, timeRuns: nil)",
+     [PREVIEW_RUNS]),
+    ("54 a retime drops the runs", RETIMED, "continuation: preview.continuation, timeRuns: preview.timeRuns)",
+     "continuation: preview.continuation, timeRuns: nil)", [PREVIEW_RUNS]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -198,6 +217,6 @@ EQUIVALENT = [
      "only enabled case, so every encoded body's vehicle IS .standard and the two lines write the same bytes"),
 ]
 
-MIN_MUTATIONS = 48
+MIN_MUTATIONS = 54
 MIN_EQUIVALENT = 2
-MIN_TEST_FILES = 5
+MIN_TEST_FILES = 6
