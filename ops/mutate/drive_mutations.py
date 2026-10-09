@@ -87,6 +87,10 @@ V_QUIET = "P-SAFE-09: off the route the leg is quiet; leaving, failing and comin
 V_OFFLINE = ("P-SAFE-09: offline says head back; the reconnect is quiet; a landed reroute is a new line with its own "
              "cues")
 V_ONLINE = "P-SAFE-09: a fix exactly 50 m from the line is on a leg; the next distance above it is on none"
+V_ROUND = ("P-SAFE-09: a mode round trip on the same line repeats no cue - after a pin's approach, the "
+           "destination's, or the arrival, online or offline")
+V_PINLEG = ("P-SAFE-09: with a pin at every interior vertex, or none, only the pin's leg says the next stop and only "
+            "the last says the destination")
 
 THRESHOLD = "P-NAV-01: 50 m exactly is on the line; the smallest distance above 50 m is away"
 DWELL = "P-NAV-01: off-route needs 5 s away exactly; one ulp less is not; an on-line fix restarts the dwell"
@@ -329,6 +333,17 @@ MUTATIONS = [
      "var meters = Geo.distanceMeters(at, line.coordinates[progressSegment])", [V_LEGEND]),
     ("99 the arrival never said", VOICE, "if lastLeg, meters <= arrivalMeters {",
      "if lastLeg, meters <= arrivalMeters, meters > approachMeters {", [V_CUE, V_DRIVE, V_ARRIVAL]),
+    # T-0329 pre-review: an utterance in a quiet state (a mode round trip on the SAME line) and the last-leg bound.
+    ("100 a mode change forgets the approaches", VOICE,
+     "if let change = Self.transition(from: mode, to: session.mode) { said.append(change) }",
+     "if let change = Self.transition(from: mode, to: session.mode) { said.append(change); approached = [] }",
+     [V_ROUND]),
+    ("101 a mode change forgets the arrival", VOICE,
+     "if let change = Self.transition(from: mode, to: session.mode) { said.append(change) }",
+     "if let change = Self.transition(from: mode, to: session.mode) { said.append(change); arrived = false }",
+     [V_ROUND]),
+    ("102 the last leg one vertex early", VOICE, "lastLeg: end.vertex == session.line.segmentCount)",
+     "lastLeg: end.vertex >= session.line.segmentCount - 1)", [V_PINLEG]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -349,7 +364,7 @@ EQUIVALENT = [
      "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device run hears it (T-0329). What bounds it: ops/lib/check-drive-voice.py (P-SAFE-09's row) allows exactly this whole line and refuses its removal by name ('the navigator never asks DriveVoice'), and what DriveVoice returns is CAUGHT above (entries 82-99)"),
 ]
 
-MIN_MUTATIONS = 99
+MIN_MUTATIONS = 102
 EQUIVALENT.append(
     ("E5 (device-only) the navigator's session starts without the preview's token", NAVIGATOR,
      "online: true, planToken: preview.continuation?.token)", "online: true)",
