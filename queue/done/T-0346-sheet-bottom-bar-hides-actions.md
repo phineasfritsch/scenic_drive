@@ -1,7 +1,7 @@
 ---
 id: T-0346
 title: The plan sheet's bottom bar never hides a card's own actions - on the road-trip card "Change the trip" sits under the "Plan a drive / Just drive a loop" bar; every card's last control stays reachable above the bar at every Dynamic Type size
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T15:45:25Z
@@ -11,7 +11,7 @@ branch: task/T-0346
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, .github/workflows/ios-screenshot.yml, ops/lib/, ops/lib/check-safety-disclaimer-linked-digests.txt]
 pins_affected: [P-ATTR-01, P-A11Y-01]
-reviewer: null
+reviewer: agent/rv1-t0346
 depends_on: [T-0341]
 verify: [ops/check-pins]
 acceptance:
@@ -170,3 +170,26 @@ owner's design pass.
      approved -screen sites"), check-ios-compile-guardrails.py rc=0, check-hazard-copy-sites.py rc=0 ("12 sites, every
      one approved, in 5 files"), check-line-cap rc=0 ("552 Swift files ... none over 300 lines"), check-pins-yaml rc=0
      ("pins=49 fields=395"), queue-check rc=0 ("QUEUE OK (336 tasks)"). Re-run on the merged head: quoted in the PR.
+- 2026-10-09T18:30:41Z REVIEW PASS by agent/rv1-t0346 (not the owner) on head 2e780fbf (merge of origin/main;
+  git merge-base --is-ancestor origin/main origin/task/T-0346 rc=0, no drift). Acceptance: the only change to the
+  block since d55f1aeb is row 3's preview clause (R5, ruled in the Log before 0e5b6241); the preview AX5 exit was
+  already below the fold on main, so this does not hide a control the PR had promised. Rows 1-6 MET.
+  - CI on 2e780fbf (dispatched by the reviewer): ios-compile 37970441748 success; ios-screenshot 37970447087 success
+    (18:02:00 -> 18:20:48, under the 30-minute cap); linux-core 37969466847 success; gh pr checks 230: core pass,
+    pins-source-only pass.
+  - Looked at all 18 plan-* shots of 37970447087 and of the author's 37965740394. Trip, loop and offered exits sit on
+    the bar material above the bottom bar in light, dark and AX5, and are legible. offered-ax5 has no truncated label
+    ("Try 65 extra minutes" is on two lines). Preview light and dark match main, and the attribution footer is on screen
+    in all three preview shots (opaque at AX5). The bottom bar is identical everywhere. No control is drawn under the bar.
+    Recorded, not blocking: in offered-ax5 the lower line of "All back roads: about 60 min..." is covered at rest by
+    the pinned exit, though its top line is visible and tappable and the rest is reachable by scrolling (R3). In saved-ax5
+    the second row's title text runs under the bar, and the row's buttons below the fold wrap mid-word
+    ("Re-nam e", "Del ete"), as on main and outside R4's scope.
+  - Mutant (TripItineraryCard: drop the safeAreaInset and put "Change the trip" back in the List, which is main's
+    bytes): check-safety-disclaimer rc=1 ("P-SAFE-03: the pinned render surface changed: ...TripItineraryCard.swift
+    content changed"), check-map-attribution rc=1, and both are digest pins only. No test references
+    trip.change or PlanCardExit, so after a digest re-approval only the plan-trip screenshot would see the change.
+  - Bare on 2e780fbf: check-safety-disclaimer rc=0, check-map-attribution rc=0, check-screen-rehearsals.py rc=0
+    ("11 approved -screen sites"), check-ios-compile-guardrails.py rc=0 (both OK lines), check-hazard-copy-sites.py
+    rc=0 ("12 sites"), check-line-cap rc=0 ("553 Swift files ... none over 300 lines"), check-pins-yaml rc=0
+    ("pins=49 fields=395"), queue-check rc=0 ("QUEUE OK (337 tasks)").
