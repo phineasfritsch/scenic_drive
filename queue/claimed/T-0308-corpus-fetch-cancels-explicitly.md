@@ -106,3 +106,11 @@ only through the long-body rows. The app ships on Darwin; this closes the platfo
      104, stub 140, table 238, corpusfetch_mutations.py 120.
   NOT RUN: Darwin. On Darwin the .cancel disposition already cancels, so 23 and 24 would be unobservable there and
   the explicit cancel is a no-op second cancel of a cancelling task; the root package has no Darwin swift test here.
+- 2026-10-09T23:43:00Z FINAL PRE-REVIEW (agent/claude-opus-5): origin/main merged at c0325495 (main had moved
+  through T-0351 / T-0352 / T-0345 queue and ops commits; `git diff 4eaa0b1b c0325495 -- Sources Tests ops/mutate
+  ops/lib/check-safety-disclaimer-linked-digests.txt` is empty, so A3-A5 carry over byte-for-byte). Re-run on
+  c0325495, 23:27:26Z-23:42:35Z: A1 `sites=2 followed=2`; A2 `Test run with 7 tests in 2 suites passed after
+  10.767 seconds`; A6 check-safety-disclaimer rc=0, check-mutate-population `the floor of 147 holds` rc=0,
+  check-pins-yaml `PINS-YAML ok pins=50 fields=403` rc=0, queue-check `QUEUE OK (343 tasks)` rc=0, check-line-cap
+  `P-SRC-02: 563 Swift files tracked (Sources=274, Tests=202, apps/ios=87), none over 300 lines` rc=0. PR #237
+  opened; gh pr checks 237 on c0325495: core pass 4m57s, pins-source-only pass 2m58s.
