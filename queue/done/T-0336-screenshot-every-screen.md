@@ -161,3 +161,33 @@ human-initiated only).
   the disclaimer still gates) - refused only by the sha256 digest pins (OnboardingRehearsal.swift content changed), the
   rehearsal guard stays green: its whitelist covers -screen reads, not unconditional machine events in a rehearsal
   type. Recorded, not blocking: no safety gate is bypassed and the digest is a refusal by file name.
+- 2026-10-09T07:00:50Z agent/claude-opus-5 (owner) MERGE-MAIN ROUND after the sign-off at 6d8b64e2: main took PR #219
+  (T-0334: PlanOffer, PlanSheetState.offered, PlanOfferCard wired into PlanSheetScreen). git pull; git fetch origin;
+  merge origin/main (4617eddd) = 122a78a4; main then took queue-only 9541b726, 564e6626 (T-0330), merged clean after this commit. ONE conflict: ops/lib/check-safety-disclaimer-pinned, the
+  PlanSheetScreen.swift row (ours b7343dde..., main's 02fa02bf...). The Swift auto-merged with BOTH sides: T-0334's
+  `case .offered(_, let offer): PlanOfferCard(...)` wiring AND T-0336's `PlanRehearsal.atLaunch` init hook; the row
+  recomputed from the merged tree (sed 's/\r$//' | sha256sum) = fab8d6f10d57a02c25631448abc39d445b0f573158371898de58f855c7a8762d.
+  Only those two paths differ from both parents (pre-commit: "checking touches: against the 2 path(s)"); digests.txt
+  and the other lists merged clean (no row changed on both sides). Merge message carries the attribution line.
+  RULED (rv1-t0334 recordable 1, T-0334 stillOpen: the offer card has no shot): a `plan-offered` rehearsal.
+  R-A sample: the Brief's westwood-malibu-like numbers - budget 25, try 65, all back roads about 60 min / 32 extra -
+  as PlanRehearsalFixtures.offer = PlanOffer(budgetMinutes: 25, moreTimeMinutes: 65, backRoadsEtaSeconds: 3_600,
+  backRoadsBudgetMinutes: 32), reached through the machine's API: PlanSheet(disclaimerAccepted: true,
+  budgetMinutes: 25), search/choose, the gate's startPlanning(), finish(ticket, with: .offered(offer)). The places
+  stay Topanga -> Zuma Beach (corpus ids already verified for the preview) rather than a Westwood row nobody has looked
+  up in the corpus; the copy shows only the offer's numbers, so the route pair does not appear on the card.
+  R-B launch value `-screen offered`, shot names plan-offered-light/-dark (the loop's NAME=plan-$SHOT-$LOOK).
+  R-C cap: run 37891406542 (30 shots) took 18m07s (06:01:38 -> 06:19:45) against timeout-minutes: 30; two more shots
+  at SETTLE=15 add well under a minute - 32 shots fit, the shot is NOT skipped.
+  Rows raised BY NAME, each seen red then green: check-ios-compile-guardrails.py with the workflow edited and the pinned
+  module not yet -> "workflow.jobs.simulator-screenshot.steps[4].run: differs from the pinned value", FAIL; after
+  ios_screenshot_pinned.py CAPTURE_RUN/SHOTS_LIST took `offered` -> "ios-screenshot.yml equals the pinned workflow", OK.
+  New --prove-red row "T-0336: the plan-offered shot dropped (T-0334's offer card unseen)" -> [red rc=1]; PROVE-RED OK:
+  73 mutations red, 6 legitimate spellings green. check-screen-rehearsals.py new row "T-0334's offer sample named
+  outside DEBUG (a release plan-offered state)" -> [refused] "`static let offered = PlanRehearsalFixtures.offer` at
+  .../PlanRehearsal.swift is not an approved -screen site"; PROVE-RED OK: 12/12 refused by name (was 11/11).
+  Digests re-approved in -pinned: PlanRehearsal.swift b5c84b13... (doc line names `offered`), PlanRehearsalFixtures.swift
+  88756130... (127 lines). BARE on the change, every one exit 0: check-safety-disclaimer, check-map-attribution,
+  check-store-links.py, check-screen-rehearsals.py ("11 approved -screen sites, every read inside #if DEBUG,
+  PlanRehearsalFixtures.swift wholly DEBUG-only"), check-ios-compile-guardrails.py (both workflows equal the pinned),
+  check-line-cap ("524 Swift files tracked ... none over 300 lines"), check-pins-yaml.py ("pins=49 fields=395").

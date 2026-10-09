@@ -138,6 +138,9 @@ def mutations(files):
         ("a new feature file reads -screen", add(SRC + "FeaturePlanSheet/PlanTour.swift",
                                                  "let tour = UserDefaults.standard.string(forKey: \"screen\")\n")),
         ("the fixtures used from the shell", edit(shell, "@main\n", "let fixture = PlanRehearsalFixtures.preview\n@main\n")),
+        ("T-0334's offer sample named outside DEBUG (a release plan-offered state)",
+         edit(SRC + "FeaturePlanSheet/PlanRehearsal.swift", "public struct PlanRehearsal {\n",
+              "public struct PlanRehearsal {\n    static let offered = PlanRehearsalFixtures.offer\n")),
     ]
 
 

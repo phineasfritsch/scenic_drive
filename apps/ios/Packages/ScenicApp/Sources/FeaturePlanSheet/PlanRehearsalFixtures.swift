@@ -35,6 +35,11 @@ enum PlanRehearsalFixtures {
         etaSeconds: 3_300, fastestEtaSeconds: 2_100, etaIsEstimate: true,
         hazards: [PlanHazardRun(kind: "road_access", value: "destination", fromIndex: 2, toIndex: 3)])
 
+    /// The "nothing pretty" answer that made both offers (T-0334): nothing within the 25 min asked for; try 65; or all
+    /// back roads, about 60 min, which needs 32 extra minutes.
+    static let offer = PlanOffer(budgetMinutes: 25, moreTimeMinutes: 65, backRoadsEtaSeconds: 3_600,
+                                 backRoadsBudgetMinutes: 32)
+
     /// A one-hour loop from Topanga: Saddle Peak, Malibu Canyon, Mulholland Highway, Old Topanga, home.
     static let loopPreview = LoopPreview(
         path: [
@@ -75,6 +80,7 @@ enum PlanRehearsalFixtures {
         switch name {
         case "preview": return plan(.preview(preview))
         case "nothingPretty": return plan(.failure(.nothingPretty))
+        case "offered": return plan(.offered(offer), budgetMinutes: offer.budgetMinutes)
         case "loop": return loop()
         case "trip": return trip()
         case "saved": return PlanRehearsal(tab: .saved, sheet: PlanSheet(disclaimerAccepted: false),
@@ -84,8 +90,8 @@ enum PlanRehearsalFixtures {
         }
     }
 
-    private static func plan(_ outcome: PlanOutcome) -> PlanRehearsal? {
-        var sheet = PlanSheet(disclaimerAccepted: true)
+    private static func plan(_ outcome: PlanOutcome, budgetMinutes: Int = 30) -> PlanRehearsal? {
+        var sheet = PlanSheet(disclaimerAccepted: true, budgetMinutes: budgetMinutes)
         sheet.search("", for: .start)
         sheet.choose(topanga)
         sheet.search("", for: .destination)

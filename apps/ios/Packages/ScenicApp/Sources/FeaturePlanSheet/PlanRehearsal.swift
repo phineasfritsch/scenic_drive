@@ -1,7 +1,7 @@
 import Foundation
 import ScenicKit
 
-/// The plan sheet a DEBUG build opens on when launched with `-screen preview|nothingPretty|loop|trip|saved` -
+/// The plan sheet a DEBUG build opens on when launched with `-screen preview|nothingPretty|offered|loop|trip|saved` -
 /// ios-screenshot's plan-sheet shots (T-0336 R2) - and in every release build, none.
 ///
 /// The `-screen` pair lands in UserDefaults' argument domain, read here inside `#if DEBUG` and written nowhere

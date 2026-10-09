@@ -65,14 +65,14 @@ alive() {
 }
 for LOOK in light dark; do
   xcrun simctl ui "$UDID" appearance "$LOOK"
-  for SHOT in collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty loop trip saved legal; do
+  for SHOT in collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty offered loop trip saved legal; do
     DONE=(-safety.disclaimer.acknowledged.v1 YES -vehicle.profile.v1 standard)
     case "$SHOT" in
       fastest) DETENT=collapsed ROW=0 SCREEN=home NAME=home-$LOOK-$SHOT ;;
       settings|paywall|surprise|legal) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
       onboarding) DETENT=collapsed ROW=default SCREEN=home NAME=onboarding-$LOOK DONE=() ;;
       disclaimer) DETENT=collapsed ROW=default SCREEN=disclaimer NAME=disclaimer-$LOOK DONE=() ;;
-      preview|nothingPretty|loop|trip|saved) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=plan-$SHOT-$LOOK ;;
+      preview|nothingPretty|offered|loop|trip|saved) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=plan-$SHOT-$LOOK ;;
       drive) DETENT=collapsed ROW=default SCREEN=drive NAME=drive-$LOOK
         xcrun simctl privacy "$UDID" grant location "$BUNDLE"
         xcrun simctl location "$UDID" start --speed=15 34.0905,-118.6370 34.0880,-118.6250 34.0855,-118.6150 34.0830,-118.6050 ;;
@@ -140,7 +140,7 @@ LAUNCH = ('              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeD
           ' -screen "$SCREEN" "${DONE[@]}")\n')
 ALIVE = '              alive "$PID" "${SETTLE}s after the $LOOK $SHOT launch"\n'
 SHOTS_LIST = ("            for SHOT in collapsed medium fastest settings paywall surprise drive onboarding disclaimer"
-              " preview nothingPretty loop trip saved legal; do\n")
+              " preview nothingPretty offered loop trip saved legal; do\n")
 LS = '          ls -l "$SHOTS"\n'
 
 
@@ -186,7 +186,9 @@ MUTATIONS = [
      LAUNCH.replace(' "${DONE[@]}"', "")),
     ("T-0324: the drive shot dropped", SHOTS_LIST, SHOTS_LIST.replace(" drive onboarding", " onboarding")),
     ("T-0336: the plan-sheet shots dropped", SHOTS_LIST,
-     SHOTS_LIST.replace(" preview nothingPretty loop trip saved", "")),
+     SHOTS_LIST.replace(" preview nothingPretty offered loop trip saved", "")),
+    ("T-0336: the plan-offered shot dropped (T-0334's offer card unseen)", SHOTS_LIST,
+     SHOTS_LIST.replace(" nothingPretty offered", " nothingPretty")),
     ("T-0336: the onboarding and legal shots dropped", SHOTS_LIST,
      SHOTS_LIST.replace(" onboarding disclaimer", "").replace(" legal;", ";")),
     ("T-0271: the settings and paywall shots dropped", SHOTS_LIST,
