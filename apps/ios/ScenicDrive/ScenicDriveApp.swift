@@ -25,7 +25,7 @@ import SwiftUI
 @main
 struct ScenicDriveApp: App {
     @State private var isShowingSettings = LaunchScreen.atLaunch != .home
-    @State private var isPlanning = false
+    @State private var isPlanning = PlanRehearsal.opensSheet
     @State private var corpus: LiveCorpus
     @State private var isShowingCorpusDownload: Bool
     @State private var drive = DriveRehearsal.atLaunch
