@@ -20,9 +20,12 @@ public struct PlanPreview: Equatable, Sendable {
     public let waypoints: [Coordinate]
     /// The scenic weight the Worker settled on, as it sent it (T-0306 R2).
     public let lambda: Double
+    /// T-0328 R1: how a reroute continues this plan; nil when the Worker remembered nothing (no plan_token).
+    public let continuation: PlanContinuation?
 
     public init(route: [Coordinate], etaSeconds: Double, fastestEtaSeconds: Double, etaIsEstimate: Bool,
-                hazards: [PlanHazardRun], waypoints: [Coordinate] = [], lambda: Double = 0) {
+                hazards: [PlanHazardRun], waypoints: [Coordinate] = [], lambda: Double = 0,
+                continuation: PlanContinuation? = nil) {
         self.route = route
         self.etaSeconds = etaSeconds
         self.fastestEtaSeconds = fastestEtaSeconds
@@ -30,6 +33,7 @@ public struct PlanPreview: Equatable, Sendable {
         self.hazards = hazards
         self.waypoints = waypoints
         self.lambda = lambda
+        self.continuation = continuation
     }
 
     /// Whether the badge is drawn: whenever the ETA is an estimate.

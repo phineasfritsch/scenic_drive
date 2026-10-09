@@ -64,20 +64,28 @@ struct DriveDisplayTests {
     @Test("P-SAFE-09: the session's display is the table's row for its own surface and mode, before and after fixes")
     func sessionDisplayFollowsTheSession() {
         var guiding = DriveSession(line: Self.line, waypoints: [], lambda: 0.5, online: true)!
-        #expect(DriveDisplay(session: guiding) == Self.expected(.minimal, .guiding))
+        #expect(DriveDisplay(session: guiding) == Self.expected(.minimal, .guiding)?.drawing(Self.line))
         _ = guiding.observe(DriveFixtures.fix(Self.onLine, at: 0, speed: 2))
-        #expect(DriveDisplay(session: guiding) == Self.expected(.full, .guiding))
+        #expect(DriveDisplay(session: guiding) == Self.expected(.full, .guiding)?.drawing(Self.line))
 
         var rejoining = DriveSession(line: Self.line, waypoints: [], lambda: 0.5, online: false)!
         for t in 0...5 { _ = rejoining.observe(DriveFixtures.fix(Self.away, at: Double(t))) }
-        #expect(DriveDisplay(session: rejoining) == Self.expected(.minimal, .rejoining))
+        #expect(DriveDisplay(session: rejoining) == Self.expected(.minimal, .rejoining)?.drawing(Self.line))
         _ = rejoining.observe(DriveFixtures.fix(Self.away, at: 6, speed: 4.5))
-        #expect(DriveDisplay(session: rejoining) == Self.expected(.full, .rejoining))
+        #expect(DriveDisplay(session: rejoining) == Self.expected(.full, .rejoining)?.drawing(Self.line))
 
         var rerouting = DriveSession(line: Self.line, waypoints: [], lambda: 0.5, online: true)!
         for t in 0...5 { _ = rerouting.observe(DriveFixtures.fix(Self.away, at: Double(t))) }
-        #expect(DriveDisplay(session: rerouting) == Self.expected(.minimal, .rerouting))
+        #expect(DriveDisplay(session: rerouting) == Self.expected(.minimal, .rerouting)?.drawing(Self.line))
         _ = rerouting.observe(DriveFixtures.fix(Self.away, at: 6, speed: 0))
-        #expect(DriveDisplay(session: rerouting) == Self.expected(.full, .rerouting))
+        #expect(DriveDisplay(session: rerouting) == Self.expected(.full, .rerouting)?.drawing(Self.line))
+    }
+}
+
+extension DriveDisplay {
+    /// The same row drawing `line` (T-0328 R4): the session's display carries the session's current line.
+    func drawing(_ line: [Coordinate]) -> DriveDisplay {
+        DriveDisplay(actionTitle: actionTitle, actionMinHeight: actionMinHeight, status: status,
+                     showsDetails: showsDetails, line: line)
     }
 }

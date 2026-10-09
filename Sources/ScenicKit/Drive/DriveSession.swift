@@ -26,12 +26,15 @@ public struct DriveSession: Sendable, Equatable {
     public private(set) var progressSegment = 0
     public private(set) var isOnline: Bool
     public let lambda: Double
+    /// T-0328 R1: the token of the plan being driven - the preview's, then each taken reroute's; nil for none.
+    public private(set) var planToken: String?
     private var pinVertices: [Int]
     private var awaySince: TimeInterval?
     private var latest: DriveFix?
 
     /// nil unless the line is real, every pin is one of its vertices in route order, and lambda is finite.
-    public init?(line coordinates: [Coordinate], waypoints: [Coordinate], lambda: Double, online: Bool) {
+    public init?(line coordinates: [Coordinate], waypoints: [Coordinate], lambda: Double, online: Bool,
+                 planToken: String? = nil) {
         guard lambda.isFinite, let line = DriveLine(coordinates),
               let vertices = line.vertexIndices(of: waypoints) else { return nil }
         self.line = line
@@ -39,6 +42,7 @@ public struct DriveSession: Sendable, Equatable {
         self.pinVertices = vertices
         self.lambda = lambda
         self.isOnline = online
+        self.planToken = planToken
     }
 
     /// One location fix. Returns the reroute to send, or nil. An unusable fix asks nothing and changes nothing but
@@ -80,10 +84,12 @@ public struct DriveSession: Sendable, Equatable {
         return request(from: latest.coordinate)
     }
 
-    /// The reroute landed: its line and pins replace the plan's, the lambda stays. Ignored unless a reroute is
-    /// out; a reply that is not a usable line with its pins on it is a failure (rejoin mode). True when taken.
+    /// The reroute landed: its line, pins and token (T-0328 R3) replace the plan's, the lambda stays. Ignored unless
+    /// a reroute is out; a reply that is not a usable line with its pins on it is a failure (rejoin mode). True when
+    /// taken.
     @discardableResult
-    public mutating func rerouteArrived(line coordinates: [Coordinate], waypoints: [Coordinate]) -> Bool {
+    public mutating func rerouteArrived(line coordinates: [Coordinate], waypoints: [Coordinate],
+                                        planToken: String? = nil) -> Bool {
         guard mode == .rerouting else { return false }
         guard let next = DriveLine(coordinates), let vertices = next.vertexIndices(of: waypoints) else {
             mode = .rejoining
@@ -92,6 +98,7 @@ public struct DriveSession: Sendable, Equatable {
         line = next
         self.waypoints = waypoints
         pinVertices = vertices
+        self.planToken = planToken
         progressSegment = 0
         awaySince = nil
         mode = .guiding
@@ -109,6 +116,7 @@ public struct DriveSession: Sendable, Equatable {
     private func request(from origin: Coordinate) -> RerouteRequest {
         let passed = pinVertices.firstIndex { $0 > progressSegment } ?? pinVertices.count
         return RerouteRequest(origin: origin, remainingWaypoints: Array(waypoints[passed...]),
-                              firstRemainingWaypoint: passed, destination: line.destination, lambda: lambda)
+                              firstRemainingWaypoint: passed, destination: line.destination, lambda: lambda,
+                              planToken: planToken)
     }
 }

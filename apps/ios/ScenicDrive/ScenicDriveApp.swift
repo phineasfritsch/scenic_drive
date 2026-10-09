@@ -20,7 +20,8 @@ import SwiftUI
 /// before the Surprise card or the plan sheet opens a PlaceStore; the places download sheet is presented full height.
 ///
 /// T-0324 R1/R4: the plan preview's door hands the shell a plan, and the window shows the drive - NavAdapter's
-/// DriveHost composed with FeatureScenicHome's DriveScreen - in place of the home until the drive is ended.
+/// DriveHost composed with FeatureScenicHome's DriveScreen - in place of the home until the drive is ended. T-0328 R2:
+/// the shell hands DriveHost its reroute sender - the rehearsal's in a DEBUG drive shot, else PlanAdapter's.
 @main
 struct ScenicDriveApp: App {
     @State private var isShowingSettings = LaunchScreen.atLaunch != .home
@@ -37,7 +38,7 @@ struct ScenicDriveApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if let drive, let host = DriveHost(preview: drive, content: { display in DriveScreen(preview: drive, display: display, onEnd: { self.drive = nil }) }) {
+            if let drive, let host = DriveHost(preview: drive, sender: DriveRehearsal.rerouter ?? LivePlanner.rerouter(for: drive), content: { display in DriveScreen(preview: drive, display: display, onEnd: { self.drive = nil }) }) {
                 host
             } else {
                 home

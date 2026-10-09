@@ -33,19 +33,22 @@ MIN_FILES = 60
 S = "Packages/ScenicApp/Sources/"
 SCREEN, HOST, NAV, SHELL = (S + "FeatureScenicHome/DriveScreen.swift", S + "NavAdapter/DriveHost.swift",
                             S + "NavAdapter/DriveNavigator.swift", "ScenicDrive/ScenicDriveApp.swift")
-SHELL_LINE = ("if let drive, let host = DriveHost(preview: drive, content: { display in DriveScreen(preview: drive, "
+SHELL_LINE = ("if let drive, let host = DriveHost(preview: drive, sender: DriveRehearsal.rerouter ?? "
+              "LivePlanner.rerouter(for: drive), content: { display in DriveScreen(preview: drive, "
               "display: display, onEnd: { self.drive = nil }) }) {")
 APPROVED = [
     (SCREEN, "private let display: DriveDisplay"),
     (SCREEN, "public init(preview: PlanPreview, display: DriveDisplay, onEnd: @escaping () -> Void) {"),
     (SCREEN, "self.display = display"),
+    (SCREEN, ".onChange(of: display.line) { resolveMap() }"),
     (SCREEN, "if display.showsDetails, let status = display.status {"),
     (SCREEN, "if display.showsDetails {"),
     (SCREEN, 'Label(display.actionTitle, systemImage: "xmark.circle.fill")'),
     (SCREEN, "if !display.showsDetails, let status = display.status {"),
     (SCREEN, ".frame(maxWidth: .infinity, minHeight: display.actionMinHeight)"),
+    (SCREEN, "route = DriveMapLine.route(for: display.line)"),
     (HOST, "private let content: (DriveDisplay) -> Content"),
-    (HOST, "public init?(preview: PlanPreview, @ViewBuilder content: @escaping (DriveDisplay) -> Content) {"),
+    (HOST, "@ViewBuilder content: @escaping (DriveDisplay) -> Content) {"),
     (HOST, "content(navigator.display)"),
     (NAV, "@Published public private(set) var mode: DriveMode"),
     (NAV, "@Published public private(set) var surface: DriveSurface"),
