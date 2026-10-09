@@ -9,12 +9,21 @@ lease_expires_at: 2026-10-10T05:35:13Z
 worktree: .worktrees/T-0343
 branch: task/T-0343
 exclusive: []
-touches: [Sources/ScenicKit/, Sources/PlaceStore/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
+touches: [Sources/ScenicKit/, Sources/PlaceStore/, Tests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-07, P-PRIV-05]
 reviewer: null
 depends_on: [T-0325, T-0342]
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "MEASURE then RULE R1-R8 in a dated Log entry before any code (the 2026-10-09T17:41:58Z entry)."
+  - "Restore (R2): LearnedCorridorSpeeds(timeZone:restoring:) over [CorridorSlotRow] (cell UInt64, hour Int, ratio Double, samples Int) is nil unless EVERY row has hour in 0...167, ratio in [0.3, 1.0] (NaN refused), samples >= 1 and no (cell, hour) repeats; else its slots equal the rows. Table over every bound (hour -1, 0, 167, 168, Int.min, Int.max; ratio nextDown(0.3), 0.3, 1.0, nextUp(1.0), NaN, -infinity, +infinity; samples Int.min, 0, 1, Int.max; a repeated slot), each row alone and beside a good row, answers compared WHOLE. `rows` answers every slot sorted by (cell, hour), and restoring it equals the learner that wrote it."
+  - "Feed (R1): CorridorLearner.observe(coordinate:speedMetersPerSecond:at:on:clock:) builds the DriveFix from the one Date (timestamp = date.timeIntervalSinceReferenceDate), runs DriveController.observe, then CorridorClock.observe on the controller's session at that Date, and calls save with the learner's whole `rows` exactly when an edge was taught; DriveNavigator.forward calls it with location.timestamp for every fix. Tests: the commands and the save calls per fix of a clean drive, a skip, no runs and a reroute, compared whole."
+  - "Preview (R4): RetimingPlanner(inner:learner:now:) answers .preview(RetimedPreview.of(p, timeRuns: runs, by: learner.speeds, departsAt: now())) when p carries runs, the preview unchanged without runs, .failure and .offered unchanged; LivePlanner.make() wraps its planner in it with LiveCorridorLearner.shared. Table compared WHOLE."
+  - "End to end (R5, P-SAFE-07): five drives through CorridorLearner.observe, each followed by a relaunch (a new learner restored from the last saved rows), clear RetimingPlanner's badge on the fifth and not before, previews compared whole; bound by name in P-SAFE-07."
+  - "Persistence (R3): PlaceStore CorridorRatioStore(path:) over the user store's v4 table corridor_ratio (cell, hour, ratio, samples) with CHECK constraints on every bound; replaceAll(with:) is one transaction (a refused row leaves the table unchanged), list() answers it sorted; a second store on the same path reads the same rows (relaunch); cells above Int64.max round-trip. UserStorePrivacyTests' whole column map gains corridor_ratio and no column matches /home|address|breadcrumb|trail|speed/; the migration tests list v4. GRDB suites green in CI linux-core."
+  - "P-PRIV-05 (R6): CorridorSlotRow, CorridorLearner, CorridorRatioRecord and CorridorRatioStore join the guarded identifiers; every new site (ScenicKit, PlaceStore, PlanAdapter, NavAdapter) approved in the whitelist, seen RED by name before approval and green after; LearnedSpeedsPrivacyTests casts the new ScenicKit types, a PlaceStore test casts CorridorRatioRecord."
+  - "Tests RED first by name against stubs, then green; digest rows re-approved; ops/mutate/traffic population extended to the new subjects with a raised literal floor, the new entries CAUGHT by name; check-mutate-population, check-line-cap, check-pins-yaml, queue-check green; ios-compile and ios-screenshot success with the plan-preview and drive shots looked at."
+  - "The rest FILED (R8): reroute answers carry time runs so a rerouted drive keeps learning."
 ---
 ## Brief
 
@@ -35,3 +44,37 @@ GRDB-gated suites run only in CI linux-core. iOS screenshots looked at.
 ## Log
 - 2026-10-09T11:37:54Z filed by agent/claude-opus-5 (T-0325 owner) from T-0325 R3/R4/R7.
 - 2026-10-09T17:35:13Z claimed by agent/claude-opus-5; lease until 2026-10-10T05:35:13Z
+- 2026-10-09T17:41:58Z MEASURE then RULE (agent/claude-opus-5), before any code.
+  MEASURED: (m1) nothing in apps/ names LearnedCorridorSpeeds, CorridorClock or RetimedPreview; the P-PRIV-05 guard
+  whitelists 17 sites in 7 files, all in Sources/ScenicKit/Traffic/. (m2) PlaceStore depends on GRDB only and
+  ScenicKit on nothing (root Package.swift, serial, not touched): PlaceStore cannot name a ScenicKit type, nor the
+  reverse. (m3) NavAdapter depends on ScenicKit + Ferrostar only - it can open no PlaceStore; PlanAdapter has
+  ScenicKit + ScenicAPIClient + PlaceStore + Telemetry. (m4) DriveFix.timestamp is documented as "any monotone
+  clock"; DriveNavigator.forward fills it with location.timestamp.timeIntervalSinceReferenceDate. (m5) RerouteReply
+  carries no time runs (Sources/ScenicKit/Drive/RerouteReply.swift). (m6) The plan sheet's previews come from the
+  shell's LivePlanner.make() (ScenicDriveApp.swift) through RoutePlanning; PlanRehearsal fixtures bypass it.
+  (m7) UserStorePrivacyTests compares the whole {table: [columns]} map; three migrations v1..v3.
+  RULINGS. R1 (the clock's feed): one ScenicKit entry, CorridorLearner.observe(coordinate:speedMetersPerSecond:at:
+  on:clock:), builds the DriveFix from the fix's Date and feeds the clock after controller.observe at that same
+  Date - so the date cannot drift from the fix, and the order is ScenicKit's, testable on Linux. DriveNavigator
+  holds the CorridorClock (learner.clock(for: preview), nil without runs) and calls the entry per fix with
+  location.timestamp. CorridorLearner is a @MainActor final class: the one learner in the process, owned by
+  PlanAdapter's LiveCorridorLearner.shared; the shell hands it to DriveHost (a new defaulted parameter) - the only
+  shell edit (ScenicDriveApp.swift added to touches; a buildable-folder Swift file, no pbxproj). R2 (restore):
+  LearnedCorridorSpeeds(timeZone:restoring: [CorridorSlotRow]) - a new plain row type, since PlaceStore cannot
+  name CorridorSlot - nil on ANY bad row (fails toward saying less: an empty learner keeps the badge); the cell is
+  not validated (a value no route has is never read). `rows` is the export. Zone: TimeZone.current at launch
+  (T-0320 R5, the hour is local). R3 (persistence): user-store migration v4-corridor-ratio, table corridor_ratio
+  (cell INTEGER holding the UInt64 bit pattern, hour, ratio REAL, samples) WITHOUT ROWID, PRIMARY KEY (cell, hour),
+  CHECK on every bound; no column matches /home|address|breadcrumb|trail|speed/. The per-cell table is a coarse
+  record of driven places by design (the plan's on-device learner); it never leaves the device (no Codable, no
+  path to ScenicAPIClient/Telemetry). Written whole (replaceAll) on the main actor each time an edge is taught - a
+  small table, a few writes a minute at most. A store that cannot open leaves an in-memory learner. R4 (the
+  card): retimed at ANSWER time by RetimingPlanner wrapping LivePlanner.make()'s planner, departsAt = now(), so
+  the card and the drive (DriveSession seeds its ETA from the preview, T-0330 R4) show the same ETA; the card
+  draws the outcome unchanged (no FeaturePlanSheet edit - T-0346 is in flight there). Rehearsal shots bypass the
+  planner and keep the server's badge. fastestEtaSeconds stays the server's and the budget ceiling stays the
+  Worker's (T-0325 R4(d)). R5: the M7 exit on the Linux path through the shipped entry points with a relaunch
+  between drives. R6: the P-PRIV-05 guard grows by CorridorSlotRow, CorridorLearner, CorridorRatioRecord,
+  CorridorRatioStore and every new site. R7: loop and trip previews are not retimed (other card types; no runs
+  reach them). R8: after a reroute the clock teaches nothing more (m5; T-0325 R3) - filed as a follow-up.
