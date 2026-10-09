@@ -68,24 +68,22 @@ MANIFEST = {"version": "20261006T000000Z", "schema_version": SV, "min_app_build"
 DEL = object()
 
 
-def h(**kw: object) -> dict:
-    out = copy.deepcopy(HEALTH)
+def edited(base: dict, kw: dict) -> dict:
+    out = copy.deepcopy(base)
     for k, v in kw.items():
         if v is DEL:
             out.pop(k)
         else:
             out[k] = v
     return out
+
+
+def h(**kw: object) -> dict:
+    return edited(HEALTH, kw)
 
 
 def m(**kw: object) -> dict:
-    out = copy.deepcopy(MANIFEST)
-    for k, v in kw.items():
-        if v is DEL:
-            out.pop(k)
-        else:
-            out[k] = v
-    return out
+    return edited(MANIFEST, kw)
 
 
 OK_ROWS = {"backend": "ok", "version": "ok", "quota": "ok", "manifest": "ok"}
@@ -138,6 +136,67 @@ CASES: list[tuple[str, tuple[int, object], object, int, dict]] = [
     ("p-7-over-6-and-8", (503, h(ok=False, db="down", kill_switch=True)), (200, m(schema_version=SV + 1)), 7,
      {"backend": "FAIL", "version": None, "quota": None, "manifest": "FAIL"}),
 ]
+
+# T-0344 R9/R10: the mistyped-field rows are GENERATED as field x variant, x-<field>-<variant>, value and exit both
+# functions of the field's kind. REQUIRED is the literal the meta-check holds every field to.
+QUOTA_KINDS = {"kill_switch": "bool", "upstream_month": "month", "upstream_calls": "int0", "upstream_trip_at": "int1"}
+MANIFEST_KINDS = {"version": "str", "schema_version": "intsv", "min_app_build": "int1", "sha256": "sha", "bytes": "int1"}
+UNIVERSAL = ("absent", "null", "true", "false", "string", "empty-string", "list", "object", "number")
+INT_EXTRA = ("zero", "negative")
+REGEX_EXTRA = ("over-long", "under-long", "garbage-suffix")
+REQUIRED = {"bool": UNIVERSAL, "str": UNIVERSAL, "int0": UNIVERSAL + INT_EXTRA, "int1": UNIVERSAL + INT_EXTRA,
+            "intsv": UNIVERSAL + INT_EXTRA, "month": UNIVERSAL + REGEX_EXTRA, "sha": UNIVERSAL + REGEX_EXTRA}
+# (field, variant) pairs whose value is VALID for the field: green, exit 0. Every other generated row is the side's FAIL.
+GREEN = {("kill_switch", "false"), ("upstream_calls", "zero"), ("version", "string")}
+
+
+def variants(field: str, kind: str) -> dict[str, object]:
+    good = {**HEALTH, **MANIFEST}[field]
+    out: dict[str, object] = {"absent": DEL, "null": None, "true": True, "false": False, "empty-string": "",
+                              "list": [good], "object": {"value": good}}
+    if kind in ("int0", "int1", "intsv"):
+        out.update({"string": str(good), "number": float(good), "zero": 0, "negative": -1})
+    elif kind in ("month", "sha"):
+        out.update({"string": "october" if kind == "month" else "g" * 64, "number": 202610,
+                    "over-long": good + good[-1], "under-long": good[:-1], "garbage-suffix": good + "x"})
+    else:
+        out.update({"string": "x" if kind == "str" else "false", "number": 0})
+    return out
+
+
+def generated_cases() -> list[tuple]:
+    out = []
+    for side, kinds, rc, fail_rows in (("q", QUOTA_KINDS, 6, Q6), ("m", MANIFEST_KINDS, 8, M8)):
+        for field, kind in kinds.items():
+            for variant, value in variants(field, kind).items():
+                green = (field, variant) in GREEN
+                health = h(**{field: value}) if side == "q" else h()
+                manifest = m(**{field: value}) if side == "m" else m()
+                out.append((f"x-{field}-{variant}", (200, health), (200, manifest), 0 if green else rc,
+                            OK_ROWS if green else fail_rows))
+    return out
+
+
+CASES += generated_cases()
+
+
+def meta_problems() -> list[str]:
+    sys.dont_write_bytecode = True
+    sys.path.insert(0, os.path.join(ROOT, "ops/lib"))
+    import sane_prod
+    names = [c[0] for c in CASES]
+    out = []
+    if set(MANIFEST_KINDS) != set(sane_prod.MANIFEST_FIELDS) or set(MANIFEST_KINDS) != set(MANIFEST):
+        out.append(f"manifest fields {sorted(MANIFEST_KINDS)} != shipped {sorted(sane_prod.MANIFEST_FIELDS)}")
+    if set(QUOTA_KINDS) != set(HEALTH) - {"ok", "db", "git_sha"}:
+        out.append(f"quota fields {sorted(QUOTA_KINDS)} != /__health fixture fields")
+    for field, kind in {**QUOTA_KINDS, **MANIFEST_KINDS}.items():
+        missing = [v for v in REQUIRED[kind] if f"x-{field}-{v}" not in names]
+        if missing:
+            out.append(f"field {field} has no row for {missing}")
+    if len(set(names)) != len(names):
+        out.append("duplicate case names")
+    return out
 
 
 def snapshot() -> str:
@@ -207,6 +266,10 @@ def main(argv: list[str]) -> int:
             return 2
     if os.path.exists(os.path.join(ROOT, "ops/corpus-manifest-url")):
         print("SANE-PROD refuse   ops/corpus-manifest-url exists, so the m-unset case cannot be tested")
+        return 2
+    meta = meta_problems()
+    if meta:
+        print("SANE-PROD refuse   meta: " + "; ".join(meta))
         return 2
     cases = [c for c in CASES if only is None or c[0] in only]
     if not cases:

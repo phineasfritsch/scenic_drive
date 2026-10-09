@@ -182,3 +182,46 @@ a whole-answer test.
   passed` rc=0; `SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=18` rc=0; `PINS-YAML ok
   pins=50 fields=403`; `P-OPS-01: 202 files, 23 required present, all modes correct` rc=0; `QUEUE OK (337 tasks)`;
   `ops/check-pins --source-only` `PINS ok=21 skipped=28 pending=1 expired=0 failed=0 tier=linux source-only` rc=0.
+- 2026-10-09T17:02:57Z RULING (round 2, agent/claude-opus-5, owner) on rv1-t0344 FAIL (PR #228 at 1da309e3):
+  the finding is right and is one class, not three rows: per-field type strictness in ops/lib/sane_prod.py was
+  bound only at the sites a hand-written row happened to touch. Survivors (A) sha256 fullmatch -> match (no
+  over-long row), (B) upstream_trip_at is_int -> isinstance (bool accepted), (C) bytes is_int -> isinstance (bool
+  accepted); recordable 1 (MONTH_RE fullmatch -> match, no garbage row) is closed in the same class. Rulings:
+  - R9 (field-by-variant cross product): ops/lib/check_sane_prod.py GENERATES the mistyped rows from one field list
+    FIELDS = 4 /__health quota fields (kill_switch, upstream_month, upstream_calls, upstream_trip_at) + the 5
+    manifest fields (version, schema_version, min_app_build, sha256, bytes). Each field has a kind (bool, month,
+    int>=0, int>=1, int==SV, str, sha256); the row for (field, variant) is named x-<field>-<variant> and its value
+    and expected exit are functions of the kind. Every field gets the universal variants absent, null, true, false,
+    string, empty-string, list, object, number; int kinds add zero and negative; the regex kinds (month, sha256)
+    add over-long, under-long and garbage-suffix (a valid value plus a junk tail). The ruled exit is the field
+    side's fail exit (6 for quota, 8 for manifest) with the Q6/M8 rows, EXCEPT where the variant is a valid value
+    of the field: kill_switch false and upstream_calls zero are green (exit 0), kill_switch true is the kill (6),
+    and version string ("x", non-empty) is green - CorpusManifest.swift:81 asks only !version.isEmpty.
+  - R10 (meta-check, fails closed with exit 2 before any case runs): the field list equals the shipped
+    sane_prod.MANIFEST_FIELDS plus the quota keys of the HEALTH fixture minus ok/db/git_sha, and every field has a
+    case for every variant its kind requires (REQUIRED, a literal per kind). It is demonstrated red by deleting a
+    variant from the generator.
+  - Hand rows stay under their old names (the Log and P-OPS-08 quote them); the generated rows are additive.
+    P-OPS-08's why moves from 41 cases to the new count.
+  - Verification per the faster-verification ruling: the four mutants (A, B, C, MONTH_RE fullmatch -> match) run
+    on --only of the rows they must fail, each quoted RED by case name, restored byte-identical (sha256 compared,
+    __pycache__ purged, 1.1 s sleep); then the full table green once on the merged head.
+- 2026-10-09T17:24:06Z ROUND-2 MUTANTS (R9/R10, driver .artifacts/t0344-mutants.py, untracked): each mutant applied to
+  one exact anchor, __pycache__ purged + 1.1 s sleep, `bash ops/lib/check-sane-prod --only <rows>`, restored, sha256
+  compared (ops/lib/sane_prod.py 23fc609a... == HEAD's blob after all five), purged + slept again:
+  - (A) sha256 `SHA256_RE.fullmatch` -> `.match`: `FAIL x-sha256-over-long: exit 0, want 8; row manifest ['ok'],
+    want [FAIL]` and `FAIL x-sha256-garbage-suffix: exit 0, want 8`; x-sha256-under-long and m-green pass ->
+    `2 of 4 cases failed` rc=1, restored=True.
+  - (B) upstream_trip_at `is_int(trip)` -> `isinstance(trip, int)`: `FAIL x-upstream_trip_at-true: exit 0, want 6;
+    row quota ['ok'], want [FAIL]`; x-upstream_trip_at-false (False < 1) and q-green pass -> `1 of 3 cases failed`
+    rc=1, restored=True.
+  - (C) bytes `is_int(m["bytes"])` -> `isinstance(m["bytes"], int)`: `FAIL x-bytes-true: exit 0, want 8; row
+    manifest ['ok'], want [FAIL]`; x-bytes-false and m-green pass -> `1 of 3 cases failed` rc=1, restored=True.
+  - (D) `MONTH_RE.fullmatch(month)` -> `.match(month)`: `FAIL x-upstream_month-over-long: exit 0, want 6` and
+    `FAIL x-upstream_month-garbage-suffix: exit 0, want 6`; x-upstream_month-under-long and q-green pass ->
+    `2 of 4 cases failed` rc=1, restored=True.
+  - (E) R10 meta-check seen red: the generator's garbage-suffix variant deleted from variants() ->
+    `SANE-PROD refuse   meta: field upstream_month has no row for ['garbage-suffix']; field sha256 has no row for
+    ['garbage-suffix']` rc=2 (no case ran), restored=True.
+  Measured: ops/lib/check_sane_prod.py 300 lines (h() and m() share edited(); cap 300), ops/lib/sane_prod.py 115
+  (unchanged). Case count 41 hand + 97 generated = 138 (P-OPS-08 why says 138).
