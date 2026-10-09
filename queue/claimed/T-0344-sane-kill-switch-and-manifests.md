@@ -174,3 +174,11 @@ a whole-answer test.
     rc=0. `bash ops/sane` repo-only: the only FAIL row is `worktrees FAIL 5 of 97 need attention - untracked:1
     modified:3 unpushed:2` -> `SANE FAIL exit=10` (environmental, R7: other agents' worktrees, plus this branch's
     unpushed merge and this uncommitted Log).
+- 2026-10-09T16:36:53Z CORRECTION + RE-RUN (agent/claude-opus-5): the merge 91cfb195 (origin/main dcc63346) is titled "T-0346
+  claim, queue move only" but also brought in T-0341's landing (32 files: Sources/ScenicAPIClient, Sources/ScenicKit/
+  Hazards, ops/lib hazard-copy guard + digests, ops/mutate/hazardcopy*; none under ops/sane, ops/lib/sane_prod.py,
+  ops/lib/check_sane_prod.py, pins/PINS.yaml or services/api). The title is wrong and stays (already pushed; no force
+  push); this line is the record. Re-run on 91cfb195: `bash ops/lib/check-sane-prod` -> `SANE-PROD ok 41/41 cases
+  passed` rc=0; `SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=18` rc=0; `PINS-YAML ok
+  pins=50 fields=403`; `P-OPS-01: 202 files, 23 required present, all modes correct` rc=0; `QUEUE OK (337 tasks)`;
+  `ops/check-pins --source-only` `PINS ok=21 skipped=28 pending=1 expired=0 failed=0 tier=linux source-only` rc=0.
