@@ -73,3 +73,20 @@ ops/lib/sane_prod.py and gains cases in ops/lib/check_sane_prod.py (local fake o
     check-mutate-population root (MODULE_ROOTS = services/etl/etl, Sources), so no ops/mutate population is
     required; A4's three mutants are the kill evidence. P-DATA-03's assertion command stays (pin assertions run
     no pytest anywhere in PINS.yaml); its statement records the manifest half.
+- 2026-10-09T23:41:40Z BUILT: services/tiles/tiles_manifest.py (FIELDS, problems(), build(), main()),
+  services/tiles/tests/test_tiles_manifest.py, ops/lib/sane_prod.py `tiles`, ops/sane exit-8 tiles block (the
+  `tiles skip ... T-0345` row is gone), check_sane_prod.py split: fake + row parser -> sane_prod_fake.py, tiles
+  rows -> sane_prod_tiles_cases.py. Case count: 251 ops/sane cases (138 before + 113 tiles: 29 hand-written, 84
+  generated xt-) + 5 b- rows; meta-check `[]`. `bash ops/lib/check-sane-exit-order` ->
+  `SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=20`. wc -l: check_sane_prod.py 266,
+  sane_prod_fake.py 66, sane_prod_tiles_cases.py 156, sane_prod.py 163, tiles_manifest.py 130,
+  test_tiles_manifest.py 98. A pre-pytest run caught my own fixture bug (good_metadata got built_at twice); fixed.
+- 2026-10-09T23:41:40Z A4 RED FIRST, against main's ops/sane (`--sane <git-common-dir>/T0345-sane-main`,
+  `--only t-green,t-404,t-region-other,t-maxzoom-above,xt-sha256-under-long,p-7-over-tiles-8`):
+  `SANE-PROD FAIL t-green: row tiles ['skip'], want [ok]` ... `t-404: exit 0, want 8; row tiles ['skip'], want
+  [FAIL]` ... `SANE-PROD FAIL 6 of 6 cases failed`. (A subset: the old script prints `tiles skip` for every row.)
+- 2026-10-09T23:41:40Z A4 MUTANTS of problems(), byte-checked restore (`restored byte-identical: True`):
+  M1 age `<` -> `<=`: exit 1, `FAIL b-age-exactly-30-days: accepted=False, want True`;
+  M2 maxzoom upper bound dropped: exit 1, `t-maxzoom-ceiling` pass, `FAIL t-maxzoom-above: exit 0, want 8`;
+  M3 region compare dropped: exit 1, `FAIL t-region-other` and `FAIL t-region-case` (exit 0, want 8).
+  Green before them: `--only t-green,t-unset,t-region-other,b-*(5)` -> `SANE-PROD ok 8/8 cases passed`.

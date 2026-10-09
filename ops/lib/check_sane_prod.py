@@ -1,54 +1,33 @@
-"""check-sane-prod: ops/sane --prod's exits 6 (quota / kill switch) and 8 (corpus manifest), driven through the
+"""check-sane-prod: ops/sane --prod's exits 6 (quota / kill switch) and 8 (corpus + tiles manifests), driven through the
 SHIPPED ops/sane against a LOCAL fake Worker on 127.0.0.1 - never production, never a deploy (T-0344).
 
     bash ops/lib/check-sane-prod [--sane PATH] [--only name,name]
 
-Each case sets what the fake answers on /__health, /__version and /corpus/manifest.json, runs
-`SANE_SCOPE=prod API_URL=<fake> CORPUS_MANIFEST_URL=<fake>/corpus/manifest.json bash <sane> --prod`, and asserts:
+Each case sets what the fake answers on /__health, /__version, /corpus/manifest.json and /tiles/manifest.json, runs
+`SANE_SCOPE=prod API_URL=<fake> CORPUS_MANIFEST_URL=<fake>/... TILES_MANIFEST_URL=<fake>/... bash <sane> --prod`
+and asserts:
 the exact exit code; the status of every row the case names (a None status: the row must not be printed); no
 FAIL row the case does not name; that the fake saw only GET requests; and that `git status --porcelain` and HEAD
 are identical before and after (ops/sane never mutates). Exit 0 every case passed; 1 a case failed; 2 cannot tell.
+The fake and the row parser live in sane_prod_fake.py; the tiles rows (T-0345) in sane_prod_tiles_cases.py.
 """
 from __future__ import annotations
 
-import copy
-import json
 import os
 import re
 import subprocess
 import sys
 import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import ThreadingHTTPServer
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from sane_prod_fake import DEL, SEEN, STATE, Fake, edited, rows, snapshot, wire  # noqa: E402
+from sane_prod_tiles_cases import TILES_PATH, bound_problems, good, tiles_cases, tiles_meta_problems  # noqa: E402
 
 ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip()
 HEAD = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=ROOT).stdout.strip()
 MANIFEST_PATH = "/corpus/manifest.json"
-
-STATE: dict[str, tuple[int, bytes]] = {}
-SEEN: list[tuple[str, str]] = []
-
-
-class Fake(BaseHTTPRequestHandler):
-    def _answer(self) -> None:
-        SEEN.append((self.command, self.path))
-        status, body = STATE.get(self.path, (404, b'{"error":"not found"}'))
-        if self.command != "GET":
-            status, body = 405, b'{"error":"GET only"}'
-        self.send_response(status)
-        self.send_header("content-type", "application/json; charset=utf-8")
-        self.send_header("content-length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    do_GET = do_POST = do_PUT = do_DELETE = do_PATCH = _answer
-
-    def log_message(self, *args: object) -> None:
-        pass
-
-
-def wire(v: object) -> bytes:
-    """JSON as the Worker's JSON.stringify writes it - no spaces, which ops/sane's `"ok":true` grep depends on."""
-    return v if isinstance(v, bytes) else json.dumps(v, separators=(",", ":")).encode()
 
 
 def schema_version() -> int:
@@ -65,19 +44,6 @@ HEALTH = {"ok": True, "db": "up", "git_sha": HEAD, "kill_switch": False, "upstre
           "upstream_calls": 0, "upstream_trip_at": 225000}
 MANIFEST = {"version": "20261006T000000Z", "schema_version": SV, "min_app_build": 1, "sha256": "ab" * 32,
             "bytes": 41_000_000}
-DEL = object()
-
-
-def edited(base: dict, kw: dict) -> dict:
-    out = copy.deepcopy(base)
-    for k, v in kw.items():
-        if v is DEL:
-            out.pop(k)
-        else:
-            out[k] = v
-    return out
-
-
 def h(**kw: object) -> dict:
     return edited(HEALTH, kw)
 
@@ -86,7 +52,7 @@ def m(**kw: object) -> dict:
     return edited(MANIFEST, kw)
 
 
-OK_ROWS = {"backend": "ok", "version": "ok", "quota": "ok", "manifest": "ok"}
+OK_ROWS = {"backend": "ok", "version": "ok", "quota": "ok", "manifest": "ok", "tiles": "ok"}
 Q6 = {**OK_ROWS, "quota": "FAIL"}
 M8 = {**OK_ROWS, "manifest": "FAIL"}
 
@@ -177,12 +143,14 @@ def generated_cases() -> list[tuple]:
 
 
 CASES += generated_cases()
+CASES += tiles_cases(h(), m(), OK_ROWS, h)
 
 
 def meta_problems() -> list[str]:
     sys.dont_write_bytecode = True
     sys.path.insert(0, os.path.join(ROOT, "ops/lib"))
     import sane_prod
+    sys.path.insert(0, sane_prod.TILES_DIR)
     names = [c[0] for c in CASES]
     out = []
     shipped_m, shipped_q = getattr(sane_prod, "MANIFEST_FIELDS", ()), getattr(sane_prod, "QUOTA_FIELDS", ())
@@ -194,41 +162,33 @@ def meta_problems() -> list[str]:
         missing = [v for v in REQUIRED[kind] if f"x-{field}-{v}" not in names]
         if missing:
             out.append(f"field {field} has no row for {missing}")
+    import tiles_manifest  # sane_prod put services/tiles on sys.path
+    out += tiles_meta_problems(names, tiles_manifest)
     if len(set(names)) != len(names):
         out.append("duplicate case names")
     return out
 
 
-def snapshot() -> str:
-    st = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all"], capture_output=True, text=True,
-                        cwd=ROOT).stdout
-    return st + subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=ROOT).stdout
-
-
-def rows(out: str) -> dict[str, list[str]]:
-    seen: dict[str, list[str]] = {}
-    for line in out.splitlines():
-        parts = line.rstrip("\r").split()
-        if len(parts) >= 2 and not line.startswith(" ") and parts[0] != "SANE" and parts[1] in ("ok", "FAIL", "skip"):
-            seen.setdefault(parts[0], []).append(parts[1])
-    return seen
-
-
 def run_case(sane: str, base: str, case: tuple) -> list[str]:
-    name, health, manifest, want_rc, want_rows = case
+    name, health, manifest, want_rc, want_rows = case[:5]
+    tiles = case[5] if len(case) > 5 else (200, good)
     STATE.clear()
     SEEN.clear()
     STATE["/__health"] = (health[0], wire(health[1]))
     STATE["/__version"] = (200, wire({"git_sha": HEAD, "built_at": "2026-10-09T00:00:00Z", "schema_version": SV}))
     if isinstance(manifest, tuple):
         STATE[MANIFEST_PATH] = (manifest[0], wire(manifest[1]))
-    env = {k: v for k, v in os.environ.items() if k not in ("CORPUS_MANIFEST_URL", "API_URL")}
+    if isinstance(tiles, tuple):
+        STATE[TILES_PATH] = (tiles[0], wire(tiles[1]))
+    env = {k: v for k, v in os.environ.items() if k not in ("CORPUS_MANIFEST_URL", "TILES_MANIFEST_URL", "API_URL")}
     env.update({"SANE_SCOPE": "prod", "API_URL": base})
     if manifest != "unset":
         env["CORPUS_MANIFEST_URL"] = base + MANIFEST_PATH
-    before = snapshot()
+    if tiles != "unset":
+        env["TILES_MANIFEST_URL"] = base + TILES_PATH
+    before = snapshot(ROOT)
     p = subprocess.run(["bash", sane, "--prod"], capture_output=True, text=True, cwd=ROOT, env=env)
-    after = snapshot()
+    after = snapshot(ROOT)
     got = rows(p.stdout)
     problems = []
     if p.returncode != want_rc:
@@ -264,21 +224,26 @@ def main(argv: list[str]) -> int:
         else:
             print(f"SANE-PROD refuse   unknown argument {a}")
             return 2
-    if os.path.exists(os.path.join(ROOT, "ops/corpus-manifest-url")):
-        print("SANE-PROD refuse   ops/corpus-manifest-url exists, so the m-unset case cannot be tested")
-        return 2
+    for url_file in ("ops/corpus-manifest-url", "ops/tiles-manifest-url"):
+        if os.path.exists(os.path.join(ROOT, url_file)):
+            print(f"SANE-PROD refuse   {url_file} exists, so the unset cases cannot be tested")
+            return 2
     meta = meta_problems()
     if meta:
         print("SANE-PROD refuse   meta: " + "; ".join(meta))
         return 2
+    import sane_prod
+    ran, bound_failed = bound_problems(ROOT, sane_prod, only)
+    for line in bound_failed:
+        print(f"SANE-PROD FAIL     {line}")
     cases = [c for c in CASES if only is None or c[0] in only]
-    if not cases:
+    if not cases and not ran:
         print("SANE-PROD refuse   no case selected - the run would check nothing")
         return 2
     server = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{server.server_address[1]}"
-    failed = 0
+    failed = len(bound_failed)
     try:
         for case in cases:
             problems = run_case(sane, base, case)
@@ -290,9 +255,10 @@ def main(argv: list[str]) -> int:
     finally:
         server.shutdown()
     if failed:
-        print(f"SANE-PROD FAIL     {failed} of {len(cases)} cases failed (sane={sane})")
+        print(f"SANE-PROD FAIL     {failed} of {len(cases) + ran} cases failed (sane={sane})")
         return 1
-    print(f"SANE-PROD ok       {len(cases)}/{len(cases)} cases passed (sane={sane}, fake={base})")
+    n = len(cases) + ran
+    print(f"SANE-PROD ok       {n}/{n} cases passed ({ran} b- rows at a fixed clock; sane={sane}, fake={base})")
     return 0
 
 
