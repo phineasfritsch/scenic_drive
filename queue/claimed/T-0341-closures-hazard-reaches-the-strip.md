@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-09T21:49:42Z
 worktree: .worktrees/T-0341
 branch: task/T-0341
 exclusive: []
-touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-hazard-copy-sites.txt, ops/lib/named-tests.json, ops/lib/mutate-population-allowlist.json, ops/mutate/, queue/]
+touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-hazard-copy-sites.txt, ops/lib/check-hazard-copy-sites.py, ops/lib/named-tests.json, ops/lib/mutate-population-allowlist.json, ops/mutate/, queue/]
 pins_affected: [P-SAFE-02, P-SAFE-03, P-SAFE-08]
 reviewer: null
 depends_on: [T-0339]
@@ -19,7 +19,7 @@ acceptance:
   - "A2 EVERY WORKER SHAPE, EVERY ROUTE CARD, THROUGH THE SHIPPING ENTRY POINTS: over M1's 9 shapes (absent, fresh+dropped, fresh+crosses, fresh+both, stale, stale+dropped, stale+crosses, stale+both, unavailable) x {plan, trip, loop}, a 200 whose closures_hazard is that shape, sent through PlanClient.plan -> ClientPlanner.preview, TripClient.trip -> ClientTripPlanner.itinerary and LoopClient.loop -> ClientLoopPlanner.outcome, reads HazardCopy.lines(for:) EQUAL to the shape's expected list (a function of the shape); the plan's list is the closure lines then the run lines."
   - "A3 FAIL-CLOSED ON EVERY FIELD (rows as functions of input): over plan/trip/loop x {closures_hazard null, number, string, array; state removed, null, number, unknown spellings 'Fresh', 'STALE', ' stale', 'expired', ''; version removed, null, number; fetched_at removed, number, bool; dropped present as 0, -1, null, string; crosses present as [], null, string, [1]} the answer still decodes to a route (never a refusal) and reads R3's lines for that variant, whole - never the empty list; a meta-check asserts no variant's expected list is empty."
   - "A4 RED FIRST BY NAME: A1-A3's named tests land against a stub (closure readers that drop closures_hazard, closureLines returning []), the run is quoted with each named test failing; then the code lands and they are green."
-  - "A5 EVERY ROUTE CARD SHOWS IT, ONLY THROUGH HAZARDCOPY: PlanPreviewCard (unchanged; its strip is HazardCopy.lines(for: preview)), TripItineraryCard and LoopPreviewCard render HazardCopy.lines(for:) of their model; check-hazard-copy-sites.txt approves exactly the new sites; the bare check-hazard-copy-sites guard and check-safety-disclaimer pass with the two card digests re-approved; shown RED once with a bypass."
+  - "A5 EVERY ROUTE CARD SHOWS IT, ONLY THROUGH HAZARDCOPY: PlanPreviewCard (unchanged; its strip is HazardCopy.lines(for: preview)), TripItineraryCard and LoopPreviewCard render HazardCopy.lines(for:) of their model; check-hazard-copy-sites.py's IDENTIFIERS name the closures model (closures, ClosuresHazard, ClosuresState, ClosuresHazardReader) so a card line that reads it outside HazardCopy is refused by name, its --prove-red carries such rows, and check-hazard-copy-sites.txt approves exactly the new sites; the bare check-hazard-copy-sites guard and check-safety-disclaimer pass with the two card digests re-approved; shown RED once with a bypass."
   - "A6 SHOTS LOOKED AT: PlanRehearsalFixtures puts crosses on the plan preview, stale on the itinerary and unavailable on the loop; ios-compile and ios-screenshot green on the last commit touching apps/ios or Sources, and plan-preview, plan-trip and plan-loop shots are looked at and quoted."
   - "A7 POPULATION AND PINS: ops/mutate/hazardcopy_mutations.py gains closure mutants (each line softened, order changed, a condition dropped, the reader's fail-closed arms flipped) killed by the named test; floors raised to the shipped count; P-SAFE-08's named tests gain the A2/A3 Swift tests by name (run-named-tests.py P-SAFE-08 green)."
   - "A8 GATES: linked digests re-approved for every touched Sources file; touched suites green; bare guards check-safety-disclaimer and check-hazard-copy-sites; check-mutate-population, check-line-cap, check-pins-yaml, queue-check; origin/main fetched and merged last."
@@ -132,3 +132,29 @@ fail-closed, one line per condition, whole-copy equality, shots looked at.
     first: ClosuresHazard.swift and ClosuresState.swift added and unpopulated - allowlisted, R7a); check-line-cap
     "536 Swift files tracked ... none over 300 lines"; check-pins-yaml "PINS-YAML ok pins=49 fields=395";
     queue-check "QUEUE OK (332 tasks)"; linked digests re-approved for the 13 touched Sources files (3 added).
+- 2026-10-09T13:57:42Z PRE-REVIEW FINDING (3b)/(3c) and the A5 gap, closed by CLASS. RULING: the finding is right.
+  A5 said "only through HazardCopy", but check-hazard-copy-sites.py IDENTIFIERS stopped at T-0339's model (hazards,
+  PlanHazardRun, HazardCopy, HazardStrip, HazardFlag, Mirror). A card line that reads `.closures` spells none of
+  those, so nothing guarded T-0341's model. The class is "the closures model reached by name outside HazardCopy".
+  The fix widens the whitelist to that model and does not add a spelling blacklist: IDENTIFIERS gains `closures`,
+  `ClosuresHazard`, `ClosuresState` and `ClosuresHazardReader` (the last has no apps/ site; it is the reader type,
+  named so an apps/ import of it would be refused too). R9 touches gains ops/lib/check-hazard-copy-sites.py.
+  A5's text now names the widened identifiers (the acceptance line was edited, no dated record was changed).
+  - MISSED (four new RED_ROWS added, IDENTIFIERS not yet widened): `--prove-red` "GREEN a card reads closures
+    beside the site ... sites=NOT NAMED exit=0", "GREEN the raw closures state reaches a Text ... NOT NAMED
+    exit=0", "GREEN a helper takes the closures model ... NOT NAMED exit=0", "GREEN a helper spells the closures
+    state ... NOT NAMED exit=0"; "PROVE-RED FAILED: 9 of 13 rows red by name, control 0". The first two rows are
+    (3b) and (3c) verbatim, inserted right before TripItineraryCard's approved ForEach line.
+  - Widened: the bare guard refused five existing sites by name, "FAILED - 5 unapproved, 0 missing of 7
+    approved". Those were the `.accessibilityIdentifier("loop.closures")` / `("trip.closures")` literals on the
+    Label inside each card's HazardCopy ForEach (both read), plus PlanRehearsalFixtures' three
+    `closures: ClosuresHazard(...)` rows. All five are approved in check-hazard-copy-sites.txt.
+  - CAUGHT (2026-10-09T13:58:12Z): bare "P-SAFE-03 hazard copy: ok - 12 sites, every one approved, in 5 files"
+    exit 0; `--prove-red` "PROVE-RED OK: 13 of 13 rows red by name, control 0", every closures row "red ... sites=
+    CAUGHT by name exit=1". I applied (3b) and (3c) as real edits to the worktree card and ran the bare guard:
+    (3b) "REFUSED site not on the whitelist: ...TripItineraryCard.swift: Text(itinerary.closures.crosses ? "Road
+    closed ahead" : "")", "FAILED - 1 unapproved, 0 missing of 12 approved" exit=1. (3c) "REFUSED ... Text("closures:
+    \(itinerary.closures.state)")", same FAILED line, exit=1. Both edits were reverted with git checkout.
+  - STILL BLIND (documented in the guard's docstring): String(describing:) or interpolation over a whole
+    TripItinerary/LoopPreview reaches the closures model without spelling an identifier. P-SAFE-03's card digest
+    is the backstop for that.
