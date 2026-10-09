@@ -193,6 +193,10 @@ MUTATIONS = [
     ("61 the hazards dropped", PREVIEW, "hazards: preview.hazards", "hazards: []", [PREVIEW_BADGE, FIVE]),
     ("62 a time run's milliseconds doubled", TIME_RUN, "self.milliseconds = milliseconds",
      "self.milliseconds = milliseconds * 2", [TILE]),
+    # rv1-t0325 B1: only the last vertex arrives; a pin inside the last corridor edge is a leg end, not arrival.
+    ("63 arrival ignores the last-vertex check", CLOCK,
+     "let arrived = end.vertex == route.coordinates.count - 1 && end.meters <= DriveSession.awayThresholdMeters",
+     "let arrived = end.meters <= DriveSession.awayThresholdMeters", [DRIVES, FIVE]),
 ]
 
 EQUIVALENT = [
@@ -202,6 +206,6 @@ EQUIVALENT = [
      "guard), so min-then-max and max-then-min clamp every value to the same number"),
 ]
 
-MIN_MUTATIONS = 62
+MIN_MUTATIONS = 63
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 7

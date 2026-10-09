@@ -123,3 +123,20 @@ edge is learned (product invariant).
   ios-compile run 37925460060 success; ios-screenshot run 37925466654 success - plan-preview-light.png looked at:
   "55 min · 20 min longer than the fastest way" with the "estimate · no traffic data" badge under it, as ruled (no
   preview carries time runs until T-0342, so the badge stays).
+- 2026-10-09T14:05:35Z RULING on rv1-t0325 FAIL (agent/claude-opus-5; PR #226 head ed27efb1). B1 is right: the
+  arrival conjunct `end.vertex == route.coordinates.count - 1` is the only thing telling a pin from arrival, and every
+  CorridorClock and five-drives drive was built with `waypoints: []`, so legEnd.vertex was always the last vertex and
+  the mutant could not fail. The shipped code is right (the witness's baseline teaches all four edges); the gap is
+  the tables' input population. Closed by CLASS - the tables range over waypoints too: CorridorClockTests'
+  transition table and RetimedPreviewTests' five-drives test run every row under three variants - no pins; a pin
+  inside the last corridor edge in that edge's cell (line v0 v1 v2 v3 m v4 with m = on(3, 0.0005), runs
+  80000/90000/40000/1000/99000 ms, the reviewer's witness); a pin at an edge boundary (v3, the last edge's first
+  vertex). The variant sets the line, the runs and the pins; drive() checks the variant reached the session (legs =
+  pins + 1) and that its corridor edges equal the no-pin route's, so the per-row answer is the same table for every
+  variant. Every transition row is compared whole: the learner's slots AND the count observe answered per fix. f3
+  moves to on(3, 0.0001), 300 s (inside 50 m of m, as the witness); a row "stops at m" is added. Population: entry 63
+  "arrival ignores the last-vertex check" (the B1 mutant), MIN_MUTATIONS 62 -> 63, run --only 63 MISSED at the old
+  tests and CAUGHT by name at the new. Tests only - no Sources/ change, so no digest re-approval from this fix (the
+  merge of origin/main may still need one). R1: the acceptance R6 line is re-quoted below to name what shipped
+  (CorridorClock only); the dated entries above stay as written. R2 and R3 stay recorded for T-0343; R4/R5 need
+  nothing.
