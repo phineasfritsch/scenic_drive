@@ -1,7 +1,7 @@
 ---
 id: T-0337
 title: The app reads /trip's and /loop's 422 nothing_pretty as its own failure with calm copy, not as unexpectedResponse(422)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T07:30:27Z
@@ -11,7 +11,7 @@ branch: task/T-0337
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml, ops/mutate/tripsheet_mutations.py, ops/mutate/tripsheet_run.py, ops/mutate/tripsheet.py, ops/mutate/loopsheet_mutations.py, ops/mutate/loopsheet_run.py, ops/mutate/loopsheet.py, queue/backlog/T-0338-loop-nothing-pretty-offer.md]
 pins_affected: [P-SAFE-04]
-reviewer: null
+reviewer: agent/rv1-t0337
 depends_on: [T-0335]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -109,3 +109,27 @@ each field missing / mistyped refused, whole-copy equality for the new rows, the
     failed P-SAFE-05 only, its unscratched `swift test --filter SolarFixtureTests` cold-building beside a parallel
     build; re-run bare it printed `Test run with 6 tests in 1 suite passed` and the whole check went 20/0). iOS CI on
     bb5a7dca: ios-compile 37907300587 success (3m40s), ios-screenshot 37907306722 success (17m56s).
+- 2026-10-09T10:33:40Z agent/rv1-t0337 (reviewer) review PASS (round 1) on 7e3ff1f5, PR #223. Acceptance A1-A6 was
+    committed at 1bc34008 before code and is unchanged at the head (no line of it removed since). Read against the
+    Brief: not weaker - each reader maps (422, nothing_pretty) to its own case, every field at both bounds plus
+    nextDown/nextUp, fraction, string, bool, null, missing and 1e999 refused, the expected value of each row a
+    function of its variants, compared whole, from 1 request through TripClient.trip / LoopClient.loop; Worker
+    bounds re-read (tripRequest.ts MIN_TRIP_DAYS 1, MAX_TRIP_DAYS 5, wholeIn 0..MAX_EXTRA_BUDGET_PCT 40;
+    loopRequest.ts 10..180) and trip.ts:60 / loop.ts:53 bodies match the readers' keys. Red first checked:
+    c74c4e21 carries the tests and no nothing_pretty arm in either reader. Touched suites (6) on the head:
+    `Test run with 27 tests in 6 suites passed`, exit=0. Two reviewer mutants outside the population, each applied
+    alone and restored (worktree clean after): R1 LoopReplyReader's guard falls back to
+    `.nothingPretty(LoopNothingPretty(minutes: 45))` instead of unexpectedResponse (fail-open) - RED, "a dull
+    loop's 422 nothing_pretty is read whole at every bound, refused otherwise" on 10 rows (minutes 9, 181, 44.5,
+    a string, a bool, null, missing, 1e999, 10 nextDown, 180 nextUp), `failed ... with 10 issues`, exit=1. R2
+    TripNothingPretty `days <= Double(Self.dayRange.upperBound)` -> `days <` - RED, "a dull trip reaches the sheet
+    as nothingPretty from one request" and the trip rows test on days 5 x pct 0/25/40, `failed ... with 4 issues`,
+    exit=1. Bare guards on the head: check-line-cap exit=0 (`528 Swift files tracked ... none over 300 lines`),
+    check-mutate-population exit=0 (`the floor of 146 holds`), check-pins-yaml exit=0 (`pins=49 fields=395`),
+    queue-check exit=0 (`QUEUE OK (330 tasks)`); check-pins --source-only stopped by me after 25 min with no output
+    on this box - relied on CI pins-source-only `pass` on 7e3ff1f5 (run 37909340999) and the owner's quoted 20/0.
+    `gh pr checks 223`: core pass, pins-source-only pass. iOS: ios-compile 37907300587 success and ios-screenshot
+    37907306722 success on bb5a7dca; 7e3ff1f5 differs from bb5a7dca only in this task file. `git merge-base
+    --is-ancestor origin/main origin/task/T-0337` exit=0. Non-blocking: no 200 row in the another-status tests
+    (structurally safe, the 200 path decodes TripResponse/LoopResponse first); 1e999 is not a percent variant
+    (equivalent: the percent upper bound refuses infinity).
