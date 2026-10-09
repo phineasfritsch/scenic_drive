@@ -122,3 +122,14 @@ now - merge it first (memory parallel-worker-prs-conflict).
   isSafeInteger, W6 a negative ms kept, W7 the last-vertex check, W8 the some-time check, W10 a zero ms refused, W11
   some time read as >= 0 (each 2 red: the fresh and reroute tables), W9 time not requested (3 red, the planCeiling
   literal among them).
+- 2026-10-09T16:12:40Z ACCEPTANCE RE-QUOTED on the merged head 15e23279 (agent/claude-opus-5; origin/main be0960a8
+  merged - one queue filing, T-0346 - no conflict; T-0341 and T-0344 are not on main yet).
+  A1 the five vitest files: "Test Files 5 passed (5)", "Tests 184 passed (184)". A2 `swift test --filter
+  'PlanTimeRunsTests|PlanResponseDecodeTests|PlanClientResponseTests|RetimedPreviewTests'`: "Executed 30 tests, with 0
+  failures" and "Test run with 4 tests in 2 suites passed". A3 RED quoted in the entry above. A4 "MUTATE OK
+  caught=6/6" (entries 49-54; Sources/ unchanged since 4eaeec55). A5 "WORKER MUTANTS caught=11/11" (src/ unchanged
+  since 76734a60). A6 "NAMED P-SAFE-07 passed=18/18"; check-safety-disclaimer exit 0; check-learned-speeds-sites "ok -
+  17 sites, every one approved, in 7 files". A7 check-mutate-population "every added module is covered or allowlisted;
+  the floor of 147 holds"; check-pins-yaml "PINS-YAML ok pins=49 fields=395"; queue-check "QUEUE OK (336 tasks)";
+  check-line-cap "548 Swift files tracked ... none over 300 lines". `ops/check-pins --source-only` did not finish
+  inside 12 minutes on this loaded box (no output written) - left to CI's run of it, named in the PR.
