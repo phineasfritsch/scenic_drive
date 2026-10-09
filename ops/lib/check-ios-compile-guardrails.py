@@ -32,7 +32,7 @@ import ios_screenshot_pinned as shot  # the second workflow's pinned DATA (T-023
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github/workflows/ios-compile.yml"
 ALLOWED_RUNNERS = {"macos-15"}
-ALLOWED_USES = {"actions/checkout@v4", "actions/upload-artifact@v4"}
+ALLOWED_USES = {"actions/checkout@v4", "actions/upload-artifact@v4", "actions/upload-artifact/merge@v4"}
 MAX_TIMEOUT_MINUTES = 30
 BUILD_STEP = "build for the iOS Simulator"
 PLIST_STEP = "P-PRIV-02 on the built plist"
@@ -155,7 +155,7 @@ def named_problems(doc, raw):
                          ("strategy", "a matrix multiplies the runner and can change its label"),
                          ("if", "a job that is skipped is a green run that compiled nothing"),
                          ("continue-on-error", "a failed build must fail the job")):
-            if key in job:
+            if key in job and not (key == "strategy" and job[key] == shot.STRATEGY):  # T-0350: the pinned one only
                 out.append(f"jobs.{name}.{key}: {why} - remove it (found {job[key]!r})")
         if job.get("runs-on") not in ALLOWED_RUNNERS:
             out.append(f"jobs.{name}.runs-on: must be one of {sorted(ALLOWED_RUNNERS)}, found {job.get('runs-on')!r}")
@@ -256,7 +256,7 @@ STILL_GREEN = [
     ("runs-on as a one-element list", "    runs-on: macos-15\n", "    runs-on: [macos-15]\n"),
     ("a comment added", "name: ios-compile\n", "# a comment changes nothing that runs\nname: ios-compile\n"),
 ]
-SUBJECTS = ((WORKFLOW, EXPECTED, MUTATIONS, STILL_GREEN), (shot.WORKFLOW, SHOT_EXPECTED, shot.MUTATIONS, shot.STILL_GREEN))
+SUBJECTS = ((WORKFLOW, EXPECTED, MUTATIONS + shot.COMPILE_MUTATIONS, STILL_GREEN), (shot.WORKFLOW, SHOT_EXPECTED, shot.MUTATIONS, shot.STILL_GREEN))
 
 
 def prove_red():
