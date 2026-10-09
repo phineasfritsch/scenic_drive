@@ -20,6 +20,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { onlyIds } from "./onlyIds.mjs";
 
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
@@ -190,6 +191,7 @@ function verdict(run) {
 }
 
 function main(argv) {
+  const only = onlyIds(argv, MUTATIONS.map((x) => x.id));
   if (argv.includes("--prove-floor")) {
     const arms = [
       ["empty table", floorRefusal([])],
@@ -223,10 +225,7 @@ function main(argv) {
     console.log(`baseline green tests=${base.total}`);
   }
 
-  const onlyAt = argv.indexOf("--only");
-  const only = onlyAt >= 0 ? new Set((argv[onlyAt + 1] ?? "").split(",")) : null;
-  const chosen = only ? MUTATIONS.filter((x) => only.has(x.id)) : MUTATIONS;
-  if (only && chosen.length !== only.size) { console.log("REFUSING: --only names an id that is not a mutation"); return 2; }
+  const chosen = only ? MUTATIONS.filter((x) => only.includes(x.id)) : MUTATIONS;
   const tally = { CAUGHT: 0, MISSED: 0, TRAP: 0 };
   for (const x of chosen) {
     const path = join(API, x.file);

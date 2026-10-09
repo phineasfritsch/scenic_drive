@@ -19,6 +19,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { onlyIds } from "./onlyIds.mjs";
 
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-plan");
@@ -148,6 +149,7 @@ function verdict(run) {
 }
 
 function main(argv) {
+  const only = onlyIds(argv, MUTATIONS.map((x) => x.id));
   if (argv.includes("--prove-floor")) {
     const arms = [
       ["empty table", floorRefusal([])],
@@ -162,7 +164,6 @@ function main(argv) {
     return arms.every(([, r]) => r !== null) && real === null ? 0 : 1;
   }
 
-  const only = argv.find((a) => a.startsWith("--only="))?.slice(7).split(",") ?? null;
   const without = argv.find((a) => a.startsWith("--without="))?.slice(10) ?? null;
   if (without !== null) TESTS.splice(TESTS.indexOf(without), TESTS.includes(without) ? 1 : 0);
   const refusal = floorRefusal();
@@ -186,7 +187,6 @@ function main(argv) {
 
   const tally = { CAUGHT: 0, MISSED: 0, TRAP: 0 };
   const run = only === null ? MUTATIONS : MUTATIONS.filter((x) => only.includes(x.id));
-  if (only !== null && run.length !== only.length) { console.log(`REFUSING: --only names an id not in MUTATIONS`); return 2; }
   for (const x of run) {
     const path = join(API, x.file);
     const original = readFileSync(path, "utf8");

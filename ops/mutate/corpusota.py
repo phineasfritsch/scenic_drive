@@ -30,6 +30,8 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import mutate_only
+
 # A stale .pyc of the population is a false verdict (see menu.py): none is written, none is read.
 sys.dont_write_bytecode = True
 shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_errors=True)
@@ -104,17 +106,17 @@ def prove_floor() -> int:
 
 
 def select(argv):
-    """(mutations, equivalents) to run: all of them, or the `--only` ids. None when `--only` matches nothing."""
-    if "--only" not in argv:
+    """(mutations, equivalents) to run: all of them, or the `--only` ids. mutate_only refuses (exit 64) any id
+    that names no entry, so this never returns an empty or a partial selection."""
+    ids = mutate_only.select_only(argv, [e[0].split(" ", 1)[0] for e in list(MUTATIONS) + list(EQUIVALENT)])
+    if ids is None:
         return list(MUTATIONS), list(EQUIVALENT)
-    i = argv.index("--only")
-    ids = set(argv[i + 1].split(",")) if i + 1 < len(argv) else set()
-    muts = [m for m in MUTATIONS if m[0].split(" ", 1)[0] in ids]
-    equiv = [e for e in EQUIVALENT if e[0].split(" ", 1)[0] in ids]
-    return (muts, equiv) if muts or equiv else None
+    return ([m for m in MUTATIONS if m[0].split(" ", 1)[0] in ids],
+            [e for e in EQUIVALENT if e[0].split(" ", 1)[0] in ids])
 
 
 def main(argv) -> int:
+    muts, equiv = select(argv)
     if "--prove-floor" in argv:
         return prove_floor()
     prove = "--prove-vacuity" in argv
@@ -122,11 +124,6 @@ def main(argv) -> int:
     if refusal is not None:
         sys.stdout.write("REFUSING TO RUN: %s\n" % refusal)
         return 2
-    picked = select(argv)
-    if picked is None:
-        sys.stdout.write("REFUSING TO RUN: --only names no entry of this population\n")
-        return 2
-    muts, equiv = picked
     sys.stdout.write("population  mutations=%d (floor %d)  equivalent=%d (floor %d)  subjects=%s  test "
                      "files=%d  filter=%s\n" % (len(MUTATIONS), MIN_MUTATIONS, len(EQUIVALENT), MIN_EQUIVALENT,
                                                 ", ".join(s.name for s in SUBJECTS), len(TESTS), FILTER))
