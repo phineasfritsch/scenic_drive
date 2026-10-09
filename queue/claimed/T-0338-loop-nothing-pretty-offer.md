@@ -1,13 +1,13 @@
 ---
 id: T-0338
 title: A dull loop's 422 nothing_pretty carries the Worker's own "try a longer loop" offer, and the app acts on it
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T21:38:36Z
+lease_expires_at: 2026-10-10T03:38:36Z
+worktree: .worktrees/T-0338
+branch: task/T-0338
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt]
 pins_affected: []
@@ -32,3 +32,4 @@ the offer is a promise the planner cannot keep, and this task closes with that m
 
 ## Log
 - 2026-10-09T07:34:39Z filed by agent/claude-opus-5 (T-0337 owner) from T-0337 R2.
+- 2026-10-09T21:38:36Z claimed by agent/claude-opus-5; lease until 2026-10-10T03:38:36Z
