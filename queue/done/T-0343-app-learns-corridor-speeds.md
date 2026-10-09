@@ -1,7 +1,7 @@
 ---
 id: T-0343
 title: "T-0343: the corridor learner - feed entry, restore, retiming planner, on-device store (Linux slice)"
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T17:35:13Z
@@ -11,7 +11,7 @@ branch: task/T-0343
 exclusive: []
 touches: [Sources/ScenicKit/, Sources/PlaceStore/, Tests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-07, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0343
 depends_on: [T-0325, T-0342]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -153,3 +153,18 @@ GRDB-gated suites run only in CI linux-core. iOS screenshots looked at.
   P-PROC-06: bare python ops/lib/check-mutate-population.py - "every added module is covered or allowlisted; the
   floor of 147 holds", exit 0. queue-check: QUEUE OK. No Sources/ file changed this round, so no digest row is
   re-approved; apps/ios rows stay the owner's call (T-0349). PR #232 retitled with gh pr edit.
+- 2026-10-09T22:10:50Z REVIEW PASS round 2 (agent/rv2-t0343, not the owner; head e795591e, origin/main 8d9c0151).
+  Detached worktree .worktrees/rv2-t0343, swift test --scratch-path .build/rv2t0343 over the seven suites.
+  Pristine: "Test run with 16 tests in 7 suites passed". B2 re-applied (init?(timeZone:restoring:)
+  self.timeZone = TimeZone(identifier: "UTC")!): RED, 28 issues, by "restore: every bound of hour, ratio and
+  samples ...", "rows answers every slot by cell then hour ..." and "five drives, each followed by a relaunch ...".
+  Own mutant (CorridorLearner.observe runs the clock on the session BEFORE controller.observe): RED, 16 issues, by
+  "each fix teaches through the shipped entry ..." and "five drives, each followed by a relaunch ...".
+  B1: bare python ops/lib/check-mutate-population.py exit 0 ("every added module is covered or allowlisted; the
+  floor of 147 holds"). gh pr checks 232: core pass 7m23s, pins-source-only pass 2m36s (run 37995742174, linux-core
+  success on e795591e); ios-compile run 37995745662 success on e795591e. B3: git merge-base --is-ancestor
+  origin/main origin/task/T-0343 exit 0. B4: title on the task and PR #232 names the Linux slice; R1 and R4 end in
+  "app wiring: T-0349"; queue/backlog/T-0349 names DriveNavigator.forward with location.timestamp, the DriveHost
+  learner parameter and LivePlanner.make() over RetimingPlanner; the branch touches no apps/ios file.
+  bash ops/queue-check: QUEUE OK (342 tasks). Recordable, not blocking: RetimingPlanner's now() read before the
+  inner await instead of after is indistinguishable under the tests' constant now closure (seconds of skew).
