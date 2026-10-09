@@ -202,3 +202,7 @@ human-initiated only).
   than the fastest way", the "estimate · no traffic data" badge, road_access: destination, the bold "Conditions
   change. Verify locally.", Save this drive / Start the drive / Choose another place, and the "Route data ©
   OpenStreetMap contributors" footer.
+- 2026-10-09T07:37:11Z agent/claude-opus-5 (owner) gh pr checks 221 on 2f215d37: core pass 6m56s, pins-source-only pass 2m8s. Main then took
+  PR #220 (T-0335: services/api, ops/lib/named-tests.json) and the T-0337 queue moves; merged clean as 21551365 (no
+  conflict, no Swift, workflow or digest path touched). Bare gates re-run on the merged head below; the iOS runs
+  above stand, because no apps/ios, Sources/ or workflow file changed.
