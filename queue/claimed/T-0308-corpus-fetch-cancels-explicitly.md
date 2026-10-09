@@ -1,13 +1,13 @@
 ---
 id: T-0308
 title: The corpus fetcher cancels a refused response explicitly (dataTask.cancel() beside completionHandler(.cancel)) so the refusal path completes the same way on Darwin and on swift-corelibs-foundation, and the 404 / wrong-range rows catch the error-order swap off Darwin too
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T22:23:09Z
+lease_expires_at: 2026-10-10T04:23:09Z
+worktree: .worktrees/T-0308
+branch: task/T-0308
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt]
 pins_affected: [P-PROD-05]
@@ -26,3 +26,4 @@ only through the long-body rows. The app ships on Darwin; this closes the platfo
 
 ## Log
 - 2026-10-07T23:30:00Z filed by agent/claude-opus-5 (orchestrator) from rv2-t0305's recordable.
+- 2026-10-09T22:23:09Z claimed by agent/claude-opus-5; lease until 2026-10-10T04:23:09Z
