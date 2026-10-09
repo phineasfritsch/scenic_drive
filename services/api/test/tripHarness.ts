@@ -27,18 +27,23 @@ export const SCENIC_MS = EDGES * SCENIC_EDGE_MS;
 export const ROAD: [number, number][] = Array.from({ length: EDGES + 1 }, (_, i) =>
   [ORIGIN.lon + ((BIG_SUR.lon - ORIGIN.lon) * i) / EDGES, ORIGIN.lat + ((BIG_SUR.lat - ORIGIN.lat) * i) / EDGES]);
 
+/** A scenic_score of 8 on every edge of the road (oracle 0.713333): a test that writes its own time and distance
+ *  runs adds this so its chosen route stays a pretty one (T-0335). */
+export const PRETTY_RUNS = Array.from({ length: EDGES }, (_, i) => [i, i + 1, 8]);
+
 export interface Sent {
   url: string;
   body: Record<string, unknown>;
 }
 
-/** A GraphHopper body: per-edge `time` (ms) and `distance` (m) runs over `points`, unless `details` replaces them. */
+/** A GraphHopper body: per-edge `time` (ms) and `distance` (m) runs over `points`, and a scenic_score of 8 per edge
+ *  (a pretty route - T-0335: a dull or unscored chosen route is refused), unless `details` replaces them. */
 export function tripPath(points: [number, number][], edgeMs: number, details?: Record<string, unknown>, timeMs?: number): string {
   const edges = points.length - 1;
   const runs = (value: number) => Array.from({ length: edges }, (_, i) => [i, i + 1, value]);
   return JSON.stringify({
     paths: [{ time: timeMs ?? edges * edgeMs, distance: edges * EDGE_M, points: { type: "LineString", coordinates: points },
-      details: details ?? { time: runs(edgeMs), distance: runs(EDGE_M) } }],
+      details: details ?? { time: runs(edgeMs), distance: runs(EDGE_M), scenic_score: runs(8) } }],
   });
 }
 
@@ -51,6 +56,8 @@ export interface RouterOptions {
   fastEdgeMs?: number;
   /** The fastest path's own `time` (what fastest + budget is taken from); edges x its per-edge ms by default. */
   fastestMs?: number;
+  /** The lambda-0 car_scenic answer (the first scenic request); the fastest path, scored 8, by default. */
+  firstScenic?: string;
   /** Called before each request is answered (to snapshot the quota at the first). */
   onFetch?: () => void;
 }
@@ -69,7 +76,7 @@ export function tripRouter(options: RouterOptions = {}) {
     if (body.profile === "car_fast") return new Response(fast);
     if (JSON.stringify(points) === JSON.stringify(sent[0]!.body.points)) {
       scenic += 1;
-      return new Response(scenic === 1 ? fast : options.scenic ?? tripPath(ROAD, SCENIC_EDGE_MS));
+      return new Response(scenic === 1 ? options.firstScenic ?? fast : options.scenic ?? tripPath(ROAD, SCENIC_EDGE_MS));
     }
     const [a, b] = [vertex(points[0]), vertex(points[1])];
     legs += 1;

@@ -7,6 +7,7 @@
  *   node services/api/test/mutate/loopMutants.mjs                  run the population
  *   node services/api/test/mutate/loopMutants.mjs --prove-vacuity  every mutant must report MISSED with no tests
  *   node services/api/test/mutate/loopMutants.mjs --prove-floor    the floor refuses on its arms; runs no tests
+ *   node services/api/test/mutate/loopMutants.mjs --only a,b       run only the named mutations (a later round's re-run)
  *
  * WHAT COUNTS. CAUGHT only when vitest's JSON report names a FAILED test. A run that fails with no named
  * failure (a mutant that does not load) is a TRAP and does not count. An anchor that does not occur exactly
@@ -23,9 +24,9 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-loop");
 
-export const MIN_MUTATIONS = 41;
+export const MIN_MUTATIONS = 43;
 export const SUBJECTS = ["src/retrace.ts", "src/loopRequest.ts", "src/loopPlanner.ts", "src/loop.ts", "src/upstream.ts"];
-const TESTS = ["test/retraceParity.test.ts", "test/loopCost.test.ts", "test/loopShape.test.ts"];
+const TESTS = ["test/retraceParity.test.ts", "test/loopCost.test.ts", "test/loopShape.test.ts", "test/loopHonest.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -56,7 +57,9 @@ export const MUTATIONS = [
   m("planner-half-side-40", "loopPlanner.ts", "AREA_HALF_SIDE_M = 30;", "AREA_HALF_SIDE_M = 40;"),
   m("planner-areas-5", "loopPlanner.ts", "MAX_LOOP_AREAS = 50;", "MAX_LOOP_AREAS = 5;"),
   m("planner-reseed-2", "loopPlanner.ts", "(seed + 1) >>> 0", "(seed + 2) >>> 0"),
-  m("planner-areas-old-seed", "loopPlanner.ts", "current = await attempt(reseed, areas);", "current = await attempt(seed, areas);"),
+  m("planner-reseed-no-wrap", "loopPlanner.ts", "const reseed = (seed + 1) >>> 0;", "const reseed = seed + 1;"),
+  m("planner-reroll-no-wrap", "loopPlanner.ts", "current = await attempt((seed + 2) >>> 0, feed);", "current = await attempt(seed + 2, feed);"),
+  m("planner-areas-old-seed", "loopPlanner.ts", "current = await attempt(reseed, mergeClosures(feed, areas));", "current = await attempt(seed, mergeClosures(feed, areas));"),
   m("planner-worst-fraction", "loopPlanner.ts", "Math.min(...fractions)", "Math.max(...fractions)"),
   m("planner-fnv-prime", "loopPlanner.ts", "0x01000193", "0x01000197"),
   m("planner-seed-no-bar", "loopPlanner.ts", "fnv1a32(`${userId}|${day}`)", "fnv1a32(`${userId}${day}`)"),
@@ -65,7 +68,7 @@ export const MUTATIONS = [
   m("planner-any-loop-clean", "loopPlanner.ts", "a.scan !== null && isAcceptable(a.scan.fraction)", "a.scan !== null"),
   m("planner-url-no-waypoints", "loopPlanner.ts", "appleMapsUrl(start, start, waypoints)", "appleMapsUrl(start, start, [])"),
   m("loop-kill-late", "loop.ts", "if (paused) return json", "if (false) return json"),
-  m("loop-plan-budget", "loop.ts", ", LOOP_UPSTREAM_COST);", ");"),
+  m("loop-plan-budget", "loop.ts", "picker.returned),\n      LOOP_UPSTREAM_COST);", "picker.returned));"),
   m("loop-quota-503", "loop.ts", "resets_at: verdict.resetsAt }, 429)", "resets_at: verdict.resetsAt }, 503)"),
   m("loop-seed-epoch", "loop.ts", "dayKey(deps.upstream.now())", "dayKey(new Date(0))"),
   m("upstream-cap-12", "upstream.ts", "if (spent > budget) {", "if (spent > PLAN_UPSTREAM_COST) {"),
@@ -154,8 +157,12 @@ function main(argv) {
     console.log(`baseline green tests=${base.total}`);
   }
 
+  const onlyAt = argv.indexOf("--only");
+  const only = onlyAt >= 0 ? new Set((argv[onlyAt + 1] ?? "").split(",")) : null;
+  const chosen = only ? MUTATIONS.filter((x) => only.has(x.id)) : MUTATIONS;
+  if (only && chosen.length !== only.size) { console.log("REFUSING: --only names an id that is not a mutation"); return 2; }
   const tally = { CAUGHT: 0, MISSED: 0, TRAP: 0 };
-  for (const x of MUTATIONS) {
+  for (const x of chosen) {
     const path = join(API, x.file);
     const original = readFileSync(path, "utf8");
     let result;
@@ -169,9 +176,9 @@ function main(argv) {
     tally[v] += 1;
     console.log(`${v.padEnd(6)} ${x.id}${result.named.length ? ` by "${result.named[0]}"` : ""}`);
   }
-  console.log(`RESULT caught=${tally.CAUGHT} missed=${tally.MISSED} trap=${tally.TRAP} of ${MUTATIONS.length}`);
-  if (prove) return tally.MISSED === MUTATIONS.length ? 0 : 1;
-  return tally.CAUGHT === MUTATIONS.length ? 0 : 1;
+  console.log(`RESULT caught=${tally.CAUGHT} missed=${tally.MISSED} trap=${tally.TRAP} of ${chosen.length}${only ? " (--only)" : ""}`);
+  if (prove) return tally.MISSED === chosen.length ? 0 : 1;
+  return tally.CAUGHT === chosen.length ? 0 : 1;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exit(main(process.argv.slice(2)));
