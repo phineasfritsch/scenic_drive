@@ -75,3 +75,22 @@ SurpriseShowingTests, which the vacuity mode empties. A vacuity arm that cannot 
   `git diff 53aa41fa -- ops/mutate/session_mutations.py` is empty (floors 81/3 unchanged). The full non-vacuity run is
   replaced by --only over the entries whose test file moved, per the owner-approved faster-verification rule; every
   anchor is in Sources/, which this branch does not touch.
+- 2026-10-09T02:00:32Z ACCEPTANCE RE-RUN on the merged head b3882536 (origin/main 309de74c merged; main's diff
+  touches no session subject, no session test file and no Surprise test), tree clean after the runs:
+  (1) red: quoted at 2026-10-08T22:43:02Z above - `VACUITY REFUSED`, exit 2, the two dependents named.
+  (2) `python ops/mutate/session.py --prove-vacuity` -> exit=0:
+  `PROVING NON-VACUITY: the 8 test files replaced by empty suites; every mutation must report MISSED.`
+  `caught by the test that names it: 0 of 81   (wrong killer 0, trapped 0, compile-only 0, MISSED 81, skipped 0)`
+  `VACUITY PROOF OK: with the 8 test file(s) emptied, caught=0 (need 0) and MISSED=81 of 81`
+  `python ops/mutate/session.py --only 35,36,39` -> exit=0:
+  `caught by the test that names it: 3 of 3   (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)`
+  `MUTATE OK  caught=3/3 equivalent_caught=0  (--only: 3 of 81 entries)`
+  `swift test --filter SurpriseShowingTests|SurpriseCardHistoryTests|SurpriseShownDayTests`:
+  `Test run with 8 tests in 3 suites passed` exit=0.
+  (3) the refusal: red above (exit 2 on the broken emptied set), green here (the emptied set builds, BASELINE exit=0).
+  Gates: `python ops/lib/check-mutate-population.py` -> `P-PROC-06: 301 modules, 167 covered by 37 populations,
+  113 allowlisted, 0 added by this branch` exit 0; `bash ops/lib/check-exec-bits` -> `P-OPS-01: 191 files, 23
+  required present, all modes correct` exit 0; `bash ops/queue-check` -> `QUEUE OK (324 tasks)` exit 0.
+  STILL OPEN: the other Swift populations' drivers (accounttoken, autopsy, corpusfetch, drive, ledger, ...) still
+  return 2 on a failed emptied build without naming it as a vacuity refusal - safe (never counted as MISSED) but
+  silent; outside this task's touches.
