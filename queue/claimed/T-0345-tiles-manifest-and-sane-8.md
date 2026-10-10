@@ -105,3 +105,25 @@ ops/lib/sane_prod.py and gains cases in ops/lib/check_sane_prod.py (local fake o
     rc=0; `QUEUE OK (344 tasks)`. PR #238 CI: core pass, pins-source-only pass.
   - main then moved to ae8267fe (T-0340: services/api, ops/lib hazard/disclaimer digests, ops/mutate hazardcopy) -
     none of this task's surfaces; merged as the last step, the fast gates re-run on that head below the push.
+- 2026-10-10T02:53:15Z rv1-t0345 FAIL (PR #238, head 8a044aa0) B1 - RULED before code:
+  - B1 stands: every row reads the one real BasemapResolver.swift and region.json, so the checkout-side readers
+    are untested. R1 `checkout_tiles_file` exactly-one -> first-wins and R2 `RESOLVER_LINE_RE.fullmatch` ->
+    `.search` (a // line counts) both survive the 81 pytest + 8 rows; checkout_region's `has no string id` too.
+  - Disagreement brief vs reality: the brief says every new row "must fail closed ('cannot tell')", but its row
+    (b) - a //-commented la.pmtiles line plus a real line naming other.pmtiles - CORRECTLY reads other.pmtiles, so
+    the shipped check refuses on the file mismatch (`tiles manifest: file is 'la.pmtiles', BasemapResolver reads
+    'other.pmtiles'`), not `cannot tell`; under R2 it becomes `cannot tell` (two lines). A row that demanded only
+    `cannot tell` there would PASS under R2. Ruled: every c- row asserts (accepted, line) by FULL equality to a
+    line typed in the table (full-equality-oracle), so (b) is red under R2 by its line, and two more rows pin R2
+    from both sides: a comment-only resolver (cannot tell; R2 accepts) and a commented other.pmtiles line plus a
+    real la line (accepted; R2 says cannot tell).
+  - Shape (table-rows-as-functions-of-input): new ops/lib/sane_prod_checkout_cases.py, c-<region>.<resolver>
+    rows = the cross product of 8 region.json variants (id la, no id, int id, empty id, null id, not JSON, not an
+    object, absent) x 9 BasemapResolver variants (one la line, one CRLF la line, #if/#else la+other, two la lines,
+    comment-only, comment other + real la, comment la + real other, no line, absent) = 72 rows, each written to
+    TEMP files and run through the SHIPPED sane_prod.tiles(body, region, resolver, now=NOW). The expected line
+    is a function of the pair (region checked first, then the resolver's typed file: None -> cannot tell,
+    la.pmtiles -> accepted, other.pmtiles -> file mismatch); the meta-check refuses unless the table is the
+    whole cross product and all four outcomes occur. check_sane_prod.py runs them beside the b- rows.
+  - Recorded, not this PR: ops/sane's ops/tiles-manifest-url fallback is untested by construction (the table
+    refuses to run while that file exists), the same as the corpus side's ops/corpus-manifest-url.
