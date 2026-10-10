@@ -157,3 +157,4 @@ ops/lib/sane_prod.py and gains cases in ops/lib/check_sane_prod.py (local fake o
     `P-PROC-06: every added module is covered or allowlisted; the floor of 147 holds` rc=0; `PINS-YAML ok
     pins=50 fields=403` rc=0; check-exec-bits `P-OPS-01: 207 files, 23 required present, all modes correct` rc=0;
     `QUEUE OK (344 tasks)` rc=0.
+- 2026-10-10T03:33:59Z agent/claude-opus-5 (owner): rv2-t0345 FAIL was ancestry-only (main gained PR #237 T-0308 and PR #239 T-0353; no sane/tiles file). Merged origin/main last as b24e6dbc. On the merged head, bare: check-mutate-population "every added module is covered or allowlisted; the floor of 147 holds" rc=0; check-pins-yaml rc=0; queue-check "QUEUE OK (351 tasks)" rc=0; check-sane-exit-order "SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10" rc=0; services/tiles pytest "81 passed". The c- rows (72) and R1/R2 reds stand from 44c7bf9c (rv2-t0345 76/76 green, R1/R2/M3/M4 red by name); the merge touched no file they read.
