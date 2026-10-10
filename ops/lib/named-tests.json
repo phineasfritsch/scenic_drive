@@ -230,7 +230,7 @@
       ]
     },
     "swift": {
-      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests|SurpriseShownRecordFieldsTests|CorridorRatioRecordFieldsTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests)|ScenicKitTests\\.LearnedSpeedsPrivacyTests",
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests|TelemetryClientTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests|SurpriseShownRecordFieldsTests|CorridorRatioRecordFieldsTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests)|ScenicKitTests\\.LearnedSpeedsPrivacyTests",
       "tests": [
         "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
         "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
@@ -253,7 +253,12 @@
         "ScenicAPIClientTests.PlanVehicleWireTests/everyProfileWhole()",
         "ScenicAPIClientTests.PlanVehicleWireTests/defaultIsStandard()",
         "ScenicKitTests.LearnedSpeedsPrivacyTests/noLearnedTypeIsCodable()",
-        "PlaceStoreTests.CorridorRatioRecordFieldsTests/fieldsAndNoCodable()"
+        "PlaceStoreTests.CorridorRatioRecordFieldsTests/fieldsAndNoCodable()",
+        "TelemetryTests.TelemetryClientTests/everyEventPostsExactlyItsRequest()",
+        "TelemetryTests.TelemetryClientTests/waitingBoundTable(waiting:)",
+        "TelemetryTests.TelemetryClientTests/everyOutcomeDropsTheBatch()",
+        "TelemetryTests.TelemetryClientTests/capacityIsTheWorkersCap()",
+        "TelemetryTests.TelemetryClientTests/recordedOnlyAfterTheFirstPostReturns()"
       ]
     }
   },

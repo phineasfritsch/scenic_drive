@@ -9,9 +9,9 @@ public enum LiveTripPlanner {
     public static func make() -> any TripPlanning {
         guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return UnreachableTripPlanner() }
-        return ClientTripPlanner(client: TripClient(base: base, transport: URLSessionPlanTransport(),
+        return TelemetryTripPlanner(inner: ClientTripPlanner(client: TripClient(base: base, transport: URLSessionPlanTransport(),
                                                     installID: StoredInstallID(),
                                                     accountToken: StoreKitAccountToken(),
-                                                    session: LiveSession.store))
+                                                    session: LiveSession.store)))
     }
 }

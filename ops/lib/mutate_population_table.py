@@ -14,11 +14,12 @@ DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "corpusfetch.py", "corp
            "loopsheet.py", "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py", "hazardcopy.py",
            "scenic_tags.py",
            "segmentgeometry.py", "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py",
-           "telemetry.py", "traffic.py")
+           "posttelemetry.py", "telemetry.py", "traffic.py")
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own"}
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
+    "Sources/Telemetry/TelemetryClient.swift", "Sources/Telemetry/TelemetryRequestBody.swift",
     "Sources/ScenicAPIClient/TripNothingPretty.swift", "Sources/ScenicAPIClient/LoopNothingPretty.swift",
     "Sources/ScenicPlanCLI/AutopsyReport.swift", "Sources/ScenicPlanCLI/AutopsyCommand.swift",
     "Sources/ScenicPlanCLI/AutopsyFixture.swift", "Sources/ScenicPlanCLI/AutopsyTerms.swift",

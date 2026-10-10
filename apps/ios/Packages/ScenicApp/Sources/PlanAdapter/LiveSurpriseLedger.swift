@@ -7,9 +7,10 @@ import Telemetry
 /// Worker session `SessionStore` (App Attest, the Keychain) and the H3 resolution-5 cell of each shown PLACE.
 public enum LiveSurpriseLedger {
     /// Built once per launch: the session store's one acquisition per launch belongs to this one instance.
-    private static let live: (any SurpriseLedgerSource)? = build()
+    private static let live: (any SurpriseLedgerSource)? = TelemetrySurpriseLedger(inner: build())
 
-    /// nil without an https base URL (LivePlanner's `plan.base.url`): no ledger, nothing sent.
+    /// The ledger wrapped for surprise_shown (T-0355); its inner ledger is nil without an https base URL
+    /// (LivePlanner's `plan.base.url`) or a session: then no places are read and nothing is sent to /ledger.
     public static func make() -> (any SurpriseLedgerSource)? { live }
 
     static func build() -> (any SurpriseLedgerSource)? {

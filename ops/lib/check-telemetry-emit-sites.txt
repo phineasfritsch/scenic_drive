@@ -1,0 +1,43 @@
+site	apps/ios/Packages/ScenicApp/Package.swift	                .product(name: "Telemetry", package: "ScenicDrive"),
+site	apps/ios/Packages/ScenicApp/Sources/Entitlements/SettingsScreen.swift	            .accessibilityIdentifier("settings.paywall")
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveLoopPlanner.swift	        return TelemetryLoopPlanner(inner: ClientLoopPlanner(client: LoopClient(base: base, transport: URLSessionPlanTransport(),
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift	        return TelemetryRoutePlanner(inner: ClientPlanner(client: client(base)))
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift	    private static let live: (any SurpriseLedgerSource)? = TelemetrySurpriseLedger(inner: build())
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift	import Telemetry
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	                               transport: URLSessionTelemetryTransport())
+emit	planRequested	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.planRequested(feature: feature, budgetMinutes: budgetMinutes, origin: cell))
+emit	planResult	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.planResult(kind))
+emit	surpriseShown	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.surpriseShown)
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        return TelemetryClient(base: base, device: StoredInstallID().installID(),
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    private static func record(_ event: TelemetryEvent) {
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    private static let client: TelemetryClient? = build()
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    static func build() -> TelemetryClient? {
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	import Telemetry
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	public enum LiveTelemetry {
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTripPlanner.swift	        return TelemetryTripPlanner(inner: ClientTripPlanner(client: TripClient(base: base, transport: URLSessionPlanTransport(),
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryLoopPlanner.swift	        LiveTelemetry.planRequested(.loop, budgetMinutes: ticket.minutes, origin: ticket.start)
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryLoopPlanner.swift	        LiveTelemetry.planResult(Self.kind(outcome))
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryLoopPlanner.swift	import Telemetry
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryLoopPlanner.swift	struct TelemetryLoopPlanner: LoopPlanning {
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryRoutePlanner.swift	        LiveTelemetry.planRequested(.scenic, budgetMinutes: ticket.budgetMinutes, origin: ticket.origin)
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryRoutePlanner.swift	        LiveTelemetry.planResult(Self.kind(outcome))
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryRoutePlanner.swift	import Telemetry
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryRoutePlanner.swift	struct TelemetryRoutePlanner: RoutePlanning {
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetrySurpriseLedger.swift	        LiveTelemetry.surpriseShown()
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetrySurpriseLedger.swift	struct TelemetrySurpriseLedger: SurpriseLedgerSource {
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryTripPlanner.swift	        LiveTelemetry.planRequested(.roadTrip, budgetMinutes: 0, origin: ticket.origin)
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryTripPlanner.swift	        LiveTelemetry.planResult(Self.kind(outcome))
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryTripPlanner.swift	import Telemetry
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryTripPlanner.swift	struct TelemetryTripPlanner: TripPlanning {
+site	apps/ios/ScenicDrive/ScenicDriveApp.swift	                SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, onDone: { isShowingSettings = false })
+pending	previewShown	T-0361
+pending	handoffTapped	T-0361
+pending	driveStarted	T-0361
+pending	driveCompleted	T-0361
+pending	driveAbandoned	T-0361
+pending	postDriveAnswer	T-0358
+pending	surpriseNotThis	T-0361
+pending	surpriseTakeMeThere	T-0361
+pending	surpriseArrived	T-0361
+pending	corpusActivated	T-0361
+pending	paywall	T-0361
