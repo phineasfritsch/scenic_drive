@@ -24,6 +24,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sane_prod_fake import DEL, SEEN, STATE, Fake, edited, rows, snapshot, wire  # noqa: E402
 from sane_prod_tiles_cases import TILES_PATH, bound_problems, good, tiles_cases, tiles_meta_problems  # noqa: E402
+from sane_prod_checkout_cases import checkout_meta_problems, checkout_problems, checkout_rows  # noqa: E402
 
 ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip()
 HEAD = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=ROOT).stdout.strip()
@@ -163,7 +164,8 @@ def meta_problems() -> list[str]:
         if missing:
             out.append(f"field {field} has no row for {missing}")
     import tiles_manifest  # sane_prod put services/tiles on sys.path
-    out += tiles_meta_problems(names, tiles_manifest)
+    out += tiles_meta_problems(names, tiles_manifest) + checkout_meta_problems()
+    names += checkout_rows()
     if len(set(names)) != len(names):
         out.append("duplicate case names")
     return out
@@ -234,6 +236,8 @@ def main(argv: list[str]) -> int:
         return 2
     import sane_prod
     ran, bound_failed = bound_problems(ROOT, sane_prod, only)
+    c_ran, c_failed = checkout_problems(sane_prod, only)
+    ran, bound_failed = ran + c_ran, bound_failed + c_failed
     for line in bound_failed:
         print(f"SANE-PROD FAIL     {line}")
     cases = [c for c in CASES if only is None or c[0] in only]
@@ -258,7 +262,7 @@ def main(argv: list[str]) -> int:
         print(f"SANE-PROD FAIL     {failed} of {len(cases) + ran} cases failed (sane={sane})")
         return 1
     n = len(cases) + ran
-    print(f"SANE-PROD ok       {n}/{n} cases passed ({ran} b- rows at a fixed clock; sane={sane}, fake={base})")
+    print(f"SANE-PROD ok       {n}/{n} cases passed ({ran} b-/c- rows through sane_prod.tiles at a fixed clock; sane={sane}, fake={base})")
     return 0
 
 

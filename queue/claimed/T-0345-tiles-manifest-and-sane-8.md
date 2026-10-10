@@ -21,6 +21,7 @@ acceptance:
   - "A4 RED first: the A3 --only set against the pre-change ops/sane (main's copy, via --sane) FAILS, quoted; and three one-line mutants of tiles_manifest.problems (age `<` -> `<=` off by the bound, maxzoom upper bound dropped, region compare dropped) each FAIL by case name, then green."
   - "A5 Line cap and split: check_sane_prod.py (300 lines at start) is split at a real seam - the fake Worker and the row parser move to ops/lib/sane_prod_fake.py, the tiles rows to ops/lib/sane_prod_tiles_cases.py; `wc -l` of every touched .py quoted, each <= 300."
   - "A6 Pins: P-OPS-08's statement names the tiles manifest and its new case count; P-DATA-03 records that the published tiles manifest carries the archive's own meta.region/built_at under the same thresholds; `python ops/lib/check-pins-yaml.py` passes. On the merged head the bare gates check-sane-exit-order, check-mutate-population, check-line-cap, check-pins-yaml, check-exec-bits and ops/queue-check each exit 0, quoted."
+  - "A7 (rv1 B1) Checkout-side readers on TEMP files: ops/lib/sane_prod_checkout_cases.py carries c-<region>.<resolver> rows, the whole cross product of 8 region.json variants (id la, no id, int id, empty id, null id, not JSON, not an object, absent) x 9 BasemapResolver.swift variants (one la line, one CRLF la line, #if/#else la+other, two la lines, //-comment only, comment other + real la, comment la + real other, no line, absent), each calling the SHIPPED sane_prod.tiles(body, region, resolver, now=NOW) and comparing (accepted, line) by FULL equality to a line typed per pair (no string id or not exactly one whole applicationSupportPath line -> `cannot tell`; la.pmtiles -> accepted; other.pmtiles -> the file mismatch); the meta-check refuses unless the rows are the whole cross product and reach all four outcomes. RED by row name, then green: sane_prod.py mutants R1 checkout_tiles_file exactly-one -> first-wins, R2 RESOLVER_LINE_RE.fullmatch -> .search, R3 checkout_region string-id check dropped each FAIL. `bash ops/lib/check-sane-prod --only <the 72 c- rows + b-green,b-age-exactly-30-days,b-age-30-days-and-1s,b-future-exactly-1h,b-future-1h-and-1s,t-green,t-file-other,t-file-with-dir>` exits 0 on the merged head."
 ---
 ## Brief
 
@@ -127,3 +128,19 @@ ops/lib/sane_prod.py and gains cases in ops/lib/check_sane_prod.py (local fake o
     whole cross product and all four outcomes occur. check_sane_prod.py runs them beside the b- rows.
   - Recorded, not this PR: ops/sane's ops/tiles-manifest-url fallback is untested by construction (the table
     refuses to run while that file exists), the same as the corpus side's ops/corpus-manifest-url.
+- 2026-10-10T02:56:09Z rv1 B1 BUILT: ops/lib/sane_prod_checkout_cases.py (110 lines; 72 c- rows = 8 region x 9
+  resolver variants), check_sane_prod.py runs them beside the b- rows and its meta-check adds checkout_meta_problems
+  and the c- names to the duplicate check (270 lines). sane_prod.py unchanged.
+  - GREEN: `bash ops/lib/check-sane-prod --only <the 72 c- rows>` -> `SANE-PROD ok 72/72 cases passed (72 b-/c-
+    rows through sane_prod.tiles at a fixed clock; ...)` rc=0.
+  - RED, mutants of ops/lib/sane_prod.py (exact single-occurrence replace, __pycache__ purged, 1.1 s waits,
+    `restored byte-identical: True`), each against the same 72 rows, each rc=1:
+    R1 exactly-one -> first-wins: `FAIL c-id-la.if-else: got (True, 'tiles ... file la.pmtiles == checkout ...'),
+    want (False, 'cannot tell: ...BasemapResolver.swift does not hold exactly one ...')`, `FAIL c-id-la.two-la`
+    (same), `2 of 72 cases failed`.
+    R2 fullmatch -> search: `FAIL c-id-la.comment-only: got (True, ...)`, `FAIL c-id-la.comment-other-real-la:
+    got (False, 'cannot tell: ...'), want (True, ...)`, `FAIL c-id-la.comment-la-real-other: got (False, 'cannot
+    tell: ...'), want (False, "tiles manifest: file is 'la.pmtiles', ...")`, `3 of 72 cases failed`.
+    R3 checkout_region `isinstance(rid, str) and rid` dropped: `FAIL c-id-int.one-la: got (False, "tiles
+    manifest: region is 'la', this checkout's region is 7"), want (False, 'cannot tell: ...region.json has no
+    string id')` ... all 9 c-id-int.* rows, `9 of 72 cases failed`.
