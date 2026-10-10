@@ -1,7 +1,7 @@
 ---
 id: T-0355
 title: The app emits the closed telemetry enum - a ScenicAPIClient TelemetryClient posts to /telemetry and every one of the 14 TelemetryEventKind cases has exactly one shipping emit site, so ops/funnel has a data source
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
