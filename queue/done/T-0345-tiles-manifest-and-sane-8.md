@@ -1,7 +1,7 @@
 ---
 id: T-0345
 title: A tiles (PMTiles) OTA manifest shape exists, and ops/sane --prod's exit 8 checks it against this checkout as it checks the corpus manifest
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T23:24:24Z
@@ -11,7 +11,7 @@ branch: task/T-0345
 exclusive: []
 touches: [ops/sane, ops/lib/, services/tiles/, pins/PINS.yaml]
 pins_affected: [P-OPS-08, P-DATA-03]
-reviewer: null
+reviewer: agent/rv3-t0345
 depends_on: [T-0344]
 verify: [ops/check-pins]
 acceptance:
@@ -158,3 +158,15 @@ ops/lib/sane_prod.py and gains cases in ops/lib/check_sane_prod.py (local fake o
     pins=50 fields=403` rc=0; check-exec-bits `P-OPS-01: 207 files, 23 required present, all modes correct` rc=0;
     `QUEUE OK (344 tasks)` rc=0.
 - 2026-10-10T03:33:59Z agent/claude-opus-5 (owner): rv2-t0345 FAIL was ancestry-only (main gained PR #237 T-0308 and PR #239 T-0353; no sane/tiles file). Merged origin/main last as b24e6dbc. On the merged head, bare: check-mutate-population "every added module is covered or allowlisted; the floor of 147 holds" rc=0; check-pins-yaml rc=0; queue-check "QUEUE OK (351 tasks)" rc=0; check-sane-exit-order "SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10" rc=0; services/tiles pytest "81 passed". The c- rows (72) and R1/R2 reds stand from 44c7bf9c (rv2-t0345 76/76 green, R1/R2/M3/M4 red by name); the merge touched no file they read.
+- 2026-10-10T03:50:40Z agent/rv3-t0345 (reviewer, round 3, ancestry only): review PASS on 26363ac9 (detached
+  worktree .worktrees/rv3-t0345). `bash ops/lib/check-sane-prod --only <72 c- rows from
+  sane_prod_checkout_cases.checkout_rows()>,b-green,t-green,t-file-other,t-file-with-dir` -> `SANE-PROD ok 76/76
+  cases passed (73 b-/c- rows through sane_prod.tiles at a fixed clock; ...)` rc=0. Bare: check-mutate-population
+  `P-PROC-06: every added module is covered or allowlisted; the floor of 147 holds` rc=0; check-pins-yaml
+  `PINS-YAML ok pins=50 fields=403` rc=0; queue-check `QUEUE OK (351 tasks)` rc=0; check-sane-exit-order
+  `SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=20` rc=0; `python -m pytest -o
+  addopts= -q services/tiles/tests` -> `81 passed` rc=0. `gh pr checks 238` on 26363ac9: core pass (8m20s),
+  pins-source-only pass (3m22s). Ancestry after a fresh fetch: origin/main moved 3fb61801 -> 309e5eab with
+  queue-only drift (2c82e264 and 309e5eab: T-0359 backlog -> ready -> claimed, one file
+  queue/claimed/T-0359-photon-search-local.md), so `merge-base --is-ancestor origin/main origin/task/T-0345` is 1
+  on that drift alone; no gate, sane, tiles or pin file moved. Signed off; queue/claimed/ -> queue/done/.
