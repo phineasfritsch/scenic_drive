@@ -124,3 +124,22 @@ Worker vitest through the shipping handler with a fake upstream; client whole-bo
   without @sha256", "a tag-only compose image -> compose service front image without @sha256", "the jar checksum
   dropped -> Dockerfile ADD of a URL without --checksum=sha256", control clean, "PROVE-RED OK: 3 of 3 arms refused".
   search.py --prove-floor "FLOOR PROOF OK: 7 of 7 arms refused"; check-mutate-population "the floor of 151 holds".
+- 2026-10-10T06:47:31Z A5 (agent/claude-opus-5): full run of ops/mutate/search.py at 85a97f0c: "caught by the test that names it: 29 of 30
+  (wrong killer 0, trapped 0, compile-only 0, MISSED 1)"; E1 and E2 MISSED as required. Survivor: 30 "the row stores
+  the coordinate swapped" - every expected SearchResult was built through the same initializer. Fixed at 037f0b56 by
+  the test "A result carries the Worker's lat as its latitude and lon as its longitude, read field by field" (killer of
+  29 and 30); re-run "--only 29,30": "MUTATE OK caught=2/2". Vacuity, RULED to one entry per subject plus the survivor
+  (the full proof is about 100 min on this shared box and the property is per test file - there is one):
+  "--only 1,9,15,19,30 --prove-vacuity": "VACUITY PROOF OK: with the 1 test file(s) emptied, caught=0 (need 0) and
+  MISSED=5 of 5". --prove-floor "FLOOR PROOF OK: 7 of 7 arms refused". Commit 85a97f0c carried the population and
+  services/search under the touches commit's message (the refused commit's paths were still staged).
+- 2026-10-10T06:47:31Z FINAL, merged head 784717a7 (origin/main merged clean; it changed no file this task edits): vitest search* +
+  routes, killSwitchRoutes, sharedEnvWorker, configSweep, requestReadSites, configAnswerPath, upstream, configFields
+  "Tests 62 passed (62)" exit 0; swift --filter SearchClientTests "Test run with 5 tests in 1 suite passed" exit 0;
+  "NAMED P-COST-01 passed=54/54" exit 0; "NAMED P-PRIV-05 passed=58/59" exit 1 - the one MISSING row is
+  PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail(), which is compiled only under
+  `#if canImport(GRDB)` and GRDB does not build on this Windows box (environment; untouched by this task; CI's Linux
+  runs it) - all three searchShape rows passed; "SEARCH-PINS ok", "PROVE-RED OK: 3 of 3"; check-mutate-population
+  "5 added by this branch ... the floor of 151 holds" exit 0; check-mutate-only "MUTATE-ONLY OK: 207 of 207" exit 0.
+  Line counts: largest new files ops/mutate/search.py 188, ops/lib/check-search-pins.py 155.
+- 2026-10-10T06:47:31Z T-0362 filed (backlog): the plan-sheet wiring and the ruling on how a searched address reaches /plan (R9).
