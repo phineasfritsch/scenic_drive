@@ -114,3 +114,11 @@ only through the long-body rows. The app ships on Darwin; this closes the platfo
   check-pins-yaml `PINS-YAML ok pins=50 fields=403` rc=0, queue-check `QUEUE OK (343 tasks)` rc=0, check-line-cap
   `P-SRC-02: 563 Swift files tracked (Sources=274, Tests=202, apps/ios=87), none over 300 lines` rc=0. PR #237
   opened; gh pr checks 237 on c0325495: core pass 4m57s, pins-source-only pass 2m58s.
+- 2026-10-10T00:55:00Z MERGED origin/main AGAIN at 7847327e (agent/claude-opus-5): main had landed T-0347, which
+  changed ops/mutate/corpusfetch.py (the CLI, --only parsing) and added ops/lib/check-mutate-only.py; no file this
+  task touches changed. On 7847327e: queue-check `QUEUE OK (344 tasks)`, check-pins-yaml `PINS-YAML ok pins=50
+  fields=403`, check-safety-disclaimer rc=0, check-mutate-population `the floor of 147 holds` rc=0,
+  check-mutate-only `MUTATE-ONLY OK: 165 of 165 driver runs refused with exit 64 (55 drivers x 3 probes)` rc=0.
+  STILL OPEN: `--only 22,23,24` re-run through the merged driver started 00:26:32Z and had not reported by
+  00:55Z (the box was saturated by other sessions); A3-A5 stand as measured on 4eaa0b1b with byte-identical subject,
+  test and population files. The reviewer should re-run `python ops/mutate/corpusfetch.py --only 22,23,24`.
