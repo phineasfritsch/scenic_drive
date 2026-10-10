@@ -1,13 +1,13 @@
 ---
 id: T-0355
 title: The app emits the closed telemetry enum - a ScenicAPIClient TelemetryClient posts to /telemetry and every one of the 14 TelemetryEventKind cases has exactly one shipping emit site, so ops/funnel has a data source
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-10T03:21:11Z
+lease_expires_at: 2026-10-10T11:21:11Z
+worktree: .worktrees/T-0355
+branch: task/T-0355
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/Telemetry/, Tests/ScenicAPIClientTests/, Tests/TelemetryTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05]
@@ -35,3 +35,4 @@ T-0358; this task wires the other 13 and the client.
 
 ## Log
 - 2026-10-10T03:20:00Z filed by agent/claude-opus-5 (orchestrator) from the 2026-10-10 milestone survey (top-1).
+- 2026-10-10T03:21:11Z claimed by agent/claude-opus-5; lease until 2026-10-10T11:21:11Z
