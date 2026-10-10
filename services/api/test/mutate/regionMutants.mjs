@@ -41,6 +41,7 @@ const RESOLVE = "\n  let destination: LatLon | null;\n  try {\n    destination =
   + "  } catch {\n    return json({ error: \"planning_unavailable\" }, 503);\n  }\n"
   + "  if (destination === null) return json({ error: \"unknown_place\" }, 404);\n";
 const WHO = "\n  const who = await deps.identify(req);\n";
+const REJECTED = "  if (who.rejected === true) return json({ error: \"session_rejected\" }, 401);\n";
 const SNAPSHOT = "\n  const snapshot = await deps.closures();\n";
 /** The gate moved from above `deps === null` to below DEPS + `after`: the precondition then runs first. */
 const below = (id, file, field, after) => m(id, file, gate(field) + DEPS + after, DEPS + after + gate(field));
@@ -97,8 +98,8 @@ export const MUTATIONS = [
   below("loop-gate-below-identify", "loop.ts", "start", WHO),
   below("trip-gate-below-identify", "trip.ts", "origin", RESOLVE + WHO),
   below("plan-gate-below-closures", "plan.ts", "origin", RESOLVE + SNAPSHOT),
-  below("loop-gate-below-closures", "loop.ts", "start", WHO + "  const snapshot = await deps.closures();\n"),
-  below("trip-gate-below-closures", "trip.ts", "origin", RESOLVE + WHO + "  const snapshot = await deps.closures();\n"),
+  below("loop-gate-below-closures", "loop.ts", "start", WHO + REJECTED + "  const snapshot = await deps.closures();\n"),
+  below("trip-gate-below-closures", "trip.ts", "origin", RESOLVE + WHO + REJECTED + "  const snapshot = await deps.closures();\n"),
   below("isochrone-gate-below-closures", "isochrone.ts", "start", "\n  const { start, minutes } = request;\n"
     + "  const limit = oneWayLimit(minutes);\n  const now = deps.upstream.now();\n  const snapshot = await deps.closures();\n"),
   // T-0296: the dedupe key (who, cell, the day in the key), the day boundary, the purge, the fail-closed secret, the

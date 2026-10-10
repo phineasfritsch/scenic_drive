@@ -43,7 +43,7 @@ const TELEMETRY_HANDLER = "export async function handleTelemetry(req: Request, e
 const KINDS = "[\"plan\", \"loop\", \"surprise\", \"trip\"]";
 const ATTEST_DEPS = "export function attestDepsFromEnv(env: AttestEnv): AttestDeps {";
 const FROZEN = "return handler(req, Object.freeze({ ...env, KILL_SWITCH: killSwitchReader(env.KILL_SWITCH) }), url);";
-const SESSION_VERIFIED = "  if (claims === null) return { userId: UNIDENTIFIED_SESSION, tier: \"anon\" };";
+const SESSION_VERIFIED = "  if (claims === null) return env.IDENTITY_HEADERS === \"1\" ? legacy() : { userId: UNIDENTIFIED_SESSION, tier: \"anon\" };";
 export const MUTATIONS = [
   m("key-v2", C, "CONFIG_KEY = \"config/v1\";", "CONFIG_KEY = \"config/v2\";"),
   m("max-age-60", C, "CONFIG_MAX_AGE_S = 300;", "CONFIG_MAX_AGE_S = 60;"),
