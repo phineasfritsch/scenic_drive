@@ -217,7 +217,7 @@ def main() -> int:
                 failed.append(verdict(name, ["--only", token], code, lines))
     after = status()
     try:
-        pair_bad, pairs, pops = mutate_only_pairs.probe(populations)
+        pair_bad, missed, pairs, pops = mutate_only_pairs.probe(populations)
     except SystemExit as e:
         print("PAIR HARNESS FAILED: %s" % e)
         return 2
@@ -241,7 +241,7 @@ def main() -> int:
     print("NAME-PAIRS %s: %d pair tokens over %d id populations, each refused in process by select_only in %d modes "
           "and by onlyIds (%d calls not refused, floor %d tokens)"
           % ("OK" if not pair_bad and not pair_short else "FAILED", pairs, pops, len(mutate_only_pairs.MODES),
-             len(pair_bad), mutate_only_pairs.PAIR_FLOOR))
+             missed, mutate_only_pairs.PAIR_FLOOR))
     return 1 if failed or pair_bad else 2 if short or pair_short else 0
 
 

@@ -111,12 +111,15 @@ def report(parser: str, misses: list) -> list:
 
 
 def probe(populations: list) -> tuple:
-    """(failure lines, pair tokens per parser) over [(driver, ids)]; each token goes to 5 parser calls."""
+    """(failure lines, parser calls not refused, pair tokens, populations) over [(driver, ids)]; each token goes to
+    5 parser calls."""
     jobs = [(name, list(ids), pair_tokens(ids)) for name, ids in populations if ids]
-    bad = []
+    bad, missed = [], 0
     for substring, split in MODES:
         misses = [(name, t, why) for name, ids, tokens in jobs for t in tokens
                   for why in [py_verdict(t, ids, substring, split)] if why is not None]
         bad += report("select_only(substring=%s, split=%s)" % (substring, split), misses)
-    bad += report("onlyIds", node_misses(jobs))
-    return bad, sum(len(t) for _, _, t in jobs), len(jobs)
+        missed += len(misses)
+    misses = node_misses(jobs)
+    bad += report("onlyIds", misses)
+    return bad, missed + len(misses), sum(len(t) for _, _, t in jobs), len(jobs)
