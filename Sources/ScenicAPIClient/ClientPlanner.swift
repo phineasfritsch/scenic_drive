@@ -41,11 +41,14 @@ public struct ClientPlanner: RoutePlanning {
     public static func preview(of response: PlanResponse, place: Int64, budgetMinutes: Int) -> PlanPreview {
         PlanPreview(route: response.route, etaSeconds: response.etaSeconds,
                     fastestEtaSeconds: response.fastestEtaSeconds, etaIsEstimate: response.etaIsEstimate,
-                    hazards: response.hazards.map {
-                        PlanHazardRun(kind: $0.kind, value: $0.value, fromIndex: $0.fromIndex, toIndex: $0.toIndex)
-                    }, waypoints: response.waypoints, lambda: response.lambda,
+                    hazards: response.hazards.map(run), waypoints: response.waypoints, lambda: response.lambda,
                     continuation: response.planToken.map {
                         PlanContinuation(token: $0, place: place, budgetMinutes: budgetMinutes)
                     }, closures: response.closuresHazard, timeRuns: response.timeRuns)
+    }
+
+    /// One Worker hazard as the sheet carries it, field for field (T-0340 R4: plan, trip days and loop alike).
+    public static func run(_ hazard: PlanHazard) -> PlanHazardRun {
+        PlanHazardRun(kind: hazard.kind, value: hazard.value, fromIndex: hazard.fromIndex, toIndex: hazard.toIndex)
     }
 }
