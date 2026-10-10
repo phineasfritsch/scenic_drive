@@ -22,12 +22,13 @@ const SECRET = "t0292-shared-env-session-secret-0123456789abcdef";
 const RO_TOKEN = "t0292-shared-env-ro-token";
 const OPERATIONAL = ["/__health", "/__version", "/__ro", "/asn", "/entitlement", "/attest/challenge", "/attest", "/attest/assert",
   "/auth/apple", "/account", "/config", "/waitlist", "/ledger"];
-const KILLABLE = ["/plan", "/loop", "/isochrone", "/trip", "/telemetry"];
+const KILLABLE = ["/plan", "/loop", "/isochrone", "/trip", "/search", "/telemetry"];
 const PAUSED: Record<string, unknown> = {
   "/plan": { status: 503, json: { error: "planning_paused" } },
   "/loop": { status: 503, json: { error: "planning_paused" } },
   "/isochrone": { status: 503, json: { error: "planning_paused" } },
   "/trip": { status: 503, json: { error: "planning_paused" } },
+  "/search": { status: 503, json: { error: "planning_paused" } },
   "/telemetry": { status: 503, json: { error: "telemetry_paused" } },
 };
 
@@ -39,6 +40,7 @@ const rig = ([name, source, killed]: (typeof KILLS)[number], i: number): Rig => 
   const env = {
     DB: testEnv.DB, GIT_SHA: "test", BUILT_AT: "test", RO_TOKEN, QUOTA: quota.ns, ROUTER_URL: `https://${host}`,
     ROUTER_SECRET: "test-router-secret", GRAPH_VERSION: "t0292", SESSION_JWT_SECRET: SECRET, CLOSURES: fakeKv({}),
+    SEARCH_URL: `https://${host}`, SEARCH_SECRET: "test-search-secret",
     CONFIG: fakeKv({}), TELEMETRY: { writeDataPoint: (p: unknown) => void writes.push(p) }, ...source,
   } as unknown as Env;
   return { name, killed, env, quota, writes, host };

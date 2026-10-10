@@ -10,6 +10,7 @@ import { STRINGIFY } from "./configOracle";
 import { REACH_BODY } from "./isochroneHarness";
 import { LOOP_BODY } from "./loopHarness";
 import { SANTA_MONICA_TOPANGA_BODY } from "./planHarness";
+import { SEARCH_BODY } from "./searchHarness";
 import { TRIP_BODY } from "./tripHarness";
 
 export const B = "https://scenic-api.test";
@@ -49,6 +50,8 @@ export const REQUESTS: Record<string, Representatives> = {
     authenticated: (a) => post("/isochrone", REACH_BODY, bearer(a.session)) },
   "/trip": { valid: () => post("/trip", TRIP_BODY), invalid: () => post("/trip", { unknown_key: 1 }),
     authenticated: (a) => post("/trip", TRIP_BODY, bearer(a.session)) },
+  "/search": { valid: () => post("/search", SEARCH_BODY), invalid: () => post("/search", { unknown_key: 1 }),
+    authenticated: (a) => post("/search", SEARCH_BODY, bearer(a.session)) },
   "/asn": { valid: () => post("/asn", { signedPayload: "e30.e30.sig" }), invalid: () => get("/asn"),
     authenticated: (a) => post("/asn", { signedPayload: "e30.e30.sig" }, bearer(a.session)) },
   "/entitlement": { valid: () => get("/entitlement", { "x-scenic-account-token": TOKEN }), invalid: () => post("/entitlement", {}),

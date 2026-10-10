@@ -9,7 +9,7 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
 DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "corpusfetch.py", "corpusota.py", "drive.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
-           "hazards.py", "ledger.py", "menu.py", "normalise.py", "onboarding.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py",
+           "hazards.py", "ledger.py", "menu.py", "search.py", "normalise.py", "onboarding.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py",
            "roadtrip.py", "routescore.py",
            "loopsheet.py", "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py", "hazardcopy.py",
            "scenic_tags.py",
@@ -45,6 +45,8 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Saved/SavedReplay.swift", "Sources/ScenicKit/Saved/SavedRow.swift",
     "Sources/ScenicAPIClient/LedgerClient.swift", "Sources/ScenicAPIClient/LedgerEntry.swift",
     "Sources/ScenicAPIClient/LedgerReplyReader.swift", "Sources/ScenicKit/Surprise/SurpriseHistoryMerge.swift",
+    "Sources/ScenicAPIClient/SearchClient.swift", "Sources/ScenicAPIClient/SearchRequestBody.swift",
+    "Sources/ScenicAPIClient/SearchReplyReader.swift", "Sources/ScenicAPIClient/SearchResult.swift",
     "Sources/ScenicAPIClient/AttestClient.swift", "Sources/ScenicAPIClient/AttestReplyReader.swift",
     "Sources/ScenicAPIClient/KeychainWrite.swift", "Sources/ScenicAPIClient/InstallIDDecision.swift",
     "Sources/ScenicAPIClient/SessionRecord.swift", "Sources/ScenicAPIClient/SessionStep.swift",
