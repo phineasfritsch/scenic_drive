@@ -144,3 +144,16 @@ ops/lib/sane_prod.py and gains cases in ops/lib/check_sane_prod.py (local fake o
     R3 checkout_region `isinstance(rid, str) and rid` dropped: `FAIL c-id-int.one-la: got (False, "tiles
     manifest: region is 'la', this checkout's region is 7"), want (False, 'cannot tell: ...region.json has no
     string id')` ... all 9 c-id-int.* rows, `9 of 72 cases failed`.
+- 2026-10-10T03:01:57Z rv1 ACCEPTANCE on the merged head a0923050 (origin/main a16d2a98 merged last; only a queue
+  move of T-0352 came in). Per faster-verification-in-rounds only the touched rows re-run:
+  - A1 `python -m pytest -o addopts= -q services/tiles/tests` -> `81 passed in 8.89s` rc=0.
+  - A3/A7 `bash ops/lib/check-sane-prod --only <72 c- rows + b-green,b-age-exactly-30-days,b-age-30-days-and-1s,
+    b-future-exactly-1h,b-future-1h-and-1s,t-green,t-file-other,t-file-with-dir>` -> `SANE-PROD ok 80/80 cases
+    passed (77 b-/c- rows through sane_prod.tiles at a fixed clock; sane=ops/sane, ...)` rc=0.
+  - A7 RED as quoted at 02:56 (R1 2, R2 3, R3 9 of 72 failed by name; restored byte-identical).
+  - A5 wc -l: check_sane_prod.py 270, sane_prod_checkout_cases.py 110, sane_prod_tiles_cases.py 156,
+    sane_prod.py 163 - all <= 300.
+  - A6 bare gates: `SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=20` rc=0;
+    `P-PROC-06: every added module is covered or allowlisted; the floor of 147 holds` rc=0; `PINS-YAML ok
+    pins=50 fields=403` rc=0; check-exec-bits `P-OPS-01: 207 files, 23 required present, all modes correct` rc=0;
+    `QUEUE OK (344 tasks)` rc=0.
