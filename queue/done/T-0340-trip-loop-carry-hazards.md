@@ -1,7 +1,7 @@
 ---
 id: T-0340
 title: The /trip and /loop answers carry the route's hazard runs, and the trip and loop cards render them from HazardCopy - today only /plan and /reroute report surface and road_access runs
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T19:11:58Z
@@ -11,7 +11,7 @@ branch: task/T-0340
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-hazard-copy-sites.txt, ops/mutate/, queue/]
 pins_affected: [P-SAFE-02]
-reviewer: null
+reviewer: agent/rv3-t0340
 depends_on: [T-0339]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -207,3 +207,27 @@ tables - one at a time.
     --only baseline refused the same way - environment; the merge changed no services/api src/ or test .ts file,
     so 4a810f70's green runs stand and PR CI is the confirmation on the merged head.
   - Measured: tripPlanner.ts 249 lines, tripLoopHazards.test.ts 295, tripMutants.mjs 262.
+- 2026-10-10T01:50:19Z agent/rv3-t0340 - REVIEW round 3 of PR #234 on head 1c28ec70: PASS.
+  - Structure: in planTrip the search and the closure re-request run inside one async scope (L157-185) that returns
+    only "{ outcome, shipped: shown.path, edges: shown.edges, split: shown.split }"; measuredChosen (L164), first
+    (L172) and shown (L179) are bound only inside it. legPath is bound only inside shipLeg (L195-204), which returns
+    returned(legPath, ...). pointOf "[0, ...(shipped.details.time ?? []).map((run) => run.to)]" (L210),
+    "routeHazards = hazardsOf(shipped)" (L211), route.coordinates "shipped.coordinates" (L237), and each day's
+    leg/hazards read "shippedLeg" (L223-227). No pre-swap binding is in scope there.
+  - tripMutants --only (re-applied R1/R2/pointOf): "baseline green tests=143"; "CAUGHT planner-full-day-reads-route
+    by \"every trip day carries its own hazard runs, whole\""; planner-route-hazards-pre-swap,
+    planner-pointof-pre-swap, planner-leg-hazards-pre-swap each "CAUGHT ... by \"a 5-day trip is exactly 12
+    requests, ...\"" (ReferenceErrors - the spellings no longer reach a binding); "RESULT caught=4 missed=0 trap=0 of 4".
+  - Reviewer's own mutants (applied by hand, 9 trip files incl. closuresCrossingTrip, restored after each):
+    own-split-from-first (scope returns "edges: first.edges, split: first.split" - pre-swap split/vertices with the
+    shipped path) RED: "a dull detour crossing a closure, re-requested to a pretty road, ships the road (whole 200)",
+    1 failed | 157 passed. own-leg-refused-ships ("return again.timeMs > ceiling ? null : again;" -> "return
+    again;") RED: "'full, the day-2 leg\'s re-request ref...': the trip's day hazards are the shipped path's runs"
+    and "/trip paid, the last leg's re-request over its day ceiling: not shown; the crossing leg returned, X named",
+    2 failed | 156 passed.
+  - Gates: gh pr checks 234 "core pass 7m59s", "pins-source-only pass 3m0s" (run 38011617438); bare
+    check-mutate-population exit 0 ("the floor of 147 holds"); bare queue-check exit 0 ("QUEUE OK (344 tasks)");
+    LAST: git fetch origin, origin/main 4f47d06f, "git merge-base --is-ancestor origin/main origin/task/T-0340"
+    exit 0.
+  - Recordable: crossingMutants/closuresMutants still refuse on STALE plan.ts anchors (T-0352); their re-pointed
+    tripPlanner anchors are proven by the anchor count only.
