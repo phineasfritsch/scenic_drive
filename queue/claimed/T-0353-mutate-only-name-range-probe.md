@@ -94,3 +94,10 @@ branch red with its own mutant (T-0347 owner stillOpen 2).
     Restored sha256 40e88f8a449fdcac identical, git diff --quiet HEAD exit 0, git status ''.
   - Side observation (not this task): 8 mjs drivers print `STALE <id>: anchor occurs 0 times` once past selection
     (closures config crossing isochrone quota region tier vehicle) - their populations have drifted from src/.
+- 2026-10-10T01:47:48Z FINAL on the merged head 28cfc177 (origin/main merged LAST), every gate run bare; A1 and A5 re-run:
+  - GATE check-mutate-only exit=0 :: MUTATE-ONLY OK: 203 of 203 driver runs refused with exit 64 (55 drivers, 93 range probes: 19 digit, 38 name, 36 N-(N+1))
+  - GATE check-mutate-population exit=0 :: P-PROC-06: every added module is covered or allowlisted; the floor of 147 holds
+  - GATE check-exec-bits exit=0 :: P-OPS-01: 204 files, 23 required present, all modes correct
+  - GATE check-pins-yaml exit=0 :: PINS-YAML ok pins=50 fields=403 path=C:\Users\phineasf\Documents\GitHub\scenic_drive\.worktrees\T-0353\pins\PINS.yaml
+  - GATE queue-check exit=0 :: QUEUE OK (344 tasks)
+  - ops/lib/check-mutate-only.py: 204 lines (cap 300).
