@@ -1,7 +1,7 @@
 ---
 id: T-0352
 title: Eleven Worker mutation drivers refuse before mutating (STALE anchors, red baselines) - measure whether their populations still run, and make every one run green from its documented directory
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
