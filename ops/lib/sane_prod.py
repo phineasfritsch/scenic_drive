@@ -2,8 +2,9 @@
 
     <health JSON>   | python ops/lib/sane_prod.py quota
     <manifest JSON> | python ops/lib/sane_prod.py manifest services/etl/etl/schema.py
+    <tiles JSON>    | python ops/lib/sane_prod.py tiles <region.json> <BasemapResolver.swift>
 
-Prints ONE line and exits 0 (ok) or 1 (FAIL). ops/sane maps 1 to exit 6 (quota) or 8 (manifest). Anything this
+Prints ONE line and exits 0 (ok) or 1 (FAIL). ops/sane maps 1 to exit 6 (quota) or 8 (manifest, tiles). Anything this
 script cannot read is a FAIL that says "cannot tell" - an unreadable answer is never ok.
 
 quota     reads the deployed Worker's /__health fields kill_switch, upstream_month, upstream_calls and
@@ -11,12 +12,17 @@ quota     reads the deployed Worker's /__health fields kill_switch, upstream_mon
           upstream calls have reached the trip point, or when they are within 10% of it: calls*10 >= trip_at*9.
 manifest  the corpus OTA manifest, field by field as Sources/PlaceStore/CorpusManifest.swift parses it, with
           schema_version compared to this checkout's services/etl/etl/schema.py SCHEMA_VERSION.
+tiles     the tiles OTA manifest (T-0345), decided by services/tiles/tiles_manifest.py's problems() - the same
+          function its writer runs - with region read from region.json's `id` and the file name from the ONE
+          whole `applicationSupportPath = "tiles/<file>"` line in BasemapResolver.swift, at the host's clock.
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
+from datetime import datetime, timezone
 
 NEAR_NUMERATOR = 9
 NEAR_DENOMINATOR = 10
@@ -25,6 +31,8 @@ MANIFEST_FIELDS = ("version", "schema_version", "min_app_build", "sha256", "byte
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 MONTH_RE = re.compile(r"[0-9]{4}-[0-9]{2}")
 SCHEMA_LINE_RE = re.compile(r"SCHEMA_VERSION\s*=\s*([0-9]+)\s*")
+RESOLVER_LINE_RE = re.compile(r'\s*public static let applicationSupportPath = "tiles/([^"/]+)"\s*')
+TILES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "services", "tiles")
 
 
 def is_int(v: object) -> bool:
@@ -95,6 +103,46 @@ def manifest(text: str, schema_path: str) -> tuple[bool, str]:
     return True, f"corpus {m['version']} schema_version {want} == checkout, {m['bytes']} bytes"
 
 
+def checkout_tiles_file(path: str) -> str | None:
+    try:
+        with open(path, encoding="utf-8") as f:
+            found = [m.group(1) for m in (RESOLVER_LINE_RE.fullmatch(line.rstrip("\r\n")) for line in f) if m]
+    except OSError:
+        return None
+    return found[0] if len(found) == 1 else None
+
+
+def checkout_region(path: str) -> str | None:
+    try:
+        with open(path, encoding="utf-8") as f:
+            rid = json.load(f).get("id")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return rid if isinstance(rid, str) and rid else None
+
+
+def tiles(text: str, region_path: str, resolver_path: str, now: datetime | None = None) -> tuple[bool, str]:
+    region, file = checkout_region(region_path), checkout_tiles_file(resolver_path)
+    if region is None:
+        return False, f"cannot tell: {region_path} has no string id"
+    if file is None:
+        return False, f"cannot tell: {resolver_path} does not hold exactly one applicationSupportPath line"
+    try:
+        sys.path.insert(0, TILES_DIR)
+        sys.dont_write_bytecode = True
+        import tiles_manifest
+    except ImportError as exc:
+        return False, f"cannot tell: services/tiles/tiles_manifest.py does not import ({exc})"
+    try:
+        m = json.loads(text)
+    except ValueError:
+        return False, "tiles manifest is not JSON"
+    found = tiles_manifest.problems(m, region=region, file=file, now=now or datetime.now(timezone.utc))
+    if found:
+        return False, "tiles manifest: " + "; ".join(found)
+    return True, f"tiles {m['version']} region {region} file {file} == checkout, built_at {m['built_at']}, {m['bytes']} bytes"
+
+
 def main(argv: list[str]) -> int:
     sys.stdout.reconfigure(newline="\n")
     text = sys.stdin.read()
@@ -102,8 +150,10 @@ def main(argv: list[str]) -> int:
         good, line = quota(text)
     elif len(argv) == 3 and argv[1] == "manifest":
         good, line = manifest(text, argv[2])
+    elif len(argv) == 4 and argv[1] == "tiles":
+        good, line = tiles(text, argv[2], argv[3])
     else:
-        print("usage: sane_prod.py quota | sane_prod.py manifest <schema.py>")
+        print("usage: sane_prod.py quota | sane_prod.py manifest <schema.py> | sane_prod.py tiles <region.json> <resolver.swift>")
         return 2
     print(line)
     return 0 if good else 1

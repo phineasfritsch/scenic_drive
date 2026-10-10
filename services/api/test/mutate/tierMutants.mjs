@@ -69,7 +69,7 @@ export const MUTATIONS = [
     "activeUntil = epochMs(expiresDate, \"expiresDate\") < signedDate ? null : epochMs(expiresDate, \"expiresDate\");"),
   m("asn-lapsed-1ms-after-signing-open-ended", "asnNotification.ts", "activeUntil = epochMs(expiresDate, \"expiresDate\");",
     "activeUntil = epochMs(expiresDate, \"expiresDate\") === signedDate + 1 ? null : epochMs(expiresDate, \"expiresDate\");"),
-  m("plan-identify-unawaited", "plan.ts", "guardedPlan(upstream, await deps.identify(req),", "guardedPlan(upstream, deps.identify(req),"),
+  m("plan-identify-unawaited", "plan.ts", "const who = await deps.identify(req);", "const who = deps.identify(req);"),
   m("loop-identify-unawaited", "loop.ts", "const who = await deps.identify(req);", "const who = deps.identify(req);"),
   m("trip-identify-unawaited", "trip.ts", "const who = await deps.identify(req);", "const who = deps.identify(req);"),
   m("isochrone-identify-unawaited", "isochrone.ts", "{ ...(await deps.identify(req)), kind", "{ ...deps.identify(req), kind"),
