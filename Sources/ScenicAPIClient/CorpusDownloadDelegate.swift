@@ -8,7 +8,9 @@ import FoundationNetworking
 ///
 /// `offset` is what the resume file held when the request was sent. A 200 rewrites the file from byte 0 (a server
 /// that ignored the Range header sends the whole body); a 206 is accepted only when a Range was sent and its
-/// Content-Range starts at `offset`; any other status, and a body past `expected`, cancel the task. A delegate, not
+/// Content-Range starts at `offset`; any other status, and a body past `expected`, cancel the task. A refused
+/// response is cancelled twice over: the `.cancel` disposition, which swift-corelibs-foundation ignores, and an
+/// explicit `dataTask.cancel()`, so the task ends the same way on every platform (T-0308). A delegate, not
 /// a completion handler, so the body streams to disk instead of being held in memory. Every member is touched only
 /// from the session's serial delegate queue, after `run` has stored the continuation under `lock`.
 final class CorpusDownloadDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
@@ -55,11 +57,13 @@ final class CorpusDownloadDelegate: NSObject, URLSessionDataDelegate, @unchecked
             } else {
                 failure = .status(status)
                 completionHandler(.cancel)
+                dataTask.cancel()
                 return
             }
         } catch {
             failure = .transport(code: URLError.Code.cannotWriteToFile.rawValue)
             completionHandler(.cancel)
+            dataTask.cancel()
             return
         }
         completionHandler(.allow)
