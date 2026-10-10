@@ -1,0 +1,27 @@
+# Scenic Drive search box (T-0359 R10): Photon behind a Caddy front door that refuses every request without the
+# Worker's x-scenic-search-secret. Photon publishes no port; only Caddy does, on loopback for the owner's tunnel or
+# reverse proxy. SEARCH_SECRET comes from the shell environment of `docker compose up` - never from a file in the tree.
+services:
+  photon:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    networks: [internal]
+
+  front:
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    restart: unless-stopped
+    environment:
+      SEARCH_SECRET: ${SEARCH_SECRET:?set SEARCH_SECRET to the value of the Worker secret SEARCH_SECRET}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on: [photon]
+    networks: [internal, edge]
+
+networks:
+  internal:
+    internal: true
+  edge: {}
