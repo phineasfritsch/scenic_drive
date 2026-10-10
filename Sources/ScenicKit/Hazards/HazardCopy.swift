@@ -99,14 +99,18 @@ public enum HazardCopy {
         closureLines(for: preview.closures) + preview.hazards.map { line(for: $0) }
     }
 
-    /// The itinerary card's hazard lines (T-0341 R2): the closure lines; /trip carries no runs (T-0339 M2).
+    /// The itinerary card's hazard lines: the closure lines (T-0341 R2), then every day's runs in day order, each
+    /// line told which day it is on (T-0340 R5). Nothing is merged or dropped.
     public static func lines(for itinerary: TripItinerary) -> [String] {
-        closureLines(for: itinerary.closures)
+        closureLines(for: itinerary.closures) + itinerary.days.flatMap { day in
+            day.hazards.map { "Day \(day.day) · " + line(for: $0) }
+        }
     }
 
-    /// The loop card's hazard lines (T-0341 R2): the closure lines; /loop carries no runs (T-0339 M2).
+    /// The loop card's hazard lines: the closure lines (T-0341 R2), then one line per run in order (T-0340 R5).
     public static func lines(for preview: LoopPreview) -> [String] {
         closureLines(for: preview.closures)
+            + preview.hazards.map { run in line(for: run) }
     }
 
     /// The line one derived flag reads, its times in `timeZone`.

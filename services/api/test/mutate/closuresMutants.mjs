@@ -174,8 +174,8 @@ export const MUTATIONS = [
   m("feed-cap-50", "lcsFeed.ts", "export function capClosures(closures: ActiveClosure[], cap = CLOSURES_STORED_MAX_POLYGONS)", "export function capClosures(closures: ActiveClosure[], cap = 50)"),
   m("loop-reseed-other-corridor", "loopPlanner.ts", "current = await attempt(reseed, feed);", "current = await attempt(reseed, closuresFor(start, { lat: start.lat - 1, lon: start.lon }));"),
   m("loop-retrace-other-corridor", "loopPlanner.ts", "attempt(reseed, mergeClosures(feed, areas))", "attempt(reseed, mergeClosures(closuresFor(start, { lat: start.lat - 1, lon: start.lon }), areas))"),
-  m("trip-legs-3plus-search-set", "tripPlanner.ts", "buildCustomModel(outcome.lambda, closuresFor(from, to))", "buildCustomModel(outcome.lambda, day.day > 2 ? closures : closuresFor(from, to))"),
-  m("trip-last-leg-search-set", "tripPlanner.ts", "buildCustomModel(outcome.lambda, closuresFor(from, to))", "buildCustomModel(outcome.lambda, day.day === days ? closures : closuresFor(from, to))"),
+  m("trip-legs-3plus-search-set", "tripPlanner.ts", "buildCustomModel(outcome.lambda, closuresFor(from, to))", "buildCustomModel(outcome.lambda, dayNumber > 2 ? closures : closuresFor(from, to))"),
+  m("trip-last-leg-search-set", "tripPlanner.ts", "buildCustomModel(outcome.lambda, closuresFor(from, to))", "buildCustomModel(outcome.lambda, dayNumber === days ? closures : closuresFor(from, to))"),
 ];
 
 export const EQUIVALENT = [

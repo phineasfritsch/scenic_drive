@@ -25,9 +25,10 @@ import { onlyIds } from "./onlyIds.mjs";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-loop");
 
-export const MIN_MUTATIONS = 43;
+export const MIN_MUTATIONS = 47;
 export const SUBJECTS = ["src/retrace.ts", "src/loopRequest.ts", "src/loopPlanner.ts", "src/loop.ts", "src/upstream.ts"];
-const TESTS = ["test/retraceParity.test.ts", "test/loopCost.test.ts", "test/loopShape.test.ts", "test/loopHonest.test.ts"];
+const TESTS = ["test/retraceParity.test.ts", "test/loopCost.test.ts", "test/loopShape.test.ts", "test/loopHonest.test.ts",
+  "test/tripLoopHazards.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -73,6 +74,10 @@ export const MUTATIONS = [
   m("loop-quota-503", "loop.ts", "resets_at: verdict.resetsAt }, 429)", "resets_at: verdict.resetsAt }, 503)"),
   m("loop-seed-epoch", "loop.ts", "dayKey(deps.upstream.now())", "dayKey(new Date(0))"),
   m("upstream-cap-12", "upstream.ts", "if (spent > budget) {", "if (spent > PLAN_UPSTREAM_COST) {"),
+  m("loop-hazards-dropped", "loopPlanner.ts", "    hazards: hazardsOf(chosen),\n", "    hazards: [],\n"),
+  m("loop-hazards-first-attempt", "loopPlanner.ts", "    hazards: hazardsOf(chosen),\n", "    hazards: hazardsOf(tried[0]!.path),\n"),
+  m("loop-hazards-pre-swap", "loopPlanner.ts", "    hazards: hazardsOf(chosen),\n", "    hazards: hazardsOf(shown.path),\n"),
+  m("loop-hazards-last-attempt", "loopPlanner.ts", "    hazards: hazardsOf(chosen),\n", "    hazards: hazardsOf(tried[tried.length - 1]!.path),\n"),
   m("upstream-reserve-12", "upstream.ts", "reserve(args.userId, budget, now, kind, args.tier);", "reserve(args.userId, PLAN_UPSTREAM_COST, now, kind, args.tier);"),
 ];
 

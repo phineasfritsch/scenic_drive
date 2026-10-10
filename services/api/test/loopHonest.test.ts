@@ -34,6 +34,7 @@ function shipped(text: string, attempts: number, seed: number) {
     target_distance_m: 30000,
     minutes: 45,
     eta_is_estimate: true,
+    hazards: [],
     waypoints,
     apple_maps_url: appleMapsUrl(START, START, waypoints),
   };

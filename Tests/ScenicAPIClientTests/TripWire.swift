@@ -13,9 +13,9 @@ enum TripWire {
     "eta_s":30000,"fastest_eta_s":24000,"ceiling_s":33600,"budget_s":9600,"extra_budget_pct":40,"lambda":0.75,\
     "evaluations":4,"eta_is_estimate":true,"places_searched":false,"days":[\
     {"day":1,"start":{"lat":34.02,"lon":-118.49},"end":{"lat":34.4,"lon":-119.2},"drive_s":15000,"distance_m":200000,\
-    "ceiling_s":16800,"stops":[],"overnight":{"kind":"not_searched"},"leg":null},\
+    "ceiling_s":16800,"stops":[],"overnight":{"kind":"not_searched"},"hazards":[],"leg":null},\
     {"day":2,"start":{"lat":34.4,"lon":-119.2},"end":{"lat":36.27,"lon":-121.81},"drive_s":15000,\
-    "distance_m":280000,"ceiling_s":33600,"stops":[],"overnight":null,"leg":null}]}
+    "distance_m":280000,"ceiling_s":33600,"stops":[],"overnight":null,"hazards":[],"leg":null}]}
     """
 
     static let fullBody = """
@@ -23,7 +23,7 @@ enum TripWire {
     "eta_s":31000,"fastest_eta_s":24000,"ceiling_s":33600,"budget_s":9600,"extra_budget_pct":30,"lambda":1.5,\
     "evaluations":5,"eta_is_estimate":true,"places_searched":false,"days":[\
     {"day":1,"start":{"lat":34.02,"lon":-118.49},"end":{"lat":36.27,"lon":-121.81},"drive_s":31000,\
-    "distance_m":480000,"ceiling_s":33600,"stops":["Ojai"],"overnight":null,\
+    "distance_m":480000,"ceiling_s":33600,"stops":["Ojai"],"overnight":null,"hazards":[],\
     "leg":{"coordinates":[[-118.49,34.02],[-119.2,34.4],[-121.81,36.27]],"eta_s":31000,"distance_m":480000}}]}
     """
 
