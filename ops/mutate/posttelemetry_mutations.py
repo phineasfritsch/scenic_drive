@@ -51,7 +51,7 @@ MUTATIONS = [
      "body: body)), code >= 400 { waiting = batch + waiting; break }", [DROP]),
     ("12 the in-flight guard gone", CLIENT, "guard !isSending else { return }", "guard true else { return }",
      [BOUND]),
-    ("13 one post per record", CLIENT, "while !waiting.isEmpty {", "if !waiting.isEmpty {", [BOUND]),
+    ("13 one post per record", CLIENT, SEND, SEND + "\n            break", [BOUND]),
 ]
 
 # Equivalent: the body cannot fail to encode - TelemetryDataPoint holds Strings and Doubles that are whole numbers
