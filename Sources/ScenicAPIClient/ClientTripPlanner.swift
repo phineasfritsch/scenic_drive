@@ -26,7 +26,7 @@ public struct ClientTripPlanner: TripPlanning {
                       days: response.days.map {
                           TripItineraryDay(day: $0.day, driveSeconds: $0.driveSeconds,
                                            distanceMeters: $0.distanceMeters, overnight: $0.overnight,
-                                           path: $0.leg)
+                                           path: $0.leg, hazards: $0.hazards.map(ClientPlanner.run))
                       }, closures: response.closuresHazard)
     }
 }

@@ -60,6 +60,8 @@ export interface RouterOptions {
   firstScenic?: string;
   /** Called before each request is answered (to snapshot the quota at the first). */
   onFetch?: () => void;
+  /** A day leg's details from its road vertices (T-0340: its hazard runs); none by default. */
+  legDetails?: (from: number, to: number) => Record<string, unknown>;
 }
 
 export function tripRouter(options: RouterOptions = {}) {
@@ -81,7 +83,7 @@ export function tripRouter(options: RouterOptions = {}) {
     const [a, b] = [vertex(points[0]), vertex(points[1])];
     legs += 1;
     const ms = options.legMs ? options.legMs(legs, a, b) : (b - a) * SCENIC_EDGE_MS;
-    return new Response(tripPath(ROAD.slice(a, b + 1), SCENIC_EDGE_MS, {}, ms));
+    return new Response(tripPath(ROAD.slice(a, b + 1), SCENIC_EDGE_MS, options.legDetails?.(a, b) ?? {}, ms));
   };
   return { sent, fetchImpl };
 }
@@ -116,7 +118,8 @@ export function tripRequest(body: unknown, path = "/trip"): Request {
  * given, replaces the uniform `edgeMs` edge by edge, and day d then ends at the first k with cum(k) x days >= d x total.
  */
 export function expectedTrip(o: { days: number; pct?: number; edgeMs: number; lambda: number; full: boolean;
-  legMs?: (leg: number, from: number, to: number) => number; edgesMs?: number[]; fastestMs?: number }) {
+  legMs?: (leg: number, from: number, to: number) => number; edgesMs?: number[]; fastestMs?: number;
+  hazards?: unknown[][] }) {
   const pct = o.pct ?? 40;
   const fastestMs = o.fastestMs ?? FASTEST_MS;
   const budgetMs = Math.floor((fastestMs * pct) / 100);
@@ -137,7 +140,7 @@ export function expectedTrip(o: { days: number; pct?: number; edgeMs: number; la
     days.push({
       day: d, start: at(start), end: at(end), drive_s: dayMs / 1000, distance_m: (end - start) * EDGE_M,
       ceiling_s: Number((BigInt(ceilingMs) * BigInt(dayMs)) / BigInt(totalMs)) / 1000, stops: [],
-      overnight: d === o.days ? null : { kind: "not_searched" },
+      overnight: d === o.days ? null : { kind: "not_searched" }, hazards: o.hazards?.[d - 1] ?? [],
       leg: o.full ? { coordinates: ROAD.slice(start, end + 1), eta_s: legMs / 1000, distance_m: (end - start) * EDGE_M } : null,
     });
     start = end;

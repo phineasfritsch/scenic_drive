@@ -13,6 +13,7 @@
 import { appleMapsUrl } from "./appleMaps";
 import { mergeClosures } from "./closuresStore";
 import type { ClosuresFor, PathGuard } from "./closuresNearest";
+import { hazardsOf, type Hazard } from "./hazards";
 import { buildCustomModel, rejectCustomModel, type ClosureCollection } from "./customModel";
 import type { LatLon } from "./latLon";
 import { decisionPoints } from "./planWaypoints";
@@ -60,6 +61,8 @@ export interface LoopResult {
   target_distance_m: number;
   minutes: number;
   eta_is_estimate: true;
+  /** T-0340 R2: the loop's surface and road_access runs (ROUTE_DETAILS already asks for them). */
+  hazards: Hazard[];
   waypoints: LatLon[];
   apple_maps_url: string;
 }
@@ -190,6 +193,7 @@ export async function planLoop(call: GuardedFetch, routerBase: string, start: La
     target_distance_m: distance,
     minutes,
     eta_is_estimate: true,
+    hazards: hazardsOf(chosen),
     waypoints,
     apple_maps_url: appleMapsUrl(start, start, waypoints),
   };
