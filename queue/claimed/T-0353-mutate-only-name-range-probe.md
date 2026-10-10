@@ -126,3 +126,40 @@ branch red with its own mutant (T-0347 owner stillOpen 2).
   - R4 out of scope: the STALE mjs anchors are T-0352.
   - Per the orchestrator's load rule, the reds are the shipping check bare (mutants S and D through the
     reviewer's rv.py) - mjs drivers refuse with 2 at their baseline before any src/ write, so no swift build.
+- 2026-10-10T02:36:07Z IMPLEMENTED (f590598a, count label fixed in c2ab54b3): ops/lib/mutate_only_pairs.py (125 lines) - pair_tokens(),
+  py_verdict() over select_only in MODES (4), node_misses() (one `node` harness over onlyIds.mjs), PAIR_FLOOR = 192168;
+  ops/lib/check-mutate-only.py (249 lines) collects each driver's ONLY IDS population and calls
+  mutate_only_pairs.probe() after the subprocess probes; run_tree()/kill_tree() replace subprocess.run in probe_once.
+  MEASURED 2026-10-10 (.build-t0353/harvest.py + pairs_measure.py): 40 id populations, 2418 ids, largest 142;
+  192168 pair tokens, 0 calls not refused, 62.6 s in process on the loaded box. The subprocess counts are unchanged.
+- 2026-10-10T02:36:07Z RED/GREEN (shipping check bare through the reviewer's rv.py copied to .build-t0353/rv.py, its line filter
+  widened to print NAME-PAIRS; purge __pycache__, wait 1.1 s, restore, sha256 + `git diff --quiet HEAD`):
+  - A6 mutant S (onlyIds.mjs, same stem + numeric suffix): CHECK EXIT 1; the subprocess line stays
+    `MUTATE-ONLY OK: 203 of 203 driver runs refused with exit 64 (55 drivers, 93 range probes: 19 digit, 38 name, 36 N-(N+1))`
+    (B1 reproduced) while
+    `NAME-PAIRS FAILED: 192168 pair tokens over 40 id populations, each refused in process by select_only in 4 modes and by onlyIds (37909 calls not refused, floor 192168 tokens)`,
+    38 drivers named under onlyIds, e.g.
+    `NOT REFUSED IN PROCESS: onlyIds services/api/test/mutate/ledgerMutants.mjs --only window-89-window-91: selected ["window-89","window-91"]`,
+    `NOT REFUSED IN PROCESS: onlyIds services/api/test/mutate/assertMutants.mjs --only as-length-38-as-length-38: selected ["as-length-38"]`,
+    `NOT REFUSED IN PROCESS: onlyIds ops/mutate/accounttoken.py --only 1-2: selected ["1","2"]`.
+    RESTORED sha256 86faf29317b6f795 identical=True, git diff --quiet HEAD exit 0.
+  - A6 mutant D re-run: CHECK EXIT 1, `MUTATE-ONLY FAILED: 186 of 203 ...` (17 subprocess NOT REFUSED lines, as A2) and
+    `NAME-PAIRS FAILED: 192168 pair tokens over 40 id populations, ... (96357 calls not refused, floor 192168 tokens)`,
+    all 40 populations named, e.g.
+    `NOT REFUSED IN PROCESS: onlyIds services/api/test/mutate/tierMutants.mjs --only tier-case-sensitive-tier-case-sensitive: selected ["tier-case-sensitive"]`,
+    `NOT REFUSED IN PROCESS: onlyIds ops/mutate/plansheet.py --only 1-3: selected ["1","2","3"]`.
+    RESTORED sha256 86faf29317b6f795 identical=True, git diff --quiet HEAD exit 0.
+  - select_only half, in process only (no driver run; .build-t0353/redpy.py): mutant SP, the same-stem expansion in
+    mutate_only.select_only, through mutate_only_pairs.probe over the cached populations: `PAIRS 192168 populations 40
+    calls not refused 151636`, e.g. `select_only(substring=False, split=True) ops/mutate/accounttoken.py --only 1-2:
+    selected ["1", "2"]`. RESTORED sha256 40e88f8a449fdcac identical=True, git diff --quiet HEAD exit 0.
+  - GREEN on c2ab54b3, bare: exit 0,
+    `MUTATE-ONLY OK: 203 of 203 driver runs refused with exit 64 (55 drivers, 93 range probes: 19 digit, 38 name, 36 N-(N+1))`,
+    `NAME-PAIRS OK: 192168 pair tokens over 40 id populations, each refused in process by select_only in 4 modes and by onlyIds (0 calls not refused, floor 192168 tokens)`;
+    git status clean after.
+  - A7 tree kill, in process (.build-t0353/treekill.py: a python parent that spawns a 120 s sleeping grandchild,
+    probe_once with TIMEOUT_S = 5): HEAD 2ad5741e's probe_once
+    `old probe_once: code None; grandchild pid 25540 alive after the timeout kill: True` (RED; the script then killed it);
+    the new one `TREE KILLED: demo-parent  at 5s (taskkill /T /F /PID 35784 exit 0)`,
+    `new probe_once: code None; grandchild pid 40128 alive after the timeout kill: False` (GREEN). The POSIX branch
+    (start_new_session + killpg) is not exercised on this box; CI runs on Linux.
