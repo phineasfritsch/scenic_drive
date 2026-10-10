@@ -20,6 +20,7 @@ import { monthKey, UPSTREAM_TRIP_AT } from "./quota";
 import type { QuotaCounter } from "./QuotaCounter";
 import { monthlyUpstreamCalls } from "./quotaCounters";
 import { readOnlyProblem } from "./ro";
+import { handleSearch, searchDepsFromEnv } from "./search";
 import { handleTelemetry, telemetryDepsFromEnv } from "./telemetry";
 import { handleTrip, tripDepsFromEnv } from "./trip";
 import { handleWaitlist, waitlistDepsFromEnv } from "./waitlist";
@@ -46,6 +47,8 @@ export interface Env {
   APPLE_CLIENT_SECRET?: string; // owner secret (T-0287 R6): the pre-signed Sign in with Apple client-secret JWT; absent, revoke_pending
   PLANS?: KVNamespace; // T-0319 R3: each /plan answer's pins + lambda under its plan_token for 43200 seconds; not bound in wrangler.jsonc
   GRAPH_VERSION?: string; // the routing graph's version, in the /isochrone cache key (T-0262 R6); unset = "unversioned"
+  SEARCH_URL?: string; // T-0359: our Photon's https front door; absent, /search is 503 search_unavailable
+  SEARCH_SECRET?: string; // secret: `wrangler secret put SEARCH_SECRET`; sent as x-scenic-search-secret
 }
 
 type Handler = (req: Request, env: Env, url: URL) => Promise<Response>;
@@ -119,6 +122,7 @@ export const ROUTES: Record<string, Handler> = {
   "/loop": (req, env) => handleLoop(req, env, loopDepsFromEnv(env)),
   "/isochrone": (req, env) => handleIsochrone(req, env, isochroneDepsFromEnv(env)),
   "/trip": (req, env) => handleTrip(req, env, tripDepsFromEnv(env)),
+  "/search": (req, env) => handleSearch(req, env, searchDepsFromEnv(env)),
   "/asn": (req, env) => handleAsn(req, asnDepsFromEnv(env)),
   "/entitlement": (req, env) => handleEntitlement(req, asnDepsFromEnv(env)),
   "/attest/challenge": (req, env) => handleAttestChallenge(req, attestDepsFromEnv(env)),
