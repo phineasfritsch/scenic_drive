@@ -18,22 +18,25 @@ non-digit ids (mjs mutation names, substring-keyed names, plansheet-style E-ids)
 consecutive listed pair no id equals or contains, or `<x>-<x>` for a lone one: a range expansion anywhere in a
 parser would select real entries with it. A non-digit population no pair can probe fails, and fewer name-range
 probes than NAME_RANGE_FLOOR (38, measured 2026-10-09) fails. A "names no entry" refusal with no `ONLY IDS` line
-fails.
+fails. One pair per driver can be dodged by an expansion keyed to a property that pair lacks (rv1 mutant S), so
+ops/lib/mutate_only_pairs.py also hands EVERY ordered id pair of every population to both parsers in process.
 64 and not "non-zero": 2 is non-zero and is what a driver that reached its baseline gate returns, so "non-zero"
 would pass a driver that never looked at --only.
 The parsers themselves (ops/mutate/mutate_only.py, services/api/test/mutate/onlyIds.mjs) are also exercised in
 process for the selections that must NOT refuse, so a parser that refuses everything is not green.
 The tree's `git status` (untracked files included) is compared before and after: a driver that ignored the flag
-and began mutating is named. A probe killed at the timeout is reported with the files it left changed; they are
-NOT restored here.
-Exit 0 all refused; 1 a driver did not refuse as required; 2 this check could not run (floor, git, a parser control,
-fewer name-range probes than NAME_RANGE_FLOOR).
+and began mutating is named. A probe still running at the timeout has its whole process TREE killed (its swift
+build grandchildren too) and is reported with the files it left changed; they are NOT restored here.
+Exit 0 all refused; 1 a driver or a parser did not refuse as required; 2 this check could not run (floor, git, a
+parser control, the pair harness, fewer name-range probes than NAME_RANGE_FLOOR or pair tokens than PAIR_FLOOR).
 """
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import re
+import signal
 import subprocess
 import sys
 
@@ -43,6 +46,7 @@ sys.path.insert(0, str(ROOT / "ops/mutate"))
 
 from mutate_population_table import DRIVERS  # noqa: E402
 import mutate_only  # noqa: E402
+import mutate_only_pairs  # noqa: E402
 
 EXIT_ONLY_REFUSED = 64
 PY_FLOOR = 38
@@ -129,12 +133,40 @@ def range_tokens(ids: list) -> list:
     return out
 
 
-def probe_once(cmd: list, name: str, probe: list, before: str) -> tuple:
+def kill_tree(p: subprocess.Popen) -> str:
+    """Kill p and every descendant (a driver that ignored --only has a swift build under it)."""
+    if os.name == "nt":
+        k = subprocess.run(["taskkill", "/T", "/F", "/PID", str(p.pid)], capture_output=True, text=True)
+        return "taskkill /T /F /PID %d exit %d" % (p.pid, k.returncode)
     try:
-        p = subprocess.run(cmd + probe, cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=TIMEOUT_S)
-        code, out = p.returncode, p.stdout + p.stderr
+        os.killpg(p.pid, signal.SIGKILL)
+        return "killpg %d SIGKILL" % p.pid
+    except ProcessLookupError:
+        return "killpg %d: no such group" % p.pid
+
+
+def run_tree(argv: list, timeout: float) -> tuple:
+    """(exit code, output, None) or, past the timeout, (None, output so far, how the tree was killed)."""
+    group = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
+    p = subprocess.Popen(argv, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                         encoding="utf-8", errors="replace", **group)
+    try:
+        out = p.communicate(timeout=timeout)[0]
+        return p.returncode, out or "", None
     except subprocess.TimeoutExpired:
+        how = kill_tree(p)
+    try:
+        out = p.communicate(timeout=30)[0]
+    except subprocess.TimeoutExpired:
+        p.kill()
+        out = "(the output pipe is still held by a descendant the tree kill missed)"
+    return None, out or "", how
+
+
+def probe_once(cmd: list, name: str, probe: list, before: str) -> tuple:
+    code, out, how = run_tree(cmd + probe, TIMEOUT_S)
+    if how is not None:
+        print("TREE KILLED: %s %s at %ds (%s)" % (name, " ".join(probe), TIMEOUT_S, how))
         moved = sorted(set(status().splitlines()) ^ set(before.splitlines()))
         print("KILLED: %s %s still running after %ds - NOT restored; the tree now differs in: %s"
               % (name, " ".join(probe), TIMEOUT_S, "; ".join(moved) or "(no file)"))
@@ -161,7 +193,7 @@ def main() -> int:
         return 2
     runs = drivers()
     before = status()
-    failed, kinds = [], {"digit": 0, "name": 0, "n": 0}
+    failed, kinds, populations = [], {"digit": 0, "name": 0, "n": 0}, []
     for cmd, name in runs:
         ids = []
         for probe in PROBES:
@@ -169,6 +201,7 @@ def main() -> int:
             if probe == NAMES_NOTHING:
                 listed = [l[len(mutate_only.IDS_LINE):] for l in lines if l.startswith(mutate_only.IDS_LINE + " ")]
                 ids = json.loads(listed[0]) if listed else []
+                populations.append((name, ids))
                 if not listed and not any(NO_ONLY in l for l in lines):
                     ok, lines = False, lines + ["the refusal lists no %s line" % mutate_only.IDS_LINE]
             if not ok:
@@ -183,8 +216,16 @@ def main() -> int:
             if not ok:
                 failed.append(verdict(name, ["--only", token], code, lines))
     after = status()
+    try:
+        pair_bad, pairs, pops = mutate_only_pairs.probe(populations)
+    except SystemExit as e:
+        print("PAIR HARNESS FAILED: %s" % e)
+        return 2
     for f in failed:
         print("NOT REFUSED: %s" % f)
+    for f in pair_bad:
+        print("NOT REFUSED IN PROCESS: %s" % f)
+    pair_short = pairs < mutate_only_pairs.PAIR_FLOOR
     short = kinds["name"] < NAME_RANGE_FLOOR
     if short:
         print("NAME-RANGE PROBES %d below floor %d: a driver's non-digit ids (names, E-ids) went unprobed"
@@ -197,7 +238,11 @@ def main() -> int:
     print("MUTATE-ONLY %s: %d of %d driver runs refused with exit %d (%d drivers, %d range probes: %d digit, "
           "%d name, %d N-(N+1))" % ("OK" if not failed and not short else "FAILED", total - len(failed), total,
                                    EXIT_ONLY_REFUSED, len(runs), ranges, kinds["digit"], kinds["name"], kinds["n"]))
-    return 1 if failed else 2 if short else 0
+    print("NAME-PAIRS %s: %d pair tokens over %d id populations, each refused in process by select_only in %d modes "
+          "and by onlyIds (%d calls not refused, floor %d tokens)"
+          % ("OK" if not pair_bad and not pair_short else "FAILED", pairs, pops, len(mutate_only_pairs.MODES),
+             len(pair_bad), mutate_only_pairs.PAIR_FLOOR))
+    return 1 if failed or pair_bad else 2 if short or pair_short else 0
 
 
 if __name__ == "__main__":
