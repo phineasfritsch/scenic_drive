@@ -3,7 +3,7 @@
 #
 #   ops/sane            repo-only checks (2)
 #   ops/sane --prod     + deployed version vs this checkout (3), backend health (7), quota/kill switch (6),
-#                         legal URLs (9), corpus manifest (8)
+#                         legal URLs (9), corpus + tiles manifests (8)
 #   SANE_SCOPE=prod     skips the local checks (2, 4, 10) and prints a skip row for each - ops/lib/check-sane-prod
 #                         drives the --prod checks this way against a local fake Worker
 #
@@ -17,7 +17,9 @@
 #      trip point or are within 10% of it (calls*10 >= trip_at*9), or the fields cannot be read (T-0344)
 #   9  legal URLs (Terms, Privacy) not returning 200
 #   8  corpus manifest != this checkout: the published manifest (CORPUS_MANIFEST_URL or ops/corpus-manifest-url)
-#      is unreachable, or fails CorpusManifest's field rules, or its schema_version != schema.py's (T-0344)
+#      is unreachable, or fails CorpusManifest's field rules, or its schema_version != schema.py's (T-0344); or the
+#      published tiles manifest (TILES_MANIFEST_URL or ops/tiles-manifest-url) is unreachable, or fails
+#      services/tiles/tiles_manifest.py problems() against region.json and BasemapResolver's file (T-0345)
 #   4  region extract out of bounds: a built work/<region>/meta.json disagrees with the counts recorded
 #      in regions/<region>/region.json by more than the tolerance, or cannot be read at all (T-0024)
 #  10  another worktree holds work that is not on origin - invisible to every other check here
@@ -104,7 +106,20 @@ if [[ $prod -eq 1 ]]; then
       if [[ $mprc -eq 0 ]]; then ok "manifest" "$mout"; else fail "manifest" "$mout" 8; fi
     fi
   fi
-  skip "tiles" "no tiles manifest shape exists yet (BasemapResolver reads tiles/la.pmtiles) - T-0345"
+  # 8 (tiles): the published tiles manifest (T-0345), decided by services/tiles/tiles_manifest.py's problems().
+  turl="${TILES_MANIFEST_URL:-$(cat ops/tiles-manifest-url 2>/dev/null || true)}"
+  if [[ -z "$turl" ]]; then
+    skip "tiles" "no tiles manifest URL (TILES_MANIFEST_URL or ops/tiles-manifest-url) - nothing published yet"
+  else
+    tbody="$(curl -fsS --max-time 10 -A scenic-ops-sane/1 "$turl" 2>/dev/null)"; trc=$?
+    if [[ $trc -ne 0 ]]; then
+      fail "tiles" "$turl -> unreachable or not 200 (curl exit $trc)" 8
+    else
+      tout="$(printf '%s' "$tbody" | "$PY" ops/lib/sane_prod.py tiles services/etl/regions/la/region.json \
+        apps/ios/Packages/ScenicApp/Sources/MapAdapter/BasemapResolver.swift 2>&1)"; tprc=$?
+      if [[ $tprc -eq 0 ]]; then ok "tiles" "$tout"; else fail "tiles" "$tout" 8; fi
+    fi
+  fi
   skip "corpus" "T-0008 (graph hash, counts, gate parity)"
   skip "goldens" "T-0008 (live routing goldens)"
 fi
