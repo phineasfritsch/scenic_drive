@@ -90,3 +90,18 @@ ops/lib/sane_prod.py and gains cases in ops/lib/check_sane_prod.py (local fake o
   M2 maxzoom upper bound dropped: exit 1, `t-maxzoom-ceiling` pass, `FAIL t-maxzoom-above: exit 0, want 8`;
   M3 region compare dropped: exit 1, `FAIL t-region-other` and `FAIL t-region-case` (exit 0, want 8).
   Green before them: `--only t-green,t-unset,t-region-other,b-*(5)` -> `SANE-PROD ok 8/8 cases passed`.
+- 2026-10-10T02:08:19Z ACCEPTANCE re-run on the merged head c3af42b9 (origin/main 4f47d06f merged):
+  - A1 `python -m pytest -o addopts= -q services/tiles/tests` -> `81 passed in 5.16s` (72 before + 9 new).
+  - A2/A3 `bash ops/lib/check-sane-prod --only <123 names: 29 t-/p-tiles, 84 xt-, 5 b-, q-green, m-green,
+    m-unset, p-6-over-8, p-7-over-6-and-8>` -> `SANE-PROD ok 123/123 cases passed (5 b- rows at a fixed clock;
+    sane=ops/sane ...)`, rc=0. It took ~140 min on this loaded box (unbuffered rate ~17 s/case unloaded). The other
+    133 pre-existing q-/m-/x- rows were NOT re-run: their only change is the added `tiles ok` assertion and the
+    tiles default body, which every one of the 123 exercises (faster-verification-in-rounds); said so.
+  - A4 as quoted above (6/6 red against main's ops/sane; M1, M2, M3 each FAILED by name; restored byte-identical).
+  - A5 wc -l unchanged since 23:41: 266, 66, 156, 163, 130, 98 - all <= 300.
+  - A6 `SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=20`; check-mutate-population
+    `P-PROC-06: every added module is covered or allowlisted; the floor of 147 holds` rc=0; check-line-cap
+    `P-SRC-02: 563 Swift files tracked ... none over 300 lines` rc=0; `PINS-YAML ok pins=50 fields=403`; check-exec-bits
+    rc=0; `QUEUE OK (344 tasks)`. PR #238 CI: core pass, pins-source-only pass.
+  - main then moved to ae8267fe (T-0340: services/api, ops/lib hazard/disclaimer digests, ops/mutate hazardcopy) -
+    none of this task's surfaces; merged as the last step, the fast gates re-run on that head below the push.
