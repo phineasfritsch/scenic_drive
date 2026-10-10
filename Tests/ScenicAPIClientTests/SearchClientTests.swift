@@ -116,6 +116,18 @@ import Testing
         #expect(outcome == expected)
     }
 
+    @Test("A result carries the Worker's lat as its latitude and lon as its longitude, read field by field")
+    func coordinate() async {
+        let fake = Self.reply(200, #"{"results":[{"label":"Topanga","lat":34.09,"lon":-118.6}]}"#)
+        guard case .results(let rows) = await Self.client(fake).search("Topanga", near: nil) else {
+            Issue.record("a readable answer was not read as results")
+            return
+        }
+        #expect(rows.map(\.label) == ["Topanga"])
+        #expect(rows.map(\.coordinate.latitude) == [34.09])
+        #expect(rows.map(\.coordinate.longitude) == [-118.6])
+    }
+
     @Test("No reply at all is offline, after exactly one request")
     func offline() async {
         let fake = CountingPlanTransport.offline()

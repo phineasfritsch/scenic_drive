@@ -34,6 +34,7 @@ REQUEST = "POST /search is exactly the content type, the device and the sorted-k
 REFUSED = "A query or bias the Worker would refuse is refused on the device and nothing is sent"
 TABLE = "Every Worker answer is one typed outcome after exactly one request - never a retry"
 OFFLINE = "No reply at all is offline, after exactly one request"
+FIELDS = "A result carries the Worker's lat as its latitude and lon as its longitude, read field by field"
 
 ROUND = "return (value * 100).rounded() / 100 + 0.0"
 SEND = "return SearchReplyReader.read(try await transport.send(request))"
@@ -76,9 +77,9 @@ MUTATIONS = [
      ".failed", [TABLE]),
     ("28 any other 503 is paused", READER, "default: return .unexpected(503)", "default: return .paused", [TABLE]),
     ("29 lat and lon swapped in the read", READER, "Coordinate(latitude: row.lat, longitude: row.lon)",
-     "Coordinate(latitude: row.lon, longitude: row.lat)", [TABLE]),
+     "Coordinate(latitude: row.lon, longitude: row.lat)", [TABLE, FIELDS]),
     ("30 the row stores the coordinate swapped", RESULT, "self.coordinate = coordinate",
-     "self.coordinate = Coordinate(latitude: coordinate.longitude, longitude: coordinate.latitude)", [TABLE]),
+     "self.coordinate = Coordinate(latitude: coordinate.longitude, longitude: coordinate.latitude)", [FIELDS]),
 ]
 
 # Cannot change behaviour: anything but MISSED is a FAILURE. (name, path, old, new, witness)
