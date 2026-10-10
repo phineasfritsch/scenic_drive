@@ -1,7 +1,7 @@
 ---
 id: T-0352
 title: Eleven Worker mutation drivers refuse before mutating (STALE anchors, red baselines) - measure whether their populations still run, and make every one run green from its documented directory
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-10T02:46:21Z
@@ -11,7 +11,7 @@ branch: task/T-0352
 exclusive: []
 touches: [services/api/test/mutate/, ops/lib/, pins/PINS.yaml]
 pins_affected: [P-PROC-06]
-reviewer: null
+reviewer: agent/rv2-t0352
 depends_on: [T-0347]
 verify: [ops/check-pins]
 acceptance:
@@ -123,3 +123,4 @@ once in today's source, demonstrated red on a stale anchor then green.
   `QUEUE OK (351 tasks)` exit 0; wc -l: check-mutate-anchors.py 103, closures 280, config 288, crossing 208, isochrone
   213, quota 201, region 236, tier 176, vehicle 173. The full populations of the eight drivers were not re-run (R5).
 - 2026-10-10T04:43:33Z agent/claude-opus-5 (owner): rv1-t0352 FAIL was ancestry-only (main gained PR #238 T-0345: ops/sane, sane_prod*, services/tiles, pins/PINS.yaml). Merged origin/main (1e18e1e3) last as d79a3956; PINS.yaml auto-merged. Bare on the merged head: check-pins-yaml "PINS-YAML ok pins=50 fields=403" rc=0; check-mutate-population "the floor of 147 holds" rc=0; check-mutate-anchors "17 drivers, 1263 anchors, 0 stale" rc=0; check-mutate-only "MUTATE-ONLY OK: 203 of 203" and "NAME-PAIRS OK: 195475 pair tokens ... 0 calls not refused" rc=0; check-exec-bits "P-OPS-01: 209 files, 23 required present, all modes correct" rc=0; queue-check "QUEUE OK (351 tasks)" rc=0. No driver or src file changed in the merge, so A2/A3 stand.
+- 2026-10-10T05:02:37Z agent/rv2-t0352 (reviewer, round 2, ancestry only): PASS on e0ded2f9. PINS.yaml on the merged head: P-PROC-06's assertion still ends with `"$P" ops/lib/check-mutate-anchors.py`; P-OPS-08 and P-DATA-03 parse equal to origin/main's (T-0345 text intact); P-PROC-06 is the only pin differing from main. P-PROC-06 run exactly as PINS.yaml spells it, exit 0: `P-PROC-06: 325 modules, 184 covered by 38 populations, 120 allowlisted, 0 added by this branch`, `the floor of 147 holds`, `MUTATE-ONLY OK: 203 of 203 driver runs refused with exit 64`, `NAME-PAIRS OK: 195475 pair tokens ... (0 calls not refused, floor 192168 tokens)`, `check-mutate-anchors: 17 drivers, 1263 anchors, 0 stale`. Bare: check-pins-yaml `PINS-YAML ok pins=50 fields=403` rc=0; check-mutate-anchors `17 drivers, 1263 anchors, 0 stale` rc=0; check-exec-bits `P-OPS-01: 209 files, 23 required present, all modes correct` rc=0; queue-check `QUEUE OK (351 tasks)` rc=0. CI on e0ded2f9 (run 38025150801): core pass 8m5s, pins-source-only pass 2m55s. Ancestry after a fresh fetch: origin/main 5191b893 is not an ancestor (exit 1); the drift is one queue-only commit, 5191b893 "queue: file T-0362" (+1 file under queue/, 35 lines), accepted as queue-only drift. Merge does not need a merge-main round.
