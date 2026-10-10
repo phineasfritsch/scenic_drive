@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-10T03:39:59Z
 worktree: .worktrees/T-0353
 branch: task/T-0353
 exclusive: []
-touches: [ops/lib/check-mutate-only.py, ops/mutate/mutate_only.py, services/api/test/mutate/onlyIds.mjs]
+touches: [ops/lib/check-mutate-only.py, ops/lib/mutate_only_pairs.py, ops/mutate/mutate_only.py, services/api/test/mutate/onlyIds.mjs]
 pins_affected: [P-PROC-06]
 reviewer: null
 depends_on: [T-0347]
@@ -20,6 +20,8 @@ acceptance:
   - "A3 RED (b): an E-id range expansion in ops/mutate/mutate_only.py select_only (`E<a>-E<b>` with both halves known selects E<a>..E<b>) makes the check exit 1 with a `NOT REFUSED:` line naming `--only E1-E2` (or `E1-E1` for a driver with one E-id) for each of the 17 Python drivers that carry an E-id, e.g. `ops/mutate/plansheet.py --only E1-E2`; restored byte-identical and A1 green again"
   - "A4 RED (c): mutate_only.select_only with its `ONLY IDS:` line removed makes the check exit 1 with `NOT REFUSED: ops/mutate/plansheet.py --only 999999 ... the refusal lists no ONLY IDS: line` (one per Python driver with --only) and the name-range floor line `NAME-RANGE PROBES <n> below floor 38`; restored byte-identical and A1 green again"
   - "A5 gates on the merged head, each run bare: check-mutate-only, check-mutate-population, check-exec-bits, check-pins-yaml, queue-check exit 0; ops/lib/check-mutate-only.py stays under the 300-line cap"
+  - "A6 RED (rv1 B1): mutant S in services/api/test/mutate/onlyIds.mjs (an `A-B` expansion only when both halves share a stem before a numeric suffix) and mutant D each make the check exit 1 with `NOT REFUSED IN PROCESS: onlyIds ...` lines naming drivers and tokens, while the subprocess line may stay OK; restored byte-identical (sha256 + git diff --quiet HEAD); green again with `NAME-PAIRS OK:` at or above its literal floor"
+  - "A7 (rv1 R2): a probe killed at TIMEOUT_S kills its process tree - shown in process with a python parent that spawns a sleeping grandchild: HEAD's probe_once leaves the grandchild alive, the new one leaves none"
 ---
 ## Brief
 
@@ -101,3 +103,26 @@ branch red with its own mutant (T-0347 owner stillOpen 2).
   - GATE check-pins-yaml exit=0 :: PINS-YAML ok pins=50 fields=403 path=C:\Users\phineasf\Documents\GitHub\scenic_drive\.worktrees\T-0353\pins\PINS.yaml
   - GATE queue-check exit=0 :: QUEUE OK (344 tasks)
   - ops/lib/check-mutate-only.py: 204 lines (cap 300).
+- 2026-10-10T02:10:44Z rv1-t0353 FAIL (PR #239, head 26741124). RULINGS (before code):
+  - B1 accepted: mutant S (a range expansion only when both halves share a stem before a numeric suffix,
+    e.g. onlyIds(['--only','window-89-window-91'], ...) selects 3 ids) leaves the check at OK 203 of 203:
+    name_range() probes ONE consecutive pair per driver and no mjs probe pair shares a stem. A per-driver
+    choice of probe can always be dodged by a mutant keyed to a property that pair lacks.
+  - R3 ruled (the reviewer's fix, at its strong end): every ordered pair (a, b) of every driver's listed ids,
+    a == b included, whose `a-b` no id equals or contains, is handed IN PROCESS to both shared parsers -
+    mutate_only.select_only in all four (substring, split) modes and onlyIds.mjs through one `node` harness -
+    against that driver's ids, and each call must refuse with exit 64 and a `REFUSING TO RUN: ` line. Both parsers
+    see every population (Python and mjs): the parsers are shared code, so the class closes independent of which
+    driver uses which parser and of population order. The subprocess probes (A1's 203 runs) stay as they are; the
+    pair probe prints its own line and its own literal floor (the measured pair count), so a population that
+    drained to nothing is a refusal. Seam: the pair probe lives in a new ops/lib/mutate_only_pairs.py (touches
+    extended) - it needs no driver run, only the id lists the 999999 probe already collects.
+  - R1 recordable: origin/main (PR #234 re-pointed the tripMutants/crossingMutants anchors) is merged LAST and A1
+    re-quoted on the merged head.
+  - R2 recordable: a probe killed at TIMEOUT_S now kills the process TREE (Windows `taskkill /T /F /PID <pid>`,
+    POSIX a new session + killpg SIGKILL) and prints `TREE KILLED:` with the kill's status. Shown red/green IN
+    PROCESS with a harmless python parent that spawns a sleeping grandchild (no driver, no swift build): the HEAD
+    probe_once leaves the grandchild alive, the new one does not.
+  - R4 out of scope: the STALE mjs anchors are T-0352.
+  - Per the orchestrator's load rule, the reds are the shipping check bare (mutants S and D through the
+    reviewer's rv.py) - mjs drivers refuse with 2 at their baseline before any src/ write, so no swift build.
