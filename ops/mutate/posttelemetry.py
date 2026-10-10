@@ -28,7 +28,8 @@ sys.dont_write_bytecode = True
 shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_errors=True)
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
-SUBJECT_MODULES = ("Sources/Telemetry/TelemetryClient.swift", "Sources/Telemetry/TelemetryRequestBody.swift")
+SUBJECT_MODULES = ("Sources/Telemetry/TelemetryClient.swift", "Sources/Telemetry/TelemetryRequestBody.swift",
+                   "Sources/Telemetry/URLSessionTelemetryTransport.swift")
 
 from posttelemetry_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)

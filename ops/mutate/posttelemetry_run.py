@@ -20,7 +20,7 @@ from posttelemetry_mutations import ROOT
 # POSTTELEMETRY_MUTATE_SCRATCH overrides it where a worktree path is too long for the index store.
 SCRATCH = os.environ.get("POSTTELEMETRY_MUTATE_SCRATCH", ".build/mutate-posttelemetry")
 # The suites every `killers` entry names, by their type names.
-FILTER = "TelemetryTests.TelemetryClientTests"
+FILTER = "TelemetryTests.(TelemetryClientTests|URLSessionTelemetryTransportTests)"
 # `Test "<display name>" recorded an issue`. ASCII only: the failure glyph mis-decodes on this console.
 FAIL_LINE = re.compile(r'Test\s+(?:"([^"]*)"|([A-Za-z_]\w*\([\w:]*\)))\s+recorded an issue')
 

@@ -1,6 +1,6 @@
 ---
 id: T-0355
-title: The app emits the closed telemetry enum - a ScenicAPIClient TelemetryClient posts to /telemetry and every one of the 14 TelemetryEventKind cases has exactly one shipping emit site, so ops/funnel has a data source
+title: A Telemetry TelemetryClient posts the closed enum to /telemetry and the app emits 3 of the 14 TelemetryEventKind cases (plan_requested, plan_result, surprise_shown); 10 are pending by T-0361 and post_drive_answer by T-0358
 state: claimed
 owner: agent/claude-opus-5
 owner_session: null
@@ -144,3 +144,34 @@ T-0358; this task wires the other 13 and the client.
      plan-preview-light.png (the preview renders: route, ETA, estimate badge, hazards, Start the drive, attribution)
      and home-light-medium.png (home renders; the Plan-a-drive pill overlapping the drive chips is the shell's existing
      topLeading overlay, untouched here).
+- 2026-10-10T06:42:04Z ROUND 1 RULINGS by agent/claude-opus-5 (owner), before any code. rv1-t0355 FAIL on PR #241
+  head c2ba817b: B1 (the shipping URLSessionTelemetryTransport has no test - every TelemetryClientTests test stops at
+  the TelemetryTransport seam, so RA1 `urlRequest.httpMethod = request.method` deleted -> GET survives), B2 (behind
+  main with code drift from PR #240: ops/lib/check-mutate-anchors.py, pins/PINS.yaml, services/api/test/mutate).
+  R10 (B1): a URLProtocol stub Tests/TelemetryTests/StubTelemetryURLProtocol.swift (model
+  Tests/ScenicAPIClientTests/StubPlanURLProtocol.swift: a session of its own, never global; body from httpBody or
+  httpBodyStream; header names lowercased) and Tests/TelemetryTests/URLSessionTelemetryTransportTests.swift with the
+  defect-named test shippingTransportPostsTheWholeRequestNotAGet(): the shipping TelemetryClient.record over the
+  shipping URLSessionTelemetryTransport on the stub's session -> exactly one captured request EQUAL, as a whole
+  TelemetryRequest (url, method POST, both headers, body bytes), to TelemetryClientTests.expected; then the transport's
+  own send answers each stubbed status (200, 400, 405, 503) exactly - the status is read, not defaulted.
+  R11 (population): posttelemetry SUBJECTS/MUTATED_FILES/SUBJECT_MODULES gain the transport; mutants 14 the method
+  line deleted, 15 the header loop deleted, 16 the httpBody line deleted, each killed by the new test by name;
+  TEST_FILES gains the new test file (so --prove-vacuity empties it too); FILTER widens to both suites;
+  MIN_MUTATIONS 13 -> 16, MIN_TEST_FILES 1 -> 2. Order: commit A lands the three mutants with the new test absent
+  (Sources/ and Tests/ byte-identical to c2ba817b, MIN_TEST_FILES still 1) and `--only 14,15,16` must show all three
+  MISSED; commit B adds the test and raises MIN_TEST_FILES, and the same `--only` must show them CAUGHT by name.
+  R12 (recordable R1): check-telemetry-emit-sites refuses a pending row whose task is not an open task - no
+  queue/{backlog,ready,claimed}/<id>-*.md, or any queue/done/<id>-*.md; two --prove-red rows (a done task T-0350, a
+  missing task T-9999) seen red, then the control green.
+  R13 (recordable R4): the title says what ships - 3 cases emitted, 10 pending by T-0361, post_drive_answer by
+  T-0358 - here and on PR #241 (`gh pr edit`).
+  R14 (B2): `git fetch origin` in the main checkout, merge origin/main LAST, PINS.yaml as a union.
+  ACCEPTANCE (round 1, appended; the block above is not rewritten):
+  6. at commit A, `python ops/mutate/posttelemetry.py --only 14,15,16` -> 14, 15, 16 MISSED; at commit B -> caught=3/3
+     by shippingTransportPostsTheWholeRequestNotAGet().
+  7. `swift test --filter TelemetryTests` green with shippingTransportPostsTheWholeRequestNotAGet() passed by name.
+  8. check-telemetry-emit-sites --prove-red with the two new rows red and the control green; bare run exit 0.
+  9. on the merged head: swift test --filter TelemetryTests, check-telemetry-emit-sites (bare + --prove-red),
+     check-safety-disclaimer, check-mutate-population, check-mutate-only, check-mutate-anchors, check-pins-yaml,
+     queue-check - quoted here; then push and `gh pr checks 241`.

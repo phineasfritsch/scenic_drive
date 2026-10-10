@@ -4,6 +4,7 @@ body (TelemetryRequestBody.swift). Driver posttelemetry.py, runner posttelemetry
   * THE BOUND (1-4): the capacity off the Worker's cap, the waiting bound off by one or gone, a batch of one;
   * THE WIRE (5-9): the path, the device header's case, the content type, the method, the body's key order;
   * FAIL-QUIET (10-13): a failed batch kept, a refused status kept, the in-flight guard gone, one post per record.
+  * THE TRANSPORT (14-16): URLSessionTelemetryTransport drops the method (a GET), the headers, or the body.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing function names (TelemetryClientTests has no display names), each must go red.
@@ -16,15 +17,18 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 CLIENT = ROOT / "Sources" / "Telemetry" / "TelemetryClient.swift"
 BODY = ROOT / "Sources" / "Telemetry" / "TelemetryRequestBody.swift"
-SUBJECTS = (CLIENT, BODY)
+TRANSPORT = ROOT / "Sources" / "Telemetry" / "URLSessionTelemetryTransport.swift"
+SUBJECTS = (CLIENT, BODY, TRANSPORT)
 MUTATED_FILES = SUBJECTS
 
-TEST_FILES = (ROOT / "Tests" / "TelemetryTests" / "TelemetryClientTests.swift",)
+TEST_FILES = (ROOT / "Tests" / "TelemetryTests" / "TelemetryClientTests.swift",
+              ROOT / "Tests" / "TelemetryTests" / "URLSessionTelemetryTransportTests.swift")
 
 EXACT = "everyEventPostsExactlyItsRequest()"
 BOUND = "waitingBoundTable(waiting:)"
 DROP = "everyOutcomeDropsTheBatch()"
 CAP = "capacityIsTheWorkersCap()"
+WIRE = "shippingTransportPostsTheWholeRequestNotAGet()"
 SEND = "_ = try? await transport.send(TelemetryRequest(url: url, method: \"POST\", headers: headers, body: body))"
 
 MUTATIONS = [
@@ -52,6 +56,12 @@ MUTATIONS = [
     ("12 the in-flight guard gone", CLIENT, "guard !isSending else { return }", "guard true else { return }",
      [BOUND]),
     ("13 one post per record", CLIENT, SEND, SEND + "\n            break", [BOUND]),
+    ("14 the transport drops the method (a GET)", TRANSPORT, "        urlRequest.httpMethod = request.method\n", "",
+     [WIRE]),
+    ("15 the transport drops the headers", TRANSPORT,
+     "        for (name, value) in request.headers {\n"
+     "            urlRequest.setValue(value, forHTTPHeaderField: name)\n        }\n", "", [WIRE]),
+    ("16 the transport drops the body", TRANSPORT, "        urlRequest.httpBody = request.body\n", "", [WIRE]),
 ]
 
 # Equivalent: the body cannot fail to encode - TelemetryDataPoint holds Strings and Doubles that are whole numbers
@@ -63,6 +73,6 @@ EQUIVALENT = [
      "guard let body = try? TelemetryRequestBody.encode(batch) else { break }", []),
 ]
 
-MIN_MUTATIONS = 13
+MIN_MUTATIONS = 16
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 1
