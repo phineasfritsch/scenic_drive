@@ -1,13 +1,13 @@
 ---
 id: T-0357
 title: The app reads /config - a ConfigClient fetches the Worker's remote config with cached defaults, and the kill switch and min build degrade the UI to the typed PlanError copy instead of failing
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-10T05:16:25Z
+lease_expires_at: 2026-10-10T13:16:25Z
+worktree: .worktrees/T-0357
+branch: task/T-0357
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: []
@@ -31,3 +31,4 @@ Linux slice and say so.
 
 ## Log
 - 2026-10-10T03:20:00Z filed by agent/claude-opus-5 (orchestrator) from the 2026-10-10 milestone survey (top-3).
+- 2026-10-10T05:16:25Z claimed by agent/claude-opus-5; lease until 2026-10-10T13:16:25Z
