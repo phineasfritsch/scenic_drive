@@ -163,3 +163,14 @@ branch red with its own mutant (T-0347 owner stillOpen 2).
     the new one `TREE KILLED: demo-parent  at 5s (taskkill /T /F /PID 35784 exit 0)`,
     `new probe_once: code None; grandchild pid 40128 alive after the timeout kill: False` (GREEN). The POSIX branch
     (start_new_session + killpg) is not exercised on this box; CI runs on Linux.
+- 2026-10-10T02:43:31Z FINAL on the merged head 519a7d1f (origin/main ae8267fe merged LAST, PR #234's re-pointed anchors in), every
+  gate run bare; A1 re-quoted (R1):
+  - GATE check-mutate-only exit=0 :: MUTATE-ONLY OK: 203 of 203 driver runs refused with exit 64 (55 drivers, 93 range probes: 19 digit, 38 name, 36 N-(N+1))
+  - GATE check-mutate-only exit=0 :: NAME-PAIRS OK: 195379 pair tokens over 40 id populations, each refused in process by select_only in 4 modes and by onlyIds (0 calls not refused, floor 192168 tokens)
+    (195379 > the pre-merge 192168: main's tripMutants/crossingMutants ids grew; the literal floor stays the
+    measured 192168, below the merged count)
+  - GATE check-mutate-population exit=0 :: P-PROC-06: every added module is covered or allowlisted; the floor of 147 holds
+  - GATE check-exec-bits exit=0 :: P-OPS-01: 205 files, 23 required present, all modes correct
+  - GATE check-pins-yaml exit=0 :: PINS-YAML ok pins=50 fields=403
+  - GATE queue-check exit=0 :: QUEUE OK (344 tasks)
+  - ops/lib/check-mutate-only.py: 249 lines, ops/lib/mutate_only_pairs.py: 125 lines (cap 300).
