@@ -71,3 +71,26 @@ branch red with its own mutant (T-0347 owner stillOpen 2).
     paths before the restore check. The red runs use the shipping command with its shipping timeout.
   - R7 PINS.yaml is not in touches and its P-PROC-06 assertion already runs ops/lib/check-mutate-only.py; it is
     not edited. mutate_only.py and onlyIds.mjs are touched only by the mutants, and end byte-identical to HEAD.
+- 2026-10-10T01:40:53Z IMPLEMENTED (2a1c114a): range_tokens()/name_range() in ops/lib/check-mutate-only.py (204 lines),
+  NAME_RANGE_FLOOR = 38. A1 GREEN on 2a1c114a, bare: exit 0,
+  `MUTATE-ONLY OK: 203 of 203 driver runs refused with exit 64 (55 drivers, 93 range probes: 19 digit, 38 name, 36 N-(N+1))`.
+- 2026-10-10T01:40:53Z RED/GREEN (.build-t0353/redgreen.py: apply one mutant, run `python ops/lib/check-mutate-only.py` bare,
+  purge __pycache__, wait 1.1 s, restore, sha256 + `git diff --quiet HEAD`):
+  - A2 (a) mutant D in onlyIds.mjs: CHECK EXIT 1, 17 lines, e.g.
+    `NOT REFUSED: services/api/test/mutate/tierMutants.mjs --only tier-case-sensitive-tier-any-token-read: exit 2 (need 64) - STALE plan-identify-unawaited: anchor occurs 0 times in src/plan.ts`,
+    `NOT REFUSED: services/api/test/mutate/asnMutants.mjs --only der-long-length-der-trailing-accepted: exit 2 (need 64) - REFUSING: the baseline is not green ()`;
+    `MUTATE-ONLY FAILED: 186 of 203 driver runs refused with exit 64 (55 drivers, 93 range probes: 19 digit, 38 name, 36 N-(N+1))`.
+    Restored sha256 86faf29317b6f795 identical, git diff --quiet HEAD exit 0, git status ''.
+  - A3 (b) E-range expansion in mutate_only.select_only: CHECK EXIT 1, 17 lines, e.g.
+    `NOT REFUSED: ops/mutate/plansheet.py --only E1-E2: exit None (need 64) - (killed at 120s: it ignored the flag and started a run)`,
+    `NOT REFUSED: ops/mutate/accounttoken.py --only E1-E1: exit None (need 64) - ...` (each with a `KILLED: ... the tree now
+    differs in: (no file)` line); `MUTATE-ONLY FAILED: 186 of 203 ...`. Restored sha256 40e88f8a449fdcac identical,
+    git diff --quiet HEAD exit 0, git status ''. Cost, as R6 foresaw: each killed Python driver left its
+    `swift build --scratch-path .build/mutate-<name>` running orphaned (ignored path, no tracked file changed).
+  - A4 (c) mutate_only.select_only without its ONLY IDS line: CHECK EXIT 1, 23 lines, e.g.
+    `NOT REFUSED: ops/mutate/plansheet.py --only 999999: exit 64 (need 64) - the refusal lists no ONLY IDS: line`,
+    `NAME-RANGE PROBES 17 below floor 38: a driver's non-digit ids (names, E-ids) went unprobed`,
+    `MUTATE-ONLY FAILED: 159 of 182 driver runs refused with exit 64 (55 drivers, 72 range probes: 0 digit, 17 name, 55 N-(N+1))`.
+    Restored sha256 40e88f8a449fdcac identical, git diff --quiet HEAD exit 0, git status ''.
+  - Side observation (not this task): 8 mjs drivers print `STALE <id>: anchor occurs 0 times` once past selection
+    (closures config crossing isochrone quota region tier vehicle) - their populations have drifted from src/.
