@@ -79,3 +79,30 @@ once in today's source, demonstrated red on a stale anchor then green.
   also proves each driver's baseline green); the full populations of the eight drivers are NOT re-run here (~800
   vitest runs on a shared box). Whether any OTHER entry of those eight went MISSED while the drivers could not run is
   stated as open in the PR, not claimed.
+- 2026-10-10T03:22:21Z CHECK FIRST, then fix (A4). ops/lib/check-mutate-anchors.py written before any re-anchor and run
+  on the pre-fix tree (a21cb8b3 + the new file): exit 1, every stale entry named - `STALE closures plan-no-closures`,
+  `plan-no-hazard`, `plan-whole-set`, `STALE config session-authenticated-stringify-unpause`, `STALE crossing
+  plan-unchecked`, `trip-unchecked`, `STALE isochrone cache-key-no-version`, `iso-hit-echoes-limit`, `STALE quota
+  do-daily-inclusive`, `do-daily-step-2`, `plan-deps-no-resolver`, `STALE region loop-gate-below-closures`,
+  `trip-gate-below-closures`, `STALE tier plan-identify-unawaited`, `STALE vehicle plan-vehicle-key-dropped` (each
+  `anchor occurs 0 times in src/...`), last line `check-mutate-anchors: 17 drivers, 1263 anchors, 15 stale`.
+  Whitelist arms: an untracked copy at services/api/test/mutate/zzzMutants.mjs -> exit 2 `driver(s) not in the DRIVERS
+  whitelist: zzz; listed but not on disk: none: REFUSING`; vehicleMutants.mjs git-mv'd away -> exit 2 `... listed but
+  not on disk: vehicle: REFUSING`; both restored. The counter reads bytes (not Python's newline-translating
+  read_text), so it counts exactly what the driver's readFileSync sees.
+  After the re-anchor (2508eb72): exit 0 `check-mutate-anchors: 17 drivers, 1263 anchors, 0 stale`.
+- 2026-10-10T03:22:21Z RE-ANCHORED ENTRIES BY NAME (A2), each driver run alone with --only from services/api:
+  closures `baseline green tests=738`, CAUGHT plan-no-closures, plan-no-hazard, plan-whole-set, `RESULT caught=3
+  missed=0 trap=0 of 3`; config first run `REFUSING: the baseline is not green (loading the shipped worker leaves
+  every global, intrinsic and prototype the /config answer runs on untouched)` - test/configAnswerPath.test.ts then
+  passed alone (3 passed) and the driver re-run alone printed `baseline green tests=48`, CAUGHT
+  session-authenticated-stringify-unpause, `RESULT caught=1 missed=0 trap=0 of 1` (ruled box: the same file, nothing
+  changed between the runs); crossing `baseline green tests=274`, CAUGHT plan-unchecked, trip-unchecked, `RESULT
+  caught=2 ... of 2`; isochrone `baseline green tests=28`, CAUGHT cache-key-no-version (its failures include `the cache
+  key is the start at 2 dp, the minutes bucket, the UTC day and the graph ver...`), iso-hit-echoes-limit, `RESULT
+  caught=2 ... of 2`; quota `baseline green tests=84`, CAUGHT do-daily-inclusive, do-daily-step-2,
+  plan-deps-no-resolver, `RESULT caught=3 ... of 3`; region `baseline green tests=44`, CAUGHT loop-gate-below-closures,
+  trip-gate-below-closures, `RESULT caught=2 ... of 2`; tier `baseline green tests=187`, CAUGHT plan-identify-unawaited,
+  `RESULT caught=1 ... of 1`; vehicle `baseline green tests=5`, CAUGHT plan-vehicle-key-dropped, `RESULT caught=1
+  missed=0 trap=0 of 1 (--only)` - from services/api AND from the repo root, identical.
+  15 of 15 re-anchored entries CAUGHT; every one names a failing test.
