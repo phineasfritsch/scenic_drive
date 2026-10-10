@@ -14,7 +14,7 @@ import Testing
 @Suite(.serialized)
 struct URLSessionCorpusFetcherTests {
     enum Prefix: CaseIterable { case absent, empty, partial, complete, over }
-    enum Server: CaseIterable { case honours, ignoresRange, missing, short, drop, long, wrongRange }
+    enum Server: CaseIterable { case honours, ignoresRange, missing, short, drop, long, wrongRange, unwritable }
     enum Outcome: Equatable { case fetched, failed(CorpusFetchError) }
 
     struct Result: Equatable {
@@ -23,6 +23,8 @@ struct URLSessionCorpusFetcherTests {
         let destination: Data?
         let part: Data?
         let lastProgress: [Int]?
+        /// The stub's `unplayed()`: a refusal cancels its task on every platform, so the rest of the script never plays.
+        let unplayed: [Int]
     }
 
     final class Progress: @unchecked Sendable {
@@ -64,15 +66,16 @@ struct URLSessionCorpusFetcherTests {
                                                         .data(rest.dropFirst(2 * third))]
             switch server {
             case .honours: return [head] + chunks + [.finish]
+            case .unwritable: return [head, .awaitCancel] + chunks + [.finish]
             case .ignoresRange: return [.respond(200, [:]), .data(payload), .finish]
-            case .missing: return [.respond(404, [:]), .data(Data("not found".utf8)), .finish]
+            case .missing: return [.respond(404, [:]), .awaitCancel, .data(Data("not found".utf8)), .finish]
             case .short: return [head, .data(payload.subdata(in: at..<(size - 10))), .finish]
             case .drop: return [head, .data(payload.subdata(in: at..<(at + 100))), .fail(.networkConnectionLost)]
-            case .long: return [head] + chunks + [.data(Data([0])), .finish]
+            case .long: return [head] + chunks + [.data(Data([0])), .awaitCancel, .finish]
             case .wrongRange:
                 // No Range sent: a 206 from byte 0. A Range sent: a 206 from a byte that is not the one asked for.
                 let from = at == 0 ? 0 : 7
-                return [.respond(206, ["Content-Range": "bytes \(from)-\(size - 1)/\(size)"]),
+                return [.respond(206, ["Content-Range": "bytes \(from)-\(size - 1)/\(size)"]), .awaitCancel,
                         .data(payload.subdata(in: from..<size)), .finish]
             }
         }
@@ -81,22 +84,29 @@ struct URLSessionCorpusFetcherTests {
     /// The ruling (R3), stated apart from the fetcher.
     static func expected(_ prefix: Prefix, _ server: Server) -> Result {
         guard let at = start(prefix) else {
-            return Result(outcome: .fetched, requests: [], destination: payload, part: nil, lastProgress: [size, size])
+            return Result(outcome: .fetched, requests: [], destination: payload, part: nil, lastProgress: [size, size],
+                          unplayed: [])
         }
-        let requests = [StubCorpusURLProtocol.Seen(url: corpusURL, range: at > 0 ? "bytes=\(at)-" : nil)]
+        let request = StubCorpusURLProtocol.Seen(url: corpusURL, range: at > 0 ? "bytes=\(at)-" : nil)
+        // The refusal cancels the task where the script awaits it, so every step after that mark is never played.
+        let steps = script(server)(request)
+        let mark = steps.firstIndex { if case .awaitCancel = $0 { return true } else { return false } }
+        let unplayed = mark.map { [steps.count - $0 - 1] } ?? []
         func failed(_ error: CorpusFetchError, part: Data?) -> Result {
-            Result(outcome: .failed(error), requests: requests, destination: nil, part: part, lastProgress: nil)
+            Result(outcome: .failed(error), requests: [request], destination: nil, part: part, lastProgress: nil,
+                   unplayed: unplayed)
         }
         switch server {
         case .honours, .ignoresRange:
-            return Result(outcome: .fetched, requests: requests, destination: payload, part: nil,
-                          lastProgress: [size, size])
+            return Result(outcome: .fetched, requests: [request], destination: payload, part: nil,
+                          lastProgress: [size, size], unplayed: unplayed)
         case .missing: return failed(.status(404), part: nil)
         case .short: return failed(.shortBody(received: size - 10, expected: size), part: payload.prefix(size - 10))
         case .drop: return failed(.transport(code: URLError.Code.networkConnectionLost.rawValue),
                                   part: payload.prefix(at + 100))
         case .long: return failed(.longBody(expected: size), part: nil)
         case .wrongRange: return failed(.status(206), part: nil)
+        case .unwritable: return failed(.transport(code: URLError.Code.cannotWriteToFile.rawValue), part: nil)
         }
     }
 
@@ -118,7 +128,12 @@ struct URLSessionCorpusFetcherTests {
         case .complete: try payload.write(to: part)
         case .over: try (payload + Data([9])).write(to: part)
         }
-        StubCorpusURLProtocol.reset(script(server))
+        let steps = script(server)
+        // `unwritable`: the resume file is gone by the time the response arrives, so the delegate cannot open it.
+        StubCorpusURLProtocol.reset { seen in
+            if server == .unwritable { try? FileManager().removeItem(at: part) }
+            return steps(seen)
+        }
         var outcome = Outcome.fetched
         do {
             try await fetcher.fetch(manifest, to: destination)
@@ -127,7 +142,8 @@ struct URLSessionCorpusFetcherTests {
         }
         return Result(outcome: outcome, requests: StubCorpusURLProtocol.requests(),
                       destination: try? Data(contentsOf: destination), part: try? Data(contentsOf: part),
-                      lastProgress: outcome == .fetched ? progress.value() : nil)
+                      lastProgress: outcome == .fetched ? progress.value() : nil,
+                      unplayed: StubCorpusURLProtocol.unplayed())
     }
 
     @Test func fetchTableOverEveryResumeFileAndServer() async throws {
@@ -211,11 +227,12 @@ struct URLSessionCorpusFetcherTests {
         let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         StubCorpusURLProtocol.reset { _ in
-            [.respond(200, [:]), .data(Data([1])), .data(Data([2])), .data(Data([3])), .finish]
+            [.respond(200, [:]), .data(Data([1])), .awaitCancel, .data(Data([2])), .data(Data([3])), .finish]
         }
         let (chunks, error) = await delegate.run(URLRequest(url: Self.corpusURL), in: session)
         #expect(chunks == 1)
         #expect((error as? URLError)?.code == .cancelled)
         #expect(StubCorpusURLProtocol.requests() == [StubCorpusURLProtocol.Seen(url: Self.corpusURL, range: nil)])
+        #expect(StubCorpusURLProtocol.unplayed() == [3])
     }
 }
