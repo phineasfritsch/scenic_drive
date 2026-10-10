@@ -9,6 +9,9 @@ corpusfetch_run.py (corpusota's three-file shape).
   * the ERRORS - which error deletes the resume file, a short body, a long body, a 206 at the wrong byte or with no
     Range, a dropped connection's code, the manifest's status and code, a refusal reported under the cancel it
     caused - 4-6, 12-16, 22 (R3);
+  * the CANCEL - a refusal at the response cancels its task explicitly, because swift-corelibs-foundation ignores
+    the .cancel disposition - 23-24 (T-0308; on Darwin the disposition alone cancels, and this population runs off
+    Darwin);
   * the NAMES - the corpus URL, the resume file's key, Wi-Fi only - 7-9 (R1, R3, R6);
   * the LAUNCH CHOICE - cold launch, the existence test, the record, the fallback - 17-21 (R4).
 
@@ -94,6 +97,15 @@ MUTATIONS = [
      "            continuation?.resume(throwing: CorpusFetchError.transport(code: " + _URLERR + "\n"
      "        } else if let failure {\n            continuation?.resume(throwing: failure)\n        } else {\n",
      [FETCH]),
+    ("23 a refused status lets the response play on", DELEGATE,
+     "                failure = .status(status)\n                completionHandler(.cancel)\n"
+     "                dataTask.cancel()\n",
+     "                failure = .status(status)\n                completionHandler(.cancel)\n", [FETCH]),
+    ("24 an unopenable resume file lets the response play on", DELEGATE,
+     "            failure = .transport(code: URLError.Code.cannotWriteToFile.rawValue)\n"
+     "            completionHandler(.cancel)\n            dataTask.cancel()\n",
+     "            failure = .transport(code: URLError.Code.cannotWriteToFile.rawValue)\n"
+     "            completionHandler(.cancel)\n", [FETCH]),
 ]
 
 EQUIVALENT = [
@@ -103,6 +115,6 @@ EQUIVALENT = [
      "on every failure, so no table row - and no production path - reaches fetch with a destination present"),
 ]
 
-MIN_MUTATIONS = 22
+MIN_MUTATIONS = 24
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 2
