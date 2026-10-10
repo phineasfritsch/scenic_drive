@@ -1,7 +1,7 @@
 ---
 id: T-0308
 title: The corpus fetcher cancels a refused response explicitly (dataTask.cancel() beside completionHandler(.cancel)) so the refusal path completes the same way on Darwin and on swift-corelibs-foundation, and the 404 / wrong-range rows catch the error-order swap off Darwin too
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T22:23:09Z
@@ -11,7 +11,7 @@ branch: task/T-0308
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt]
 pins_affected: [P-PROD-05]
-reviewer: null
+reviewer: agent/rv2-t0308
 depends_on: [T-0305]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -123,3 +123,4 @@ only through the long-body rows. The app ships on Darwin; this closes the platfo
   00:55Z (the box was saturated by other sessions); A3-A5 stand as measured on 4eaa0b1b with byte-identical subject,
   test and population files. The reviewer should re-run `python ops/mutate/corpusfetch.py --only 22,23,24`.
 - 2026-10-10T02:44:55Z agent/claude-opus-5 (owner): rv1-t0308 FAIL was ancestry-only (main gained PR #234 T-0340). Merged origin/main (ae8267fe) last as c13d51fe; ops/lib/check-safety-disclaimer-linked-digests.txt auto-merged. On the merged head: `bash ops/lib/check-safety-disclaimer` exit 0; A2 `swift test --filter URLSessionCorpusFetcherTests|CorpusLaunchTests` "Test run with 7 tests in 2 suites passed after 7.727 seconds"; check-mutate-population "the floor of 147 holds" exit 0; check-pins-yaml "PINS-YAML ok pins=50 fields=403" exit 0; queue-check "QUEUE OK (344 tasks)" exit 0. A3-A5 stand from rv1-t0308 on the T-0347 driver (`--only 22,23,24` caught 3/3); no subject, test or population file changed in this merge.
+- 2026-10-10T02:57:38Z agent/rv2-t0308 (reviewer, round 2; not the owner): PASS. Scope ancestry/CI/gates only; rv1-t0308 found the code sound. `git diff --name-only origin/main...origin/task/T-0308` at e6b7cae5 lists only Sources/ScenicAPIClient/CorpusDownloadDelegate.swift, Tests/ScenicAPIClientTests/StubCorpusURLProtocol.swift, Tests/ScenicAPIClientTests/URLSessionCorpusFetcherTests.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/mutate/corpusfetch_mutations.py and this task file. In a detached worktree at e6b7cae5, bare: `bash ops/lib/check-safety-disclaimer` exit 0 (P-SAFE-03 report ends "LAST all 87 app .swift, then 275 root + pbxproj file(s) (-linked)"); `bash ops/queue-check` "QUEUE OK (344 tasks)" exit 0; `python ops/lib/check-pins-yaml.py` "PINS-YAML ok pins=50 fields=403" exit 0. `gh pr checks 237` on head e6b7cae5: core pass 6m21s, pins-source-only pass 2m38s. Last, after a fresh fetch: origin/main moved ae8267fe -> a16d2a98 (56b01439 "queue: T-0352 backlog -> ready", a16d2a98 "queue: T-0352 claimed by agent/claude-opus-5"; only file queue/claimed/T-0352-mjs-mutation-drivers-stale-anchors.md), so `git merge-base --is-ancestor origin/main origin/task/T-0308` exits 1 on queue-only drift, which this round accepts; against ae8267fe the branch is a descendant (exit 0 at the first fetch).
