@@ -11,10 +11,15 @@ import ScenicKit
 public enum LivePlanner {
     public static let baseURLKey = "plan.base.url"
 
+    /// T-0357 R7: the ClientPlanner with the /config cache and our build, so the sheet hears a pause or an update
+    /// before the user taps Plan.
     public static func make() -> any RoutePlanning {
         guard let text = UserDefaults.standard.string(forKey: baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return UnreachablePlanner() }
-        return ClientPlanner(client: client(base))
+        let cache = ConfigCache(client: ConfigClient(base: base, transport: URLSessionPlanTransport()),
+                                storage: DefaultsConfigStorage())
+        let build = AppBuild.parse(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
+        return ConfiguredPlanner(planner: ClientPlanner(client: client(base)), cache: cache, appBuild: build)
     }
 
     /// The drive's reroute sender (T-0328 R2): PlanRerouter on the same client, continuing `preview`'s plan; the sender

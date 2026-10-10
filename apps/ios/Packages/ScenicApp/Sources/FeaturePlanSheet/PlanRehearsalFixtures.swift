@@ -91,8 +91,22 @@ enum PlanRehearsalFixtures {
         case "saved": return PlanRehearsal(tab: .saved, sheet: PlanSheet(disclaimerAccepted: false),
                                            loop: LoopSheet(disclaimerAccepted: false),
                                            trip: TripSheet(disclaimerAccepted: false), savedRows: savedRows)
+        case "paused": return degraded(.planningPaused)
+        case "update": return degraded(.updateRequired)
         default: return nil
         }
+    }
+
+    /// T-0357 R8: the form with a start and a destination chosen and /config's degrade on it - the notice in place of Plan.
+    private static func degraded(_ degrade: ConfigDegrade) -> PlanRehearsal {
+        var sheet = PlanSheet(disclaimerAccepted: true)
+        sheet.search("", for: .start)
+        sheet.choose(topanga)
+        sheet.search("", for: .destination)
+        sheet.choose(zuma)
+        sheet.setDegrade(degrade)
+        return PlanRehearsal(tab: .plan, sheet: sheet, loop: LoopSheet(disclaimerAccepted: false),
+                             trip: TripSheet(disclaimerAccepted: false), savedRows: [])
     }
 
     private static func plan(_ outcome: PlanOutcome, budgetMinutes: Int = 30) -> PlanRehearsal? {

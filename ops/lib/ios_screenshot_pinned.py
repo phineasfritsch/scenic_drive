@@ -66,7 +66,7 @@ alive() {
 }
 for LOOK in ${{ matrix.look }}; do
   SIZE=()
-  LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty offered loop trip saved legal"
+  LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty offered loop trip saved paused update legal"
   if [ "$LOOK" = ax5 ]; then
     SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)
     LIST="preview nothingPretty offered loop trip saved"
@@ -82,7 +82,7 @@ for LOOK in ${{ matrix.look }}; do
       settings|paywall|surprise|legal) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
       onboarding) DETENT=collapsed ROW=default SCREEN=home NAME=onboarding-$LOOK DONE=() ;;
       disclaimer) DETENT=collapsed ROW=default SCREEN=disclaimer NAME=disclaimer-$LOOK DONE=() ;;
-      preview|nothingPretty|offered|loop|trip|saved) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=plan-$SHOT-$LOOK WAIT=$PLAN_SETTLE ;;
+      preview|nothingPretty|offered|loop|trip|saved|paused|update) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=plan-$SHOT-$LOOK WAIT=$PLAN_SETTLE ;;
       drive) DETENT=collapsed ROW=default SCREEN=drive NAME=drive-$LOOK
         xcrun simctl privacy "$UDID" grant location "$BUNDLE"
         xcrun simctl location "$UDID" start --speed=15 34.0905,-118.6370 34.0880,-118.6250 34.0855,-118.6150 34.0830,-118.6050 ;;
@@ -175,7 +175,7 @@ ALIVE = '              alive "$PID" "${WAIT}s after the $LOOK $SHOT launch"\n'
 PLAN_SETTLE = "          PLAN_SETTLE=6\n"
 PLAN_ARM = "NAME=plan-$SHOT-$LOOK WAIT=$PLAN_SETTLE ;;"
 SHOTS_LIST = ('            LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer'
-              ' preview nothingPretty offered loop trip saved legal"\n')
+              ' preview nothingPretty offered loop trip saved paused update legal"\n')
 LOOKS = "          for LOOK in ${{ matrix.look }}; do\n"
 AX5_SIZE = "              SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)\n"
 AX5_LIST = '              LIST="preview nothingPretty offered loop trip saved"\n'

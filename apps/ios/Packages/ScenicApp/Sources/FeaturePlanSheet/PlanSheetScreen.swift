@@ -99,6 +99,11 @@ public struct PlanSheetScreen: View {
             trip.setDisclaimerAccepted(safetyNoteRead)
             loop.setDisclaimerAccepted(safetyNoteRead)
         }
+        .task {
+            // T-0357 R7: the planner's /config degrade, once per appearance; a DEBUG rehearsal keeps its own.
+            guard PlanRehearsal.atLaunch == nil else { return }
+            sheet.setDegrade(await planner.degrade())
+        }
         .onChange(of: safetyNoteRead) { _, accepted in
             sheet.setDisclaimerAccepted(accepted)
             trip.setDisclaimerAccepted(accepted)
@@ -158,7 +163,13 @@ public struct PlanSheetScreen: View {
                         in: 0...PlanSheet.maxBudgetMinutes, step: 15)
             }
             Section {
-                if sheet.disclaimerAccepted {
+                if let notice = sheet.degrade.notice {
+                    // T-0357 R6: a pause or an update heard from /config, said before the tap; the gate issues nothing.
+                    Text(notice)
+                        .foregroundStyle(DesignTokens.fg)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("plan.degrade")
+                } else if sheet.disclaimerAccepted {
                     Button("Plan the long way", action: planDrive)
                         .disabled(sheet.start == nil || sheet.destination == nil)
                         .accessibilityIdentifier("plan.go")

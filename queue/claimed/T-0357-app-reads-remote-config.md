@@ -99,3 +99,16 @@ Linux slice and say so.
   - R9 Population: ops/mutate/config.py (config_mutations.py, config_run.py, ledger's three-file shape) covers every
     added Sources module that holds logic; pure declarations (ConfigStorage protocol, ConfigWire Codable shape,
     RemoteConfig value) go to the allowlist with one reason each.
+- 2026-10-10T06:46:39Z R9 revised as built: ConfigWire and RemoteConfig hold mutable logic-bearing literals (the wire
+  keys, the bundled defaults, MAX_APP_BUILD), so both are config.py SUBJECTS; only the ConfigStorage protocol is
+  allowlisted. A test file written as a table of 26 closure literals sent the type checker past 30 min on this box
+  (killed; rows rewritten as plain data with "$" = the variant's value) - recorded so nobody re-tries the shape.
+- 2026-10-10T06:46:39Z A8 RED, on the tree with the four test files and no code (`swift build --build-tests
+  --scratch-path .build/t0357`): `error: cannot find 'RemoteConfig' in scope`, `error: cannot find type
+  'ConfigDegrade' in scope`, `error: cannot find 'AppBuild' in scope`, `error: value of type 'PlanSheet' has no member
+  'setDegrade'` (and the ConfigClient/ConfigCache/ConfiguredPlanner names). Then GREEN with the code: `swift test
+  --filter "ConfigClientTests|ConfigCacheTests|ConfiguredPlannerTests|ConfigDegradeTests|CorridorLearnerTests|
+  OnboardingPlanGateTests"` -> the first run had ConfiguredPlannerTests.plan red (a PlanClient with no install id
+  refuses on the device - a test-fixture fault, fixed by PlanWire.install), then `Test run with 2 tests in 1 suite
+  passed`; the whole root suite `swift test` -> `Test run with 796 tests in 158 suites passed after 30.754 seconds.`
+  exit 0. The planted-mutant half of A8 is the config.py run (A9), each mutant red by the test it names.

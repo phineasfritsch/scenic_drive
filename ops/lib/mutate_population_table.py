@@ -8,7 +8,7 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
-DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "corpusfetch.py", "corpusota.py", "drive.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
+DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "config.py", "corpusfetch.py", "corpusota.py", "drive.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
            "hazards.py", "ledger.py", "menu.py", "normalise.py", "onboarding.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py",
            "roadtrip.py", "routescore.py",
            "loopsheet.py", "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py", "hazardcopy.py",
@@ -19,6 +19,10 @@ PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declar
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
+    "Sources/ScenicAPIClient/ConfigClient.swift", "Sources/ScenicAPIClient/ConfigReader.swift",
+    "Sources/ScenicAPIClient/ConfigWire.swift", "Sources/ScenicAPIClient/ConfigCache.swift",
+    "Sources/ScenicAPIClient/ConfiguredPlanner.swift", "Sources/ScenicKit/Config/RemoteConfig.swift",
+    "Sources/ScenicKit/Config/ConfigDegrade.swift", "Sources/ScenicKit/Config/AppBuild.swift",
     "Sources/ScenicAPIClient/TripNothingPretty.swift", "Sources/ScenicAPIClient/LoopNothingPretty.swift",
     "Sources/ScenicPlanCLI/AutopsyReport.swift", "Sources/ScenicPlanCLI/AutopsyCommand.swift",
     "Sources/ScenicPlanCLI/AutopsyFixture.swift", "Sources/ScenicPlanCLI/AutopsyTerms.swift",
