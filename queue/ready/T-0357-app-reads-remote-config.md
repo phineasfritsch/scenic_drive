@@ -1,7 +1,7 @@
 ---
 id: T-0357
 title: The app reads /config - a ConfigClient fetches the Worker's remote config with cached defaults, and the kill switch and min build degrade the UI to the typed PlanError copy instead of failing
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
