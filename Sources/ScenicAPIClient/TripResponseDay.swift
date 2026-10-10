@@ -13,9 +13,12 @@ public struct TripResponseDay: Equatable, Sendable {
     public let stops: [String]
     public let overnight: Bool
     public let leg: [Coordinate]?
+    /// T-0340 R3: the day's hazard runs (tripPlanner.ts dayHazards / the leg's own), REQUIRED as /plan's are.
+    public let hazards: [PlanHazard]
 
     public init(day: Int, start: Coordinate, end: Coordinate, driveSeconds: Double, distanceMeters: Double,
-                ceilingSeconds: Double, stops: [String], overnight: Bool, leg: [Coordinate]?) {
+                ceilingSeconds: Double, stops: [String], overnight: Bool, leg: [Coordinate]?,
+                hazards: [PlanHazard] = []) {
         self.day = day
         self.start = start
         self.end = end
@@ -25,12 +28,13 @@ public struct TripResponseDay: Equatable, Sendable {
         self.stops = stops
         self.overnight = overnight
         self.leg = leg
+        self.hazards = hazards
     }
 }
 
 extension TripResponseDay: Decodable {
     enum CodingKeys: String, CodingKey {
-        case day, start, end, lat, lon, stops, overnight, leg, coordinates, kind
+        case day, start, end, lat, lon, stops, overnight, leg, coordinates, kind, hazards
         case driveSeconds = "drive_s"
         case distanceMeters = "distance_m"
         case ceilingSeconds = "ceiling_s"
@@ -59,6 +63,7 @@ extension TripResponseDay: Decodable {
                   driveSeconds: try top.decode(Double.self, forKey: .driveSeconds),
                   distanceMeters: try top.decode(Double.self, forKey: .distanceMeters),
                   ceilingSeconds: try top.decode(Double.self, forKey: .ceilingSeconds),
-                  stops: try top.decode([String].self, forKey: .stops), overnight: overnight, leg: leg)
+                  stops: try top.decode([String].self, forKey: .stops), overnight: overnight, leg: leg,
+                  hazards: try top.decode([PlanHazard].self, forKey: .hazards))
     }
 }

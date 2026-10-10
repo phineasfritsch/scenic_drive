@@ -55,14 +55,17 @@ enum PlanRehearsalFixtures {
         ],
         waypoints: [Coordinate(latitude: 34.07, longitude: -118.65), Coordinate(latitude: 34.12, longitude: -118.65)],
         durationSeconds: 3_480, distanceMeters: 52_000, retraceFraction: 0.04, etaIsEstimate: true,
-        closures: ClosuresHazard(state: .unavailable))
+        closures: ClosuresHazard(state: .unavailable),
+        hazards: [PlanHazardRun(kind: "road_access", value: "destination", fromIndex: 4, toIndex: 5)])
 
-    /// Two days from Griffith Observatory to Leo Carrillo State Beach, 36% over the fastest (the 40% ceiling holds).
+    /// Two days from Griffith Observatory to Leo Carrillo State Beach, 36% over the fastest (the 40% ceiling holds),
+    /// a gravel stretch on day 2 (T-0340).
     static let itinerary = TripItinerary(
         isFull: true, etaSeconds: 9_000, fastestEtaSeconds: 6_600, etaIsEstimate: true,
         days: [
             TripItineraryDay(day: 1, driveSeconds: 5_400, distanceMeters: 70_000, overnight: true, path: nil),
-            TripItineraryDay(day: 2, driveSeconds: 3_600, distanceMeters: 50_000, overnight: false, path: nil),
+            TripItineraryDay(day: 2, driveSeconds: 3_600, distanceMeters: 50_000, overnight: false, path: nil,
+                             hazards: [PlanHazardRun(kind: "surface", value: "gravel", fromIndex: 3, toIndex: 6)]),
         ], closures: ClosuresHazard(state: .stale))
 
     /// Three kept drives, one of them needing a re-plan.

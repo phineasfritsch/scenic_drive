@@ -16,7 +16,7 @@ import { BIG_SUR, PRETTY_RUNS, EDGE_M, EDGES, expectedTrip, NOW, ORIGIN, ROAD, S
 
 const DEVICE = "0f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
 const A_TO_B = [[ORIGIN.lon, ORIGIN.lat], [BIG_SUR.lon, BIG_SUR.lat]];
-const REQUEST = { points: A_TO_B, points_encoded: false, instructions: false, "ch.disable": true, details: ["time", "distance", "scenic_score"] };
+const REQUEST = { points: A_TO_B, points_encoded: false, instructions: false, "ch.disable": true, details: ["time", "distance", "scenic_score", "surface", "road_access"] };
 const SEARCHED = [0, 4, 6, 7, 7.5, 7.75];
 
 let quota: FakeQuota;

@@ -8,5 +8,7 @@ apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	   
 apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	                        .accessibilityIdentifier("loop.closures")
 apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	        ], closures: ClosuresHazard(state: .stale))
 apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	        closures: ClosuresHazard(state: .fresh, crosses: true))
-apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	        closures: ClosuresHazard(state: .unavailable))
+apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	        closures: ClosuresHazard(state: .unavailable),
+apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	        hazards: [PlanHazardRun(kind: "road_access", value: "destination", fromIndex: 4, toIndex: 5)])
+apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	                             hazards: [PlanHazardRun(kind: "surface", value: "gravel", fromIndex: 3, toIndex: 6)]),
 apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	                        .accessibilityIdentifier("trip.closures")
