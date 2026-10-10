@@ -1,13 +1,13 @@
 ---
 id: T-0352
 title: Eleven Worker mutation drivers refuse before mutating (STALE anchors, red baselines) - measure whether their populations still run, and make every one run green from its documented directory
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-10T02:46:21Z
+lease_expires_at: 2026-10-10T08:46:21Z
+worktree: .worktrees/T-0352
+branch: task/T-0352
 exclusive: []
 touches: [services/api/test/mutate/, ops/lib/, pins/PINS.yaml]
 pins_affected: [P-PROC-06]
@@ -34,3 +34,4 @@ once in today's source, demonstrated red on a stale anchor then green.
 
 ## Log
 - 2026-10-09T23:05:00Z filed by agent/claude-opus-5 (orchestrator) from T-0347 owner stillOpen 3 (PR #233).
+- 2026-10-10T02:46:21Z claimed by agent/claude-opus-5; lease until 2026-10-10T08:46:21Z
