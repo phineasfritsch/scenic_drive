@@ -179,3 +179,31 @@ tables - one at a time.
     re-pointed at the new spelling. Shown MISSED at 3efbc5b6's tests first, then CAUGHT by name.
   - Ancestry: the 23:08:09Z A9 entry names 49034bec; the head that PR #234 carried was 3efbc5b6 (a second merge of
     origin/main after it, queue-only drift). This round's A9 is quoted on the FINAL merged head below.
+- 2026-10-10T00:48:09Z agent/claude-opus-5 - rv2-t0340 CLOSED BY SCOPE, A1/A8/A9 re-quoted. The final head is the Log commit on top of
+  the merged head 66903d91 (origin/main fetched and merged LAST; main brought T-0338/T-0347 queue and
+  test/mutate/*.mjs --only changes, no services/api src/ or test/*.ts file).
+  - MISSED first: tripMutants.mjs carrying planner-pointof-pre-swap (old spelling) at 3efbc5b6's src and tests:
+    "baseline green tests=143", "MISSED planner-pointof-pre-swap", "RESULT caught=0 missed=1 trap=0 of 1 (--only)".
+  - Fixtures (06084b73, src still 3efbc5b6's): `npx vitest run test/tripLoopHazards.test.ts` "Tests 13 passed (13)";
+    "CAUGHT planner-route-hazards-pre-swap by \"'preview, a closure on the chosen rout...': the trip's day hazards
+    are the shipped path's runs\"", "CAUGHT planner-pointof-pre-swap by" the same preview row, "CAUGHT
+    planner-leg-hazards-pre-swap by \"'full, a closure on the day-2 leg, its...'\"", "caught=3 missed=0 trap=0 of 3".
+    Meta row seen RED: the route re-request tiled like the crossing answer (k 2 -> 1) fails "meta: every trip row
+    ships one path ..." ("Tests 1 failed | 12 skipped"); restored.
+  - Structure (4a810f70): measuredChosen/first/shown live only inside the search scope, legPath only inside shipLeg;
+    the hazard code reads `shipped` / `shippedLeg`. Every trip-reaching file: "Test Files 9 passed (9)", "Tests 145
+    passed (145)". Re-pointed anchors: every driver's 58 tripPlanner.ts anchors occur exactly once. On the new src
+    the three pre-swap mutants are ReferenceErrors: "CAUGHT planner-route-hazards-pre-swap / planner-pointof-pre-swap
+    / planner-leg-hazards-pre-swap by \"a 5-day trip is exactly 12 requests, ...\"", "CAUGHT planner-full-day-reads-
+    route by \"every trip day carries its own hazard runs, whole\"", "caught=4 missed=0 trap=0 of 4";
+    MIN_MUTATIONS 102 -> 103, "population mutations=103 (floor 103)"; --prove-floor refuses all four arms, "real
+    population: quiet". crossingMutants/closuresMutants --only refuse before mutating ("STALE plan-unchecked" /
+    "STALE plan-no-closures" in src/plan.ts - pre-existing on main, filed as T-0352), so their four re-pointed
+    anchors are proven by the anchor count only.
+  - A9 on 66903d91: check-mutate-population exit 0 ("the floor of 147 holds"); check-hazard-copy-sites exit 0 ("ok -
+    14 sites, every one approved, in 5 files"); check-pins-yaml exit 0 ("PINS-YAML ok pins=50 fields=403");
+    queue-check exit 0 ("QUEUE OK (344 tasks)"). Touched vitest files on 66903d91: two runs collected 0 tests
+    ("Error: [vitest-pool]: Timeout starting cloudflare-pool runner", 73 node processes on the box) and the trip
+    --only baseline refused the same way - environment; the merge changed no services/api src/ or test .ts file,
+    so 4a810f70's green runs stand and PR CI is the confirmation on the merged head.
+  - Measured: tripPlanner.ts 249 lines, tripLoopHazards.test.ts 295, tripMutants.mjs 262.
