@@ -106,3 +106,19 @@ once in today's source, demonstrated red on a stale anchor then green.
   `RESULT caught=1 ... of 1`; vehicle `baseline green tests=5`, CAUGHT plan-vehicle-key-dropped, `RESULT caught=1
   missed=0 trap=0 of 1 (--only)` - from services/api AND from the repo root, identical.
   15 of 15 re-anchored entries CAUGHT; every one names a failing test.
+- 2026-10-10T03:48:28Z ACCEPTANCE re-run on the merged head fdc49bfe (origin/main 3fb61801 merged; it brought T-0353's
+  check-mutate-only.py and no services/api change). A1: quoted above (03:02:41Z). A2: all eight drivers re-run alone
+  with --only from services/api - closures `baseline green tests=738` `RESULT caught=3 missed=0 trap=0 of 3`; config
+  `baseline green tests=48` `RESULT caught=1 missed=0 trap=0 of 1`; crossing `tests=274` `caught=2 ... of 2`; isochrone
+  `tests=28` `caught=2 ... of 2`; quota `tests=84` `caught=3 ... of 3`; region `tests=44` `caught=2 ... of 2`; tier
+  `tests=187` `caught=1 ... of 1`; vehicle `tests=5` `caught=1 missed=0 trap=0 of 1 (--only)` - every id CAUGHT by name,
+  services/api/src clean after. A3: plan `baseline green tests=217`, loop `tests=57`, trip `tests=143`, each alone from
+  services/api and from the repo root (killed at the baseline line, src clean after). A4: `check-mutate-anchors: 17
+  drivers, 1263 anchors, 0 stale` exit 0 (red evidence 03:22:21Z). A5: P-PROC-06's assertion run exactly as PINS.yaml
+  spells it, exit 0: `P-PROC-06: 325 modules, 184 covered by 38 populations, 120 allowlisted, 0 added by this branch`,
+  `MUTATE-ONLY OK: 203 of 203 driver runs refused with exit 64`, `NAME-PAIRS OK: 195475 pair tokens`,
+  `check-mutate-anchors: 17 drivers, 1263 anchors, 0 stale`; `PINS-YAML ok pins=50 fields=403`. A6: bare
+  check-mutate-population exit 0, check-mutate-only exit 0, check-mutate-anchors exit 0, check-pins-yaml exit 0, `bash
+  ops/lib/check-exec-bits` `P-OPS-01: 206 files, 23 required present, all modes correct` exit 0, `bash ops/queue-check`
+  `QUEUE OK (351 tasks)` exit 0; wc -l: check-mutate-anchors.py 103, closures 280, config 288, crossing 208, isochrone
+  213, quota 201, region 236, tier 176, vehicle 173. The full populations of the eight drivers were not re-run (R5).
