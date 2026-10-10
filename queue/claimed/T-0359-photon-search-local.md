@@ -1,13 +1,13 @@
 ---
 id: T-0359
 title: Photon address search, everything but the deploy - services/search (pinned image, California index config), a Worker /search proxy that sends at most one 2-dp coordinate, and a ScenicAPIClient search client, all tested locally
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-10T03:37:26Z
+lease_expires_at: 2026-10-10T11:37:26Z
+worktree: .worktrees/T-0359
+branch: task/T-0359
 exclusive: []
 touches: [services/search/, services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/lib/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-COST-01]
@@ -33,3 +33,4 @@ Worker vitest through the shipping handler with a fake upstream; client whole-bo
 
 ## Log
 - 2026-10-10T03:20:00Z filed by agent/claude-opus-5 (orchestrator) from the 2026-10-10 milestone survey (top-5).
+- 2026-10-10T03:37:26Z claimed by agent/claude-opus-5; lease until 2026-10-10T11:37:26Z
