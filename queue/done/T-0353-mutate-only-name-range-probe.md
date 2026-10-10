@@ -1,7 +1,7 @@
 ---
 id: T-0353
 title: check-mutate-only probes a range of two REAL ids for name-keyed populations (mjs drivers, substring drivers, plansheet E-ids), so an `A-B` name-range expansion in onlyIds.mjs / mutate_only is refused
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T23:39:59Z
@@ -11,7 +11,7 @@ branch: task/T-0353
 exclusive: []
 touches: [ops/lib/check-mutate-only.py, ops/lib/mutate_only_pairs.py, ops/mutate/mutate_only.py, services/api/test/mutate/onlyIds.mjs]
 pins_affected: [P-PROC-06]
-reviewer: null
+reviewer: agent/rv2-t0353
 depends_on: [T-0347]
 verify: [ops/check-pins]
 acceptance:
@@ -174,3 +174,24 @@ branch red with its own mutant (T-0347 owner stillOpen 2).
   - GATE check-pins-yaml exit=0 :: PINS-YAML ok pins=50 fields=403
   - GATE queue-check exit=0 :: QUEUE OK (344 tasks)
   - ops/lib/check-mutate-only.py: 249 lines, ops/lib/mutate_only_pairs.py: 125 lines (cap 300).
+- 2026-10-10T03:06:40Z rv2-t0353 review PASS (round 2, PR #239, head da00b077; reviewer agent/rv2-t0353, not the owner).
+  Run in a detached worktree .worktrees/rv2-t0353 at origin/task/T-0353 through rv1's rv.py copied to
+  .build-rv2/rv.py (filter widened to NAME-PAIRS), shipping check bare, each mutant restored byte-identical:
+  - B1 re-applied, mutant S: CHECK EXIT 1. `MUTATE-ONLY OK: 203 of 203 ...` (the subprocess layer still blind, as
+    in rv1) but `NAME-PAIRS FAILED: 195379 pair tokens over 40 id populations ... (38350 calls not refused, floor
+    192168 tokens)`, 56 onlyIds lines naming services/api drivers, e.g. `NOT REFUSED IN PROCESS: onlyIds
+    services/api/test/mutate/ledgerMutants.mjs --only window-89-window-91: selected ["window-89","window-91"]`.
+    RESTORED sha256 identical=True (86faf29317b6f795), git diff --quiet HEAD exit 0.
+  - Own mutant A (onlyIds.mjs `A-B` expansion only when both halves are digit-free and L < R alphabetically, the
+    class S does not touch): CHECK EXIT 1. `MUTATE-ONLY FAILED: 196 of 203 ...` and `NAME-PAIRS FAILED: ...
+    (21824 calls not refused ...)`, e.g. `NOT REFUSED IN PROCESS: onlyIds services/api/test/mutate/ledgerMutants.mjs
+    --only not-json-accepted-object-check-dropped: selected ["not-json-accepted","object-check-dropped"]`.
+    RESTORED sha256 identical=True, git diff --quiet HEAD exit 0.
+  - Green, bare: check-mutate-only exit 0 (`MUTATE-ONLY OK: 203 of 203 ...`, `NAME-PAIRS OK: 195379 pair tokens
+    ... (0 calls not refused, floor 192168 tokens)`); check-exec-bits exit 0 (P-OPS-01: 205 files); queue-check
+    exit 0 (QUEUE OK (344 tasks)); gh pr checks 239: core pass 6m47s, pins-source-only pass 2m47s.
+  - LAST: git merge-base --is-ancestor origin/main origin/task/T-0353 exit 1, but ae8267fe (the merged main) is
+    an ancestor (exit 0) and the drift since the merge base is one queue file (T-0352 claimed, 7+/6-): queue-only,
+    accepted.
+  - Recorded, not blocking: the POSIX killpg branch of run_tree has not been run red/green on this box (only the
+    taskkill branch has), and PAIR_FLOOR is still the pre-merge 192168 against 195379 tokens.
