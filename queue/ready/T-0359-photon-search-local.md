@@ -1,7 +1,7 @@
 ---
 id: T-0359
 title: Photon address search, everything but the deploy - services/search (pinned image, California index config), a Worker /search proxy that sends at most one 2-dp coordinate, and a ScenicAPIClient search client, all tested locally
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
