@@ -118,3 +118,29 @@ T-0358; this task wires the other 13 and the client.
   4. `bash ops/lib/check-safety-disclaimer`, `python ops/lib/check-mutate-population.py`, `bash ops/lib/check-line-cap`,
      `python ops/lib/check-pins-yaml.py`, `bash ops/queue-check` green.
   5. ios-compile and ios-screenshot succeed on task/T-0355; the plan-sheet and home shots looked at.
+- 2026-10-10T04:41:07Z RESULTS by agent/claude-opus-5 (owner), re-quoted on the merged head 86ee9c45 (origin/main merged).
+  RULING R9 (acceptance 3 naming): the population is ops/mutate/posttelemetry*.py, not telemetryclient*.py -
+  check-mutate-population reads a driver's FAMILY as `<stem>*.py`, and `telemetry*.py` (the existing telemetry.py
+  family) would swallow a telemetryclient*.py family.
+  1. RED first: `swift test --filter TelemetryTests.TelemetryClientTests` before the sources - "error: cannot find
+     'TelemetryClient' in scope", "cannot find type 'TelemetryRequest' in scope" (did not compile; every named test
+     missing). GREEN: capacityIsTheWorkersCap(), everyEventPostsExactlyItsRequest(), everyOutcomeDropsTheBatch(),
+     recordedOnlyAfterTheFirstPostReturns() passed; "Test waitingBoundTable(waiting:) with 6 test cases passed";
+     "Test run with 5 tests in 1 suite passed". Merged head: `--filter TelemetryTests` "Test run with 19 tests in 6
+     suites passed".
+  2. Guard: no whitelist -> "REFUSING ... missing or empty" exit 2; with it "P-PRIV-05 emit sites: ok - 32 lines
+     approved; 3 of 14 cases emitted once, 11 pending by task" exit 0; --prove-red "control: exit 0", fourteen rows
+     each "red" (12 exit 1, whitelist emptied and kind file gone exit 2), "PROVE-RED  ok - 14 rows".
+  3. `python ops/mutate/posttelemetry.py`: first run "caught by the test that names it: 12 of 13 (compile-only 1)" -
+     mutant 13 (`while` -> `if` around a `continue`) did not compile; rewritten as a `break` after the post (1926b8c4)
+     and re-run `--only 13`: "caught=1/1"; E1 MISSED as an equivalent must be. 1-12 caught by their named killers
+     (1 capacityIsTheWorkersCap(); 2-4 waitingBoundTable(waiting:); 5-8 everyEventPostsExactlyItsRequest() among
+     others; 9 everyEventPostsExactlyItsRequest(); 10-11 everyOutcomeDropsTheBatch(); 12 waitingBoundTable(waiting:)).
+     --prove-floor "FLOOR PROOF OK: 7 of 7 arms refused and the control did not".
+  4. check-mutate-population "every added module is covered or allowlisted; the floor of 149 holds"; check-pins-yaml
+     "PINS-YAML ok pins=50 fields=403"; queue-check "QUEUE OK (352 tasks)"; check-safety-disclaimer exit 0 at 007cdd5b
+     (first try exit 1 only because its own log file sat at the worktree root - ROOT_TOP_FILES refused it).
+  5. ios-compile run 38022185398 success (PlanAdapter built); ios-screenshot run 38022188023 success. Looked at
+     plan-preview-light.png (the preview renders: route, ETA, estimate badge, hazards, Start the drive, attribution)
+     and home-light-medium.png (home renders; the Plan-a-drive pill overlapping the drive chips is the shell's existing
+     topLeading overlay, untouched here).
