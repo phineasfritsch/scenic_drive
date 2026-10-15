@@ -180,3 +180,27 @@ T-0358; this task wires the other 13 and the client.
   edit, MIN_TEST_FILES 1 -> 2, and drafts of StubTelemetryURLProtocol.swift and URLSessionTelemetryTransportTests.swift
   were uncommitted. Kept, not reset: the drafts were set aside under .build/ (gitignored) so acceptance 6's MISSED
   half runs on commit A as R11 orders, then restored, reviewed and finished. No ruling changes.
+- 2026-10-15T19:55:56Z ROUND 1 RESULTS by agent/claude-opus-5 (owner), acceptance 6-9 (appended block above).
+  RULING R15 (found on the merged head): check-mutate-population exit 2 - "`Sources/Telemetry/
+  URLSessionTelemetryTransport.swift` is allowlisted as computing no number AND is mutated by a population. The two
+  claims contradict; drop one". The allowlist row (R8's) is dropped and the transport joins COVERED_FLOOR in
+  ops/lib/mutate_population_table.py (149 -> 150): it is mutated now, so losing its population must be red.
+  R13 (R4) was already done before the break: the task title and PR #241's title (`gh pr view 241`) both read 3 of 14
+  emitted, 10 pending by T-0361, post_drive_answer by T-0358.
+  6. At feaf7caf (Sources/ and Tests/ byte-identical to c2ba817b: `git diff --stat c2ba817b feaf7caf -- Sources Tests`
+     empty; the drafts set aside), `python ops/mutate/posttelemetry.py --only 14,15,16`: "test files=1", BASELINE
+     exit=0, "MISSED 14 the transport drops the method (a GET) exit=0 no test objected", "MISSED 15 the transport drops
+     the headers ...", "MISSED 16 the transport drops the body ...", "MUTATE FAILED caught=0/3". At f387818b (the stub,
+     the test, MIN_TEST_FILES 2): "test files=2", "caught 14 ... by: shippingTransportPostsTheWholeRequestNotAGet()",
+     same for 15 and 16, "MUTATE OK caught=3/3 equivalent_caught=0 (--only: 3 of 16 entries)". --prove-floor "FLOOR
+     ARM a test file missing  TESTS found 1 of the 2 test files, below the floor of 2", "FLOOR PROOF OK: 7 of 7 arms
+     refused and the control did not".
+  7. `swift test --filter TelemetryTests`: "Test shippingTransportPostsTheWholeRequestNotAGet() passed", "Test run
+     with 20 tests in 7 suites passed".
+  8. R12 red then green, on the real tree: whitelist row `pending postDriveAnswer T-0358` set to T-0350 (queue/done):
+     the HEAD guard (feaf7caf) "ok - 32 lines approved ..." exit 0 (the gap), the new guard "REFUSED pending row for
+     postDriveAnswer names T-0350, which is done" exit 1; set to T-9999: HEAD guard exit 0, new guard "REFUSED pending
+     row for postDriveAnswer names T-9999, which is no task under queue/{backlog,ready,claimed}" exit 1; restored: exit
+     0. --prove-red "PROVE-RED a pending row naming a done task exit 1 (want 1) red", "... a missing task exit 1 (want
+     1) red", control exit 0, "PROVE-RED ok - 16 rows".
+  9. On the merged head (origin/main f615ebe3 merged, then R15): see the next entry.
