@@ -1,7 +1,7 @@
 ---
 id: T-0356
 title: Settings has Delete account in at most 3 taps - an AccountClient sends DELETE /account over the session, the app forgets its local identity on success, and P-PRIV-04's client half is held by tests
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-15T20:03:45Z
@@ -11,7 +11,7 @@ branch: task/T-0356
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-04]
-reviewer: null
+reviewer: agent/rv2-t0356
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -188,3 +188,20 @@ ship the Linux slice and say so in stillOpen. The XCUITest half waits on T-0180'
   (355 tasks)` exit 0; check-line-cap `P-SRC-02: 615 Swift files tracked (Sources=298, Tests=218, apps/ios=99), none
   over 300 lines` exit 0. ios-compile run 38817042776 on 1553c173 = success (4m49s); PR linux-core run 38817047779 on
   1553c173 = success (7m0s). origin/main re-fetched at this entry: still 2fdde971, an ancestor of HEAD.
+- 2026-10-15T22:56:47Z REVIEW PASS (round 2) by agent/rv2-t0356 on 08447eed (not the owner). (1) B1 re-applied
+  (`keychain = .absent` deleted from SessionStore.forgetSession()) -> RED by name: `Test "forgetSession removes the
+  Keychain item and the forgotten token is never handed back" recorded an issue at AccountEraseTableTests.swift:102:9:
+  Expectation failed: (storage.writes.map(\.write) -> [ScenicAPIClient.KeychainWrite.update]) == ([.add] ...)`, `38
+  tests in 12 suites failed ... with 1 issue`. (2) Own mutant rv2-forget-keeps-current (`current = .absent` deleted
+  from forgetSession()) -> RED by the same test: lines 99/100 (next == oldToken) and 102 (writes == []), 3 issues.
+  Restored -> `Test run with 38 tests in 12 suites passed`. (3) `gh pr checks 243`: core pass (8m39s, run
+  38818923511), pins-source-only pass (2m42s). ios-compile 38817042776 success on 1553c173; 1553c173..08447eed
+  touches only this task file, so no Apple file changed since. Bare gates on 08447eed: check-mutate-population `the
+  floor of 157 holds` exit 0; check-pins-yaml `PINS-YAML ok pins=50 fields=403` exit 0; queue-check `QUEUE OK (355
+  tasks)` exit 0; check-safety-disclaimer exit 0; check-telemetry-emit-sites `ok - 38 lines approved` exit 0;
+  LiveTelemetry/InstallBoundTelemetry sha256 match the -pinned rows (34d306a8.../00cf5e6e...). `git merge-base
+  --is-ancestor origin/main origin/task/T-0356` exit 0 (main 2fdde971). Recordable (not blocking, the brief's
+  permitted branch): A10's per-record install-id read lives in Apple-only PlanAdapter and has no Linux test, so a
+  "read the id once" mutant of InstallBoundTelemetry would survive every suite; follow-up = a TelemetryClient fed an
+  id provider under Sources/Telemetry with a per-request Linux test. XCUITest tap path and Delete Account screenshot
+  still wait on T-0180.
