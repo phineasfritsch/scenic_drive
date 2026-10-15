@@ -82,6 +82,8 @@
     "Sources/ScenicAPIClient/LedgerRow.swift": "three stored fields (placeId, cell, day) and a memberwise init - no code; parsed rows are compared whole by LedgerClientTests.getRequestAndRows",
     "Sources/ScenicAPIClient/PlanSessionProvider.swift": "a protocol (T-0322 R4) - one async method signature returning an optional token, no code; which token SessionStore hands out is mutated in ops/mutate/session.py (57-76) and bound by whole-request equality in PlanBearerTests",
     "Sources/ScenicAPIClient/LedgerSessionProvider.swift": "a protocol (T-0307 R2) - one method signature returning an optional token, no code; the no-session path is LedgerClient's, mutated in ops/mutate/ledger.py",
+    "Sources/ScenicAPIClient/WaitlistMemory.swift": "a protocol (T-0360 R3) - two method signatures, no code; the read and the write are WaitlistClient's, mutated in ops/mutate/waitlist.py (27-29)",
+    "Sources/ScenicKit/PlanSheet/WaitlistJoining.swift": "a protocol (T-0360 R5) - one method signature, no code; its production conformer WaitlistClient is mutated in ops/mutate/waitlist.py",
     "Sources/ScenicKit/Surprise/SurpriseLedgerPlace.swift": "two stored fields (candidateId, date) and a memberwise init - no code; the merge that reads them is SurpriseHistoryMerge, in ops/mutate/ledger.py",
     "Sources/ScenicKit/Surprise/SurpriseLedgerSource.swift": "a protocol (T-0307 R6) - one async method signature, no code; its only conformer is the Apple-only PlanAdapter LiveSurpriseLedger",
     "Sources/ScenicAPIClient/PlanClient.swift": "wiring for POST /plan: validate through PlanRequestBody, encode, hand ONE request to the transport, map the reply through PlanResponseReader - no operator on a number in the file",

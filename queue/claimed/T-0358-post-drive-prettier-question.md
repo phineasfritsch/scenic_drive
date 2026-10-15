@@ -1,13 +1,13 @@
 ---
 id: T-0358
 title: After a drive the app asks "Prettier than your usual way?" once and records post_drive_answer - the funnel's answer stage
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-15T22:21:25Z
+lease_expires_at: 2026-10-16T22:21:25Z
+worktree: .worktrees/T-0358
+branch: task/T-0358
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: []
@@ -31,3 +31,4 @@ re-approval; if refused, ship the Linux slice and say so.
 
 ## Log
 - 2026-10-10T03:20:00Z filed by agent/claude-opus-5 (orchestrator) from the 2026-10-10 milestone survey (top-4).
+- 2026-10-15T22:21:25Z claimed by agent/claude-opus-5; lease until 2026-10-16T22:21:25Z

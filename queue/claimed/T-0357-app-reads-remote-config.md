@@ -168,3 +168,48 @@ Linux slice and say so.
   names the merged line; `python ops/lib/check-telemetry-emit-sites.py` -> `P-PRIV-05 emit sites: ok - 32 lines
   approved`, exit 0 (RED was the CI line above). iOS on the merged head 6a3cd7f3: ios-compile 38807552565 success,
   ios-screenshot 38807557666 success.
+- 2026-10-15T22:38:09Z MERGE origin/main 2fdde971 (PR #245, T-0360 waitlist) after rv1-t0357 failed on ancestry alone
+  (every substantive check PASSED at a54cfb23). `git merge origin/main` stopped on 7 content conflicts; each ruled a
+  UNION of both tasks: (1) ios-screenshot.yml and ops/lib/ios_screenshot_pinned.py - LIST carries both sides' screens,
+  `... preview nothingPretty waitlist offered loop trip saved paused update legal`, and the collapsed-plan case arm
+  `preview|nothingPretty|waitlist|offered|loop|trip|saved|paused|update)`. (2) PlanRehearsalFixtures.swift - this
+  task's `degraded(_:)` (R8) kept, main's `plan(_:budgetMinutes:waitlist:)` signature taken; 148 lines. (3)
+  LivePlanner.swift - NESTING RULING: `make() -> any RoutePlanning & WaitlistJoining` returns
+  `WaitlistRoutePlanner(planner: planner(), waitlist: LiveWaitlist.make())`, and `planner()` returns
+  `TelemetryRoutePlanner(inner: ConfiguredPlanner(planner: ClientPlanner(...), cache:, appBuild:))` (or
+  UnreachablePlanner without an https base). WaitlistRoutePlanner is outermost because it is the only wrapper that
+  conforms to WaitlistJoining, which PlanSheetScreen's init requires; it forwards plan and degrade and adds no
+  behaviour of its own, so TelemetryRoutePlanner is the outermost wrapper that acts on a plan, and plan_requested still
+  wraps the whole plan including ConfiguredPlanner's gate. ConfiguredPlanner's degrade is reachable through two forwards
+  (Waitlist -> Telemetry -> Configured). 45 lines. (4) SEMANTIC: R7 gave `RoutePlanning.degrade()` no default; main's
+  `struct WaitlistRoutePlanner: RoutePlanning, WaitlistJoining` declared only plan and joinWaitlist, so it now has
+  `func degrade() async -> ConfigDegrade { await planner.degrade() }` (21 lines). Every RoutePlanning conformer on the
+  merged tree, from a grep: ClientPlanner, ConfiguredPlanner, RetimingPlanner, TelemetryRoutePlanner,
+  UnreachablePlanner, WaitlistRoutePlanner, and the test fakes in ConfigDegradeTests, CorridorLearnerTests and
+  OnboardingPlanGateTests. The root ones compile below; the Apple ones are proved only by ios-compile. (5)
+  check-safety-disclaimer-pinned - union of rows (DefaultsConfigStorage and DefaultsWaitlistMemory both kept), then
+  every row recomputed with sed 's/\r$//' | sha256sum. Re-approved: PlanRehearsal.swift b5c84b13 -> f3fe13c3 (main's
+  file), PlanRehearsalFixtures.swift 37993c40 -> dce120fe, PlanSheetScreen.swift 5ebc932a -> ae7e473e (auto-merged:
+  main's waitlist card plus R7's degrade), LivePlanner.swift a43e0885 -> c96bfa22, WaitlistRoutePlanner.swift
+  ed9f1257 -> 481433dd. (6) check-safety-disclaimer-linked-digests.txt - this task's RoutePlanning.swift row (the
+  merged file is this branch's) plus main's WaitlistAnswer and WaitlistJoining rows; no other row changed on
+  recompute. (7) mutate_population_table.py COVERED_FLOOR - both tasks' modules.
+- 2026-10-15T22:38:09Z GATES on the merged tree, all run bare:
+  - `swift test --scratch-path .build/t0357m --filter 'Config|Waitlist|PlanFailureCopyTests|Telemetry'` ->
+    `Test run with 50 tests in 14 suites passed after 0.547 seconds.` exit=0. The suites: ConfigCacheTests,
+    ConfigClientTests, ConfigDegradeTests, ConfiguredPlannerTests, PlanFailureCopyTests, WaitlistAnswerTests,
+    WaitlistClientTests, TelemetryClient, Telemetry wire fixture, TelemetryEvent encoding, P-PRIV-05 payload whitelist,
+    URLSessionTelemetryTransport, plus two that only matched the filter. Full `swift test` -> `Test run with 817 tests in
+    163 suites passed after 14.801 seconds.`
+  - `bash ops/lib/check-safety-disclaimer` -> `... LAST all 97 app .swift, then 299 root + pbxproj file(s) (-linked).`
+    exit 0.
+  - `python ops/lib/check-mutate-population.py` -> `P-PROC-06: 349 modules, 202 covered by 42 populations, 126
+    allowlisted, 9 added by this branch` / `every added module is covered or allowlisted; the floor of 165 holds`
+    exit 0.
+  - `python ops/lib/check-telemetry-emit-sites.py` -> `P-PRIV-05 emit sites: ok - 33 lines approved; 3 of 14 cases
+    emitted once, 11 pending by task` exit 0. The LivePlanner row auto-merged and still matches, so no re-approval
+    was needed.
+  - `python ops/lib/check-pins-yaml.py` -> `PINS-YAML ok pins=50 fields=403` exit 0. `python
+    ops/lib/ios_screenshot_pinned.py` exit 0. ops/lib/check-ios-compile-guardrails does not exist on this tree.
+  - `bash ops/queue-check` -> `QUEUE OK (356 tasks)` exit 0.
+  - ios-compile and ios-screenshot are dispatched on the pushed merge head; their results go in the PR.

@@ -3,7 +3,8 @@ import ScenicAPIClient
 import ScenicKit
 
 /// THE ONLY IMPORTER OF ScenicAPIClient UNDER apps/ios (T-0294 R1), as MapAdapter is of MapLibre: the app's live
-/// planner, built once by the shell and handed to the plan sheet as a `RoutePlanning`.
+/// planner, built once by the shell and handed to the plan sheet as a `RoutePlanning` that is also the sheet's
+/// `WaitlistJoining` (T-0360 R5: LiveWaitlist's client, or none).
 ///
 /// No deployed Worker URL is in the tree yet (R7), so the base URL is read from UserDefaults `plan.base.url` (a
 /// `-plan.base.url https://...` launch argument sets it). Without an https one the planner answers routingOffline
@@ -11,9 +12,15 @@ import ScenicKit
 public enum LivePlanner {
     public static let baseURLKey = "plan.base.url"
 
+    /// The sheet's planner composed once (T-0357 x T-0360 merge ruling): WaitlistRoutePlanner outermost, so joining is
+    /// reachable from the one value; it forwards plan and degrade to `planner()`.
+    public static func make() -> any RoutePlanning & WaitlistJoining {
+        WaitlistRoutePlanner(planner: planner(), waitlist: LiveWaitlist.make())
+    }
+
     /// T-0357 R7: the ClientPlanner with the /config cache and our build, so the sheet hears a pause or an update
-    /// before the user taps Plan.
-    public static func make() -> any RoutePlanning {
+    /// before the user taps Plan; TelemetryRoutePlanner wraps that whole gate, so plan_requested still wraps the plan.
+    static func planner() -> any RoutePlanning {
         guard let text = UserDefaults.standard.string(forKey: baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return UnreachablePlanner() }
         let cache = ConfigCache(client: ConfigClient(base: base, transport: URLSessionPlanTransport()),

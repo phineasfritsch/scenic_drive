@@ -4,6 +4,7 @@ site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveLoopPlanner.swift	     
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift	        return TelemetryRoutePlanner(inner: ConfiguredPlanner(planner: ClientPlanner(client: client(base)), cache: cache,
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift	    private static let live: (any SurpriseLedgerSource)? = TelemetrySurpriseLedger(inner: build())
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift	import Telemetry
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveWaitlist.swift	import Telemetry
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	                               transport: URLSessionTelemetryTransport())
 emit	planRequested	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.planRequested(feature: feature, budgetMinutes: budgetMinutes, origin: cell))
 emit	planResult	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.planResult(kind))
