@@ -14,7 +14,7 @@ public enum LivePlanner {
     public static func make() -> any RoutePlanning {
         guard let text = UserDefaults.standard.string(forKey: baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return UnreachablePlanner() }
-        return ClientPlanner(client: client(base))
+        return TelemetryRoutePlanner(inner: ClientPlanner(client: client(base)))
     }
 
     /// The drive's reroute sender (T-0328 R2): PlanRerouter on the same client, continuing `preview`'s plan; the sender
