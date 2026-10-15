@@ -138,6 +138,7 @@ const APPROVED: Record<string, string[]> = {
     '"/loop": (req, env) => handleLoop(req, env, loopDepsFromEnv(env)),',
     '"/isochrone": (req, env) => handleIsochrone(req, env, isochroneDepsFromEnv(env)),',
     '"/trip": (req, env) => handleTrip(req, env, tripDepsFromEnv(env)),',
+    '"/search": (req, env) => handleSearch(req, env, searchDepsFromEnv(env)),',
     '"/asn": (req, env) => handleAsn(req, asnDepsFromEnv(env)),',
     '"/entitlement": (req, env) => handleEntitlement(req, asnDepsFromEnv(env)),',
     '"/attest/challenge": (req, env) => handleAttestChallenge(req, attestDepsFromEnv(env)),',
@@ -161,6 +162,16 @@ const APPROVED: Record<string, string[]> = {
     POST_ONLY,
     BODY_READ,
     'const buckets = await guardedPlan(deps.upstream, { ...(await deps.identify(req)), kind: "surprise" }, (call) =>',
+  ],
+  // T-0359: /search reads its method and body (the approved POST shape) and hands the request to routerDeps' identify
+  // only; Photon's own answer is read through `response`, never the caller's request.
+  "../src/search.ts": [
+    "identify(req: Request): Promise<Identity>;",
+    "body = await response.json();",
+    "export async function handleSearch(req: Request, env: KillEnv, deps: SearchDeps | null): Promise<Response> {",
+    POST_ONLY,
+    BODY_READ,
+    "const who = await deps.identify(req);",
   ],
   // T-0302 R1: the ledger user is the verified session's sub, read at ONE site (caller) by AUTHORIZATION_HEADER.
   "../src/ledger.ts": [

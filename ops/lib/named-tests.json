@@ -227,6 +227,11 @@
       "test/tripPlaces.test.ts": [
         "the places read takes nothing from the request (T-0316 R3, P-PRIV-05) > a trip's D1 statements are the destination lookup and one unbound trip_places read; router bodies carry no place",
         "the trip_places table (migrations/0009_trip_places.sql, T-0316 R1) > its columns are exactly (id, name, kind, score, lat, lon): no device, no instant (P-PRIV-05)"
+      ],
+      "test/searchShape.test.ts": [
+        "POST /search takes the typed text and one 2-dp coordinate, and sends exactly that (T-0359 R3/R4, P-PRIV-05) > every refused bound is 400 invalid_request with zero Photon requests and no reservation",
+        "POST /search takes the typed text and one 2-dp coordinate, and sends exactly that (T-0359 R3/R4, P-PRIV-05) > a body that is not JSON is 400 with zero Photon requests",
+        "POST /search takes the typed text and one 2-dp coordinate, and sends exactly that (T-0359 R3/R4, P-PRIV-05) > every accepted body sends ONE GET whose URL equals the written-out template and whose only header is the search secret"
       ]
     },
     "swift": {
@@ -331,6 +336,15 @@
       ],
       "test/tripPlaces.test.ts": [
         "the places read takes nothing from the request (T-0316 R3, P-PRIV-05) > KILL=1 is 503 with zero router requests and no D1 statement at all (P-COST-01)"
+      ],
+      "test/searchCost.test.ts": [
+        "ROUTES['/search'] spend control (T-0359 R5, P-COST-01) > KILL=1 in env or the KV switch is 503 planning_paused before the body is read (bodyUsed false): zero Photon requests, no reservation",
+        "ROUTES['/search'] spend control (T-0359 R5, P-COST-01) > the search allowance and one monthly call are reserved before the one Photon request",
+        "ROUTES['/search'] spend control (T-0359 R5, P-COST-01) > an exhausted daily search allowance is 429 with resets_at and zero Photon requests",
+        "ROUTES['/search'] spend control (T-0359 R5, P-COST-01) > 29 searches used leaves one: the 30th is answered and reserved",
+        "ROUTES['/search'] spend control (T-0359 R5, P-COST-01) > a tripped monthly counter is 503 planning_paused with zero Photon requests",
+        "ROUTES['/search'] spend control (T-0359 R5, P-COST-01) > without QUOTA, a routable SEARCH_URL or SEARCH_SECRET the route is 503 search_unavailable with zero requests",
+        "ROUTES['/search'] spend control (T-0359 R5, P-COST-01) > a session that does not verify is 401 session_rejected, reserving nothing and sending nothing"
       ]
     }
   },

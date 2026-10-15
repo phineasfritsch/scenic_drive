@@ -120,6 +120,7 @@
     "Sources/ScenicKit/Drive/RerouteSending.swift": "a one-requirement protocol (T-0321) - no code; its one conformer, RerouteUnavailable, is a drive.py subject (entry 42)",
     "Sources/ScenicKit/Drive/DriveMode.swift": "the drive session's three-case mode enum (T-0317); no code - its transitions are DriveSession.swift's, which drive.py mutates",
     "Sources/ScenicKit/Hazards/ClosuresHazard.swift": "a three-field value and its .clear constant (T-0341 R1); no code - what it reads as is ClosuresHazardReader's and what it says is HazardCopy.closureLines', both mutated by hazardcopy.py",
-    "Sources/ScenicKit/Hazards/ClosuresState.swift": "a three-case enum (T-0341 R1); no code - which case a body reads as is ClosuresHazardReader's, mutated by hazardcopy.py"
+    "Sources/ScenicKit/Hazards/ClosuresState.swift": "a three-case enum (T-0341 R1); no code - which case a body reads as is ClosuresHazardReader's, mutated by hazardcopy.py",
+    "Sources/ScenicAPIClient/SearchOutcome.swift": "a twelve-case enum carrying search results, a refusal, a status or offline (T-0359); no code"
   }
 }
