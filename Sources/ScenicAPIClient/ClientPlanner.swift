@@ -13,6 +13,9 @@ public struct ClientPlanner: RoutePlanning {
         self.client = client
     }
 
+    /// T-0357 R7: the bare client reads no /config, so it never degrades; ConfiguredPlanner is the one that does.
+    public func degrade() async -> ConfigDegrade { .clear }
+
     public func plan(_ ticket: PlanTicket) async -> PlanOutcome {
         do {
             let response = try await client.plan(from: ticket.origin, to: ticket.place,

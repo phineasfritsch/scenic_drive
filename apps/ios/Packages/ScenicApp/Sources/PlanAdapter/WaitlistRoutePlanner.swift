@@ -11,6 +11,9 @@ struct WaitlistRoutePlanner: RoutePlanning, WaitlistJoining {
         await planner.plan(ticket)
     }
 
+    /// The config gate is the wrapped planner's (T-0357 R7, merge with T-0360): asking it joins nothing and plans nothing.
+    func degrade() async -> ConfigDegrade { await planner.degrade() }
+
     func joinWaitlist(near start: Coordinate) async -> WaitlistAnswer {
         guard let waitlist else { return .unavailable }
         return await waitlist.joinWaitlist(near: start)

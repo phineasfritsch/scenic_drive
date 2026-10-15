@@ -12,6 +12,9 @@ struct TelemetryRoutePlanner: RoutePlanning {
         return outcome
     }
 
+    /// The config gate is the inner planner's (T-0357 R7): asking it sends no telemetry and plans nothing.
+    func degrade() async -> ConfigDegrade { await inner.degrade() }
+
     static func kind(_ outcome: PlanOutcome) -> PlanResultKind {
         switch outcome {
         case .preview: return .routed
