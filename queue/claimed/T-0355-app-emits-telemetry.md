@@ -175,3 +175,8 @@ T-0358; this task wires the other 13 and the client.
   9. on the merged head: swift test --filter TelemetryTests, check-telemetry-emit-sites (bare + --prove-red),
      check-safety-disclaimer, check-mutate-population, check-mutate-only, check-mutate-anchors, check-pins-yaml,
      queue-check - quoted here; then push and `gh pr checks 241`.
+- 2026-10-15T19:34:55Z ROUND 1 CONTINUED AFTER A SESSION BREAK by agent/claude-opus-5 (owner). The earlier run of this
+  round was cut off: commit A (feaf7caf, the rulings above and mutants 14-16) was local and unpushed; the R12 guard
+  edit, MIN_TEST_FILES 1 -> 2, and drafts of StubTelemetryURLProtocol.swift and URLSessionTelemetryTransportTests.swift
+  were uncommitted. Kept, not reset: the drafts were set aside under .build/ (gitignored) so acceptance 6's MISSED
+  half runs on commit A as R11 orders, then restored, reviewed and finished. No ruling changes.

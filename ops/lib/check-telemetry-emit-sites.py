@@ -12,7 +12,8 @@ non-blank characters are `//` is skipped (memory source-guards-fail-closed). Eac
 whitespace dropped), an approved row of check-telemetry-emit-sites.txt, as many times as it is listed:
     emit<TAB><case><TAB><file><TAB><line>    the ONE line constructing `TelemetryEvent.<case>`
     site<TAB><file><TAB><line>               any other approved line (a caller, an import, a declaration)
-    pending<TAB><case><TAB><T-NNNN>          the case is not emitted yet; that task wires it
+    pending<TAB><case><TAB><T-NNNN>          the case is not emitted yet; that task wires it - an OPEN task:
+                                             a queue/{backlog,ready,claimed}/<id>-*.md and no queue/done one
 The cases are read from Sources/Telemetry/TelemetryEventKind.swift, so a new case is red until it has a row. An
 emit row must construct its own case; a site row may construct none; an approved row that is gone is red.
 
@@ -39,6 +40,9 @@ KINDS = "Sources/Telemetry/TelemetryEventKind.swift"
 SKIP_DIRS = {".build", "DerivedData", ".swiftpm"}
 CASE_LINE = re.compile(r"^\s*case\s+(\w+)\b")
 TASK = re.compile(r"^T-\d{4}$")
+# A pending row's task must be OPEN: a queue file under one of these, and none under queue/done.
+OPEN_STATES = ("backlog", "ready", "claimed")
+DONE = "done"
 
 
 def cases(root: pathlib.Path) -> list:
@@ -87,6 +91,12 @@ def check(root: pathlib.Path, out=sys.stdout) -> int:
             allowed["\t".join(cells[1:])] += 1
         elif cells[0] == "pending" and len(cells) == 3 and TASK.match(cells[2]):
             per_case[cells[1]].append("pending " + cells[2])
+            queue = root / "queue"
+            if list((queue / DONE).glob(cells[2] + "-*.md")):
+                problems.append("pending row for %s names %s, which is done" % (cells[1], cells[2]))
+            elif not [p for s in OPEN_STATES for p in (queue / s).glob(cells[2] + "-*.md")]:
+                problems.append("pending row for %s names %s, which is no task under queue/%s"
+                                % (cells[1], cells[2], "{" + ",".join(OPEN_STATES) + "}"))
         else:
             problems.append("malformed whitelist row: %r" % row)
     for case in sorted(set(per_case) - set(names)):
@@ -135,6 +145,10 @@ RED_ROWS = (
     ("an emit row retagged", WHITELIST, "emit\tsurpriseShown\t", "emit\tsurpriseArrived\t", 1),
     ("an emit row demoted to a site", WHITELIST, "emit\tsurpriseShown\t", "site\t", 1),
     ("a pending row without a task", WHITELIST, "pending\tpreviewShown\tT-0361", "pending\tpreviewShown\tlater", 1),
+    ("a pending row naming a done task", WHITELIST, "pending\tpostDriveAnswer\tT-0358",
+     "pending\tpostDriveAnswer\tT-0350", 1),
+    ("a pending row naming a missing task", WHITELIST, "pending\tpostDriveAnswer\tT-0358",
+     "pending\tpostDriveAnswer\tT-9999", 1),
     ("the whitelist emptied", WHITELIST, "", None, 2),
     ("the kind file gone", KINDS, "", None, 2),
 )
@@ -152,6 +166,10 @@ def mirror(dest: pathlib.Path) -> None:
     for rel in (KINDS, WHITELIST):
         (dest / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / rel, dest / rel)
+    for state in OPEN_STATES + (DONE,):
+        (dest / "queue" / state).mkdir(parents=True, exist_ok=True)
+        for task in (ROOT / "queue" / state).glob("T-*.md"):
+            (dest / "queue" / state / task.name).touch()
 
 
 def prove_red() -> int:
