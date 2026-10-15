@@ -1,7 +1,7 @@
 ---
 id: T-0354
 title: check-mutate-only's POSIX process-group tree kill is seen red then green on Linux CI, and PAIR_FLOOR is raised to the measured merged-head count
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
