@@ -1,7 +1,7 @@
 ---
 id: T-0357
 title: The app reads /config - a ConfigClient fetches the Worker's remote config with cached defaults, and the kill switch and min build degrade the UI to the typed PlanError copy instead of failing
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-10T05:16:25Z
@@ -11,7 +11,7 @@ branch: task/T-0357
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, pins/PINS.yaml, .github/workflows/ios-screenshot.yml, queue/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t0357
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -213,3 +213,33 @@ Linux slice and say so.
     ops/lib/ios_screenshot_pinned.py` exit 0. ops/lib/check-ios-compile-guardrails does not exist on this tree.
   - `bash ops/queue-check` -> `QUEUE OK (356 tasks)` exit 0.
   - ios-compile and ios-screenshot are dispatched on the pushed merge head; their results go in the PR.
+- 2026-10-15T23:02:54Z REVIEW round 2 (agent/rv2-t0357, not the owner) of PR #244 head 98ccc86d (merge of
+  a54cfb23 + origin/main 2fdde971, merge-base 6ceffea2). Scope: the merge only; round 1's substantive checks
+  (rv1-t0357 at a54cfb23) stand. VERDICT PASS.
+  - Conflicts (`git show --remerge-diff 98ccc86d`): all 7 resolved as a union. ios-screenshot.yml and
+    ios_screenshot_pinned.py: LIST and the collapsed-plan arm carry waitlist and paused/update. PlanRehearsalFixtures:
+    `degraded(_:)` kept, main's `plan(_:budgetMinutes:waitlist:)` taken. LivePlanner: main's `make()` ->
+    WaitlistRoutePlanner(planner: planner(), ...) and branch's Telemetry(Configured(Client)) inside `planner()`.
+    COVERED_FLOOR holds both tasks' modules. Digest rows by path, base/ours/theirs/merged:
+    check-safety-disclaimer-pinned 92/93/96/97, linked-digests.txt 296/305/301/310. That is an exact union with no row
+    missing and none extra. PlanRehearsal.swift is byte-identical to main's (the branch never changed it).
+  - Conformers of RoutePlanning on the merged tree (grep): ClientPlanner, ConfiguredPlanner, RetimingPlanner,
+    TelemetryRoutePlanner, UnreachablePlanner, WaitlistRoutePlanner, and the test fakes in ConfigDegradeTests,
+    CorridorLearnerTests and OnboardingPlanGateTests. All 9 declare `func degrade() async -> ConfigDegrade`.
+    WaitlistRoutePlanner forwards `await planner.degrade()`.
+  - Mutant A (delete WaitlistRoutePlanner's degrade forwarding): no root test can see it, because the file is
+    Apple-only. It is caught by ios-compile (no protocol default, so the conformance fails to compile) and by the
+    content pin (digest fa6fa6df != pinned 481433dd). Ruled ACCEPTABLE: the failure mode is a compile refusal, not a
+    silent default. Mutant B (swap the order to Configured(Telemetry(Client)) in LivePlanner.planner()):
+    `python ops/lib/check-telemetry-emit-sites.py` -> `P-PRIV-05 emit sites: FAILED - 2 refusals` exit 1
+    (site not on the whitelist / approved site missing). Both mutants were restored, and git status was clean.
+  - Bare gates on 98ccc86d, all exit 0: `bash ops/lib/check-safety-disclaimer` (`LAST all 97 app .swift, then 299
+    root + pbxproj file(s) (-linked).`); `python ops/lib/check-mutate-population.py` (`P-PROC-06: 349 modules, 202
+    covered by 42 populations, 126 allowlisted, 9 added by this branch` / `the floor of 165 holds`); `python
+    ops/lib/check-telemetry-emit-sites.py` (`ok - 33 lines approved`); `python ops/lib/check-pins-yaml.py`
+    (`PINS-YAML ok pins=50 fields=403`); `python ops/lib/ios_screenshot_pinned.py`; `bash ops/queue-check`
+    (`QUEUE OK (356 tasks)`).
+  - CI on 98ccc86d: ios-compile 38819108891 success; ios-screenshot 38819112448 success; linux-core 38819117618
+    success. `gh pr checks 244`: core pass, pins-source-only pass.
+  - Ancestry, run last after `git fetch origin`: origin/main 2fdde971, and `git merge-base --is-ancestor origin/main
+    origin/task/T-0357` exit 0.
