@@ -1,7 +1,8 @@
 import Foundation
 import ScenicKit
 
-/// The plan sheet a DEBUG build opens on when launched with `-screen preview|nothingPretty|offered|loop|trip|saved` -
+/// The plan sheet a DEBUG build opens on when launched with
+/// `-screen preview|nothingPretty|offered|loop|trip|saved|waitlist` -
 /// ios-screenshot's plan-sheet shots (T-0336 R2) - and in every release build, none.
 ///
 /// The `-screen` pair lands in UserDefaults' argument domain, read here inside `#if DEBUG` and written nowhere
@@ -22,6 +23,8 @@ public struct PlanRehearsal {
     let loop: LoopSheet
     let trip: TripSheet
     let savedRows: [SavedRow]
+    /// T-0360: the waitlist card's answer over a regionUnsupported failure; nil for every other rehearsal.
+    var waitlist: WaitlistAnswer? = nil
 
     /// The rehearsal to open, or nil: always nil outside DEBUG.
     static var atLaunch: PlanRehearsal? {

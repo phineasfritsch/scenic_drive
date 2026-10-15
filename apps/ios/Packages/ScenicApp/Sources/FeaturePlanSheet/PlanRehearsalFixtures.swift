@@ -85,6 +85,7 @@ enum PlanRehearsalFixtures {
         switch name {
         case "preview": return plan(.preview(preview))
         case "nothingPretty": return plan(.failure(.nothingPretty))
+        case "waitlist": return plan(.failure(.regionUnsupported), waitlist: .joined)
         case "offered": return plan(.offered(offer), budgetMinutes: offer.budgetMinutes)
         case "loop": return loop()
         case "trip": return trip()
@@ -95,7 +96,8 @@ enum PlanRehearsalFixtures {
         }
     }
 
-    private static func plan(_ outcome: PlanOutcome, budgetMinutes: Int = 30) -> PlanRehearsal? {
+    private static func plan(_ outcome: PlanOutcome, budgetMinutes: Int = 30,
+                             waitlist: WaitlistAnswer? = nil) -> PlanRehearsal? {
         var sheet = PlanSheet(disclaimerAccepted: true, budgetMinutes: budgetMinutes)
         sheet.search("", for: .start)
         sheet.choose(topanga)
@@ -104,7 +106,7 @@ enum PlanRehearsalFixtures {
         guard let ticket = sheet.startPlanning() else { return nil }
         sheet.finish(ticket, with: outcome)
         return PlanRehearsal(tab: .plan, sheet: sheet, loop: LoopSheet(disclaimerAccepted: false),
-                             trip: TripSheet(disclaimerAccepted: false), savedRows: [])
+                             trip: TripSheet(disclaimerAccepted: false), savedRows: [], waitlist: waitlist)
     }
 
     private static func loop() -> PlanRehearsal? {
