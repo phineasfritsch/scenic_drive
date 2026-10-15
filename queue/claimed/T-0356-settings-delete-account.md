@@ -97,3 +97,27 @@ ship the Linux slice and say so in stillOpen. The XCUITest half waits on T-0180'
   shot is where the row is looked at, and the confirmation dialog is not shot (recorded for the XCUITest task).
   R9 the new Sources modules compute no number reaching score, route or tags (status-code switch, boolean body
   read, string copy, an item table): allowlisted in mutate-population-allowlist.json with a reason each.
+- 2026-10-15T20:43:08Z A5 RED (commit 96277cb6, tests before code): `swift build --build-tests` -> AccountClientTests:
+  cannot find 'AccountClient' (1), type 'AccountOutcome' (4); AccountDeletionCopyTests: 'AccountDeletionCopy' (1),
+  'AccountOutcome' (2); AccountEraseTableTests: 'AccountClient' (1), 'AccountDeletion' (1), 'LocalAccountItem' (8),
+  'AccountOutcome' (4); RecordingEraser: 'LocalAccountEraser' (2), 'LocalAccountItem' (5); ScriptedAccountSession:
+  'AccountSessionProvider' (2); `swift build --target ScenicKitTests` -> AccountDeletionPathTests: cannot find
+  'AccountDeletionPath' (lines 27, 28, 35). After the ScenicKit/ScenicAPIClient code and before the Settings row:
+  everyStepIsShipped FAILED twice by name (settings.deleteAccount and settings.deleteAccount.confirm count 0, the
+  home.settings line counted 1) - the source binding seen red; then green with the row.
+  R3 addendum (ruled while writing the eraser): the erase ORDER is installIDDefaults, installIDKeychain, session - the
+  UserDefaults copy first so a concurrent StoredInstallID.installID() cannot move the old id back into an emptied
+  Keychain item, the install id before the session so a session acquired after the forget cannot carry the old id.
+  Residue: a request already in flight with the old Bearer (stateless JWT <= 3600 s; P-PRIV-04 NOT ASSERTED).
+  R7 consequences: the Settings mount line is whitelisted in three places (check-safety-disclaimer-frozen,
+  check-safety-disclaimer-doors, store_links_pinned.SETTINGS_MOUNT) - all three re-approved with the new
+  `deleteAccount:` argument; store_links_pinned's Settings section run gains `account`, its identifier whitelist
+  gains settings.deleteAccount, settings.deleteAccount.confirm and settings.deletionNote, and FROZEN[SettingsScreen]
+  is re-approved (4e0dc5e8...). check-store-links --prove-red: 33/33 rows as required.
+  Hand mutants (.artifacts/mutants.py, swift filter of the four account suites), each CAUGHT by name:
+  erase-on-any-outcome (AccountDeletion's guard removed) -> `Every outcome x every item: erased exactly on deleted,
+  and only the identity`; user-store-erased (.userStore erasedOnDeletion) -> the same; deleted-false-accepted ->
+  `Every answer is one outcome after exactly one request` + the erase table; retry-without-renewal-check -> `A 401
+  whose renewal yields no token or the same token is unauthorized after one request`; device-header-sent -> five
+  AccountClientTests incl. `DELETE /account is exactly the Bearer and nothing else ...`.
+  `python ops/lib/run-named-tests.py P-PRIV-04` -> NAMED P-PRIV-04 passed=83/83 (68 vitest + 15 swift).

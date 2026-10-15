@@ -121,6 +121,15 @@
     "Sources/ScenicKit/Drive/DriveMode.swift": "the drive session's three-case mode enum (T-0317); no code - its transitions are DriveSession.swift's, which drive.py mutates",
     "Sources/ScenicKit/Hazards/ClosuresHazard.swift": "a three-field value and its .clear constant (T-0341 R1); no code - what it reads as is ClosuresHazardReader's and what it says is HazardCopy.closureLines', both mutated by hazardcopy.py",
     "Sources/ScenicKit/Hazards/ClosuresState.swift": "a three-case enum (T-0341 R1); no code - which case a body reads as is ClosuresHazardReader's, mutated by hazardcopy.py",
-    "Sources/ScenicAPIClient/SearchOutcome.swift": "a twelve-case enum carrying search results, a refusal, a status or offline (T-0359); no code"
+    "Sources/ScenicAPIClient/SearchOutcome.swift": "a twelve-case enum carrying search results, a refusal, a status or offline (T-0359); no code",
+    "Sources/ScenicAPIClient/AccountClient.swift": "builds the one DELETE /account request and decides one renewed retry after a 401 (T-0356 R4); no number - the outcome is AccountReplyReader's",
+    "Sources/ScenicAPIClient/AccountDeletion.swift": "calls AccountClient and, on deleted only, the eraser for each item the table names (T-0356 R3); no number",
+    "Sources/ScenicAPIClient/AccountDeletionCopy.swift": "one string per AccountOutcome (T-0356 R6); no number",
+    "Sources/ScenicAPIClient/AccountOutcome.swift": "a nine-case enum (T-0356 R2); no code",
+    "Sources/ScenicAPIClient/AccountReplyReader.swift": "maps an HTTP status and a boolean-only JSON body to an AccountOutcome case (T-0356 R2); the status is compared, never computed, and nothing reaches score, route or tags",
+    "Sources/ScenicAPIClient/AccountSessionProvider.swift": "a three-method protocol (T-0356 R4); no code",
+    "Sources/ScenicAPIClient/LocalAccountEraser.swift": "a one-method protocol (T-0356 R3); no code",
+    "Sources/ScenicAPIClient/LocalAccountItem.swift": "a thirteen-case inventory and its boolean erase ruling (T-0356 R3); no number",
+    "Sources/ScenicKit/Account/AccountDeletionPath.swift": "three accessibility identifiers in tap order (T-0356 R1); no number"
   }
 }

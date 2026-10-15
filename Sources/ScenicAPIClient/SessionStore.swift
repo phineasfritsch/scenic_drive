@@ -12,7 +12,10 @@ import Foundation
 /// acquisition is unspent. T-0333 R4: a plan-family 401 (`planSessionRejected`) drops it the same way and, the FIRST
 /// time in a launch for that purchase value, returns the value's acquisition - at most two per value per launch. An assertion the Worker rejects forgets the key, so the next launch attests a new one. No
 /// session, for any reason, is nil: the ledger is not called, and a plan-family request carries no Bearer.
-public actor SessionStore: LedgerSessionProvider, PlanSessionProvider {
+///
+/// T-0356 R3, R4: DELETE /account takes the launch's purchase session like the ledger; its 401 is the plan family's
+/// (one regrant); a confirmed deletion forgets the session - the Keychain item and this launch's copy alike.
+public actor SessionStore: LedgerSessionProvider, PlanSessionProvider, AccountSessionProvider {
     let client: AttestClient
     let attester: any AppAttesting
     let storage: any SessionStorage
@@ -57,6 +60,20 @@ public actor SessionStore: LedgerSessionProvider, PlanSessionProvider {
         await sessionRejected(token)
         let act = record.act ?? ""
         if regranted.insert(act).inserted { spent.remove(act) }
+    }
+
+    public func accountSession() async -> String? {
+        await sessionToken()
+    }
+
+    public func accountSessionRejected(_ token: String) async {
+        await planSessionRejected(token)
+    }
+
+    public func forgetSession() async {
+        storage.remove()
+        keychain = .absent
+        current = .absent
     }
 
     private func session(for account: UUID?) async -> String? {

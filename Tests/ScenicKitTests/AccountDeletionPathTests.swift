@@ -17,7 +17,7 @@ import Testing
         #expect(files.count > 50)
         return try files.flatMap { url in
             try String(contentsOf: url, encoding: .utf8).split(separator: "\n", omittingEmptySubsequences: false)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.hasPrefix("//") }
         }
     }

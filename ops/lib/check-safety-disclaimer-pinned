@@ -95,7 +95,7 @@ PINNED_SHELL_ENTRIES=(
   'f ScenicDriveApp.swift' 'f Tiles/.gitignore'
 )
 PINNED_SHELL_TILE='^f Tiles/[A-Za-z0-9_-][A-Za-z0-9._-]*\.pmtiles(\.json)?$'
-PINNED_SHELL_DIGEST='bde60690f3ea87a2a1ccce41b7ad868db78e21631b296808c1ab973d165a5f57'
+PINNED_SHELL_DIGEST='23e298393a25a0b01144ef94d6907f3dd0e62c8863dde7b33391037ae26505b4'
 
 # pinned_shell DIR: the shell's entries against the whitelist, its index for links, ScenicDriveApp.swift's digest.
 pinned_shell() {
@@ -239,7 +239,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/Entitlements/LaunchScreen.swift 8b4e9310f204551fbd2772c2817c2c7421a5db1227bcabc34cf423e9460d80f0'
   'Packages/ScenicApp/Sources/Entitlements/LegalAttributionScreen.swift bed642cf5b89f16bcbfbaf9818019a141b6952d7fe9d8868a0e02223a9064af0'
   'Packages/ScenicApp/Sources/Entitlements/PaywallScreen.swift cd4008c5702bd8c9ab4b34b96a4bf9095c4e811706cc609526c3affb2aa41087'
-  'Packages/ScenicApp/Sources/Entitlements/SettingsScreen.swift c6f6ec266e58307194643a594b1d070579ca321971758bdc580a4229c8e79a89'
+  'Packages/ScenicApp/Sources/Entitlements/SettingsScreen.swift 04a190674331b5c6b32991b0893dbde8b0cd3556a8375e20d45103dcc7f81c8c'
   'Packages/ScenicApp/Sources/Entitlements/StoreConstants.swift aed28404d9bbd4b8b9bdeb9c1d430bc574be182686b53661cc70991365457d54'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift b1b0bc8cbfe4bee600c839ee98aace8435eb308d7752b4592652e57adaaf3f78'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/LoopScreen.swift 71582ae18c107cc436226e6eda36f1667173184a4980c57075bf49a82ea616f7'
@@ -303,9 +303,11 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/NavAdapter/FerrostarDecisionsOff.swift 4698b8691591548c27224bd524c9a0f1aba466ab4fe818972d09266784415006'
   'Packages/ScenicApp/Sources/NavAdapter/FerrostarDriveRoute.swift df54cb022ba57433fd30eb4a64274715423ea7558d492fdb78ae014096db8e88'
   'Packages/ScenicApp/Sources/NavAdapter/PlannedRouteProvider.swift 4410e1d973471b0ffda39eab5d458844c661e4767640a6c5d53575af2548c175'
+  'Packages/ScenicApp/Sources/PlanAdapter/DeviceAccountEraser.swift 9d3b839b6a805c74f386cee89d1d9cc00838e292e6b6b2a34f9067abceeb5378'
   'Packages/ScenicApp/Sources/PlanAdapter/DeviceAppAttester.swift eb7b196de20f0910b6bf1f9c506618a8dbb4ff0897695b49357c106425e02c95'
   'Packages/ScenicApp/Sources/PlanAdapter/KeychainItem.swift e06d7084589005400f42c735f38e90f2a058579ec9f15e11f76d2c9ac68a5d63'
   'Packages/ScenicApp/Sources/PlanAdapter/KeychainSessionStorage.swift 3515c53a0402f88aa266bef10d566ac6704399d2e52f528ec8919e31e1288d05'
+  'Packages/ScenicApp/Sources/PlanAdapter/LiveAccountDeletion.swift e4a5809ca530df8b68e8afd60116d26e7add5015a5331ee8ac850b3c5bc63afc'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveCorpus.swift c4886df4516558e45172300dceb481d9134cd0176ace05fbc00e49317f55ead3'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveLoopPlanner.swift 9a66871bcc1f551ba490edfcb7eafce61b865eb685c1a612f2c860b7b6193c74'
   'Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift 91b81df7c0a8bb5a59dbb2371b32922c115e71c1c440b384f641bdfc207e0a6b'
@@ -317,7 +319,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachableLoopPlanner.swift 56dce09a65f0d4e9afb183327c4aedf7a0eb849900a222c8d76110479735048f'
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachablePlanner.swift 6ee10bda9ca24fe44518093d2a3920b24a1654c2d1ad5a75a6d9b3cc05619590'
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachableTripPlanner.swift c0c49b6357956563edd27ea798b33ec5722d7e3d82361e88a7ae37447634ec6b'
-  'ScenicDrive/ScenicDriveApp.swift bde60690f3ea87a2a1ccce41b7ad868db78e21631b296808c1ab973d165a5f57'
+  'ScenicDrive/ScenicDriveApp.swift 23e298393a25a0b01144ef94d6907f3dd0e62c8863dde7b33391037ae26505b4'
 )
 
 # require_pinned_app_swift APP_TREE: the app tree's Swift file set against PINNED_APP_SWIFT, then every digest.

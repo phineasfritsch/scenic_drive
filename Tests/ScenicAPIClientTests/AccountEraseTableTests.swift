@@ -9,13 +9,13 @@ import Testing
 @Suite("AccountEraseTableTests") struct AccountEraseTableTests {
     /// The thirteen items the T-0356 MEASURE found, in its order.
     static let inventory: [LocalAccountItem] = [
-        .session, .installIDKeychain, .installIDDefaults, .appAttestKey, .purchaseToken, .userStore,
+        .installIDDefaults, .installIDKeychain, .session, .appAttestKey, .purchaseToken, .userStore,
         .disclaimerAcknowledged, .vehicle, .corpusWifiOnly, .corpusFiles, .basemapTiles, .workerBaseURL,
         .corpusManifestURL,
     ]
 
     /// R3: what names the account, in the order it is erased - written here, never read from the table.
-    static let identity: [LocalAccountItem] = [.session, .installIDKeychain, .installIDDefaults]
+    static let identity: [LocalAccountItem] = [.installIDDefaults, .installIDKeychain, .session]
 
     struct Row: Sendable, CustomTestStringConvertible {
         let label: String
