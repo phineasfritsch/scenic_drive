@@ -39,7 +39,7 @@ struct ScenicDriveApp: App {
     var body: some Scene {
         WindowGroup {
             if let drive, let host = DriveHost(preview: drive, sender: DriveRehearsal.rerouter ?? LivePlanner.rerouter(for: drive), content: { display in DriveScreen(preview: drive, display: display, onEnd: { self.drive = nil }) }) {
-                host
+                host.environment(\.postDriveAnswers, LivePostDriveAnswers())
             } else {
                 home
             }

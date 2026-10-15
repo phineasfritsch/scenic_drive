@@ -106,3 +106,20 @@ re-approval; if refused, ship the Linux slice and say so.
      check-telemetry-emit-sites.py, check-line-cap, check-pins-yaml.py, check-exec-bits, queue-check,
      check-drive-display.py, check-drive-voice.py, check-ferrostar-imports.py.
   A5 ios-compile success and ios-screenshot success on task/T-0358; the drive shot looked at (no question).
+- 2026-10-15T22:48:04Z RED then GREEN (agent/claude-opus-5). RED: `swift test --filter
+  'ScenicKitTests\.(PostDriveQuestionTests|DriveVoiceArrivalTests)'` before any Sources/ edit did not compile, each
+  missing by name (`cannot find type 'PostDriveOutcome' in scope`, `'PostDriveMoment'`, and on). GREEN after the model:
+  `swift test --filter 'ScenicKitTests\.(PostDriveQuestionTests|DriveVoiceArrivalTests|DriveDisplayTests|DriveVoiceTests|DriveMotionGateTests|DriveContinuedTests)'`
+  -> `Test run with 35 tests in 6 suites passed`. Guards seen RED by the app edits before re-approval:
+  check-drive-display exit 1 (`23 found, 21 approved`, the two DriveScreen lines and the new navigator line unapproved,
+  the old one missing); check-telemetry-emit-sites `FAILED - 3 refusals` (the LivePostDriveAnswers site, the
+  LiveTelemetry line as unlisted site and as an event outside an emit row); check-safety-disclaimer exit 1 (the
+  shell's frozen `host` line). Then green: check-drive-display 23 approved, --prove-red 7/7 (new row: the screen asks
+  whatever the display says); emit sites `ok - 35 lines approved; 4 of 14 cases emitted once, 10 pending by task`,
+  --prove-red `ok - 17 rows` (the two pending-row rows moved to `pending paywall T-0361`, since postDriveAnswer is no
+  longer pending; new row: the post_drive_answer emit demoted). check-safety-disclaimer exit 0.
+  AMENDMENTS (no ruling reversed): A1's hasArrived test is its own suite, DriveVoiceArrivalTests (DriveVoiceTests.swift
+  is 287 lines; one type per file, 300 cap). R11: the five PostDrive files are ALLOWLISTED in
+  ops/lib/mutate-population-allowlist.json with reasons (no number in any of them; PostDriveQuestion is a boolean held
+  whole by the 24-row map), not added to drive.py - check-mutate-population `every added module is covered or
+  allowlisted; the floor of 157 holds`. The shell's frozen `host` line (check-safety-disclaimer-frozen) moves with R7.

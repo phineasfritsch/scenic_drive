@@ -50,7 +50,7 @@ PINNED_FEATURE=(
   'DriveMenuChips.swift d5f9c2015b1b9d7095d2c864f0b750cfa6ce1a16b2ddf1334a28ecc7ce0adf57'
   'DriveRehearsal.swift 02bf87fdcf608771c18201ce2a9df5a2a1ecd2fe87650cc60da8a5c7aae4bdc0'
   'DriveRoute.swift 5a64c9b70b228ae194d6ceb67eb7bcabe016f33daaa253561378659bf0a94cd8'
-  'DriveScreen.swift e07a5845bf503b2a4ea544c7f3e79d880bece67440af418ebe340518af749f37'
+  'DriveScreen.swift 2250a3025e96052ab293f7db516c4b134af1ab851336e4135e6508e9d558a2bd'
   'DriveSelector.swift ce63eea4128a64116e5f8daff2692225e12efe297d8d1a80eb9ed614306ce21e'
   'GatedHandoffButton.swift ec13a5c9ea4d3e4ad28e699c08b26807687e94b2fdd67549b5ccbc9008a38139'
   'HandoffFailureCard.swift 94f62ec7d65e7c97b65c77bee5c128b63125b48f8998e0365b1aa73ccef4cb14'
@@ -66,6 +66,8 @@ PINNED_FEATURE=(
   'VehicleChoice.swift c9cd0a246e5bccd47027bbe5ec011237639c3ebabaa826c0ca302f4ebb03f8be'
   'VehicleSetting.swift ac15565ddd461878ec68a61837fad6a1400b7e9d5e299b344ff3bac924b4240e'
   'OnboardingRehearsal.swift 4ac76e5e2a335b545ed2d1567b1e51ac7ea76a3481c2ab286dac356083eae40a'
+  'PostDriveAnswersKey.swift 4645890d05d7e48b432975096622922ddf0499a64619eeda935402ffab4866b9'
+  'PostDriveCard.swift 99d2890873e431a966ebe20061a69375f277e391b6b40c3f997ef528107da99c'
 )
 # T-0273: the Surprise card's module, pinned the same way (its file set and its bytes): the card holds the only
 # Apple Maps button outside FeatureScenicHome, and it must reach the home's gate and nothing else (R4).
@@ -95,7 +97,7 @@ PINNED_SHELL_ENTRIES=(
   'f ScenicDriveApp.swift' 'f Tiles/.gitignore'
 )
 PINNED_SHELL_TILE='^f Tiles/[A-Za-z0-9_-][A-Za-z0-9._-]*\.pmtiles(\.json)?$'
-PINNED_SHELL_DIGEST='bde60690f3ea87a2a1ccce41b7ad868db78e21631b296808c1ab973d165a5f57'
+PINNED_SHELL_DIGEST='0158b5e9061a275d56569aa3342b68d873c7935698d5fff575b3f3c60fe89a61'
 
 # pinned_shell DIR: the shell's entries against the whitelist, its index for links, ScenicDriveApp.swift's digest.
 pinned_shell() {
@@ -267,7 +269,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift d5f9c2015b1b9d7095d2c864f0b750cfa6ce1a16b2ddf1334a28ecc7ce0adf57'
   'Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift 02bf87fdcf608771c18201ce2a9df5a2a1ecd2fe87650cc60da8a5c7aae4bdc0'
   'Packages/ScenicApp/Sources/FeatureScenicHome/DriveRoute.swift 5a64c9b70b228ae194d6ceb67eb7bcabe016f33daaa253561378659bf0a94cd8'
-  'Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift e07a5845bf503b2a4ea544c7f3e79d880bece67440af418ebe340518af749f37'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift 2250a3025e96052ab293f7db516c4b134af1ab851336e4135e6508e9d558a2bd'
   'Packages/ScenicApp/Sources/FeatureScenicHome/DriveSelector.swift ce63eea4128a64116e5f8daff2692225e12efe297d8d1a80eb9ed614306ce21e'
   'Packages/ScenicApp/Sources/FeatureScenicHome/GatedHandoffButton.swift ec13a5c9ea4d3e4ad28e699c08b26807687e94b2fdd67549b5ccbc9008a38139'
   'Packages/ScenicApp/Sources/FeatureScenicHome/HandoffFailureCard.swift 94f62ec7d65e7c97b65c77bee5c128b63125b48f8998e0365b1aa73ccef4cb14'
@@ -300,7 +302,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/NavAdapter/DriveConnectivity.swift 9b3251b0d94dcfca7e53dc176f1dc06b52c45e9e4bfbf5332a364a326bf08156'
   'Packages/ScenicApp/Sources/NavAdapter/DriveHost.swift 8afba2234fcfc5ac61bf2040da1d0cae51aa859e96907067adbafe2d5c64c566'
   'Packages/ScenicApp/Sources/NavAdapter/DriveLocationTap.swift 609704b0b49d517b040d93c2f96fcc4b63d0b1a47895df0db8c722120f86298d'
-  'Packages/ScenicApp/Sources/NavAdapter/DriveNavigator.swift a7587b61e6f63b1002a1440c913a9e977e03c6835e51c5dacfda5ca56d03c093'
+  'Packages/ScenicApp/Sources/NavAdapter/DriveNavigator.swift c856c5debfd446a2724b3d15d17bae8bdfd870418a8e946db656ad5e8b88459a'
   'Packages/ScenicApp/Sources/NavAdapter/FerrostarDecisionsOff.swift 4698b8691591548c27224bd524c9a0f1aba466ab4fe818972d09266784415006'
   'Packages/ScenicApp/Sources/NavAdapter/FerrostarDriveRoute.swift df54cb022ba57433fd30eb4a64274715423ea7558d492fdb78ae014096db8e88'
   'Packages/ScenicApp/Sources/NavAdapter/PlannedRouteProvider.swift 4410e1d973471b0ffda39eab5d458844c661e4767640a6c5d53575af2548c175'
@@ -313,7 +315,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift 67952d3daa6e3a18301e411ef8a948197e443e2d716a0a3c5bbf1b990a709e73'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveSession.swift 48a4f76a5182054a408277b9859b727dfd0418ead23062fdc6dc24ffcc184374'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift 75275ff4d61578039a335cfe7cd0da84c0af6dce19b15a3d2f490d36cd31a17b'
-  'Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift 31584f7218c89ca517b8376b4b874b0b7bc2cd94d22403a431c5f6c8c3d20ce0'
+  'Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift b0aac52374832a9d86ac5723bd38b08258bcf85fca985d67f1d186ba1b0a97d3'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveTripPlanner.swift 94fe636c189c915db2c884c6123202906fc2e262849fcbba9967b6ed792c5b46'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveWaitlist.swift 2d940d9c0eba619616f909a96b4bce03ae4c494d2d8e95a84b18215d9d804f40'
   'Packages/ScenicApp/Sources/PlanAdapter/StoredInstallID.swift 53a06ebf0a3f02ab2bedcabd679e8fb3edf2709a29e8615594e27376ea371707'
@@ -326,7 +328,10 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachablePlanner.swift 6ee10bda9ca24fe44518093d2a3920b24a1654c2d1ad5a75a6d9b3cc05619590'
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachableTripPlanner.swift c0c49b6357956563edd27ea798b33ec5722d7e3d82361e88a7ae37447634ec6b'
   'Packages/ScenicApp/Sources/PlanAdapter/WaitlistRoutePlanner.swift ed9f1257cfe2d52da747d1af41b7aed881b3079c46cc2928e65ddc4896c1f5a3'
-  'ScenicDrive/ScenicDriveApp.swift bde60690f3ea87a2a1ccce41b7ad868db78e21631b296808c1ab973d165a5f57'
+  'ScenicDrive/ScenicDriveApp.swift 0158b5e9061a275d56569aa3342b68d873c7935698d5fff575b3f3c60fe89a61'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/PostDriveAnswersKey.swift 4645890d05d7e48b432975096622922ddf0499a64619eeda935402ffab4866b9'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/PostDriveCard.swift 99d2890873e431a966ebe20061a69375f277e391b6b40c3f997ef528107da99c'
+  'Packages/ScenicApp/Sources/PlanAdapter/LivePostDriveAnswers.swift 460d0bf415cbfd00d3e2e395dd19bab19b00570690b40605703241767d2e3efc'
 )
 
 # require_pinned_app_swift APP_TREE: the app tree's Swift file set against PINNED_APP_SWIFT, then every digest.
