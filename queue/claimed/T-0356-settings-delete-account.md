@@ -175,3 +175,16 @@ ship the Linux slice and say so in stillOpen. The XCUITest half waits on T-0180'
   sites: ok - 37 lines approved; 3 of 14 cases emitted once, 11 pending by task`. P-SAFE-03 digests re-approved in
   ops/lib/check-safety-disclaimer-pinned: LiveTelemetry.swift 34d306a8254b269e04bde804c4d332e700e479e463e640ba011ddfb40d986686,
   InstallBoundTelemetry.swift 00cf5e6e8ca446c303cc68f6fca49190e1dce8df4c3266ca2bc763744396fa6c (new row).
+- 2026-10-15T22:41:55Z FINAL rv1 (merged origin/main 2fdde971 at 1553c173, T-0360 waitlist in). Conflicts resolved
+  as unions: check-telemetry-emit-sites.txt (main's LiveWaitlist `import Telemetry` kept, the old LiveTelemetry
+  transport row dropped), -linked-digests.txt (both sides' rows), -pinned (both sides' rows; ScenicDriveApp.swift
+  recomputed on the merged file = 23e298393a25a0b01144ef94d6907f3dd0e62c8863dde7b33391037ae26505b4). On 1553c173:
+  swift filter `AccountClientTests|AccountEraseTableTests|AccountDeletionPathTests|AccountDeletionCopyTests|
+  SessionStoreTests|TelemetryTests` -> `Test run with 38 tests in 12 suites passed after 0.095 seconds`;
+  `bash ops/lib/check-safety-disclaimer` exit 0 (`... LAST all 99 app .swift, then 299 root + pbxproj file(s)
+  (-linked).`); check-mutate-population `P-PROC-06: every added module is covered or allowlisted; the floor of 157
+  holds` exit 0; check-telemetry-emit-sites `P-PRIV-05 emit sites: ok - 38 lines approved; 3 of 14 cases emitted
+  once, 11 pending by task` exit 0; check-pins-yaml `PINS-YAML ok pins=50 fields=403` exit 0; queue-check `QUEUE OK
+  (355 tasks)` exit 0; check-line-cap `P-SRC-02: 615 Swift files tracked (Sources=298, Tests=218, apps/ios=99), none
+  over 300 lines` exit 0. ios-compile run 38817042776 on 1553c173 = success (4m49s); PR linux-core run 38817047779 on
+  1553c173 = success (7m0s). origin/main re-fetched at this entry: still 2fdde971, an ancestor of HEAD.
