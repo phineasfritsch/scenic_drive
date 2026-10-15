@@ -162,3 +162,9 @@ Linux slice and say so.
     98d4d098); the merged head's ios-compile is dispatched after the push and quoted in the PR.
   - A11 + suite: `swift test --scratch-path .build/t0357m` -> `Test run with 807 tests in 161 suites passed after
     14.464 seconds.` exit=0; gates run bare at the merge commit (quoted in the PR).
+- 2026-10-15T21:48:09Z PR #244 core failed on P-PRIV-05 (T-0355's emit-site WHITELIST, ops/lib/check-telemetry-emit-sites.txt): `REFUSED  site not on the
+  whitelist: ...LivePlanner.swift: return TelemetryRoutePlanner(inner: ConfiguredPlanner(...` and `approved site missing:
+  ... TelemetryRoutePlanner(inner: ClientPlanner(...` - the merge's ruling (2) moved the approved site. The row now
+  names the merged line; `python ops/lib/check-telemetry-emit-sites.py` -> `P-PRIV-05 emit sites: ok - 32 lines
+  approved`, exit 0 (RED was the CI line above). iOS on the merged head 6a3cd7f3: ios-compile 38807552565 success,
+  ios-screenshot 38807557666 success.
