@@ -19,8 +19,8 @@ struct PlanFailureCopyTests {
         case .noRoute:
             return PlanFailureCopy(line: "Couldn't reach that place by paved road.", action: .chooseAnotherPlace)
         case .regionUnsupported:
-            return PlanFailureCopy(line: "Drives can't be planned from that start yet. Try a start in a region we cover.",
-                                   action: .changeStart)
+            return PlanFailureCopy(line: "Drives can't be planned from that start yet. We can count this area toward "
+                                       + "where we go next.", action: .joinWaitlist)
         case .attestUnsupported:
             return PlanFailureCopy(line: "This phone can't plan drives yet. Surprise Me still works.", action: .surpriseMe)
         case .offlineDuringDrive:
@@ -77,6 +77,7 @@ struct PlanFailureCopyTests {
     func actionTitles() {
         #expect(PlanFailureAction.allCases.map(\.title) == [
             "Surprise me instead", "Try again", "Choose another place", "Change the start", "Close",
+            "Count this area",
         ])
     }
 }
