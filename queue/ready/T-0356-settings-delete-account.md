@@ -1,7 +1,7 @@
 ---
 id: T-0356
 title: Settings has Delete account in at most 3 taps - an AccountClient sends DELETE /account over the session, the app forgets its local identity on success, and P-PRIV-04's client half is held by tests
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
