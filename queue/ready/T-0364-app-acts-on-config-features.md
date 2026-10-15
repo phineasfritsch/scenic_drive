@@ -1,7 +1,7 @@
 ---
 id: T-0364
 title: The app acts on /config's feature_loop, feature_trip and feature_surprise and degrades the Loop, Trip and Surprise entry points before the tap, as T-0357 did for Plan
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
