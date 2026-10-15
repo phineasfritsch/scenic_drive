@@ -112,3 +112,31 @@ Linux slice and say so.
   refuses on the device - a test-fixture fault, fixed by PlanWire.install), then `Test run with 2 tests in 1 suite
   passed`; the whole root suite `swift test` -> `Test run with 796 tests in 158 suites passed after 30.754 seconds.`
   exit 0. The planted-mutant half of A8 is the config.py run (A9), each mutant red by the test it names.
+- 2026-10-15T19:35:43Z Work CONTINUED after a session break (the earlier run was cut off after pushing 313684ef and
+  98d4d098; worktree clean and equal to origin/task/T-0357, no PR). Nothing above is edited. Still to do then: the
+  A9 run, the A10 CI runs, the follow-up, A11 on the merged head, the PR.
+- 2026-10-15T19:35:43Z A9 floor: `python ops/mutate/config.py --prove-floor` -> 7 arms refused (MUTATIONS emptied /
+  one short of 44 / floor raised to 45 / EQUIVALENT one short of 4 / killers emptied / ConfigReader.swift unmutated /
+  a test file missing), `FLOOR PROOF OK: 7 of 7 arms refused and the control did not`, exit 0.
+- 2026-10-15T19:35:43Z Follow-up filed: queue/backlog/T-0364-app-acts-on-config-features.md (R1's feature_* and
+  /loop, /trip, Surprise degrade). Ids listed on origin/main and every origin/task/* branch: highest T-0363.
+- 2026-10-15T20:29:18Z A9 full run at 98d4d098 (`python ops/mutate/config.py`, baseline `--filter
+  ConfigClientTests|ConfigCacheTests|ConfiguredPlannerTests|ConfigDegradeTests exit=0`): `caught by the test that names
+  it: 43 of 44   (wrong killer 1, trapped 0, compile-only 0, MISSED 0, skipped 0)`, `MUTATE FAILED  caught=43/44
+  equivalent_caught=0`; E1-E4 each `MISSED ... no test objected` (as required). The one: `WRONG KILLER  39 the bundled
+  defaults paused` - named [bundled(), fallsBack()], red were [the live planner's degrade, bundled()]. A REAL GAP, not
+  a naming slip: ConfigCacheTests.stored took its fallback expectation FROM `RemoteConfig.bundled`, the value under
+  test, so a paused default passed fallsBack() by comparing the mutant to itself (memory full-equality-oracle). Fix:
+  the rows now expect `workerDefaults = RemoteConfig(minAppBuild: 1, planningPaused: false)` written out, never the
+  shipping constant. RED was that WRONG KILLER line on the old test; GREEN `python ops/mutate/config.py --only
+  18,38,39` (every mutant of the bundled value) -> `caught by the test that names it: 3 of 3 ... MISSED 0`, `MUTATE OK
+  caught=3/3`, 39 now red by fallsBack(), bundled() and the live planner's degrade.
+- 2026-10-15T20:29:18Z A10 at 98d4d098: ios-compile run 38795097050 `completed success` (2m22s); ios-screenshot run
+  38795103440 `completed success` (15m19s). LOOKED at plan-paused-light.png and plan-update-dark.png (gh run download
+  -> .artifacts/T-0357-shots): the Plan button's place holds the notice card - "Planning is paused right now. Surprise
+  Me still works." (PlanFailureCopy's line, by reference) and "This version can't plan drives anymore. Update Scenic
+  Drive from the App Store to keep planning." - with From/To/Extra time unchanged. Seen and left for T-0364: the
+  "Plan a road trip" and "Just drive a loop" buttons stay live under both, and /loop and /trip 503 under the kill.
+- 2026-10-15T20:53:31Z A9 `python ops/mutate/config.py --prove-vacuity` (tests at the fallsBack() fix): `caught by the test that
+  names it: 0 of 44   (wrong killer 0, trapped 0, compile-only 0, MISSED 44, skipped 0)`, `VACUITY PROOF OK: with the 4
+  test file(s) emptied, caught=0 (need 0) and MISSED=44 of 44`, exit 0.

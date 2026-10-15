@@ -7,15 +7,19 @@ import Testing
 /// what is stored and how the refresh fails.
 @Suite("ConfigCacheTests")
 struct ConfigCacheTests {
+    /// The Worker's DEFAULTS for the two fields read (services/api/src/config.ts), written out here and never taken
+    /// from `RemoteConfig.bundled`, so the fallback rows are an oracle independent of the value they check.
+    static let workerDefaults = RemoteConfig(minAppBuild: 1, planningPaused: false)
+
     /// (name, stored bytes, what they read as): rows are functions of the stored variant.
     static let stored: [(String, Data?, RemoteConfig)] = [
-        ("nothing stored", nil, RemoteConfig.bundled),
+        ("nothing stored", nil, Self.workerDefaults),
         ("paused build 7", Data(#"{"min_app_build":7,"planning_paused":true}"#.utf8),
          RemoteConfig(minAppBuild: 7, planningPaused: true)),
         ("unpaused build 3", Data(#"{"min_app_build":3,"planning_paused":false}"#.utf8),
          RemoteConfig(minAppBuild: 3, planningPaused: false)),
-        ("garbage", Data("nope".utf8), RemoteConfig.bundled),
-        ("a stored build 0", Data(#"{"min_app_build":0,"planning_paused":true}"#.utf8), RemoteConfig.bundled),
+        ("garbage", Data("nope".utf8), Self.workerDefaults),
+        ("a stored build 0", Data(#"{"min_app_build":0,"planning_paused":true}"#.utf8), Self.workerDefaults),
     ]
 
     /// A fresh answer that differs from every stored one, so a fall-through to it is visible.
