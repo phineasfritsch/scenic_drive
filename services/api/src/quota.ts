@@ -35,6 +35,9 @@ export const DAILY_SURPRISE_QUOTA = { anon: 3, free: 3, paid: DAILY_PLAN_QUOTA.p
 /** Daily per-user ROAD TRIPS (T-0268 R5, plan table "Road trip | Preview" free, "Full itinerary" paid): the table
  *  gives free no number, so anon and free take the loop's free figure, ruled; paid is the paid PLAN cap BY REFERENCE. */
 export const DAILY_TRIP_QUOTA = { anon: 1, free: 1, paid: DAILY_PLAN_QUOTA.paid } as const;
+/** Daily per-user address SEARCHES (T-0359 R5): one Photon request each; anon and free alike, paid is the paid PLAN cap
+ *  BY REFERENCE. A planner submits a few searches per plan, and plans are 3 or 10 a day. */
+export const DAILY_SEARCH_QUOTA = { anon: 30, free: 30, paid: DAILY_PLAN_QUOTA.paid } as const;
 export type Tier = keyof typeof DAILY_PLAN_QUOTA;
 
 /** Daily per-device TELEMETRY EVENTS (T-0279 R5), every tier alike: telemetry is not a paid feature. Counted in
@@ -42,13 +45,14 @@ export type Tier = keyof typeof DAILY_PLAN_QUOTA;
 export const DAILY_TELEMETRY_QUOTA = 200;
 
 /** What a reservation is spent on (T-0256 R4): a loop has its own daily allowance and never spends a plan. */
-export type QuotaKind = "plan" | "loop" | "surprise" | "trip" | "telemetry";
+export type QuotaKind = "plan" | "loop" | "surprise" | "trip" | "telemetry" | "search";
 
 /** The daily allowance of `kind` for `tier`. */
 export function dailyQuota(kind: QuotaKind, tier: Tier): number {
   if (kind === "surprise") return DAILY_SURPRISE_QUOTA[tier];
   if (kind === "trip") return DAILY_TRIP_QUOTA[tier];
   if (kind === "telemetry") return DAILY_TELEMETRY_QUOTA;
+  if (kind === "search") return DAILY_SEARCH_QUOTA[tier];
   return (kind === "loop" ? DAILY_LOOP_QUOTA : DAILY_PLAN_QUOTA)[tier];
 }
 

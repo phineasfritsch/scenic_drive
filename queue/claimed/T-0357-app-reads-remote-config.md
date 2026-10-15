@@ -140,3 +140,25 @@ Linux slice and say so.
 - 2026-10-15T20:53:31Z A9 `python ops/mutate/config.py --prove-vacuity` (tests at the fallsBack() fix): `caught by the test that
   names it: 0 of 44   (wrong killer 0, trapped 0, compile-only 0, MISSED 44, skipped 0)`, `VACUITY PROOF OK: with the 4
   test file(s) emptied, caught=0 (need 0) and MISSED=44 of 44`, exit 0.
+- 2026-10-15T21:04:25Z MERGED origin/main (6ceffea2: T-0355 telemetry and T-0359 search landed) LAST. Conflicts ruled: (1)
+  ops/lib/mutate_population_table.py - union: DRIVERS main's list plus config.py, COVERED_FLOOR ours plus main's
+  Telemetry rows. (2) LivePlanner.make() - both wrap the ClientPlanner: TelemetryRoutePlanner(inner:
+  ConfiguredPlanner(...)), telemetry outermost so plan_requested still brackets the plan. (3) SEMANTIC: main's new
+  TelemetryRoutePlanner conforms to RoutePlanning, which R7 gave `degrade()` with no default - it now forwards
+  `await inner.degrade()` (sends no telemetry). Every other conformer under Sources/Tests/apps/ios already states one
+  (grep of conformers lacking `func degrade()`: none left). (4) check-safety-disclaimer-pinned - main's rows, then
+  re-approved (sed 's/\r$//' | sha256sum) every apps/ios file differing from origin/main: PlanRehearsalFixtures,
+  PlanSheetScreen, DefaultsConfigStorage, LivePlanner, TelemetryRoutePlanner, UnreachablePlanner; index mode kept 100755.
+  The Apple half of (2)-(3) is proved only by ios-compile on the pushed merged head (Linux cannot build it).
+- 2026-10-15T21:04:25Z ACCEPTANCE re-quoted on the merged head:
+  - A1 MEASURE: the 2026-10-10T05:30:16Z entry. A2-A4: ConfigClientTests (request(), offline(), inBounds() over
+    {1,2,41,2147483646,2147483647}x{false,true}, unreadKeys(), refusedRows() 20 rows + 6 non-objects over both
+    variants, rowsReadTheVariant() meta). A5: ConfigCacheTests 5 stored x 3 failures, oracle the written-out Worker
+    defaults. A6-A7: ConfigDegradeTests, ConfiguredPlannerTests.
+  - A8: RED (missing symbols) and GREEN in the 2026-10-10T06:46:39Z entry; planted mutants are A9's.
+  - A9: full run 43/44 -> the fallsBack() oracle fix -> `--only 18,38,39` 3/3; `--prove-vacuity` OK 0 of 44 caught,
+    MISSED=44; `--prove-floor` OK 7 of 7 arms. (The full run was at 98d4d098; the fix touched only a test file.)
+  - A10: ios-compile 38795097050 success, ios-screenshot 38795103440 success, plan-paused/plan-update looked at (at
+    98d4d098); the merged head's ios-compile is dispatched after the push and quoted in the PR.
+  - A11 + suite: `swift test --scratch-path .build/t0357m` -> `Test run with 807 tests in 161 suites passed after
+    14.464 seconds.` exit=0; gates run bare at the merge commit (quoted in the PR).

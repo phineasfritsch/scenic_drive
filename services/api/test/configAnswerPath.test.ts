@@ -21,9 +21,9 @@ const FILES = import.meta.glob(["../src/index.ts", "../src/config.ts", "../src/k
 
 const ANSWER_PATH: Record<string, string> = {
   "../src/config.ts": "d10ed3d7229dc875ae9e8f45ec19d3e9715f2bf71a3e50f8cc077825078bea71",
-  "../src/index.ts": "951d55d95f9ec9db405ff0f07236fbc0117b348aebaed8834a297333b8551069",
+  "../src/index.ts": "2e0ae9d3e5f2963e204027ad5259bfae2d27078007dff1dd983abdeaa0ee8a7e",
   "../src/killSwitch.ts": "2f29ee35f2b6d69fcd33b885a5b647bbadc206950f81ec9b1e0a6f3fe1d53062",
-  "../src/quota.ts": "0e5c24b0adc9d389c5147b354ef9329ecc2949604a57c6d002efe4b24e4817eb",
+  "../src/quota.ts": "ba4b5e2800c782c62c9e4ece72ed05b1ed35d127d810dc4cf528a60b47b9bd29",
 };
 
 async function sha256(text: string): Promise<string> {

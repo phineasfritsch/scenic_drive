@@ -1,0 +1,23 @@
+# The search box's front door (T-0359 R10). Only GET /api and GET /status reach Photon, and only with the Worker's
+# secret header; everything else is 401 or 404. No access log: the typed queries are not kept here.
+{
+	admin off
+}
+
+:8080 {
+	@authorized {
+		header x-scenic-search-secret {env.SEARCH_SECRET}
+		method GET
+		path /api /status
+	}
+	handle @authorized {
+		request_header -x-scenic-search-secret
+		reverse_proxy photon:2322
+	}
+	handle /api {
+		respond 401
+	}
+	handle {
+		respond 404
+	}
+}

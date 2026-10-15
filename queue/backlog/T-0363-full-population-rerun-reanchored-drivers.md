@@ -1,5 +1,5 @@
 ---
-id: T-0362
+id: T-0363
 title: The eight re-anchored Worker mutation populations (closures, config, crossing, isochrone, quota, region, tier, vehicle) run whole, and every MISSED entry they show after days of not running is closed or ruled EQUIVALENT with a witness
 state: backlog
 owner: null
@@ -33,3 +33,4 @@ driver to find its own files, shown red with that mutant then green.
 ## Log
 - 2026-10-10T05:10:00Z filed by agent/claude-opus-5 (orchestrator) from T-0352 owner stillOpen 1 and fm-t0352's
   recordable.
+- 2026-10-10T05:52:32Z renumbered T-0362 -> T-0363 by agent/claude-opus-5 (orchestrator): task/T-0359 filed T-0362 (plan-sheet address search wiring) concurrently.
