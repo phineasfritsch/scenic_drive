@@ -135,3 +135,8 @@ ship the Linux slice and say so in stillOpen. The XCUITest half waits on T-0180'
   floor of 154 holds`; check-mutate-only `NAME-PAIRS OK: 196788 pair tokens over 42 id populations`; check-line-cap
   `P-SRC-02: 601 Swift files tracked ... none over 300 lines`; check-pins-yaml `PINS-YAML ok pins=50 fields=403`;
   check-exec-bits `P-OPS-01: 218 files, 23 required present, all modes correct`; queue-check `QUEUE OK (354 tasks)`.
+- 2026-10-15T21:25:37Z PR #243 core FAILED on check-pins P-PRIV-05 (CI run 38807412822): T-0355's ops/lib/check-telemetry-emit-sites.txt
+  (arrived with the origin/main merge) whitelists the shell's Settings mount line - `REFUSED site not on the
+  whitelist: apps/ios/ScenicDrive/ScenicDriveApp.swift: SettingsScreen(... deleteAccount: ...)` and `REFUSED approved
+  site missing`. A fourth whitelist of the same line (R7): re-approved there; `check-telemetry-emit-sites.py` ->
+  `P-PRIV-05 emit sites: ok - 32 lines approved; 3 of 14 cases emitted once, 11 pending by task`.

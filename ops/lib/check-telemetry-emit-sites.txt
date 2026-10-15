@@ -29,7 +29,7 @@ site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryTripPlanner.swift	
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryTripPlanner.swift	        LiveTelemetry.planResult(Self.kind(outcome))
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryTripPlanner.swift	import Telemetry
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryTripPlanner.swift	struct TelemetryTripPlanner: TripPlanning {
-site	apps/ios/ScenicDrive/ScenicDriveApp.swift	                SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, onDone: { isShowingSettings = false })
+site	apps/ios/ScenicDrive/ScenicDriveApp.swift	                SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, deleteAccount: { await LiveAccountDeletion.run() }, onDone: { isShowingSettings = false })
 pending	previewShown	T-0361
 pending	handoffTapped	T-0361
 pending	driveStarted	T-0361
