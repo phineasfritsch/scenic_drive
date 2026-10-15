@@ -121,3 +121,17 @@ ship the Linux slice and say so in stillOpen. The XCUITest half waits on T-0180'
   whose renewal yields no token or the same token is unauthorized after one request`; device-header-sent -> five
   AccountClientTests incl. `DELETE /account is exactly the Bearer and nothing else ...`.
   `python ops/lib/run-named-tests.py P-PRIV-04` -> NAMED P-PRIV-04 passed=83/83 (68 vitest + 15 swift).
+- 2026-10-15T21:06:46Z A6 iOS CI on 4f840a4a: ios-compile run 38804308890 = success (3m48s); ios-screenshot run
+  38804313035 = success (16m13s). Looked at settings-light.png and settings-dark.png: Subscription, Vehicle,
+  Offline places, then the `Account` section header at the bottom edge in both looks - the Delete Account ROW itself
+  is below the fold of the first screen, so the shot does not show it rendered (R8: no new launch screen, the
+  workflow's LIST is in .github). Its render and the confirmation dialog are unseen - with the tap path, the
+  XCUITest half that waits on T-0180's xcodeproj lock.
+  FINAL (merged origin/main at 0849cfe5, T-0355 in; auto-merged allowlist, named-tests.json, PINS.yaml, digests):
+  `swift test --filter 'AccountClientTests|AccountEraseTableTests|AccountDeletionCopyTests|AccountDeletionPathTests|
+  SessionStoreTests|PlanSessionRetryTests|PlanBearerTests|LedgerClientTests'` -> Test run with 36 tests in 8 suites
+  passed; `run-named-tests.py P-PRIV-04` -> NAMED P-PRIV-04 passed=83/83; check-safety-disclaimer exit 0;
+  check-store-links exit 0; check-mutate-population `P-PROC-06: every added module is covered or allowlisted; the
+  floor of 154 holds`; check-mutate-only `NAME-PAIRS OK: 196788 pair tokens over 42 id populations`; check-line-cap
+  `P-SRC-02: 601 Swift files tracked ... none over 300 lines`; check-pins-yaml `PINS-YAML ok pins=50 fields=403`;
+  check-exec-bits `P-OPS-01: 218 files, 23 required present, all modes correct`; queue-check `QUEUE OK (354 tasks)`.
