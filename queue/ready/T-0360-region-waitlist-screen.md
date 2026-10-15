@@ -1,7 +1,7 @@
 ---
 id: T-0360
 title: On regionUnsupported the app offers "Notify me" and posts /waitlist once - a WaitlistClient, the PlanFailureAction gains the waitlist action, and the screen says what it sent
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
