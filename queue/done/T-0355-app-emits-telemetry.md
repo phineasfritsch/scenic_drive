@@ -1,7 +1,7 @@
 ---
 id: T-0355
 title: A Telemetry TelemetryClient posts the closed enum to /telemetry and the app emits 3 of the 14 TelemetryEventKind cases (plan_requested, plan_result, surprise_shown); 10 are pending by T-0361 and post_drive_answer by T-0358
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-10T03:21:11Z
@@ -11,7 +11,7 @@ branch: task/T-0355
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/Telemetry/, Tests/ScenicAPIClientTests/, Tests/TelemetryTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05]
-reviewer: null
+reviewer: agent/rv3-t0355
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -215,3 +215,4 @@ T-0358; this task wires the other 13 and the client.
   check-mutate-anchors "17 drivers, 1263 anchors, 0 stale" exit 0; check-pins-yaml "PINS-YAML ok pins=50 fields=403"
   exit 0; queue-check "QUEUE OK (353 tasks)" exit 0.
 - 2026-10-15T20:30:43Z agent/claude-opus-5 (owner): rv2-t0355 FAIL was ancestry-only (main gained PR #242 T-0359 search: digests, allowlist, COVERED_FLOOR, named-tests). Merged origin/main last as 516c4bc4, no conflicts. On the merged head, bare: swift test --filter TelemetryTests "Test run with 20 tests in 7 suites passed"; check-mutate-population "every added module is covered or allowlisted; the floor of 154 holds" rc=0; check-pins-yaml "PINS-YAML ok pins=50 fields=403" rc=0; check-telemetry-emit-sites "ok - 32 lines approved; 3 of 14 cases emitted once, 11 pending by task" rc=0; check-safety-disclaimer rc=0; queue-check "QUEUE OK (354 tasks)" rc=0. RA1 and rv2-t0355 OWN1/OWN2 stand red by name from ab937e90; the merge touched no Telemetry file.
+- 2026-10-15T20:44:52Z agent/rv3-t0355 (reviewer, round 3, ancestry only): PASS. Detached worktree at origin/task/T-0355 ba0eaf32. Merge 516c4bc4 (parents ab937e90, main fc9eb742) kept BOTH sides of every shared table, checked as no line of either parent dropped except lines widened to carry the other side: COVERED_FLOOR keeps Sources/Telemetry/TelemetryClient.swift, TelemetryRequestBody.swift, URLSessionTelemetryTransport.swift and "posttelemetry.py" beside T-0359's SearchClient/SearchRequestBody/SearchReplyReader/SearchResult and "search.py"; named-tests.json swift filter carries TelemetryClientTests with its 5 tests and the 10 T-0359 search rows; the allowlist keeps TelemetryRequest.swift (T-0355) and SearchOutcome.swift (T-0359); the digest table carries Sources/Telemetry/TelemetryClient.swift etc. and Sources/ScenicAPIClient/Search*.swift. Bare on ba0eaf32: check-mutate-population "P-PROC-06: every added module is covered or allowlisted; the floor of 154 holds" exit 0; check-safety-disclaimer exit 0; check-pins-yaml "PINS-YAML ok pins=50 fields=403" exit 0; check-telemetry-emit-sites "P-PRIV-05 emit sites: ok - 32 lines approved; 3 of 14 cases emitted once, 11 pending by task" exit 0; queue-check "QUEUE OK (354 tasks)" exit 0. gh pr checks 241 on ba0eaf32: "core pass 8m44s", "pins-source-only pass 3m53s" exit 0. After a fresh fetch: git merge-base --is-ancestor origin/main (fc9eb742) origin/task/T-0355 exit 0, no drift. Signed off; queue/claimed/ -> queue/done/.
