@@ -164,6 +164,26 @@
       "test/planReroute.test.ts": [
         "POST /plan reroute wire (T-0319 R2, P-PRIV-05) > a foreign device cannot read another device's token: its one read is its own key and it answers the fresh plan"
       ]
+    },
+    "swift": {
+      "filter": "ScenicAPIClientTests\\.(AccountClientTests|AccountEraseTableTests|AccountDeletionCopyTests)|ScenicKitTests\\.AccountDeletionPathTests",
+      "tests": [
+        "ScenicAPIClientTests.AccountClientTests/exactRequest()",
+        "ScenicAPIClientTests.AccountClientTests/noSession(_:)",
+        "ScenicAPIClientTests.AccountClientTests/everyAnswer(_:)",
+        "ScenicAPIClientTests.AccountClientTests/offline()",
+        "ScenicAPIClientTests.AccountClientTests/renewedOnce()",
+        "ScenicAPIClientTests.AccountClientTests/secondUnauthorized()",
+        "ScenicAPIClientTests.AccountClientTests/noRenewal(_:)",
+        "ScenicAPIClientTests.AccountEraseTableTests/inventoryIsMeasured()",
+        "ScenicAPIClientTests.AccountEraseTableTests/eraseTable(_:)",
+        "ScenicAPIClientTests.AccountEraseTableTests/noRowIgnoresItsOutcome()",
+        "ScenicAPIClientTests.AccountEraseTableTests/forgetSession()",
+        "ScenicAPIClientTests.AccountEraseTableTests/rejectedRenews()",
+        "ScenicAPIClientTests.AccountDeletionCopyTests/everyNote()",
+        "ScenicKitTests.AccountDeletionPathTests/atMostThreeTaps()",
+        "ScenicKitTests.AccountDeletionPathTests/everyStepIsShipped()"
+      ]
     }
   },
   "P-PRIV-05": {

@@ -203,7 +203,7 @@ FROZEN_APP_SHELL=(
   'private var home: some View {'
   'ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })'
   '.sheet(isPresented: $isShowingSettings) {'
-  'SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, onDone: { isShowingSettings = false })'
+  'SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, deleteAccount: { await LiveAccountDeletion.run() }, onDone: { isShowingSettings = false })'
   '}'
   '.overlay(alignment: .topLeading) {'
   'PlanDriveButton(action: { isPlanning = true })'

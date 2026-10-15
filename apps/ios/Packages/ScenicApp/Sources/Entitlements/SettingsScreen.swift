@@ -3,8 +3,12 @@ import StoreKit
 import SwiftUI
 
 /// Settings (plan Screens): the subscription - its status, the paywall, Restore (`AppStore.sync()`) and the system's
-/// manage-subscription sheet - then Terms of Use, Privacy Policy and Legal & Attribution. Vehicle, Sign in with
-/// Apple, Delete account and the offline-data rows arrive with the features they control.
+/// manage-subscription sheet - then Vehicle, Offline places, Account (T-0356: Delete Account, App Review 5.1.1(v)) and
+/// Terms of Use, Privacy Policy and Legal & Attribution. Sign in with Apple arrives with the feature it controls.
+///
+/// T-0356 R1, R7: Delete Account is the second of three taps from home (ScenicKit `AccountDeletionPath`); its
+/// confirmation runs the shell's `deleteAccount` - PlanAdapter `LiveAccountDeletion` - and shows the note it answers.
+/// This target imports DesignSystem alone, so the action is handed in as a closure.
 ///
 /// Presented by the app shell from the home's settings action; it never knows the home exists, and the home never
 /// imports this target (CLAUDE.md: feature targets never import each other). `opensPaywall` is the DEBUG-only
@@ -16,6 +20,8 @@ public struct SettingsScreen: View {
     private let onDone: () -> Void
     /// T-0309 R4: the vehicle onboarding stored, by name, handed in by the shell (this target has no ScenicKit).
     private let vehicle: String
+    /// T-0356: deletes the account and answers the note to show (PlanAdapter `LiveAccountDeletion.run`).
+    private let deleteAccount: @Sendable () async -> String
 
     @State private var isShowingPaywall: Bool
     /// T-0336: a DEBUG `-screen legal` launch opens on Legal & Attribution; home in every release build.
@@ -24,15 +30,20 @@ public struct SettingsScreen: View {
     @State private var isRestoring = false
     @State private var status = "Checking…"
     @State private var restoreNote: String?
+    @State private var isConfirmingDeletion = false
+    @State private var isDeleting = false
+    @State private var deletionNote: String?
     /// T-0305 R6: the places download uses Wi-Fi only unless this is off; absent = on. PlanAdapter's LiveCorpus reads
     /// the same key, handed to it by the shell as `SettingsScreen.corpusWifiOnlyKey`.
     @AppStorage(SettingsScreen.corpusWifiOnlyKey) private var corpusWifiOnly = true
 
     public static let corpusWifiOnlyKey = "corpus.wifi.only"
 
-    public init(opensPaywall: Bool, vehicle: String, onDone: @escaping () -> Void) {
+    public init(opensPaywall: Bool, vehicle: String, deleteAccount: @escaping @Sendable () async -> String,
+                onDone: @escaping () -> Void) {
         self.onDone = onDone
         self.vehicle = vehicle
+        self.deleteAccount = deleteAccount
         _isShowingPaywall = State(initialValue: opensPaywall)
     }
 
@@ -54,6 +65,7 @@ public struct SettingsScreen: View {
                         .frame(minHeight: 44)
                         .accessibilityIdentifier("settings.corpusWifiOnly")
                 }
+                account
                 about
             }
             .scrollContentBackground(.hidden)
@@ -118,6 +130,37 @@ public struct SettingsScreen: View {
         .listRowBackground(DesignTokens.surface)
     }
 
+    /// Delete Account (T-0356): the row, its confirmation, then what happened.
+    private var account: some View {
+        Section("Account") {
+            Button {
+                isConfirmingDeletion = true
+            } label: {
+                row(isDeleting ? "Deleting…" : "Delete Account", symbol: "person.crop.circle.badge.xmark")
+            }
+            .disabled(isDeleting)
+            .accessibilityIdentifier("settings.deleteAccount")
+            .confirmationDialog("Delete your account?", isPresented: $isConfirmingDeletion, titleVisibility: .visible) {
+                Button("Delete Account", role: .destructive) {
+                    Task { await runDeletion() }
+                }
+                .accessibilityIdentifier("settings.deleteAccount.confirm")
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This deletes your Scenic Drive account and what our server keeps for it, and gives this iPhone a "
+                     + "new anonymous identity. It can't be undone.")
+            }
+            if let deletionNote {
+                Text(deletionNote)
+                    .font(.footnote)
+                    .foregroundStyle(DesignTokens.fgMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.deletionNote")
+            }
+        }
+        .listRowBackground(DesignTokens.surface)
+    }
+
     /// Terms, Privacy, Legal & Attribution.
     private var about: some View {
         Section("About") {
@@ -161,6 +204,13 @@ public struct SettingsScreen: View {
         } catch {
             restoreNote = "Couldn't restore right now. Check your connection and try again."
         }
+    }
+
+    /// The confirmed deletion: the shell's action, its note shown under the row.
+    private func runDeletion() async {
+        isDeleting = true
+        defer { isDeleting = false }
+        deletionNote = await deleteAccount()
     }
 
     /// The status line for one answer from StoreKit. Nonisolated: StoreKit may call the task's action off the main
