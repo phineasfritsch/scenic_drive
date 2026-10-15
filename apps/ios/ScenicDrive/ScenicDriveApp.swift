@@ -22,6 +22,8 @@ import SwiftUI
 /// T-0324 R1/R4: the plan preview's door hands the shell a plan, and the window shows the drive - NavAdapter's
 /// DriveHost composed with FeatureScenicHome's DriveScreen - in place of the home until the drive is ended. T-0328 R2:
 /// the shell hands DriveHost its reroute sender - the rehearsal's in a DEBUG drive shot, else PlanAdapter's.
+///
+/// T-0356 R7: the shell hands Settings PlanAdapter's LiveAccountDeletion - the one module seeing both.
 @main
 struct ScenicDriveApp: App {
     @State private var isShowingSettings = LaunchScreen.atLaunch != .home
@@ -49,7 +51,7 @@ struct ScenicDriveApp: App {
     private var home: some View {
         ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })
             .sheet(isPresented: $isShowingSettings) {
-                SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, onDone: { isShowingSettings = false })
+                SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, deleteAccount: { await LiveAccountDeletion.run() }, onDone: { isShowingSettings = false })
             }
             .overlay(alignment: .topLeading) {
                 PlanDriveButton(action: { isPlanning = true })

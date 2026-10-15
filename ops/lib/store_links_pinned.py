@@ -20,7 +20,7 @@ RESTORE = ".storeButton(.visible, for: .restorePurchases)"
 TERMS_DECL = 'public static let termsOfUseURL = URL(string: "https://github.com/phineasfritsch/scenic_drive/blob/main/docs/store/terms.md")!'
 PRIVACY_DECL = 'public static let privacyPolicyURL = URL(string: "https://github.com/phineasfritsch/scenic_drive/blob/main/docs/store/privacy.md")!'
 SETTINGS_MOUNT = ("SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, "
-                  "onDone: { isShowingSettings = false })")
+                  "deleteAccount: { await LiveAccountDeletion.run() }, onDone: { isShowingSettings = false })")
 DEBUG_READ = "return UserDefaults.standard.string(forKey: launchArgumentKey).flatMap(LaunchScreen.init(rawValue:)) ?? .home"
 
 # Over every *.swift under apps/ios.
@@ -75,7 +75,8 @@ ENTITLEMENTS = {
     "accessibilityIdentifier": [(f, f'.accessibilityIdentifier("{i}")') for f, ids in (
         (PW, "paywall.store paywall.terms paywall.privacy"),
         (ST, "settings.done settings.status settings.paywall settings.restore settings.restoreNote settings.manage "
-             "settings.terms settings.privacy settings.legal settings.corpusWifiOnly settings.vehicle"),
+             "settings.terms settings.privacy settings.legal settings.corpusWifiOnly settings.vehicle "
+             "settings.deleteAccount settings.deleteAccount.confirm settings.deletionNote"),
         (CD, "corpus.status corpus.progress corpus.download corpus.later"),
         (LG, "legal.odbl legal.copyright")) for i in ids.split()],
     "#": [(LS, "#if DEBUG"), (LS, "#else"), (LS, "#endif")],
@@ -94,7 +95,7 @@ SEQUENCES = [
                                 'Text("Only a standard car for now. Other vehicles need road limits the map does not have yet.")',
                                 "}", 'Section("Offline places") {',
                                 'Toggle("Download on Wi-Fi only", isOn: $corpusWifiOnly)', ".frame(minHeight: 44)",
-                                '.accessibilityIdentifier("settings.corpusWifiOnly")', "}", "about", "}"]),
+                                '.accessibilityIdentifier("settings.corpusWifiOnly")', "}", "account", "about", "}"]),
     ("the shell's Settings sheet", SHELL, [".sheet(isPresented: $isShowingSettings) {", SETTINGS_MOUNT, "}"]),
     ("the DEBUG fence around -screen", LS, ["#if DEBUG", DEBUG_READ, "#else", "return .home", "#endif"]),
 ]
@@ -106,7 +107,7 @@ FROZEN = {
     LS: "57f6af62de6787d5c129bee12dbf45bc6fefd70292806c3415b0376c8e075d71",
     LG: "b72965b1635d4d8b109a0f966e6cfe8fd1f1fe9d7bdf4bd9bac2148f081e30a6",
     PW: "333b33ed55630cb3ec5f0bf57c17b44bfdb334d1d33ea2b2d5057ab830579ba9",
-    ST: "7727c2bfd3996030b9be0a69d611c92d35cffcf4aa5a071b1b50f51aa60e2b6d",
+    ST: "4e0dc5e818226503049008ef37f8f46cb6552f2a099f657cda8ff1830c717b0e",
     SC: "6da6ddadc509df44f9a9dadec770e0c3a84738af14715eeb6cee9c221bf63706",
     CD: "7e63f62eb351c5b45c5bed74cf5a63beff43e9b697747c01973e40eefe060906",
 }

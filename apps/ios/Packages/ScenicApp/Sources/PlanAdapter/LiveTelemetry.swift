@@ -2,18 +2,18 @@ import Foundation
 import ScenicKit
 import Telemetry
 
-/// The app's telemetry (T-0355): Telemetry's `TelemetryClient` over URLSession, built once per launch from the same
-/// https base URL as LivePlanner (none - nothing is sent). Each case PlanAdapter emits is constructed on exactly ONE
-/// line here (R6, ops/lib/check-telemetry-emit-sites.py); `record` hands the event to a Task, so no user action ever
-/// awaits telemetry, and the client drops whatever fails (R3).
+/// The app's telemetry (T-0355): Telemetry's `TelemetryClient` over URLSession, from the same https base URL as
+/// LivePlanner (none - nothing is sent), held by InstallBoundTelemetry so the install id is read at each record and
+/// a deleted account's id is never sent again in the launch (T-0356 rv1). Each case PlanAdapter emits is constructed
+/// on exactly ONE line here (R6, ops/lib/check-telemetry-emit-sites.py); `record` hands the event to a Task, so no
+/// user action ever awaits telemetry, and the client drops whatever fails (R3).
 public enum LiveTelemetry {
-    private static let client: TelemetryClient? = build()
+    private static let client: InstallBoundTelemetry? = build()
 
-    static func build() -> TelemetryClient? {
+    static func build() -> InstallBoundTelemetry? {
         guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return nil }
-        return TelemetryClient(base: base, device: StoredInstallID().installID(),
-                               transport: URLSessionTelemetryTransport())
+        return InstallBoundTelemetry(base: base)
     }
 
     private static func record(_ event: TelemetryEvent) {

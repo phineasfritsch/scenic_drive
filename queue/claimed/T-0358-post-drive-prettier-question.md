@@ -123,3 +123,20 @@ re-approval; if refused, ship the Linux slice and say so.
   ops/lib/mutate-population-allowlist.json with reasons (no number in any of them; PostDriveQuestion is a boolean held
   whole by the 24-row map), not added to drive.py - check-mutate-population `every added module is covered or
   allowlisted; the floor of 157 holds`. The shell's frozen `host` line (check-safety-disclaimer-frozen) moves with R7.
+- 2026-10-15T22:52:00Z filed T-0366 (backlog): R3's next-open question after a handoff, app half (ids on main and every
+  open task/* branch listed first; highest T-0365; `T-0366` found nowhere).
+- 2026-10-15T23:23:42Z FINAL (agent/claude-opus-5): merged origin/main (a8fcf659, T-0356's InstallBoundTelemetry)
+  LAST; conflicts in check-telemetry-emit-sites.txt (main's InstallBoundTelemetry rows kept, this task's emit row and
+  LivePostDriveAnswers site added, pending row removed) and check-safety-disclaimer-pinned (main's taken, this task's
+  seven app digests and the shell digest re-approved on the merged bytes). Acceptance re-run on the merged tree:
+  A1+A3 `swift test --filter 'ScenicKitTests\.(PostDrive\w*|Drive\w*)Tests|TelemetryTests\.(TelemetryClientTests|TelemetryEventEncodingTests)'`
+     -> `Test run with 74 tests in 13 suites passed`.
+  A2 check-telemetry-emit-sites exit 0 `ok - 40 lines approved; 4 of 14 cases emitted once, 10 pending by task`;
+     --prove-red `ok - 17 rows`.
+  A4 exit 0 each, bare: check-safety-disclaimer; check-mutate-population (`every added module is covered or
+     allowlisted; the floor of 157 holds`); check-mutate-only; check-line-cap (`625 Swift files ... none over 300`);
+     check-pins-yaml (`pins=50 fields=403`); check-exec-bits; queue-check (`QUEUE OK (356 tasks)`); check-drive-display
+     (23 approved; --prove-red 7/7); check-drive-voice (7 approved); check-ferrostar-imports.
+  A5 on 449c234b (pre-merge app code): ios-compile run 38819649176 success; ios-screenshot run 38819652424 success;
+     drive-light.png looked at: the moving (minimal) surface - map, credit, one large End drive - and no question.
+     No prompt shot (R10: the screen LIST is outside touches).
