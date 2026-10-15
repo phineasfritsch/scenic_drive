@@ -11,6 +11,7 @@ import { fakeKv, fakeQuotaNamespace, type FakeQuota } from "./doFake";
 import { REACH_BODY } from "./isochroneHarness";
 import { LOOP_BODY } from "./loopHarness";
 import { NOW, SANTA_MONICA_TOPANGA_BODY } from "./planHarness";
+import { SEARCH_BODY } from "./searchHarness";
 import { TRIP_BODY } from "./tripHarness";
 
 const DEVICE = "0f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
@@ -20,7 +21,7 @@ const DEVICE = "0f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
 // cell in D1 and calls nothing (T-0293 R8); /ledger reads and writes D1 only (T-0302 R7).
 const OPERATIONAL_ROUTES = ["/__health", "/__version", "/__ro", "/asn", "/entitlement", "/attest/challenge", "/attest", "/attest/assert",
   "/auth/apple", "/account", "/config", "/waitlist", "/ledger"] as const;
-const UPSTREAM_ROUTES = ["/plan", "/loop", "/isochrone", "/trip"] as const;
+const UPSTREAM_ROUTES = ["/plan", "/loop", "/isochrone", "/trip", "/search"] as const;
 // /telemetry writes Analytics Engine, not the router: killed by its own ROUTES test below (T-0279 R8), and the ONLY
 // route excluded from the upstream derivation besides the operational ones.
 const TELEMETRY_ROUTE = "/telemetry";
@@ -30,6 +31,7 @@ const BODIES: Record<UpstreamRoute, unknown> = {
   "/loop": LOOP_BODY,
   "/isochrone": REACH_BODY,
   "/trip": TRIP_BODY,
+  "/search": SEARCH_BODY,
 };
 const SOURCES: [string, Record<string, unknown>][] = [
   ["env KILL=1", { KILL: "1" }],
@@ -58,7 +60,8 @@ afterEach(() => {
 function killedEnv(source: Record<string, unknown>): Env {
   return {
     DB: env.DB, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns, ROUTER_URL: "https://router.test",
-    ROUTER_SECRET: "test-router-secret", GRAPH_VERSION: "kill-switch-test", ...source,
+    ROUTER_SECRET: "test-router-secret", GRAPH_VERSION: "kill-switch-test", SEARCH_URL: "https://search.test",
+    SEARCH_SECRET: "test-search-secret", ...source,
   } as unknown as Env;
 }
 

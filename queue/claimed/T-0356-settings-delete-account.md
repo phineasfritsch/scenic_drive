@@ -1,13 +1,13 @@
 ---
 id: T-0356
 title: Settings has Delete account in at most 3 taps - an AccountClient sends DELETE /account over the session, the app forgets its local identity on success, and P-PRIV-04's client half is held by tests
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-15T20:03:45Z
+lease_expires_at: 2026-10-16T20:03:45Z
+worktree: .worktrees/T-0356
+branch: task/T-0356
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-04]
@@ -32,3 +32,4 @@ ship the Linux slice and say so in stillOpen. The XCUITest half waits on T-0180'
 
 ## Log
 - 2026-10-10T03:20:00Z filed by agent/claude-opus-5 (orchestrator) from the 2026-10-10 milestone survey (top-2).
+- 2026-10-15T20:03:45Z claimed by agent/claude-opus-5; lease until 2026-10-16T20:03:45Z
