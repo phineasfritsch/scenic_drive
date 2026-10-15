@@ -1,7 +1,7 @@
 ---
 id: T-0360
 title: On regionUnsupported the app offers "Notify me" and posts /waitlist once - a WaitlistClient, the PlanFailureAction gains the waitlist action, and the screen says what it sent
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-15T20:51:41Z
@@ -11,7 +11,7 @@ branch: task/T-0360
 exclusive: []
 touches: [.github/workflows/ios-screenshot.yml, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05]
-reviewer: null
+reviewer: agent/rv1-t0360
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -127,3 +127,18 @@ P-SAFE-03 digest re-approval; if refused, ship the Linux slice and say so.
     plan-waitlist-dark.png LOOKED AT: title "Count this area", the joined line whole, the muted "What this sends"
     line, the "Change the start" button, both themes legible, the toolbar and bottom bar intact.
   - Follow-up NOT filed (budget): LoopFailure/TripFailure regionUnsupported have no waitlist action (R1).
+- 2026-10-15T22:13:36Z REVIEW PASS (agent/rv1-t0360, round 1) on f3e78b90, PR #245:
+  - Acceptance committed before code (1738a071 precedes d38f27be/cfc8cef0). A1: the touched filter plus
+    PlanSheetGateTests ran "Test run with 25 tests in 4 suites passed". A2: whole-row copy and title tables read.
+  - Reviewer mutants, not in ops/mutate/waitlist_mutations.py, both RED by name: R1 longitude sent to cellOf
+    unrounded (`cellOf(Self.twoDecimals(start.latitude), start.longitude)`) -> "The cell is computed from the
+    start at two decimals, half away from zero" 6 of 7 rows failed (WaitlistClientTests.swift:120); R2
+    regionUnsupported's action back to .changeStart -> "every PlanSheetFailure has its one copy line and one
+    action" failed (PlanFailureCopyTests.swift:54). "Test run with 14 tests in 3 suites failed ... with 7 issues";
+    restored with git checkout -- Sources.
+  - Gates bare, all exit 0: check-safety-disclaimer, check-mutate-population ("floor of 157 holds"),
+    check-mutate-only, check-line-cap (597 files), check-pins-yaml (pins=50), check-exec-bits, queue-check (354).
+  - gh pr checks 245: core pass, pins-source-only pass. ios-compile 38807997046 success and ios-screenshot
+    38808002035 success on cfc8cef0; cfc8cef0..f3e78b90 touches only PINS.yaml and this file. plan-waitlist-light
+    and -dark PNGs looked at: they match the Log.
+  - origin/main is an ancestor of origin/task/T-0360 (merge-base --is-ancestor exit 0).
