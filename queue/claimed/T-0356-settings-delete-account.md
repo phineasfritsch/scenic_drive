@@ -23,6 +23,8 @@ acceptance:
   - "A6 Wiring: SettingsScreen carries the Delete Account row and its confirmation; the shell hands it PlanAdapter's LiveAccountDeletion; every touched apps/ios Swift file re-approved in ops/lib/check-safety-disclaimer-pinned and every new/edited Sources file in check-safety-disclaimer-linked-digests.txt; ios-compile and ios-screenshot success with the Settings shots looked at. The XCUITest that taps the path waits on T-0180's xcodeproj lock (recorded)."
   - "A7 P-PRIV-04's client half bound by name: the new Swift tests in ops/lib/named-tests.json under P-PRIV-04 (swift), the pin's why_no_test text extended; `python ops/lib/run-named-tests.py P-PRIV-04` passes. New Sources modules are either in a population or in mutate-population-allowlist.json with a reason read from the module."
   - "A8 On the merged head: the touched Swift filter green; check-safety-disclaimer, check-mutate-population, check-mutate-only, check-line-cap, check-pins-yaml, check-exec-bits and queue-check all exit 0, each quoted."
+  - "A9 (rv1-t0356 B1) AccountEraseTableTests `forgetSession removes the Keychain item and the forgotten token is never handed back` asserts the post-forget Keychain write is an ADD (MemorySessionStorage.writes, by equality of the whole KeychainWrite list); the hand mutant that deletes `keychain = .absent` from SessionStore.forgetSession() is RED by that test's name, GREEN without."
+  - "A10 (rv1-t0356, P-PRIV-04 R3) Telemetry later in the launch never carries the deleted install id: PlanAdapter LiveTelemetry reads StoredInstallID per record and rebuilds its TelemetryClient when the id changed (InstallBoundTelemetry); Apple-only, so held by the P-SAFE-03 digest, the P-PRIV-05 emit-site whitelist and ios-compile success - no Linux test (Sources/Telemetry is outside touches; ruled in the Log)."
 ---
 ## Brief
 
@@ -140,3 +142,36 @@ ship the Linux slice and say so in stillOpen. The XCUITest half waits on T-0180'
   whitelist: apps/ios/ScenicDrive/ScenicDriveApp.swift: SettingsScreen(... deleteAccount: ...)` and `REFUSED approved
   site missing`. A fourth whitelist of the same line (R7): re-approved there; `check-telemetry-emit-sites.py` ->
   `P-PRIV-05 emit sites: ok - 32 lines approved; 3 of 14 cases emitted once, 11 pending by task`.
+- 2026-10-15T22:13:30Z rv1-t0356 FAIL (PR #243, head c967117d) - rulings before code. B1 ACCEPTED: with
+  `keychain = .absent` deleted from SessionStore.forgetSession() the cached read stays .valid(old), so the next
+  session's write is KeychainWrite.replacing(over: .valid) = .update - on device a SecItemUpdate on the item the
+  forget just deleted (errSecItemNotFound), `keep` then leaves `keychain` at .valid(old), every later write in the
+  launch is an update too, the new session is never persisted and the post-deletion key is orphaned at the next
+  launch's attest. The test gap is real: `forgetSession()` reads storage.removes and the next token, never
+  storage.writes. Fix = test only (the shipped code is right): the post-forget writes EQUAL [.add] by the whole
+  KeychainWrite list; the mutant shown RED by the test's name, then GREEN.
+  Recordable (P-PRIV-04 R3, "nothing links later use to the deleted account") ACCEPTED: T-0355's LiveTelemetry builds
+  its TelemetryClient once per launch (`static let client = build()`) with StoredInstallID().installID() captured
+  in its x-scenic-device header, so an event after a confirmed deletion carries the deleted id. RULING on where the
+  fix lives: Sources/Telemetry and Tests/TelemetryTests are outside this task's touches (the pre-commit hook rejects
+  them), and changing TelemetryClient's init would also change T-0355's shipped API under T-0355's tests. So the fix
+  is Apple-only, in PlanAdapter: a new actor InstallBoundTelemetry reads StoredInstallID().installID() at EACH record
+  and rebuilds the TelemetryClient (same base, same transport type) when the id differs from the one it was built
+  with; LiveTelemetry holds that actor instead of a client. Batching/capacity (T-0355 R3) are unchanged within one id.
+  Held by: the P-SAFE-03 digest rows (re-approved), the P-PRIV-05 emit-site whitelist (the new lines approved) and
+  ios-compile success. No Linux test and no mutant by name - recorded as a gap, not claimed; a TelemetryClient fed an
+  id provider with a per-request Linux test is the follow-up when a task may touch Sources/Telemetry.
+- 2026-10-15T22:23:41Z rv1 fixes landed. Hand mutants (continued from the 20:xx list; .artifacts/b1mutant.sh, swift
+  filter `AccountClientTests|AccountEraseTableTests|AccountDeletionPathTests|AccountDeletionCopyTests|
+  SessionStoreTests|TelemetryTests`): b1-forget-keeps-keychain-cache (`keychain = .absent` deleted from
+  forgetSession()) -> CAUGHT: `× Test "forgetSession removes the Keychain item and the forgotten token is never
+  handed back" recorded an issue at AccountEraseTableTests.swift:102:9: Expectation failed: (storage.writes.map(\.write)
+  → [ScenicAPIClient.KeychainWrite.update]) == ([.add] → [ScenicAPIClient.KeychainWrite.add])`, `× Test run with 38
+  tests in 12 suites failed after 0.068 seconds with 1 issue`; restored clean; GREEN `√ Test run with 38 tests in 12
+  suites passed after 0.702 seconds`.
+  Telemetry (A10): InstallBoundTelemetry.swift (new, PlanAdapter) + LiveTelemetry.swift. P-PRIV-05 emit sites seen RED
+  on the change before re-approval: `P-PRIV-05 emit sites: FAILED - 13 refusals` (9 new lines not on the whitelist,
+  4 approved LiveTelemetry lines missing); re-approved in ops/lib/check-telemetry-emit-sites.txt -> `P-PRIV-05 emit
+  sites: ok - 37 lines approved; 3 of 14 cases emitted once, 11 pending by task`. P-SAFE-03 digests re-approved in
+  ops/lib/check-safety-disclaimer-pinned: LiveTelemetry.swift 34d306a8254b269e04bde804c4d332e700e479e463e640ba011ddfb40d986686,
+  InstallBoundTelemetry.swift 00cf5e6e8ca446c303cc68f6fca49190e1dce8df4c3266ca2bc763744396fa6c (new row).

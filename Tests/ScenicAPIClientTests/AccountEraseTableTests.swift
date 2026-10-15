@@ -98,6 +98,8 @@ import Testing
         let next = await store.accountSession()
         #expect(next != AttestWire.oldToken)
         #expect(next == AttestWire.newToken)
+        // rv1-t0356 B1: the item is gone, so the new session is ADDED - an update would miss it on device.
+        #expect(storage.writes.map(\.write) == [.add])
     }
 
     @Test("accountSessionRejected drops the token and grants one re-acquisition")

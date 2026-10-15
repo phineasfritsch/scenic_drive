@@ -4,14 +4,19 @@ site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveLoopPlanner.swift	     
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift	        return TelemetryRoutePlanner(inner: ClientPlanner(client: client(base)))
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift	    private static let live: (any SurpriseLedgerSource)? = TelemetrySurpriseLedger(inner: build())
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift	import Telemetry
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	                               transport: URLSessionTelemetryTransport())
 emit	planRequested	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.planRequested(feature: feature, budgetMinutes: budgetMinutes, origin: cell))
 emit	planResult	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.planResult(kind))
 emit	surpriseShown	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.surpriseShown)
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        return TelemetryClient(base: base, device: StoredInstallID().installID(),
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	            current = TelemetryClient(base: base, device: id, transport: URLSessionTelemetryTransport())
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	        let current: TelemetryClient
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	    func record(_ event: TelemetryEvent) async {
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	    private var client: TelemetryClient?
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	actor InstallBoundTelemetry {
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	import Telemetry
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        return InstallBoundTelemetry(base: base)
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    private static let client: InstallBoundTelemetry? = build()
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    static func build() -> InstallBoundTelemetry? {
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    private static func record(_ event: TelemetryEvent) {
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    private static let client: TelemetryClient? = build()
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    static func build() -> TelemetryClient? {
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	import Telemetry
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	public enum LiveTelemetry {
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTripPlanner.swift	        return TelemetryTripPlanner(inner: ClientTripPlanner(client: TripClient(base: base, transport: URLSessionPlanTransport(),
