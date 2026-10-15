@@ -13,7 +13,10 @@ import SwiftUI
 /// Presented full height, as Settings is, with no detent: a partial sheet over the map would cover its credit
 /// (P-ATTR-01).
 public struct PlanSheetScreen: View {
-    private let planner: any RoutePlanning
+    private let planner: any RoutePlanning & WaitlistJoining
+    /// T-0360: the waitlist card replaces the failure card from the tap; nil answer while the request is out.
+    @State private var showingWaitlist = false
+    @State private var waitlistAnswer: WaitlistAnswer?
     private let onClose: () -> Void
     /// The door to the drive (T-0324 R4): the shell takes the previewed plan and shows the drive in place of the home.
     private let onDrive: (PlanPreview) -> Void
@@ -37,7 +40,7 @@ public struct PlanSheetScreen: View {
     private let loopPlanner: any LoopPlanning
     private let loopLink: (Coordinate, [Coordinate]) -> URL?
 
-    public init(planner: any RoutePlanning, tripPlanner: any TripPlanning,
+    public init(planner: any RoutePlanning & WaitlistJoining, tripPlanner: any TripPlanning,
                 dayLinks: @escaping ([Coordinate]) -> [URL], loopPlanner: any LoopPlanning,
                 loopLink: @escaping (Coordinate, [Coordinate]) -> URL?, onDrive: @escaping (PlanPreview) -> Void,
                 onClose: @escaping () -> Void) {
@@ -56,6 +59,8 @@ public struct PlanSheetScreen: View {
             _showingLoop = State(initialValue: rehearsal.tab == .loop)
             _showingTrip = State(initialValue: rehearsal.tab == .trip)
             _showingSaved = State(initialValue: rehearsal.tab == .saved)
+            _showingWaitlist = State(initialValue: rehearsal.waitlist != nil)
+            _waitlistAnswer = State(initialValue: rehearsal.waitlist)
         }
     }
 
@@ -132,7 +137,11 @@ public struct PlanSheetScreen: View {
                             onSave: { save(preview, budgetMinutes: ticket.budgetMinutes) },
                             onChangePlace: { searchFor(.destination) }, onDrive: { onDrive(preview) })
         case .failed(_, let failure):
-            PlanFailureCard(copy: PlanFailureCopy.of(failure), onAction: act)
+            if showingWaitlist {
+                WaitlistCard(answer: waitlistAnswer, onChangeStart: { searchFor(.start) })
+            } else {
+                PlanFailureCard(copy: PlanFailureCopy.of(failure), onAction: act)
+            }
         case .offered(_, let offer):
             // T-0334: each offer is ONE fresh plan through the gate, run down the same planner path.
             PlanOfferCard(copy: PlanOfferCopy.of(offer),
@@ -173,6 +182,7 @@ public struct PlanSheetScreen: View {
 
     private func searchFor(_ field: PlanField) {
         query = ""
+        endWaitlist()
         sheet.search("", for: field)
     }
 
@@ -182,7 +192,24 @@ public struct PlanSheetScreen: View {
         case .tryAgain: planDrive()
         case .chooseAnotherPlace: searchFor(.destination)
         case .changeStart: searchFor(.start)
+        case .joinWaitlist: joinWaitlist()
         }
+    }
+
+    /// T-0360 R2, R3: the failed ticket's start, at most one request, the answer shown in place of the failure.
+    private func joinWaitlist() {
+        guard !showingWaitlist, case .failed(let ticket, _) = sheet.state else { return }
+        showingWaitlist = true
+        waitlistAnswer = nil
+        let planner = self.planner
+        Task { @MainActor in
+            waitlistAnswer = await planner.joinWaitlist(near: ticket.origin)
+        }
+    }
+
+    private func endWaitlist() {
+        showingWaitlist = false
+        waitlistAnswer = nil
     }
 
     /// The view's whole plan path: the gate's ticket, or nothing; then the planner's outcome for that ticket.
@@ -209,6 +236,7 @@ public struct PlanSheetScreen: View {
 
     private func run(_ ticket: PlanTicket) {
         saveLine = nil
+        endWaitlist()
         let planner = self.planner
         Task { @MainActor in
             let outcome = await planner.plan(ticket)
