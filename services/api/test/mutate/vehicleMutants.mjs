@@ -46,7 +46,7 @@ export const MUTATIONS = [
   m("vehicle-prefix", "vehicle.ts", MATCH, "ENABLED_VEHICLE_PROFILES.some((p) => value.startsWith(p))) return null;"),
   m("vehicle-detail-one-route", "vehicle.ts", "the only profile ${route} plans for", "the only profile /plan plans for"),
   m("plan-vehicle-unchecked", "planRequest.ts", CHECKED, "if (vehicle && false) return refuse(vehicle);"),
-  m("plan-vehicle-key-dropped", "planRequest.ts", '"departs_at", "vehicle"]', '"departs_at"]'),
+  m("plan-vehicle-key-dropped", "planRequest.ts", '"departs_at", "vehicle", "reroute"', '"departs_at", "reroute"'),
   m("loop-vehicle-unchecked", "loopRequest.ts", CHECKED, "if (vehicle && false) return refuse(vehicle);"),
   m("loop-vehicle-key-dropped", "loopRequest.ts", '"minutes", "vehicle"]', '"minutes"]'),
   m("loop-vehicle-required", "loopRequest.ts", 'REQUIRED_KEYS = ["start", "minutes"];', 'REQUIRED_KEYS = ["start", "minutes", "vehicle"];'),

@@ -37,8 +37,8 @@ const TESTS = ["test/productionDeps.test.ts", "test/quotaCounter.test.ts", "test
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
   m("do-daily-no-reset", "QuotaCounter.ts", "stored?.day === day ? stored : { day", "stored ? stored : { day"),
-  m("do-daily-inclusive", "QuotaCounter.ts", "if (!(used(record, kind) < limit)) return false;", "if (!(used(record, kind) <= limit)) return false;"),
-  m("do-daily-step-2", "QuotaCounter.ts", "[kind]: used(record, kind) + 1 }", "[kind]: used(record, kind) + 2 }"),
+  m("do-daily-inclusive", "QuotaCounter.ts", "if (!(used(record, kind) + amount <= limit)) return false;", "if (!(used(record, kind) + amount <= limit + 1)) return false;"),
+  m("do-daily-step-2", "QuotaCounter.ts", "[kind]: used(record, kind) + amount }", "[kind]: used(record, kind) + amount + 1 }"),
   m("do-daily-fresh-one", "QuotaCounter.ts", "{ day, plan: 0, loop: 0 }", "{ day, plan: 1, loop: 0 }"),
   m("do-read-daily-stale", "QuotaCounter.ts", "return stored?.day === day ? used(stored, kind) : 0;", "return stored ? used(stored, kind) : 0;"),
   m("do-read-daily-kind", "QuotaCounter.ts", "? used(stored, kind) : 0;", "? stored.plan : 0;"),
@@ -68,7 +68,7 @@ export const MUTATIONS = [
   m("loop-deps-null", "loop.ts", "return routerDepsFromEnv(env);", "return null;"),
   m("plan-resolver-error-404", "plan.ts", "} catch {\n    return json({ error: \"planning_unavailable\" }, 503);",
     "} catch {\n    return json({ error: \"unknown_place\" }, 404);"),
-  m("plan-deps-no-resolver", "plan.ts", "resolvePlace: d1PlaceResolver(env.DB) }", "resolvePlace: async () => null }"),
+  m("plan-deps-no-resolver", "plan.ts", "resolvePlace: d1PlaceResolver(env.DB),", "resolvePlace: async () => null,"),
   m("router-http-allowed", "routerDeps.ts", "if (url.protocol !== \"https:\") return null;", "if (false) return null;"),
   m("router-invalid-allowed", "routerDeps.ts", "if (url.hostname === \"invalid\" || url.hostname.endsWith(\".invalid\")) return null;", "if (false) return null;"),
   m("router-trailing-slash", "routerDeps.ts", "return value.replace(/\\/+$/, \"\");", "return value;"),
