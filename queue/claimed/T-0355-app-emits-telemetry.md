@@ -204,3 +204,13 @@ T-0358; this task wires the other 13 and the client.
      0. --prove-red "PROVE-RED a pending row naming a done task exit 1 (want 1) red", "... a missing task exit 1 (want
      1) red", control exit 0, "PROVE-RED ok - 16 rows".
   9. On the merged head (origin/main f615ebe3 merged, then R15): see the next entry.
+- 2026-10-15T19:59:46Z GATES ON THE MERGED HEAD cb55c424 by agent/claude-opus-5 (owner), acceptance 9. origin/main f615ebe3 merged
+  at 88ee970a (PINS.yaml merged clean as a union: against main only this branch's P-PRIV-05 lines differ) and is an
+  ancestor of HEAD; re-fetched before this entry, main unmoved. `swift test --filter TelemetryTests` "Test
+  shippingTransportPostsTheWholeRequestNotAGet() passed", "Test run with 20 tests in 7 suites passed";
+  check-telemetry-emit-sites "ok - 32 lines approved; 3 of 14 cases emitted once, 11 pending by task" exit 0,
+  --prove-red "PROVE-RED ok - 16 rows" exit 0; check-safety-disclaimer exit 0; check-mutate-population (exit 2 at
+  88ee970a, R15) "every added module is covered or allowlisted; the floor of 150 holds" exit 0; check-mutate-only
+  "MUTATE-ONLY OK: 207 of 207 driver runs refused with exit 64", "NAME-PAIRS OK: 195764 pair tokens" exit 0;
+  check-mutate-anchors "17 drivers, 1263 anchors, 0 stale" exit 0; check-pins-yaml "PINS-YAML ok pins=50 fields=403"
+  exit 0; queue-check "QUEUE OK (353 tasks)" exit 0.
