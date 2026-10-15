@@ -1,7 +1,7 @@
 ---
 id: T-0358
 title: After a drive the app asks "Prettier than your usual way?" once and records post_drive_answer - the funnel's answer stage
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
