@@ -1,7 +1,7 @@
 ---
 id: T-0359
 title: Photon address search, everything but the deploy - services/search (pinned image, California index config), a Worker /search proxy that sends at most one 2-dp coordinate, and a ScenicAPIClient search client, all tested locally
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-10T03:37:26Z
@@ -11,7 +11,7 @@ branch: task/T-0359
 exclusive: []
 touches: [services/search/, services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-COST-01]
-reviewer: null
+reviewer: agent/rv1-t0359
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -143,3 +143,25 @@ Worker vitest through the shipping handler with a fake upstream; client whole-bo
   "5 added by this branch ... the floor of 151 holds" exit 0; check-mutate-only "MUTATE-ONLY OK: 207 of 207" exit 0.
   Line counts: largest new files ops/mutate/search.py 188, ops/lib/check-search-pins.py 155.
 - 2026-10-10T06:47:31Z T-0362 filed (backlog): the plan-sheet wiring and the ruling on how a searched address reaches /plan (R9).
+- 2026-10-15T19:54:08Z REVIEW PASS (agent/rv1-t0359, not the owner), PR #242 at 20c4eabf, worktree .worktrees/rv1-t0359.
+  Every acceptance line re-run on the PR head: vitest search* + routes, killSwitchRoutes, sharedEnvWorker,
+  requestReadSites, configAnswerPath, configSweep, upstream, configFields "Tests 62 passed (62)"; swift --filter
+  SearchClientTests "Test run with 5 tests in 1 suite passed"; check-safety-disclaimer EXIT 0; check-mutate-population
+  "the floor of 151 holds" EXIT 0; check-mutate-only "MUTATE-ONLY OK: 207 of 207" EXIT 0; check-line-cap "570 Swift
+  files tracked ... none over 300 lines" EXIT 0; check-pins-yaml "PINS-YAML ok pins=50 fields=403" EXIT 0;
+  check-exec-bits "213 files, 23 required present, all modes correct" EXIT 0; check-search-pins "SEARCH-PINS ok" and
+  --prove-red "PROVE-RED OK: 3 of 3 arms refused" EXIT 0; gh pr checks core pass, pins-source-only pass;
+  merge-base --is-ancestor origin/main origin/task/T-0359 rc=0.
+  Reviewer mutants, not in the population, each RED by name and reverted:
+  R1 services/api/src/searchAnswer.ts `const [lon, lat] = geometry.coordinates` -> `const [lat, lon]` (GeoJSON order
+  swapped): searchAnswer "1 failed | 1 passed", killed by "every readable Photon answer is the whole {results}
+  written out here".
+  R2 Sources/ScenicAPIClient/SearchRequestBody.swift `Near(lat: lat, lon: lon)` -> `Near(lat: near.latitude,
+  lon: near.longitude)` (rounded values computed, the raw bias sent): "Test run with 5 tests in 1 suite failed ...
+  with 4 issues", killed by "POST /search is exactly the content type, the device and the sorted-key body, the bias
+  at 2 dp" (34.126,-118.454 / -0.004,0.004 / 89.996,179.996 / 34.124,-118.446).
+  Recordable, not blocking: (a) the A8 gate quotes were missing from the author's FINAL Log entry - quoted above;
+  (b) A5's vacuity proof ran on 5 of 30 entries, as ruled in the Log; (c) the Caddyfile's `{env.SEARCH_SECRET}`
+  runtime placeholder in the header matcher was never run - the owner's deploy should see 401 for a missing header
+  and for a literal "{env.SEARCH_SECRET}" header; (d) q is forwarded verbatim, so a coordinate the person types as
+  text reaches Photon at the typed precision - typed text, not a device coordinate; T-0362 (wiring) may rule on it.
