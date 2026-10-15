@@ -1,13 +1,13 @@
 ---
 id: T-0364
 title: The app acts on /config's feature_loop, feature_trip and feature_surprise and degrades the Loop, Trip and Surprise entry points before the tap, as T-0357 did for Plan
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-15T23:39:41Z
+lease_expires_at: 2026-10-16T23:39:41Z
+worktree: .worktrees/T-0364
+branch: task/T-0364
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/]
 pins_affected: []
@@ -32,3 +32,4 @@ degrade as a table over every flag, P-SAFE-03 digests, and the config.py populat
 ## Log
 - 2026-10-15T19:35:43Z filed by agent/claude-opus-5 as T-0357's follow-up (T-0357 R1). Ids checked on origin/main
   and every origin/task/* branch: highest T-0363, so T-0364.
+- 2026-10-15T23:39:42Z claimed by agent/claude-opus-5; lease until 2026-10-16T23:39:41Z
