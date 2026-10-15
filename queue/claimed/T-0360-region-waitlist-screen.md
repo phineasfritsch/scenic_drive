@@ -104,3 +104,26 @@ P-SAFE-03 digest re-approval; if refused, ship the Linux slice and say so.
   A5 bare gates: check-safety-disclaimer, check-mutate-population, check-mutate-only, check-line-cap,
      check-pins-yaml, check-exec-bits, queue-check.
   A6 ios-compile success and ios-screenshot success on task/T-0360; plan-waitlist-light/-dark PNGs looked at.
+- 2026-10-15T21:33:18Z WORK (agent/claude-opus-5):
+  - RED first: WaitlistClientTests, WaitlistAnswerTests and the edited PlanFailureCopyTests were written before any
+    Sources code; `swift build --build-tests` failed by name - "cannot find type 'WaitlistClient' in scope",
+    "cannot find 'WaitlistAnswer' in scope", "cannot find type 'WaitlistMemory' in scope". Then green: "Test run with
+    16 tests in 4 suites passed" (WaitlistClientTests 8 incl. 20 bound rows, 11 answer rows, 7 rounding rows,
+    11 refused cells, 4 class bounds; WaitlistAnswerTests 2; PlanFailureCopyTests 4; PlanOfferCopyTests 2).
+  - A4: `python ops/mutate/waitlist.py --prove-floor` "FLOOR PROOF OK: 7 of 7 arms refused and the control did not";
+    `python ops/mutate/waitlist.py` "caught by the test that names it: 43 of 43 (wrong killer 0, trapped 0,
+    compile-only 0, MISSED 0, skipped 0)", E1 and E2 MISSED as required, "MUTATE OK caught=43/43
+    equivalent_caught=0". The range-after-rounding mutant (11) and each one-ulp widening (5-8) were caught by
+    the bound table by name.
+  - A3: `python ops/lib/run-named-tests.py P-PRIV-05` "passed=71/72" - every WaitlistClientTests binding passed; the
+    one red is PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail() MISSING, GRDB-gated and known not
+    to build on this Windows box (the pin's own note; CI's Linux core job runs it).
+  - App: WaitlistRoutePlanner, DefaultsWaitlistMemory, LiveWaitlist (PlanAdapter), WaitlistCard (FeaturePlanSheet),
+    PlanSheetScreen/PlanRehearsal/PlanRehearsalFixtures and LivePlanner edited; their P-SAFE-03 digests re-approved
+    in ops/lib/check-safety-disclaimer-pinned (four new rows); the emit-site whitelist gains LiveWaitlist.swift's
+    `import Telemetry` row ("P-PRIV-05 emit sites: ok - 33 lines approved"); LivePlanner's TelemetryRoutePlanner line
+    unchanged.
+  - A6: ios-compile run 38807997046 success; ios-screenshot run 38808002035 success. plan-waitlist-light.png and
+    plan-waitlist-dark.png LOOKED AT: title "Count this area", the joined line whole, the muted "What this sends"
+    line, the "Change the start" button, both themes legible, the toolbar and bottom bar intact.
+  - Follow-up NOT filed (budget): LoopFailure/TripFailure regionUnsupported have no waitlist action (R1).
