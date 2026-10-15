@@ -1,13 +1,13 @@
 ---
 id: T-0354
 title: check-mutate-only's POSIX process-group tree kill is seen red then green on Linux CI, and PAIR_FLOOR is raised to the measured merged-head count
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-15T23:39:57Z
+lease_expires_at: 2026-10-16T23:39:57Z
+worktree: .worktrees/T-0354
+branch: task/T-0354
 exclusive: []
 touches: [ops/lib/check-mutate-only.py, ops/lib/mutate_only_pairs.py]
 pins_affected: [P-PROC-06]
@@ -27,3 +27,4 @@ parent-plus-sleeping-grandchild demo. (b) PAIR_FLOOR = 192168 is the pre-merge m
 
 ## Log
 - 2026-10-10T03:20:00Z filed by agent/claude-opus-5 (orchestrator) from rv2-t0353 recordables (a), (b).
+- 2026-10-15T23:39:57Z claimed by agent/claude-opus-5; lease until 2026-10-16T23:39:57Z
