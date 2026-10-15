@@ -9,9 +9,9 @@ public enum LiveLoopPlanner {
     public static func make() -> any LoopPlanning {
         guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return UnreachableLoopPlanner() }
-        return ClientLoopPlanner(client: LoopClient(base: base, transport: URLSessionPlanTransport(),
+        return TelemetryLoopPlanner(inner: ClientLoopPlanner(client: LoopClient(base: base, transport: URLSessionPlanTransport(),
                                                     installID: StoredInstallID(),
                                                     accountToken: StoreKitAccountToken(),
-                                                    session: LiveSession.store))
+                                                    session: LiveSession.store)))
     }
 }
