@@ -81,3 +81,46 @@ Every apps/ios Swift edit re-approves its P-SAFE-03 digest.
      with the query and the two address rows under "Addresses"; searchNotice the notPlannable line under "Addresses".
   A5 bare gates on the merged head: check-safety-disclaimer, ios_screenshot_pinned.py, check-mutate-population.py,
      check-line-cap, check-pins-yaml.py, queue-check.
+- 2026-10-16T07:57:51Z WORK (agent/claude-opus-5): code c8d9cb50, merged origin/main a137f16c as 196e6b0e (the merge
+  touches no apps/ios, digest or workflow file, so the CI runs below on c8d9cb50 shot the merged head's app tree).
+  - M3 found while editing: ios_screenshot_pinned.py's SHOTS_LIST prove-red anchor was stale on main (it lacked
+    `waitlist`, added by T-0360): `check-ios-compile-guardrails.py --prove-red` ended "PROVE-RED REFUSING: ... the
+    mutation 'T-0324: the drive shot dropped' does not apply exactly once - its anchor is stale". SHOTS_LIST now
+    equals the shipped LIST; the two rows anchored on " nothingPretty offered" / " preview nothingPretty offered loop
+    trip saved" follow; two T-0373 rows added (the six dropped from LIST; the six dropped from the plan arm). After:
+    "PROVE-RED OK: 96 mutations red, 6 legitimate spellings green over 2 workflows, 0 unexpected result(s)", both
+    T-0373 rows `[red rc=1] ... steps[4].run: differs from the pinned value`.
+
+### Acceptance (T-0373) - re-quoted on the merged head 196e6b0e
+  A1 PASS. rehearsal(named:) cases: "loopRegion", "tripRegion", "loopWaitlist", "tripWaitlist", "searchResults",
+     "searchNotice". wc -l: PlanRehearsalFixtures 202, PlanSheetScreen 266, LoopScreen 136, RoadTripScreen 141,
+     PlanPlaceList 79, PlanRehearsal 45; check-line-cap "P-SRC-02: 674 Swift files tracked (...apps/ios=109), none
+     over 300 lines" exit 0.
+  A2 PASS. LIST (light, dark) "... update loopPaused tripPaused loopRegion tripRegion loopWaitlist tripWaitlist
+     searchResults searchNotice legal"; plan arm "...|loopPaused|tripPaused|loopRegion|tripRegion|loopWaitlist|
+     tripWaitlist|searchResults|searchNotice)"; ios_screenshot_pinned.py exit 0; check-ios-compile-guardrails.py
+     "IOS-COMPILE-GUARDRAILS OK: ios-screenshot.yml equals the pinned workflow ..." exit 0.
+  A3 PASS. Six rows re-approved in ops/lib/check-safety-disclaimer-pinned (LoopScreen, PlanPlaceList, PlanRehearsal,
+     PlanRehearsalFixtures, PlanSheetScreen, RoadTripScreen; sed 's/\r$//' | sha256sum); check-safety-disclaimer
+     exit 0 ("... LAST all 109 app .swift, then 326 root + pbxproj file(s) (-linked).").
+  A4 PASS. ios-compile 38867768624 success (2m12s); ios-screenshot 38867771811 success (17m28s), 60 PNGs, downloaded
+     to .artifacts/T-0373-shots. Looked at, light and dark each:
+     - plan-loopRegion: title "Just drive a loop"; "Loops start inside the area we cover for now. We can count this
+       area toward where we go next."; buttons "Count this area", "Try again", "Change the loop".
+     - plan-tripRegion: "Plan a road trip"; "Road trips start inside the area we cover for now. We can count this area
+       toward where we go next."; "Count this area", "Try again", "Change the trip".
+     - plan-loopWaitlist / plan-tripWaitlist: headline "Count this area"; "This area is counted. We sent one rough area
+       around your start, about 250 square kilometres - never the place itself."; footnote "What this sends: one
+       rough area around your start, worked out from it rounded to two decimals. Never the start itself, and once
+       per area from this phone."; the filled "Change the start" button (light: white on orange; dark: dark on
+       light orange); titles "Just drive a loop" / "Plan a road trip".
+     - plan-searchResults: "Plan a drive", toolbar "Saved" + "Back"; field "Pacific Coast Hwy Malibu"; footer "Press
+       Search to look up a street address."; section "Addresses" with "29500 Pacific Coast Hwy, Malibu, CA 90265" and
+       "30000 Pacific Coast Hwy, Malibu, CA 90265" (no corpus row matches the query, so that section draws nothing).
+     - plan-searchNotice: the same field and footer; "Addresses" holding "Address search found places but can't plan
+       to them right now." - equal to Sources/ScenicAPIClient/PlaceSearchCopy.swift `notPlannable`.
+     R1 confirmed in the shots: the `.failed` branch draws Try again and Change on both tabs; the paused shots stay
+     the form's degrade notice.
+  A5 PASS on 196e6b0e, each bare: check-safety-disclaimer 0, ios_screenshot_pinned.py 0, check-ios-compile-guardrails
+     0, check-mutate-population.py 0, check-line-cap 0, check-pins-yaml.py "PINS-YAML ok pins=51 fields=411" 0,
+     queue-check "QUEUE OK (365 tasks)" 0.
