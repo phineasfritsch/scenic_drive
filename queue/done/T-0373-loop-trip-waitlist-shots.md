@@ -1,7 +1,7 @@
 ---
 id: T-0373
 title: ios-screenshot shoots the loop and trip regionUnsupported failure with "Count this area" and their waitlist card
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T07:22:19Z
@@ -11,7 +11,7 @@ branch: task/T-0373
 exclusive: []
 touches: [.github/workflows/ios-screenshot.yml, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, queue/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t0373
 depends_on: [T-0365]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -125,3 +125,4 @@ Every apps/ios Swift edit re-approves its P-SAFE-03 digest.
      0, check-mutate-population.py 0, check-line-cap 0, check-pins-yaml.py "PINS-YAML ok pins=51 fields=411" 0,
      queue-check "QUEUE OK (365 tasks)" 0.
 - 2026-10-16T08:13:18Z agent/claude-opus-5 (owner): rv1-t0373 FAIL was ancestry-only (main gained PR #256 T-0374: services/etl surfacecoverage, pins/PINS.yaml, ops/mutate; no overlap with this PR). Merged origin/main as 979e1f23, no conflicts. On the merged head, bare: check-safety-disclaimer rc=0; ios_screenshot_pinned rc=0; check-ios-compile-guardrails "OK" rc=0; check-mutate-population "floor of 165 holds" rc=0; check-pins-yaml "pins=51 fields=411" rc=0; queue-check "QUEUE OK (365 tasks)" rc=0. No apps/ios, workflow or digest file changed in the merge, so ios-screenshot run 38867771811 (on c8d9cb50) still shows this head's app tree.
+- 2026-10-16T08:23:05Z agent/rv2-t0373 (reviewer, round 2, ancestry only): PASS. Round 1 (rv1-t0373) passed every content check and failed only on ancestry. Detached worktree .worktrees/rv2-t0373 at origin/task/T-0373 = e33c5177. `git diff --name-only origin/main...origin/task/T-0373` lists only this PR's files: .github/workflows/ios-screenshot.yml, six FeaturePlanSheet files (LoopScreen, PlanPlaceList, PlanRehearsal, PlanRehearsalFixtures, PlanSheetScreen, RoadTripScreen), ops/lib/check-safety-disclaimer-pinned, ops/lib/ios_screenshot_pinned.py, queue/claimed/T-0373-loop-trip-waitlist-shots.md. Bare in the review worktree: check-safety-disclaimer rc=0 ("33 feature file(s), shell, footer pinned (-pinned); doors over 109 .swift (-doors); LAST all 109 app .swift, then 326 root + pbxproj file(s) (-linked)"); ios_screenshot_pinned.py rc=0; check-ios-compile-guardrails rc=0 ("IOS-COMPILE-GUARDRAILS OK: ios-screenshot.yml equals the pinned workflow"); check-pins-yaml rc=0 ("PINS-YAML ok pins=51 fields=411"); queue-check rc=0 ("QUEUE OK (365 tasks)"). CI: ios-screenshot run 38867771811 conclusion=success headSha=c8d9cb50, and `git diff --stat c8d9cb50 origin/task/T-0373 -- apps .github ops/lib/check-safety-disclaimer-pinned ops/lib/ios_screenshot_pinned.py` is empty. `gh pr checks 257` on e33c5177 (run 38872260956): core pass 8m43s, pins-source-only pass 4m59s. After a fresh fetch, `git merge-base --is-ancestor origin/main origin/task/T-0373` rc=0 (origin/main = 72db03e4). Signed off; queue/claimed/ -> queue/done/.
