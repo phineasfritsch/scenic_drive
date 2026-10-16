@@ -83,3 +83,35 @@ completion with the default behaviour kept, or a transaction listener in PlanAda
   A5 bash check-safety-disclaimer, check-mutate-population, check-mutate-only, check-map-attribution (if present),
      check-line-cap, check-pins-yaml, queue-check -> ok.
   A6 ios-compile and ios-screenshot -> success on the pushed head; paywall shots looked at.
+- 2026-10-16T10:05:00Z RED FIRST (code written, guards not yet moved): `python ops/lib/check-store-links.py` ->
+  `P-STORE-01 (ops/lib/check-store-links.py): 3 refusal(s)` - `import : an unapproved line in
+  .../Entitlements/PaywallConvertedKey.swift: \`import SwiftUI\``, `the frozen Entitlements source:
+  .../PaywallConvertedKey.swift is not an approved file`, `... PaywallScreen.swift's non-blank kept lines hash
+  385f9793..., approved 03d478bf...`. `python ops/lib/check-telemetry-emit-sites.py` -> `REFUSED  site not on the
+  whitelist: .../PlanAdapter/LiveMoments.swift:         LiveTelemetry.paywall(.converted)` / `FAILED - 1 refusals`.
+  Every new --prove-red row RED by name (A1/A2 below), e.g. `RED    converted reported before the finish  <- the
+  paywall's purchase completion: the run ... occurs 0 time(s)`, `RED    a second finish site (a listener in
+  PlanAdapter)  <- finish(): an unapproved line in .../PlanAdapter/Probe.swift`, `PROVE-RED  the paywall's converted
+  moment sends .shown (T-0370) exit 1 (want 1) red`.
+- 2026-10-16T10:05:00Z GREEN (head 8d6b013e): FROZEN re-approved (PaywallScreen 385f9793..., PaywallConvertedKey
+  c047ccf9...); P-SAFE-03 -pinned rows + PINNED_SHELL_DIGEST d377f58b..., PaywallScreen 73504214..., LiveMoments
+  03ed73bf..., new PaywallConvertedKey row 0ed5bb9e...; -frozen gains the shell's
+  `.environment(\.paywallConverted, { LiveMoments.paywallConverted() })`.
+  A1 `P-STORE-01 source half: ... ok`; `check-store-links --prove-red: 40/40 rows as required (36 mutants refused by
+     name, 4 legitimate edits green)` (7 new rows).
+  A2 `P-PRIV-05 emit sites: ok - 55 lines approved; 13 of 14 cases emitted once, 1 pending by task`;
+     `PROVE-RED  ok - 18 rows`.
+  A3 grep: `LiveMoments.swift:34 LiveTelemetry.paywall(.shown)`, `LiveMoments.swift:40 LiveTelemetry.paywall(.converted)`,
+     `LiveTelemetry.swift:81 record(TelemetryEvent.paywall(step))` - nothing else.
+  A4 `swift test --jobs 4 --filter TelemetryTests` -> `Test run with 21 tests in 7 suites passed`.
+  A5 check-safety-disclaimer exit 0; check-mutate-population `the floor of 165 holds`; check-mutate-only `NAME-PAIRS
+     OK`; check-map-attribution ok; check-line-cap `none over 300 lines`; check-pins-yaml `PINS-YAML ok pins=51`;
+     queue-check `QUEUE OK (367 tasks)`.
+  A6 ios-compile run 38883116368 `completed success` (17m8s); ios-screenshot run 38883119438 `completed success`
+     (17m43s), both on head 8d6b013e. Shots looked at: paywall-light.png and paywall-dark.png (the run produces no AX5
+     paywall shot) - navigation title "Scenic Drive Pro", back chevron, StoreKit's "Subscription Unavailable / The
+     subscription is unavailable in the current storefront." (the group id is still PLANNED-asc-group-id, so no
+     product loads on CI and no purchase can be driven), and the "Terms of Use" / "Privacy Policy" band at the
+     bottom. The completion handler draws nothing, as R7 expected. Observed, not changed here: in the unavailable
+     state the store's ground (white in light, #1C1C1E-ish in dark) differs from the links band's `bg`.
+- 2026-10-16T10:22:46Z merged origin/main (e8637659, PR #259 T-0375: named-tests.json, PINS.yaml, queue only; no conflict, no digest rows touched). ACCEPTANCE re-run on merged head abac0833: A1 `40/40 rows as required (36 mutants refused by name, 4 legitimate edits green)`; A2 `13 of 14 cases emitted once, 1 pending by task`, `PROVE-RED  ok - 18 rows`; A3 unchanged (no Swift came from main); A4 `Test run with 21 tests in 7 suites passed`; A5 every bare gate exit 0 (disclaimer, mutate-population, mutate-only, map-attribution, line-cap, pins-yaml, `QUEUE OK (367 tasks)`); A6 ios runs above (main brought no apps/ios change).
