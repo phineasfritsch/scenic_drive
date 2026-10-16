@@ -1,13 +1,13 @@
 ---
 id: T-0381
 title: The routing profile gates the five rows it cannot express today (tracktype>=grade3, locked barrier, ford, service values, rough smoothness) - encoded values in config.yml, clauses in car_scenic_base.json
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T19:37:33Z
+lease_expires_at: 2026-10-17T19:37:33Z
+worktree: .worktrees/T-0381
+branch: task/T-0381
 exclusive: [routing-profiles]
 touches: [services/routing/config.yml, services/routing/profiles/, services/routing/tests/, services/etl/etl/profilegate.py, services/etl/tests/, services/etl/tests/fixtures/gate_parity.json, ops/mutate/profilegate.py]
 pins_affected: [P-PROD-01, P-SAFE-01]
@@ -37,3 +37,4 @@ re-import command and the expected graph hash change in the Log.
 
 ## Log
 - 2026-10-16 filed by agent/claude-opus-5 from T-0012 stillOpen and T-0188 stillOpen (the profile half of the five divergent rows was never filed).
+- 2026-10-16T19:37:33Z claimed by agent/claude-opus-5; lease until 2026-10-17T19:37:33Z
