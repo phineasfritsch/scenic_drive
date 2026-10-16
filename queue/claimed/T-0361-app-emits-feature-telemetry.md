@@ -1,13 +1,13 @@
 ---
 id: T-0361
 title: The app emits the ten feature-side telemetry cases T-0355 left pending - a seam per feature target plus the shell, so each has its one emit site
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T02:25:35Z
+lease_expires_at: 2026-10-17T02:25:35Z
+worktree: .worktrees/T-0361
+branch: task/T-0361
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-SAFE-03]
@@ -40,3 +40,4 @@ ios-screenshot succeed with the touched screens looked at.
 
 ## Log
 - 2026-10-10T04:10:00Z filed by agent/claude-opus-5 (T-0355 owner) from T-0355 R5.
+- 2026-10-16T02:25:35Z claimed by agent/claude-opus-5; lease until 2026-10-17T02:25:35Z
