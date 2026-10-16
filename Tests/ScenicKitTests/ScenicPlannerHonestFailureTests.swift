@@ -218,9 +218,13 @@ struct ScenicPlannerHonestFailureTests {
             let expected = row.budget > 0 && Double(row.ms) / 1000 < 1800 + 0.5 * row.budget
             #expect(plan.outcome.usedBudget, "the stub solver claims the budget was used, always")
             #expect(plan.couldNotUseBudget == expected, "\(row)")
-            let state = plan.report().filter { $0.hasPrefix("STATE couldNotUseBudget") }
+            let report = plan.report()
+            let state = report.filter { $0.hasPrefix("STATE couldNotUseBudget") }
             #expect(state == (expected ? ["STATE couldNotUseBudget returned=42m30s under fastest+half-the-budget=42m30s"]
                                        : []), "\(row)")
+            if let line = state.first, let at = report.firstIndex(of: line) {
+                #expect(report[at + 1].hasPrefix("TABLE rows="), "the state heads the table it qualifies")
+            }
         }
         do {
             _ = try Self.plan(Router(chosen: Self.pretty(ms: 2_000_000)), budget: .nan)

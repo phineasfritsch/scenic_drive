@@ -55,13 +55,14 @@ public struct ScenicPlan: Sendable, Equatable {
                 + "ceiling=\(Self.clock(ceiling)) distance=\(Self.fixed(distanceMeters, 1))m",
             "OVERLAP jaccard=\(Self.fixed(overlapWithFastest, 3)) "
                 + "required<\(Self.fixed(RouteDifference.maximumOverlap, 3))",
-            "TABLE rows=\(table.rows.count) columns=way,highway,scenic_score,metres,seconds "
-                + "(seconds apportioned by metres; the scoring terms are not in the graph)",
         ]
+        // plan:214's state, above the table it qualifies - the drive is real, it is just not what was asked for.
         if couldNotUseBudget {
             lines.append("STATE couldNotUseBudget returned=\(Self.clock(outcome.duration)) under "
                 + "fastest+half-the-budget=\(Self.clock(fastestDuration + LambdaSearch.minBudgetUse * budget))")
         }
+        lines.append("TABLE rows=\(table.rows.count) columns=way,highway,scenic_score,metres,seconds "
+            + "(seconds apportioned by metres; the scoring terms are not in the graph)")
         lines.append(Self.row("WAY", "HIGHWAY", "SCORE", "METRES", "SECONDS"))
         for row in table.rows {
             lines.append(Self.row(

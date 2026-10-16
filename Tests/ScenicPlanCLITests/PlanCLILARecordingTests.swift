@@ -176,4 +176,19 @@ struct PlanCLILARecordingTests {
             "NO-OFFER all-back-roads: lambda 8 was not measured (no recorded response at lambda 8.0)",
         ].joined(separator: "\n"))
     }
+
+    @Test("santa-monica-topanga +25 prints couldNotUseBudget above its table; westwood-woodland-hills does not")
+    func couldNotUseBudgetIsPrintedOverRealData() throws {
+        for pair in Self.pairs {
+            let lines = try Self.printed(pair)
+            let state = lines.filter { $0.hasPrefix("STATE ") }
+            if pair.name == "santa-monica-topanga" {
+                #expect(state == ["STATE couldNotUseBudget returned=22m26s under fastest+half-the-budget=32m44s"])
+                let at = try #require(lines.firstIndex(of: state.first ?? ""))
+                #expect(lines[at + 1].hasPrefix("TABLE rows="))
+            } else {
+                #expect(state.isEmpty, "\(pair.name)")
+            }
+        }
+    }
 }
