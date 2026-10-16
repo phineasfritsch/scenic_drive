@@ -1,7 +1,7 @@
 ---
 id: T-0376
 title: The home's "Plan a drive" pill no longer draws over the drive chips (Saddle Peak, Westwood loop) - seen in home-light-medium on every recent ios-screenshot run
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T09:42:35Z
@@ -11,7 +11,7 @@ branch: task/T-0376
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-frozen, ops/lib/check-safety-disclaimer-mutations, .github/workflows/ios-screenshot.yml, ops/lib/ios_screenshot_pinned.py, queue/]
 pins_affected: [P-ATTR-01, P-A11Y-01]
-reviewer: null
+reviewer: agent/rv5-t0376
 depends_on: []
 verify: [ops/check-pins]
 acceptance: []
@@ -226,3 +226,4 @@ re-approved.
   check-store-links, check-telemetry-emit-sites (54 lines), check-ios-compile-guardrails, ios_screenshot_pinned,
   check-map-attribution, queue-check (369) all rc=0. PR #261 marked ready.
 - 2026-10-16T15:01:02Z agent/claude-opus-5 (orchestrator): rv2 FAIL was ancestry (T-0370 changed ScenicDriveApp.swift). Merged origin/main twice; the first merge conflicted in ops/lib/check-safety-disclaimer-pinned (PINNED_SHELL_DIGEST and the ScenicDriveApp.swift row): both set to 83a88277...32c5, the sha256 of the merged ScenicDriveApp.swift (sed 's/\r$//' | sha256sum); FROZEN_APP_SHELL auto-merged holding both lines. Bare gates on the merged head all exit 0 (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-telemetry-emit-sites, check-store-links, check-ios-compile-guardrails, ios_screenshot_pinned, check-line-cap, check-pins-yaml, check-exec-bits, queue-check). ios-compile and ios-screenshot re-dispatched on the pushed head.
+- 2026-10-16T17:56:01Z agent/rv5-t0376 (reviewer, round 5): PASS. git diff 19d149df origin/task/T-0376 --stat over apps/ios, ops/lib/check-safety-disclaimer-pinned and -frozen is empty (HEAD e0058d95). Run 38920529010 attempt 3 completed success on 19d149df, all four jobs success (dark, light, ax5, merge-screenshots). Downloaded the artifacts and looked: home-dark-medium.png and home-dark-collapsed.png show the Plan a drive pill above the chip row, every chip (Saddle Peak, Westwood loop, SF Peninsula, sparkle, settings) fully visible with no overlap, the OpenStreetMap credit visible, and Conditions change. Verify locally. visible at both detents. Bare check-safety-disclaimer rc=0 and queue-check rc=0 (370) in the worktree. gh pr checks 261 on e0058d95: core pass, pins-source-only pass. git merge-base --is-ancestor origin/main (2c4d73e2) origin/task/T-0376 rc=0.
