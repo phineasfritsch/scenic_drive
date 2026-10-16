@@ -15,7 +15,10 @@ DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "config.py", "corpusfet
            "scenic_tags.py",
            "segmentgeometry.py", "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py",
            "posttelemetry.py", "telemetry.py", "traffic.py", "waitlist.py")
-PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own"}
+PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own",
+          "sane_corpus.py": "ops/sane exit 4's population (T-0372): its subjects ops/lib/sane_corpus.py and ops/sane "
+                            "are outside MODULE_ROOTS, so no SUBJECT_MODULES can name them; its floor is the "
+                            "driver's literal MIN_MUTATIONS"}
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
