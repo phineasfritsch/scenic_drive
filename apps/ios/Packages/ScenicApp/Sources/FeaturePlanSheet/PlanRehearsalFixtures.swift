@@ -80,6 +80,19 @@ enum PlanRehearsalFixtures {
                  end: Coordinate(latitude: 34.1303863, longitude: -118.502505), budgetMinutes: 60),
     ]
 
+    /// T-0373 R3: what the destination's address search was asked, and two rows it could plan to. Fixture labels, not
+    /// corpus rows - an address never is one - and never planned to: the rehearsal calls no planner.
+    static let addressQuery = "Pacific Coast Hwy Malibu"
+    static let addresses = [
+        PlanPlace(id: 900_000_001, name: "29500 Pacific Coast Hwy, Malibu, CA 90265",
+                  coordinate: Coordinate(latitude: 34.0213, longitude: -118.8101)),
+        PlanPlace(id: 900_000_002, name: "30000 Pacific Coast Hwy, Malibu, CA 90265",
+                  coordinate: Coordinate(latitude: 34.0197, longitude: -118.8226)),
+    ]
+    /// T-0373 R3: ScenicAPIClient's PlaceSearchCopy.notPlannable, which this target may not import; the shot is
+    /// checked against that file's text (T-0373 A4).
+    static let notPlannable = "Address search found places but can't plan to them right now."
+
     /// The rehearsal for a `-screen` value, or nil for any other value or a gate that refused.
     static func rehearsal(named name: String) -> PlanRehearsal? {
         switch name {
@@ -87,8 +100,8 @@ enum PlanRehearsalFixtures {
         case "nothingPretty": return plan(.failure(.nothingPretty))
         case "waitlist": return plan(.failure(.regionUnsupported), waitlist: .joined)
         case "offered": return plan(.offered(offer), budgetMinutes: offer.budgetMinutes)
-        case "loop": return loop()
-        case "trip": return trip()
+        case "loop": return loop(.preview(loopPreview))
+        case "trip": return trip(.itinerary(itinerary))
         case "saved": return PlanRehearsal(tab: .saved, sheet: PlanSheet(disclaimerAccepted: false),
                                            loop: LoopSheet(disclaimerAccepted: false),
                                            trip: TripSheet(disclaimerAccepted: false), savedRows: savedRows)
@@ -96,6 +109,12 @@ enum PlanRehearsalFixtures {
         case "update": return degraded(.updateRequired)
         case "loopPaused": return loopDegraded(.planningPaused)
         case "tripPaused": return tripDegraded(.planningPaused)
+        case "loopRegion": return loop(.failure(.regionUnsupported))
+        case "tripRegion": return trip(.failure(.regionUnsupported))
+        case "loopWaitlist": return loop(.failure(.regionUnsupported), waitlist: .joined)
+        case "tripWaitlist": return trip(.failure(.regionUnsupported), waitlist: .joined)
+        case "searchResults": return addressSearch(.places(addresses))
+        case "searchNotice": return addressSearch(.notice(notPlannable))
         default: return nil
         }
     }
@@ -147,26 +166,37 @@ enum PlanRehearsalFixtures {
                              trip: TripSheet(disclaimerAccepted: false), savedRows: [], waitlist: waitlist)
     }
 
-    private static func loop() -> PlanRehearsal? {
+    /// T-0373 R3: the form with Topanga chosen, searching the destination, the address search's answer on screen.
+    private static func addressSearch(_ answer: PlaceSearchAnswer) -> PlanRehearsal {
+        var sheet = PlanSheet(disclaimerAccepted: true)
+        sheet.search("", for: .start)
+        sheet.choose(topanga)
+        sheet.search(addressQuery, for: .destination)
+        return PlanRehearsal(tab: .plan, sheet: sheet, loop: LoopSheet(disclaimerAccepted: false),
+                             trip: TripSheet(disclaimerAccepted: false), savedRows: [], searchQuery: addressQuery,
+                             searchAnswer: answer)
+    }
+
+    private static func loop(_ outcome: LoopOutcome, waitlist: WaitlistAnswer? = nil) -> PlanRehearsal? {
         var loop = LoopSheet(disclaimerAccepted: true, minutes: 60)
         loop.search("")
         loop.choose(topanga)
         guard let ticket = loop.startPlanning() else { return nil }
-        loop.finish(ticket, with: .preview(loopPreview))
+        loop.finish(ticket, with: outcome)
         return PlanRehearsal(tab: .loop, sheet: PlanSheet(disclaimerAccepted: false), loop: loop,
-                             trip: TripSheet(disclaimerAccepted: false), savedRows: [])
+                             trip: TripSheet(disclaimerAccepted: false), savedRows: [], waitlist: waitlist)
     }
 
-    private static func trip() -> PlanRehearsal? {
+    private static func trip(_ outcome: TripOutcome, waitlist: WaitlistAnswer? = nil) -> PlanRehearsal? {
         var trip = TripSheet(disclaimerAccepted: true, days: 2, extraBudgetPercent: 40)
         trip.search("", for: .start)
         trip.choose(griffith)
         trip.search("", for: .destination)
         trip.choose(leoCarrillo)
         guard let ticket = trip.startPlanning() else { return nil }
-        trip.finish(ticket, with: .itinerary(itinerary))
+        trip.finish(ticket, with: outcome)
         return PlanRehearsal(tab: .trip, sheet: PlanSheet(disclaimerAccepted: false),
-                             loop: LoopSheet(disclaimerAccepted: false), trip: trip, savedRows: [])
+                             loop: LoopSheet(disclaimerAccepted: false), trip: trip, savedRows: [], waitlist: waitlist)
     }
 }
 #endif
