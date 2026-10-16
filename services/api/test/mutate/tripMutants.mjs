@@ -179,8 +179,7 @@ export const MUTATIONS = [
   m("places-near-every-other", "tripPlanner.ts", "placesNear([pathEdges[0]!.start, ...pathEdges.map((e) => e.end)])",
     "placesNear([pathEdges[0]!.start, ...pathEdges.map((e) => e.end)].filter((_, i) => i % 2 === 0))"),
   m("places-read-once", "tripPlanner.ts", "const splitOf = (path: RoutePath) => tripSplit(path, placesNear, fastestMs, days, extraBudgetPct);",
-    "let once: ReturnType<PlacesNear> | undefined;
-    const splitOf = (path: RoutePath) => tripSplit(path, (v) => (once ??= placesNear(v)), fastestMs, days, extraBudgetPct);"),
+    "let once: ReturnType<PlacesNear> | undefined; const splitOf = (path: RoutePath) => tripSplit(path, (v) => (once ??= placesNear(v)), fastestMs, days, extraBudgetPct);"),
   m("places-from-first", "tripPlanner.ts", "return { outcome, chosen: shown };", "return { outcome, chosen: { ...shown, places: first.places } };"),
   { id: "index-dropped", file: "migrations/0010_trip_places_lat.sql", find: "CREATE INDEX IF NOT EXISTS trip_places_lat ON trip_places (lat);", replace: "SELECT 1;" },
   { id: "index-on-lon", file: "migrations/0010_trip_places_lat.sql", find: "ON trip_places (lat);", replace: "ON trip_places (lon);" },
