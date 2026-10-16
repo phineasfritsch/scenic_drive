@@ -1,13 +1,13 @@
 ---
 id: T-0377
 title: Bind P-PRIV-05's named-tests.json entry to a check-named-table.py digest and count
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T10:29:45Z
+lease_expires_at: 2026-10-17T10:29:45Z
+worktree: .worktrees/T-0377
+branch: task/T-0377
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-PRIV-05]
@@ -42,3 +42,4 @@ in the assertion). Do the same for P-PRIV-05:
 
 ## Log
 - 2026-10-16 filed by agent/claude-opus-5 from T-0375 R2 / stillOpen 2, after T-0318 merged.
+- 2026-10-16T10:29:45Z claimed by agent/claude-opus-5; lease until 2026-10-17T10:29:45Z
