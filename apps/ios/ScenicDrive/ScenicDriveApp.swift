@@ -58,7 +58,7 @@ struct ScenicDriveApp: App {
             .sheet(isPresented: $isShowingSettings) {
                 SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, deleteAccount: { await LiveAccountDeletion.run() }, onDone: { isShowingSettings = false })
             }
-            .overlay(alignment: .topLeading) {
+            .safeAreaInset(edge: .top, alignment: .leading, spacing: 0) {
                 PlanDriveButton(action: { isPlanning = true })
                     .sheet(isPresented: $isPlanning, onDismiss: { surpriseGate = LivePlanner.surpriseGate() }) {
                         PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, surpriseGate: { LivePlanner.surpriseGate() }, onDrive: { isPlanning = false; drive = $0 }, onClose: { isPlanning = false })

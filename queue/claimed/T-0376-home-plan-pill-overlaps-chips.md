@@ -91,3 +91,15 @@ re-approved.
 4. Bare gates green: check-safety-disclaimer, check-mutate-population, check-mutate-only, check-telemetry-emit-sites,
    check-store-links, check-map-attribution, check-line-cap, check-pins-yaml, check-ios-compile-guardrails,
    queue-check.
+- 2026-10-16T09:47:52Z agent/claude-opus-5 (owner) RED then GREEN. (a) Approval moved first - FROZEN_APP_SHELL's line to
+  `.safeAreaInset(edge: .top, alignment: .leading, spacing: 0) {` and PINNED_SHELL_DIGEST to 93ae2a78 (computed from
+  a copy of the edited shell) - with the shell unchanged: `bash ops/lib/check-safety-disclaimer` rc=1 "P-SAFE-03: a
+  frozen render block changed: the app shell ScenicDriveApp line 31 of 47 ... approved
+  `.safeAreaInset(edge: .top, alignment: .leading, spacing: 0) {`, found `.overlay(alignment: .topLeading) {`".
+  (b) ios_screenshot_pinned.py moved first (both AX5 LIST copies + the row "T-0376: the AX5 home shots dropped") with
+  the workflow unchanged: `python ops/lib/check-ios-compile-guardrails.py` rc=1 "workflow.jobs.simulator-screenshot.
+  steps[4].run: differs from the pinned value ... FAIL: 1 guardrail(s) gone in ios-screenshot.yml". (c) Sources
+  moved: the shell line edited (sha256 93ae2a78c27411440b2e47e4e659078d09f815305ce5c984a15c7a397f5718f3, also
+  re-approved in -pinned's digest table row, the second site the first green run named) and the workflow LIST edited:
+  check-ios-compile-guardrails rc=0 both workflows OK; --prove-red rc=0 "97 mutations red, 6 legitimate spellings
+  green"; check-safety-disclaimer rc=0 "Frozen (-frozen); 34 feature file(s), shell, footer pinned".
