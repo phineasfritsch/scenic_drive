@@ -151,6 +151,9 @@ RED_ROWS = (
      "pending\tsurpriseArrived\tT-9999", 1),
     ("the post_drive_answer emit demoted to pending (T-0358)", WHITELIST, "emit\tpostDriveAnswer\t",
      "pending\tpostDriveAnswer\tT-0369\t", 1),
+    ("the paywall's converted moment sends .shown (T-0370)",
+     "apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift", "LiveTelemetry.paywall(.converted)",
+     "LiveTelemetry.paywall(.shown)", 1),
     ("the whitelist emptied", WHITELIST, "", None, 2),
     ("the kind file gone", KINDS, "", None, 2),
 )

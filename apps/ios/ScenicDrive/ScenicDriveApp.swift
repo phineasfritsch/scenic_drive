@@ -76,5 +76,6 @@ struct ScenicDriveApp: App {
             .environment(\.homeMoments, LiveMoments())
             .environment(\.planMoments, LiveMoments())
             .environment(\.paywallShown, { LiveMoments.paywallShown() })
+            .environment(\.paywallConverted, { LiveMoments.paywallConverted() })
     }
 }
