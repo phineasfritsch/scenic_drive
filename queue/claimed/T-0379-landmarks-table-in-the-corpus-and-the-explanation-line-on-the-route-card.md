@@ -1,13 +1,13 @@
 ---
 id: T-0379
 title: landmarks table in the corpus (OSM half, ODbL) and the 'passes ...' explanation line on the route card
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T18:23:56Z
+lease_expires_at: 2026-10-17T18:23:56Z
+worktree: .worktrees/T-0379
+branch: task/T-0379
 exclusive: []
 touches: [services/etl/etl/schema.py, services/etl/etl/corpuswriter.py, services/etl/etl/corpus.py, services/etl/regionbuild/, services/etl/tests/, ops/mutate/]
 pins_affected: []
@@ -29,3 +29,4 @@ is ruled here, not assumed.
 
 ## Log
 - 2026-10-16T13:43:29Z filed by agent/claude-opus-5 from T-0241 ruling R2.
+- 2026-10-16T18:23:56Z claimed by agent/claude-opus-5; lease until 2026-10-17T18:23:56Z

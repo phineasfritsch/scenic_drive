@@ -12,7 +12,8 @@ Vitest (services/api): `npx vitest run <files> --reporter=json --outputFile=<tmp
 Pytest (services/etl, T-0012): `<this interpreter> -m pytest <files> --junitxml=<tmp>` from services/etl; a test
 is named `<file> :: <name>` - the file relative to services/etl, the name the junit testcase carries (a
 parametrized test is `test_x[id]`). Spec: {"pytest": {"tests/test_a.py": ["test_x[id]", ...]}}.
-Swift (root package): `swift test --scratch-path $SCENIC_SWIFT_SCRATCH (default .build) --filter <filter>
+Swift (root package): `swift test --scratch-path $SCENIC_SWIFT_SCRATCH (default .build/pins-named-tests; the shared
+.build is refused, T-0229) --filter <filter>
 --xunit-output <tmp>/x.xml`; a test is named `<classname>/<name>` from x-swift-testing.xml and x.xml - for Swift
 Testing that is Module.Suite/function(), the identifier, never the display string.
 
@@ -35,6 +36,7 @@ TABLE = ROOT / "ops" / "lib" / "named-tests.json"
 API = ROOT / "services" / "api"
 ETL = ROOT / "services" / "etl"
 PASSED = "passed"
+SWIFT_SCRATCH = ".build/pins-named-tests"
 
 
 class Refusal(Exception):
@@ -107,7 +109,10 @@ def swift_results(filt):
     swift = shutil.which("swift")
     if swift is None:
         raise Refusal("swift is not on PATH - the engine tests cannot run here")
-    scratch = os.environ.get("SCENIC_SWIFT_SCRATCH") or ".build"
+    scratch = os.environ.get("SCENIC_SWIFT_SCRATCH") or SWIFT_SCRATCH
+    if (ROOT / scratch).resolve() == (ROOT / ".build").resolve():
+        raise Refusal(f"SCENIC_SWIFT_SCRATCH={scratch} is the shared default .build - every pin's swift build takes "
+                      f"its own scratch path (T-0229)")
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp) / "x.xml"
         cmd = [swift, "test", "--scratch-path", scratch, "--filter", filt, "--xunit-output", str(base)]

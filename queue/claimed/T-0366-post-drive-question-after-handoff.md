@@ -1,13 +1,13 @@
 ---
 id: T-0366
 title: After a handoff the app asks "Prettier than your usual way?" at the next open, only with a known stopped speed
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T18:23:44Z
+lease_expires_at: 2026-10-17T18:23:44Z
+worktree: .worktrees/T-0366
+branch: task/T-0366
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05]
@@ -37,3 +37,4 @@ Every apps/ios Swift edit re-approves its P-SAFE-03 digests; the shell's frozen 
 
 ## Log
 - 2026-10-15T22:52:00Z filed by agent/claude-opus-5 from T-0358 R3 (the free tier's next-open trigger, app half).
+- 2026-10-16T18:23:44Z claimed by agent/claude-opus-5; lease until 2026-10-17T18:23:44Z
