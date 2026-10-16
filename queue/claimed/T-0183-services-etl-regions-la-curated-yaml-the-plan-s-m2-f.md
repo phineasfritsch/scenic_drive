@@ -1,13 +1,13 @@
 ---
 id: T-0183
 title: services/etl/regions/la/curated.yaml - the plan's M2 five seeds, authored for LA and the owner's commute, with the pytest the plan names
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T12:57:03Z
+lease_expires_at: 2026-10-17T12:57:03Z
+worktree: .worktrees/T-0183
+branch: task/T-0183
 exclusive: [curated-la]
 touches: [services/etl/regions/la/, services/etl/tests/, services/etl/etl/]
 pins_affected: []
@@ -27,3 +27,4 @@ candidates of M5), not Bay Area ones. `curated.yaml` is a serial-only file (CLAU
 
 ## Log
 - 2026-09-19T02:11:14Z filed by agent/claude-fable-5-1 from the 19:13 panel's grounded synthesis. Not started; behind T-0168 (the approach-road check needs the LA scores).
+- 2026-10-16T12:57:03Z claimed by agent/claude-opus-5; lease until 2026-10-17T12:57:03Z
