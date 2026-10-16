@@ -170,3 +170,36 @@ by merge order today; fixed here after both land, not as a round on either PR.
   (`the floor of 169 holds`), check-mutate-only.py (`NAME-PAIRS OK`), check-line-cap (`682 Swift files ... none over 300
   lines`), check-pins-yaml.py (`PINS-YAML ok pins=52 fields=418`), check-exec-bits (`235 files ... all modes correct`),
   queue-check (`QUEUE OK (371 tasks)`).
+- 2026-10-16T22:07:58Z rv2 FAIL (agent/rv2-t-0181, head 029bd5a8) - B3 OWN3 surface.py:66 `surface.split(";")[0] in
+  UNPAVED_SURFACES` and OWN4 surfacecoverage.py:104 `any(p in UNPAVED_SURFACES for p in surface.split(";"))` survive
+  the ETL suite; B4 ancestry. RULING (orchestrator): close the CLASS, not the next spelling - the hand-picked VARIANTS
+  table (case, whitespace) is replaced by a GENERATED near-miss corpus,
+  services/etl/tests/test_unpaved_near_miss_corpus.py: for every literal L parsed from Gates.swift
+  (`swift_unpaved()`, never typed) `near_misses(L)` yields identity; upper, title, swapcase; every single-char
+  deletion; each of ' ', '\t', ';', '_', '-', 'x', '|', ',' inserted at every position 0..len(L); L;L, L;paved,
+  paved;L, Lx, xL, L[:-1], LL; and ''. `test_every_entry_point_gates_exactly_the_swift_literal`: unpaved iff
+  value == L at `assemble.gate_reason`, `surface.surface_state`, `surfacecoverage.bucket` AND
+  `surfacecoverage.coverage`. Generator row count: 563 (compacted 101, dirt 56, fine_gravel 119, gravel 74,
+  ground 74, sand 56, unpaved 83). Meta-tests: `test_the_generator_yields_every_family_for_every_literal` (every
+  single family once, len(L) deletions, 8*(len(L)+1) insertions each re-derivable to L, total per literal) and
+  `test_no_generated_value_equals_a_literal_except_the_identity_row` (non-identity values are not in the Swift set,
+  so equality with L IS Swift's `contains` on this corpus). No product code changed.
+  - Population: ops/mutate/surfacecoverage.py (T-0205's, added to touches:) gains SUBJECTS surface.py +
+    assemble.py, EMPTIED test_unpaved_surfaces_owner.py + the corpus file, mutants OWN3, OWN4 and PREFIX
+    (gate_reason rebinding a tag that is a PREFIX of an unpaved value - `grav`, `fine_grave` - to that value);
+    MIN_MUTATIONS 25 -> 28. A first PREFIX form (`surface.startswith(u)`) was already caught on 029bd5a8's tests
+    by `[compacted-trail-space]`, so it was replaced by the reverse prefix (a3009ae9).
+  - RED on 029bd5a8's tests (driver at a3009ae9, run after 2026-10-16T21:43:16Z): `MISSED OWN3 ... (exit 0)`, `MISSED OWN4 ...
+    (exit 0)`, `MISSED PREFIX ... (exit 0)`, `MUTATIONS: 25 caught, 3 missed, 0 skipped, of 28`, `MUTATE FAILED
+    caught=25/28 equivalent_caught=0`.
+  - GREEN at 84600771 (2026-10-16T22:01:44Z): `caught OWN3 <- ...::test_every_entry_point_gates_exactly_the_swift_
+    literal[compacted-insert-';'@9-42]`, `caught OWN4 <- ...[compacted-insert-';'@0-33]`, `caught PREFIX <-
+    ...[compacted-delete-8-12]`; `MUTATIONS: 28 caught, 0 missed, 0 skipped, of 28`, `EQUIVALENT: 0 caught, 2
+    missed`, `MUTATE OK caught=28/28 equivalent_caught=0`. `--prove-vacuity`: `VACUITY: 0 caught, 28 missed, 0
+    skipped, of 28` / `VACUITY PROVED`.
+  - Meta red: the `("empty", "", "")` row dropped -> `FAILED ...::test_the_generator_yields_every_family_for_every_
+    literal` (1 failed, 1 passed); `lit.swapcase()` -> `lit.swapcase().swapcase()` -> `FAILED ...::test_no_
+    generated_value_equals_a_literal_except_the_identity_row`; restored -> `2 passed`.
+  - Touched tests (corpus, owner, surfacecoverage, assemble, surface_state, gate_port): `723 passed in 34.29s`.
+    wc -l: test_unpaved_surfaces_owner.py 218, test_unpaved_near_miss_corpus.py 92, ops/mutate/surfacecoverage.py
+    262. Java (services/routing, T-0381) is not an entry point this task owns.
