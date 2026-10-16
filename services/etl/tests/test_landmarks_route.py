@@ -8,6 +8,7 @@ replies under Tests/Fixtures/t0239/topanga-malibu, read as they are.
 from __future__ import annotations
 
 import io
+import itertools
 import json
 import math
 import pathlib
@@ -106,6 +107,44 @@ def test_explain_same_leg_breaks_on_distance_then_id():
     assert landmarks.explain(LINE, [a, b]) == ["B", "A"]
     c, d = lm("C", 34.0 + 20 * PER_M, -118.55, 9), lm("D", 34.0 + 20 * PER_M, -118.55, 8)
     assert landmarks.explain(LINE, [c, d]) == ["D", "C"]
+
+
+THREE = [(34.0, -118.60), (34.0, -118.58), (34.0, -118.56)]
+REPEAT = [(34.0, -118.60), (34.0, -118.60), (34.0, -118.58)]   # leg 0 is the repeated point itself
+# R9, every level of the key (leg, distance, osm id): the leg is the NEAREST one (not the first or last within
+# 300 m, equal distances to the lower leg), then the nearer, then the lower osm id. Each row is compared whole.
+ORDER_ROWS = {
+    "nearest leg, not the first within 300 m": (THREE, [lm("A", 34.0 + 250 * PER_M, -118.579, 1),
+                                                        lm("B", 34.0 + 10 * PER_M, -118.575, 2)], ["B", "A"]),
+    "nearest leg, not the last within 300 m": (THREE, [lm("A", 34.0 + 250 * PER_M, -118.581, 2),
+                                                       lm("B", 34.0 + 10 * PER_M, -118.575, 1)], ["A", "B"]),
+    "equidistant legs, the earlier leg": (REPEAT, [lm("X", 34.0, -118.601, 2),
+                                                   lm("Y", 34.0 + 10 * PER_M, -118.59, 1)], ["X", "Y"]),
+    "earlier leg before a nearer later leg": (THREE, [lm("Late", 34.0 + 5 * PER_M, -118.565, 1),
+                                                      lm("Early", 34.0 + 250 * PER_M, -118.595, 2)],
+                                              ["Early", "Late"]),
+    "one leg, the nearer first, whatever the id": (LINE, [lm("A", 34.0 + 50 * PER_M, -118.55, 8),
+                                                          lm("B", 34.0 + 20 * PER_M, -118.55, 9)], ["B", "A"]),
+    "one leg, equal distance, the lower osm id, whatever the name": (
+        LINE, [lm("C", 34.0 + 20 * PER_M, -118.55, 9), lm("D", 34.0 + 20 * PER_M, -118.55, 8)], ["D", "C"]),
+}
+
+
+@pytest.mark.parametrize("row", sorted(ORDER_ROWS))
+def test_explain_orders_on_every_tie_break_level_in_any_input_order(row):
+    route, places, expected = ORDER_ROWS[row]
+    for order in itertools.permutations(places):
+        assert landmarks.explain(route, list(order)) == expected
+
+
+def test_order_rows_sit_where_they_claim():
+    def legs(route, place):
+        return [geom.point_to_segment_m((place["lat"], place["lon"]), a, b) for a, b in zip(route, route[1:])]
+    first = legs(THREE, ORDER_ROWS["nearest leg, not the first within 300 m"][1][0])
+    last = legs(THREE, ORDER_ROWS["nearest leg, not the last within 300 m"][1][0])
+    assert max(first + last) <= landmarks.NEAR_M and first[1] < first[0] and last[0] < last[1]
+    x, y = (legs(REPEAT, place) for place in ORDER_ROWS["equidistant legs, the earlier leg"][1])
+    assert x[0] == x[1] <= landmarks.NEAR_M and y[1] < x[1] and y[1] < y[0]
 
 
 def test_explain_degenerate_routes():
