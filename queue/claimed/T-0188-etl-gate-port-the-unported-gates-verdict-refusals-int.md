@@ -88,3 +88,20 @@ router's own and are not this task.
   A6 swift test --filter GateParityFixtureTests green on the edited fixture.
   A7 bare gates exit 0: check-safety-disclaimer, check-mutate-population, check-mutate-only, check-line-cap,
      check-pins-yaml, check-exec-bits, queue-check.
+- 2026-10-16T15:59:13Z RED FIRST, on 73cafb11's assemble.py with the new tests on disk (A1, A2):
+  `pytest tests/test_gate_port.py` -> `13 failed, 20 passed`: FAILED test_the_etl_has_exactly_the_swift_rule_count,
+  test_the_reason_names_are_gate_reasons_cases, test_each_rule_refuses_with_the_swift_reason[2] [3] [6] [7] [8],
+  test_the_sets_are_the_swift_literals, test_every_value_of_every_swift_set_is_refused[refusedTracktypes]
+  [refusedSmoothness] [refusableBarriers] [refusedServiceValues], test_every_ordered_pair_answers_the_earlier_swift_rule
+  (the 20 that passed: 14 near-misses, witnesses 0 1 4 5, unpavedSurfaces and closedAccess - the four ported).
+  `pytest tests/test_gate_parity.py` (no `etl` key) -> `5 failed, 60 passed`: FAILED test_etl_gives_the_fixture_verdict
+  [tracktype=grade3 on tertiary] [barrier=gate+locked=yes] [ford=yes] [service=driveway] [service=parking_aisle].
+  GREEN after the port: gate_port + gate_parity + assemble + assemble_wiring -> `120 passed`; whole ETL suite
+  `pytest tests -rs` -> `1906 passed in 110.03s`, no skip line. assemble.py 299 lines, test_gate_port.py 162,
+  scenic_tags_mutations.py 300, extractadapter.py (ops/mutate) 294.
+  THE COUNT PIN SEEN RED (services/etl/work/t0188_red.py, uncommitted edit then restored byte-for-byte):
+  `RED[Swift gains a branch] exit=1` FAILED test_the_etl_has_exactly_the_swift_rule_count,
+  test_each_rule_refuses_with_the_swift_reason[8]; `RED[GateReason gains a case] exit=1` FAILED
+  test_the_reason_names_are_gate_reasons_cases; `RED[the ETL gains a rule] exit=1` FAILED
+  test_the_etl_has_exactly_the_swift_rule_count; restored -> `34 passed`.
+  A4 on the ported tree: `ways=11740 old_gated=7317 new_gated=7317`, `newly gated total=0`.

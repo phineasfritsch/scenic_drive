@@ -22,6 +22,8 @@ T-0207 R3 adds four more, floor 44 -> 48: the ceiling CONDITIONED ON AN INPUT. T
 ran two of them unwritten and both SURVIVED - `and value < 0.75` and `and record.byway_status is None` - so
 the class is now shipped whole, one mutation per input `scored_row` can read (the score's magnitude, the
 byway status, a term, the surface), rather than one spelling at a time (PR #101's precedent).
+T-0188 ports `Gates.verdict`'s other five rules into `assemble.gate_reason`: twenty-three mutations, floor
+48 -> 71, over test_gate_port.py and test_gate_parity.py (both added to EMPTIED).
 """
 from __future__ import annotations
 
@@ -39,8 +41,10 @@ CLASS_CAP_TESTS = ETL / "tests" / "test_class_cap.py"
 ASSEMBLE_TESTS = ETL / "tests" / "test_assemble.py"
 ASSEMBLE_WIRING_TESTS = ETL / "tests" / "test_assemble_wiring.py"
 COUNTS_TESTS = ETL / "tests" / "test_counts.py"
+GATE_PORT_TESTS = ETL / "tests" / "test_gate_port.py"
+GATE_PARITY_TESTS = ETL / "tests" / "test_gate_parity.py"
 EMPTIED = (TAGWRITER_TESTS, SCENECHECK_TESTS, SCENECHECK_UNIT_TESTS, CLASS_CAP_TESTS, ASSEMBLE_TESTS,
-           ASSEMBLE_WIRING_TESTS, COUNTS_TESTS)
+           ASSEMBLE_WIRING_TESTS, COUNTS_TESTS, GATE_PORT_TESTS, GATE_PARITY_TESTS)
 SUBJECTS = (TAGWRITER, SCENECHECK, ASSEMBLE)
 
 # Anchors reused by more than one mutation, verbatim from the subjects.
@@ -92,6 +96,18 @@ CEILING_MIN = "        value = min(value, ceiling)"
 # CONDITIONED ON AN INPUT with nothing going red, so the four inputs `scored_row` can read on its way here -
 # the score's magnitude, the byway status, a term and the surface - are one mutation class of their own.
 CEILING_GUARD = "    if ceiling is not None and value is not None:"
+# T-0188: the five ported Gates.verdict rules and their four sets, verbatim from assemble.py.
+TRACKTYPES = 'REFUSED_TRACKTYPES = frozenset({"grade3", "grade4", "grade5"})'
+SMOOTHNESS = 'REFUSED_SMOOTHNESS = frozenset({"bad", "very_bad", "horrible", "very_horrible", "impassable"})'
+BARRIERS = 'REFUSABLE_BARRIERS = frozenset({"gate"})'
+SERVICES = 'REFUSED_SERVICE_VALUES = frozenset({"driveway", "parking_aisle", "drive-through", "emergency_access"})'
+TRACKTYPE_IF = '    if tags.get("tracktype") in REFUSED_TRACKTYPES:'
+TRACKTYPE_RULE = TRACKTYPE_IF + "\n        return GATE_TRACK"
+SMOOTHNESS_RULE = '    if tags.get("smoothness") in REFUSED_SMOOTHNESS:\n        return GATE_TOO_ROUGH'
+BARRIER_IF = '    if tags.get("barrier") in REFUSABLE_BARRIERS and tags.get("locked") == YES:'
+BARRIER_RULE = BARRIER_IF + "\n        return GATE_LOCKED_BARRIER"
+FORD_IF = '    if tags.get("ford") == YES:'
+SERVICE_IF = '    if tags.get("highway") == SERVICE_HIGHWAY and tags.get("service") in REFUSED_SERVICE_VALUES:'
 
 MUTATIONS = [
     # --- the quantisation, ruling R1 of T-0168 -------------------------------------------------------
@@ -230,6 +246,35 @@ MUTATIONS = [
      CEILING_GUARD, "    if ceiling is not None and value is not None and record.canopy < 0.9:"),
     ("condition the ceiling on the SURFACE, so every asphalt rat-run escapes it", ASSEMBLE, CEILING_GUARD,
      "    if ceiling is not None and value is not None and record.surface != \"asphalt\":"),
+
+    # --- T-0188: the five ported Gates.verdict rules ----------------------------------------------------
+    ("drop the tracktype rule", ASSEMBLE, TRACKTYPE_IF, "    if False:"),
+    ("tracktype from grade4, so grade3 drives", ASSEMBLE, TRACKTYPES, TRACKTYPES.replace('"grade3", ', "")),
+    ("tracktype from grade2", ASSEMBLE, TRACKTYPES, TRACKTYPES.replace('{"grade3"', '{"grade2", "grade3"')),
+    ("an absent tracktype read as grade3", ASSEMBLE, TRACKTYPE_IF, TRACKTYPE_IF.replace('e")', 'e", "grade3")')),
+    ("refuse a grade3 tracktype as too rough instead of as a track", ASSEMBLE, TRACKTYPE_RULE,
+     TRACKTYPE_IF + "\n        return GATE_TOO_ROUGH"),
+    ("drop the smoothness rule", ASSEMBLE, SMOOTHNESS_RULE, "    if False:\n        return GATE_TOO_ROUGH"),
+    ("smoothness from very_bad, so bad drives", ASSEMBLE, SMOOTHNESS, SMOOTHNESS.replace('"bad", ', "", 1)),
+    ("smoothness from intermediate", ASSEMBLE, SMOOTHNESS, SMOOTHNESS.replace('{"bad"', '{"intermediate", "bad"')),
+    ("rename the too_rough reason", ASSEMBLE, 'GATE_TOO_ROUGH = "too_rough"', 'GATE_TOO_ROUGH = "rough"'),
+    ("drop the locked-barrier rule", ASSEMBLE, BARRIER_IF, "    if False:"),
+    ("refuse every gate, locked or not", ASSEMBLE, BARRIER_IF, BARRIER_IF.split(" and ")[0] + ":"),
+    ("refuse a gate whatever `locked` says, locked=no included", ASSEMBLE, BARRIER_IF,
+     BARRIER_IF.replace("== YES", "is not None")),
+    ("refuse a locked bollard too", ASSEMBLE, BARRIERS, BARRIERS.replace('"gate"', '"gate", "bollard"')),
+    ("drop the ford rule", ASSEMBLE, FORD_IF, "    if False:"),
+    ("refuse ford=no", ASSEMBLE, FORD_IF, '    if tags.get("ford") is not None:'),
+    ("spell yes as true, so no locked gate and no ford is refused", ASSEMBLE, 'YES = "yes"', 'YES = "true"'),
+    ("drop the service rule", ASSEMBLE, SERVICE_IF, "    if False:"),
+    ("refuse a service value on any highway", ASSEMBLE, SERVICE_IF, "    if " + SERVICE_IF.split(" and ")[1]),
+    ("refuse service=alley", ASSEMBLE, SERVICES, SERVICES.replace('"driveway"', '"alley", "driveway"')),
+    ("let parking aisles drive", ASSEMBLE, SERVICES, SERVICES.replace('"parking_aisle", ', "")),
+    ("let drive-throughs drive", ASSEMBLE, SERVICES, SERVICES.replace('"drive-through", ', "")),
+    ("ask the access rule before tracktype and smoothness", ASSEMBLE, TRACKTYPE_RULE,
+     "    if access_refused(tags):\n        return GATE_NO_ACCESS\n" + TRACKTYPE_RULE),
+    ("ask the ford before the locked barrier", ASSEMBLE, BARRIER_RULE,
+     FORD_IF + "\n        return GATE_FORD\n" + BARRIER_RULE),
 ]
 
 # Cannot change behaviour, so anything but MISSED is a FAILURE. Each has a witness in its name.
@@ -252,4 +297,4 @@ EQUIVALENT = [
 # promoted into MUTATIONS. Empty is a claim, not an omission.
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 48
+MIN_MUTATIONS = 71

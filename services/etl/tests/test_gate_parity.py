@@ -7,7 +7,8 @@ same file through `Gates.decide` and `SegmentScore`. Every failure names the lay
 other layers answer for that row - never a bare "mismatch".
 
 `verdict` is the product's answer and ScenicKit's. A row may carry `divergent` - what the ETL and the profile
-answer TODAY where they cannot yet agree (T-0012 ruling R1) - and only the five typed classes may.
+answer TODAY where they cannot yet agree (T-0012 ruling R1; the profile only since T-0188) - and only the
+five typed classes may.
 """
 from __future__ import annotations
 
@@ -38,7 +39,7 @@ CORE_CLASSES = (
     + ["access=" + a for a in ("private", "no", "permit", "destination")] + ["motor_vehicle=no"]
     + ["no surface on " + h for h in ("primary", "secondary", "tertiary", "unclassified", "residential")]
 )
-# R1: ScenicKit refuses these; the ETL waits on T-0188 and the profile has no encoded value for them.
+# R1: ScenicKit refuses these; T-0188 ported them into the ETL and the profile has no encoded value for them.
 DIVERGENT_CLASSES = ("tracktype=grade3 on tertiary", "barrier=gate+locked=yes", "ford=yes", "service=driveway",
                      "service=parking_aisle")
 EXPECTED_VERDICT = {**{c: ZERO for c in CORE_CLASSES[:4]}, **{c: GATED for c in CORE_CLASSES[4:20]},
@@ -147,7 +148,7 @@ def test_only_the_typed_classes_diverge():
     divergent = {r["class"]: r["divergent"] for r in ROWS if "divergent" in r}
     assert sorted(divergent) == sorted(DIVERGENT_CLASSES)
     for name, record_ in divergent.items():
-        assert record_["profile"] == NOT_GATED and record_["etl"] in VERDICTS and record_["etl"] != GATED, name
+        assert record_["profile"] == NOT_GATED and "etl" not in record_, name
         assert "T-0188" in record_["tracked_by"], name
 
 
