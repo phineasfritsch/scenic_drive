@@ -24,18 +24,32 @@ OSM = HERE / "fixtures" / "corpus_landmarks.osm.xml"
 BUILT_AT = "2026-10-16T00:00:00Z"
 COLUMNS = ("osm_type", "osm_id", "kind", "name", "ele_dm", "lat_e5", "lon_e5", "nearest_way_id")
 SELECT = "SELECT %s FROM landmarks ORDER BY osm_type, osm_id" % ", ".join(COLUMNS)
-# One (row key, new value) per column, the digest test's perturbations: each changes exactly its column of one row
-# and keeps that row's place in ORDER BY osm_type, osm_id, so a digest that drops the column cannot be moved by
-# the row order instead. The key is perturbed in place too: w 201 -> n 201 stays last, n 101 -> n 100 stays first.
+
+
+def one_unit(old: int) -> int:
+    """One unit away from zero: SQLite's integer / truncates toward zero, so a step toward zero from a negative
+    multiple of 10 would cross a quotient that a precision-losing digest keeps."""
+    return old + 1 if old >= 0 else old - 1
+
+
+def one_character(old: str) -> str:
+    return old[:-1] + chr(ord(old[-1]) + 1)
+
+
+# One (row key, step) per column, the digest test's perturbations: each step is the SMALLEST change to that
+# row's own stored value (one unit, one character, the other legal value), so a digest that keeps the column
+# but loses its precision is seen too. Each keeps the row's place in ORDER BY osm_type, osm_id, so a digest
+# that drops the column cannot be moved by the row order instead: n 101 -> n 100 stays first, w 201 -> n 201
+# stays last.
 PERTURB = {
-    "osm_type": (("w", 201), "'n'"),
-    "osm_id": (("n", 101), "100"),
-    "kind": (("n", 101), "'viewpoint'"),
-    "name": (("n", 101), "NULL"),
-    "ele_dm": (("n", 101), "NULL"),
-    "lat_e5": (("n", 101), "0"),
-    "lon_e5": (("n", 101), "0"),
-    "nearest_way_id": (("n", 101), "NULL"),
+    "osm_type": (("w", 201), {"n": "w", "w": "n"}.__getitem__),
+    "osm_id": (("n", 101), lambda old: old - 1),
+    "kind": (("n", 101), {"peak": "viewpoint", "viewpoint": "peak"}.__getitem__),
+    "name": (("n", 101), one_character),
+    "ele_dm": (("n", 101), one_unit),
+    "lat_e5": (("n", 101), one_unit),
+    "lon_e5": (("n", 101), one_unit),
+    "nearest_way_id": (("n", 101), one_unit),
 }
 
 # Typed out by hand from the fixture: 851 m -> 8510 dm; 2800 ft = 853.44 m -> 853.4 -> 8534 dm; the ring's
@@ -117,10 +131,16 @@ def test_the_landmarks_table_is_odbl_and_in_the_content_digest(tmp_path):
         before = contentdigest.content_sha256(conn)
         rows = conn.execute(SELECT).fetchall()
         for column in COLUMNS:
-            key, value = PERTURB[column]
+            key, step = PERTURB[column]
             at = [row[:2] for row in rows].index(key)
+            old = rows[at][COLUMNS.index(column)]
+            new = step(old)
+            if isinstance(old, int):
+                assert abs(new - old) == 1, column
+            elif column == "name":
+                assert len(new) == len(old) and sum(a != b for a, b in zip(old, new)) == 1
             conn.execute("SAVEPOINT s")
-            conn.execute("UPDATE landmarks SET %s = %s WHERE osm_type = ? AND osm_id = ?" % (column, value), key)
+            conn.execute("UPDATE landmarks SET %s = ? WHERE osm_type = ? AND osm_id = ?" % column, (new, *key))
             after = conn.execute(SELECT).fetchall()
             assert len(after) == len(rows), column
             assert [i for i, (old, new) in enumerate(zip(rows, after)) if old != new] == [at], column
