@@ -40,8 +40,10 @@ PLANNER = ROOT / "Sources" / "ScenicAPIClient" / "ClientPlanner.swift"
 VOICE = _KIT / "DriveVoice.swift"
 # T-0330: the Worker's `continued` decoded.
 RESPONSE = ROOT / "Sources" / "ScenicAPIClient" / "PlanResponse.swift"
+LATCH = _KIT / "DriveMomentLatch.swift"
+VERSION = ROOT / "Sources" / "ScenicKit" / "Moments" / "CorpusVersionNumber.swift"
 SUBJECTS = (SESSION, LINE, SURFACE, FIX, REQUEST, CONTROLLER, LEG, UNAVAILABLE, DISPLAY, REPLY, PREVIEW, CONTINUATION,
-            REROUTER, PLANNER, VOICE, RESPONSE)
+            REROUTER, PLANNER, VOICE, RESPONSE, LATCH, VERSION)
 # NavAdapter (T-0321 R10) is mutated only by EQUIVALENT entries: apps/ios is not compiled on Linux, so those
 # mutants are MISSED here by construction and only a device run observes them.
 NAVIGATOR = ROOT / "apps" / "ios" / "Packages" / "ScenicApp" / "Sources" / "NavAdapter" / "DriveNavigator.swift"
@@ -53,7 +55,9 @@ TEST_FILES = (_TESTS / "DriveSessionTests.swift", _TESTS / "DriveRerouteTests.sw
               _TESTS / "DriveLegTests.swift", _TESTS / "DriveDisplayTests.swift",
               ROOT / "Tests" / "ScenicAPIClientTests" / "DriveReplanTests.swift", _TESTS / "DriveTokenTakeTests.swift",
               _TESTS / "DriveVoiceTests.swift", _TESTS / "DriveContinuedTests.swift",
-              ROOT / "Tests" / "ScenicAPIClientTests" / "DriveContinuedReplanTests.swift")
+              ROOT / "Tests" / "ScenicAPIClientTests" / "DriveContinuedReplanTests.swift",
+              _TESTS / "DriveProgressTests.swift", _TESTS / "DriveMomentLatchTests.swift",
+              ROOT / "Tests" / "ScenicKitTests" / "Moments" / "CorpusVersionNumberTests.swift")
 
 C_FIX = "T-0321: every fix reaches the session whole; off-route online is one send under ticket 1"
 C_LOST = "T-0321: losing the connection with a reroute out cancels its ticket; with none out it cancels nothing"
@@ -132,6 +136,20 @@ GATE_OLD = "speed >= 0 && speed <= Self.motionGateMetersPerSecond"
 USABLE = "guard fix.isUsable else {\n            surface = .minimal\n            return nil\n        }"
 OFFLINE_OLD = "        guard isOnline else {\n            mode = .rejoining\n            return nil\n        }"
 BAD_OLD = "            mode = .rejoining\n            return false\n        }\n        line = next"
+
+# T-0361 R6/R8: the drive's moments - the off-route count, the fraction driven, the start/end latch - and the
+# corpus version's number, each killed by the suites T-0361 adds (DriveProgressTests, DriveMomentLatchTests,
+# CorpusVersionNumberTests).
+P_FRAC = "T-0361 R6: the fraction driven is the progress vertex's share of the line, k of 5 segments"
+P_REROUTE = ("T-0361 R6: a taken reroute keeps the metres already driven - 3 of 5, then 0 of 3 and 2 of 3 on the new "
+             "line")
+P_METERS = "T-0361 R6: the meters along a line are the sum of its segments up to the vertex"
+P_COUNT = "T-0361 R6: off-route counts each declaration - not the dwell, not the wait, not a reconnect"
+M_BEGIN = "T-0361 R6: begin is guidanceBegan once, then nothing"
+M_EARLY = "T-0361 R6: an end with no begin is nothing, and does not use up the end"
+M_END = "T-0361 R6: the end is the session's fraction and off-route count with the arrival, once"
+V_ROWS = "T-0361 R8: the version of each stamp, whole"
+V_DIGITS = "T-0361 R8: a character one below '0' or one above '9' at any digit position is no version"
 
 MUTATIONS = [
     ("1 a negative speed is a known one", SURFACE, GATE_OLD, "speed <= Self.motionGateMetersPerSecond",
@@ -417,6 +435,39 @@ MUTATIONS = [
     ("130 a preview's zero ETA refused", SESSION, "planToken: preview.continuation?.token, etaSeconds: preview.etaSeconds,",
      "planToken: preview.continuation?.token, etaSeconds: preview.etaSeconds > 0 ? preview.etaSeconds : -1,",
      [K_BOUNDS]),
+    ("131 an off-route declaration not counted", SESSION, "        offRouteCount += 1\n", "", [P_COUNT, M_END]),
+    ("132 an off-route declaration counted twice", SESSION, "offRouteCount += 1", "offRouteCount += 2", [P_COUNT]),
+    ("133 a taken reroute forgets the metres driven", SESSION,
+     "        metersBefore += Self.meters(along: line, to: progressSegment)\n", "", [P_REROUTE]),
+    ("134 a taken reroute counts its old line whole", SESSION,
+     "metersBefore += Self.meters(along: line, to: progressSegment)",
+     "metersBefore += Self.meters(along: line, to: line.segmentCount)", [P_REROUTE]),
+    ("135 the total leaves out the metres before", SESSION,
+     "let total = metersBefore + Self.meters(along: line, to: line.segmentCount)",
+     "let total = Self.meters(along: line, to: line.segmentCount)", [P_REROUTE]),
+    ("136 the driven share leaves out the metres before", SESSION,
+     "(metersBefore + Self.meters(along: line, to: progressSegment)) / total",
+     "Self.meters(along: line, to: progressSegment) / total", [P_REROUTE]),
+    ("137 the metres along skip the first segment", SESSION, "for segment in 0..<vertex {", "for segment in 1..<vertex {",
+     [P_METERS, P_FRAC]),
+    ("138 a second begin begins again", LATCH, "        guard !hasBegun else { return nil }\n", "", [M_BEGIN, M_END]),
+    ("139 an end with no begin ends", LATCH, "guard hasBegun, !hasEnded else { return nil }",
+     "guard !hasEnded else { return nil }", [M_EARLY]),
+    ("140 a second end ends again", LATCH, "guard hasBegun, !hasEnded else { return nil }",
+     "guard hasBegun else { return nil }", [M_END]),
+    ("141 the end never latches", LATCH, "        hasEnded = true\n", "", [M_END]),
+    ("142 every end is an arrival", LATCH, "return .guidanceEnded(arrived: arrived,", "return .guidanceEnded(arrived: true,",
+     [M_END]),
+    ("143 the end drops the off-route count", LATCH, "offRouteCount: session.offRouteCount)", "offRouteCount: 0)",
+     [M_END, M_EARLY]),
+    ("144 a longer string is a version", VERSION, "bytes.count == 16", "bytes.count >= 16", [V_ROWS]),
+    ("145 no T in the middle", VERSION, 'bytes[8] == UInt8(ascii: "T"), ', "", [V_ROWS]),
+    ("146 no Z at the end", VERSION, ', bytes[15] == UInt8(ascii: "Z")', "", [V_ROWS]),
+    ("147 a 0 digit is not one", VERSION, 'byte >= UInt8(ascii: "0")', 'byte > UInt8(ascii: "0")', [V_ROWS, V_DIGITS]),
+    ("148 a 9 digit is not one", VERSION, 'byte <= UInt8(ascii: "9")', 'byte < UInt8(ascii: "9")', [V_ROWS, V_DIGITS]),
+    ("149 a colon is a digit", VERSION, 'byte <= UInt8(ascii: "9")', 'byte <= UInt8(ascii: ":")', [V_DIGITS]),
+    ("150 the digits read in base 16", VERSION, "value = value * 10 +", "value = value * 16 +", [V_ROWS]),
+    ("151 the Z read as a digit", VERSION, "where index != 8 && index != 15", "where index != 8", [V_ROWS]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -437,7 +488,7 @@ EQUIVALENT = [
      "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device run hears it (T-0329). What bounds it: ops/lib/check-drive-voice.py (P-SAFE-09's row) allows exactly this whole line and refuses its removal by name ('the navigator never asks DriveVoice'), and what DriveVoice returns is CAUGHT above (entries 82-99)"),
 ]
 
-MIN_MUTATIONS = 130
+MIN_MUTATIONS = 151
 EQUIVALENT.append(
     ("E5 (device-only) the navigator's session starts without the preview's token", NAVIGATOR,
      "guard let session = DriveSession(preview: preview, online: true) else { return nil }",
@@ -449,4 +500,4 @@ EQUIVALENT.append(
      "whose token and ETA are CAUGHT above (entries 120-122), and the session half of the token by entry 60"))
 
 MIN_EQUIVALENT = 6
-MIN_TEST_FILES = 11
+MIN_TEST_FILES = 14

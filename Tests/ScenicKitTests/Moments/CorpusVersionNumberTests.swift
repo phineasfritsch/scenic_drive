@@ -22,6 +22,7 @@ struct CorpusVersionNumberTests {
         ("20261006T000000", nil),
         ("2026-10-06T00:00Z", nil),
         ("20261006T000000ZZ", nil),
+        ("20261006T000000Z5", nil),
         ("", nil),
         ("2026100６T000000Z", nil),
     ]
