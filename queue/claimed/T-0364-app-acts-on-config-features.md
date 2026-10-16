@@ -113,3 +113,4 @@ degrade as a table over every flag, P-SAFE-03 digests, and the config.py populat
   Carrillo, 2 days, 40%, the same line in place of Plan the road trip) and plan-paused-light ("Planning is paused right
   now. Surprise Me on the home screen still works." in place of Plan).
 - 2026-10-16T01:06:47Z FOLLOW-UP: T-0367 filed (R6, the home Surprise chip on feature_surprise; ids checked: highest T-0366).
+- 2026-10-16T01:20:31Z FOLLOW-UP renumbered: the home Surprise chip task is T-0368 (main took T-0367 meanwhile).

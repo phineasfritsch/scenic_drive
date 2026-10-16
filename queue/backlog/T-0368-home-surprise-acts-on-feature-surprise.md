@@ -1,5 +1,5 @@
 ---
-id: T-0367
+id: T-0368
 title: The home's Surprise Me chip acts on /config's feature_surprise - hidden or its typed line when false, and the plan sheet's post-tap Surprise action follows it
 state: backlog
 owner: null
@@ -31,3 +31,5 @@ PlanFailureCopy takes the flag. Surprise Me sends the Worker nothing (no /surpri
 ## Log
 - 2026-10-16T00:26:47Z filed by agent/claude-opus-5 as T-0364's follow-up (T-0364 R6). Ids checked on origin/main and every
   origin/task/* branch: highest T-0366, so T-0367.
+- 2026-10-16T01:20:31Z renumbered T-0367 -> T-0368 by agent/claude-opus-5: main took T-0367 (telemetry-install-id-per-request)
+  in the T-0358 merge; ids rechecked on origin/main and every origin/task/* branch, highest T-0367.
