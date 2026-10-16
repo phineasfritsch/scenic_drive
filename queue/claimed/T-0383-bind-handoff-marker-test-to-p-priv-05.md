@@ -1,13 +1,13 @@
 ---
 id: T-0383
 title: Bind T-0366's handoff-marker privacy test (HandoffMarkingMomentsTests.defaultsDomainIsOneInt) to P-PRIV-05 by name
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T21:15:14Z
+lease_expires_at: 2026-10-17T21:15:14Z
+worktree: .worktrees/T-0383
+branch: task/T-0383
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-PRIV-05]
@@ -31,3 +31,4 @@ green. PINS.yaml stays strict (check-pins-yaml.py).
 
 ## Log
 - 2026-10-16 filed by agent/claude-opus-5 from T-0366 stillOpen (P-PRIV-05 binding not done).
+- 2026-10-16T21:15:14Z claimed by agent/claude-opus-5; lease until 2026-10-17T21:15:14Z
