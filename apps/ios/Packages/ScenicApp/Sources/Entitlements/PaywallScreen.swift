@@ -14,6 +14,7 @@ import SwiftUI
 /// `primary` text anywhere (DesignTokens' note). Text styles only, so every line grows with Dynamic Type.
 public struct PaywallScreen: View {
     @Environment(\.paywallShown) private var shown
+    @Environment(\.paywallConverted) private var converted
 
     public init() {}
 
@@ -34,6 +35,14 @@ public struct PaywallScreen: View {
         // T-0315 R3: each purchase carries a fresh appAccountToken - the purchase id /asn keys its entitlement row
         // by and the plan, trip and loop requests send as x-scenic-account-token. Renewals keep it.
         .inAppPurchaseOptions { _ in [.appAccountToken(UUID())] }
+        // T-0370 R1/R2: this replaces the store view's default completion, which was the app's only finisher. It
+        // keeps that default - a verified transaction is finished - and only then reports the conversion; every
+        // other result (unverified, pending, cancelled, failed) is left exactly as the default leaves it.
+        .onInAppPurchaseCompletion { [converted] _, result in
+            guard case .success(.success(.verified(let transaction))) = result else { return }
+            await transaction.finish()
+            converted?()
+        }
         .navigationTitle("Scenic Drive Pro")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("paywall.store")

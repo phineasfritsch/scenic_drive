@@ -222,6 +222,7 @@ FROZEN_APP_SHELL=(
   '.environment(\.homeMoments, LiveMoments())'
   '.environment(\.planMoments, LiveMoments())'
   '.environment(\.paywallShown, { LiveMoments.paywallShown() })'
+  '.environment(\.paywallConverted, { LiveMoments.paywallConverted() })'
   '}'
   '}'
 )
