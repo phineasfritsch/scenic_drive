@@ -25,6 +25,7 @@ import type { LatLon } from "./latLon";
 import { HonestFailure, honestFailureBody } from "./honestFailure";
 import { BudgetError } from "./lambdaSearch";
 import { d1PlaceResolver } from "./placeResolver";
+import { isSearchPlaceId, kvSearchPlaces, type SearchPlaces } from "./searchPlaces";
 import { parsePlanRequest } from "./planRequest";
 import { kvPlanTokens, type PlanTokenKv, type PlanTokens, type RememberedPlan } from "./planToken";
 import { planReroute } from "./reroutePlanner";
@@ -48,6 +49,8 @@ export interface PlanDeps {
   closures(): Promise<ClosureSnapshot>;
   /** T-0319 R3: where every answer is remembered under its plan_token; null (or absent) when PLANS is unbound. */
   plans?: PlanTokens | null;
+  /** T-0362 R3: the places /search issued ids for, from the same PLANS; null (or absent) when it is unbound. */
+  searchPlaces?: SearchPlaces | null;
 }
 
 const json = (body: unknown, status: number) =>
@@ -60,7 +63,8 @@ const json = (body: unknown, status: number) =>
 export function planDepsFromEnv(env: PlanEnv & RouterEnv & { DB?: D1Database; PLANS?: PlanTokenKv }): PlanDeps | null {
   const router = routerDepsFromEnv(env);
   if (router === null || !env.DB) return null;
-  return { ...router, resolvePlace: d1PlaceResolver(env.DB), plans: env.PLANS ? kvPlanTokens(env.PLANS) : null };
+  return { ...router, resolvePlace: d1PlaceResolver(env.DB), plans: env.PLANS ? kvPlanTokens(env.PLANS) : null,
+    searchPlaces: env.PLANS ? kvSearchPlaces(env.PLANS) : null };
 }
 
 function failure(error: unknown, budgetMinutes: number): Response {
@@ -99,9 +103,15 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
   if (!inServedRegion(request.origin)) return json({ error: "region_unsupported" }, 422);
   if (deps === null) return json({ error: "planning_unavailable" }, 503);
 
+  // T-0362 R3: a searched place id is read back for the caller's identity, so that identity is asked first - only here.
+  const searched = isSearchPlaceId(request.destinationPlace);
+  const asked = searched ? await deps.identify(req) : null;
+  if (asked?.rejected === true) return json({ error: "session_rejected" }, 401);
   let destination: LatLon | null;
   try {
-    destination = await deps.resolvePlace(request.destinationPlace);
+    const places = deps.searchPlaces ?? null;
+    destination = asked === null ? await deps.resolvePlace(request.destinationPlace)
+      : places === null ? null : await places.recall(asked.userId, request.destinationPlace);
   } catch {
     return json({ error: "planning_unavailable" }, 503);
   }
@@ -110,7 +120,7 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
   const snapshot = await deps.closures();
   const picker = closurePicker(snapshot.closures);
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
-  const who = await deps.identify(req);
+  const who = asked ?? await deps.identify(req);
   if (who.rejected === true) return json({ error: "session_rejected" }, 401);
   const plans = deps.plans ?? null;
   const reroute = request.reroute;
