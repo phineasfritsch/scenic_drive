@@ -131,6 +131,14 @@ MUTATIONS = [
     ("a padded enum tag trimmed", SUBJECT, "    return raw.upper()", "    return raw.strip().upper()"),
     ("a padded ford value trimmed", SUBJECT, '    return tags.get("ford") == YES',
      '    return (tags.get("ford") or "").strip() == YES'),
+    ("a padded service highway trimmed", SUBJECT, 'tags.get("highway") == SERVICE_HIGHWAY',
+     '(tags.get("highway") or "").strip() == SERVICE_HIGHWAY'),
+    ("a cased service highway folded", SUBJECT, 'tags.get("highway") == SERVICE_HIGHWAY',
+     '(tags.get("highway") or "").lower() == SERVICE_HIGHWAY'),
+    ("a service list split on semicolons", SUBJECT, 'tags.get("service") in REFUSED_SERVICE_VALUES',
+     'bool(set((tags.get("service") or "").split(";")) & REFUSED_SERVICE_VALUES)'),
+    ("a cased barrier folded", SUBJECT, 'tags.get("barrier") in REFUSABLE_BARRIERS',
+     '(tags.get("barrier") or "").lower() in REFUSABLE_BARRIERS'),
     ("an unknown tracktype read as GRADE3", SUBJECT, 'return value if value in TRACK_TYPES else "MISSING"',
      'return value if value in TRACK_TYPES else "GRADE3"'),
     ("an unknown smoothness read as MISSING", SUBJECT, 'return value if value in SMOOTHNESS else "OTHER"',
@@ -163,7 +171,7 @@ EQUIVALENT = [
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 80
+MIN_MUTATIONS = 84
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
