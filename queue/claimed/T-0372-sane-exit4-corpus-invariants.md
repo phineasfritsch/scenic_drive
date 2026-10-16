@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-17T04:52:58Z
 worktree: .worktrees/T-0372
 branch: task/T-0372
 exclusive: []
-touches: [ops/sane, ops/lib/, ops/mutate/sane_corpus.py, services/etl/tests/, pins/PINS.yaml, queue/claimed/T-0372-sane-exit4-corpus-invariants.md]
+touches: [ops/sane, ops/lib/, ops/mutate/sane_corpus.py, services/etl/tests/, pins/PINS.yaml, queue/claimed/T-0372-sane-exit4-corpus-invariants.md, queue/backlog/T-0374-surface-baselines-full-la.md]
 pins_affected: [P-OPS-08, P-PROD-04]
 reviewer: null
 depends_on: []
@@ -21,6 +21,7 @@ acceptance:
   - "A4 bash ops/lib/check-sane-exit-order green with EXIT_ORDER unchanged (2 7 3 6 9 8 4 10); bash ops/lib/check-sane-prod --only on a sample of rows green (SANE_SCOPE=prod, no SANE_CORPUS: corpus row is skip)"
   - "A5 the FULL LA corpus (T-0275, /home/phineas/t0242/la-corpus.sqlite in WSL) through python3 ops/lib/sane_corpus.py --corpus: exit and rows quoted as measured (expected: corpus-surface FAIL on motorway + motorway_link, viewpoints 102 >= 76 ok, terms 0 rows ok)"
   - "A6 gates bare: check-pins-yaml, check-exec-bits, queue-check, check-mutate-population; wc -l of every touched file <= 300; pin P-OPS-09 added (quoted per pins-yaml-strict)"
+  - "A7 (round 2, rv1-t0372) bash ops/lib/check-sane-corpus holds d-store-two-second-red and d-store-two-first-red (two <region>-corpus.sqlite files in the store, one status per discovered corpus) and l-local-store-red and l-local-store-clean (the SHIPPED ops/sane in its default scope, SANE_CORPUS unset, SCENIC_REGION_WORK set); python ops/mutate/sane_corpus.py --only 27,28,29 kills paths[:1], paths[1:] and the default-scope mutant by those row names; MIN_MUTATIONS 29; T-0374 filed for the full-LA surface baselines"
 ---
 ## Brief
 
@@ -124,3 +125,26 @@ name; a clean fixture green), exit 4 ordering unchanged (check-sane-exit-order),
   QUEUE OK (360 tasks), P-PROC-06 floor 165 all green; wc -l ops/sane 212, sane_corpus.py 175, sane_corpus_cases.py 141,
   check_sane_corpus.py 182, check-sane-corpus 8, ops/mutate/sane_corpus.py 151, mutate_population_table.py 114.
   P-OPS-09 text corrected to 46 / 55.
+- 2026-10-16T05:52:18Z ROUND 2 RULINGS (agent/claude-opus-5), rv1-t0372 FAIL on PR #253 head 3dbd201a, before code:
+  - B1 (M2 `paths[:1]` in sane_corpus.main survives 55/55): no d- row put two <region>-corpus.sqlite files in the store;
+    d-store-wrong-name's corpus.sqlite / sfbay.sqlite are names discover() never returns. RULING: the d- rows over a
+    TWO-region store become rows as functions of input - each store file carries the predicate it breaks (or None)
+    and the row's wanted output is derived from that list in discovery order (la, sfbay): d-store-two-second-red
+    (la clean, sfbay region sfbay with 0 viewpoints -> exit 4, corpus-viewpoints [ok, FAIL]) and
+    d-store-two-first-red (la below the floor, sfbay-corpus.sqlite carrying region la and the clean fixture -> exit 4,
+    corpus-viewpoints [FAIL, ok]); the second kills `paths[1:]` / `paths[-1:]` the way the first kills `paths[:1]`.
+    compare() takes a list of statuses per row (one per discovered corpus) so the row counts the corpora checked.
+  - B2 (M1 `if [[ -z "${SANE_CORPUS:-}" ]]` in ops/sane survives): every s-/p- row sets SANE_SCOPE=prod and the d- rows
+    call the helper, so nothing ran the SHIPPED ops/sane in its default local scope with SANE_CORPUS unset. RULING: two
+    l- rows run `bash ops/sane` with neither SANE_SCOPE nor SANE_CORPUS and SCENIC_REGION_WORK=<store holding
+    la-corpus.sqlite>, over {red (FLOOR_LA - 1 viewpoints), clean}: the corpus-* rows must equal want(broken) exactly
+    (no corpus-db row), and the exit must be the FIRST code of the typed EXIT_ORDER (2 7 3 6 9 8 4 10, pinned equal to
+    ops/sane's by P-OPS-05) among the blocks that FAILed - local scope runs repo/crlf/autocrlf/gitattrs (2), bounds (4),
+    the corpus rows (4) and worktrees (10, red on this box today: 3 of 98), so the red row is 4 unless a repo row is red
+    and the clean row is whatever the other blocks say; a FAIL row of no known block refuses. Measured: a local-scope
+    ops/sane takes 17 s here (rc=10, worktrees), so two l- rows cost ~35 s.
+  - Population: M1 and M2 join ops/mutate/sane_corpus.py (26 -> 28) with their new killer rows; MIN_MUTATIONS 26 -> 28.
+    Faster-verification: only the new rows, the two new mutants and the existing #22/#26 neighbours re-run, plus the
+    whole table once (it is the gate).
+  - FILED (recordable): surfacecoverage.BASELINES re-measure over the FULL LA corpus, as its own task (id = next free
+    after main and every open task/* branch).

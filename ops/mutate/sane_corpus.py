@@ -25,7 +25,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 LIB = "ops/lib/sane_corpus.py"
 SANE = "ops/sane"
 SUBJECTS = (LIB, SANE)
-MIN_MUTATIONS = 26
+MIN_MUTATIONS = 29
 
 # (file, old, new, killer rows)
 MUTATIONS = [
@@ -76,6 +76,12 @@ MUTATIONS = [
     (SANE, "if [[ $crc -ne 0 && $cfail -eq 0 ]]", "if [[ $crc -ne 0 && $cfail -eq 1 ]]", ("p-python-false",)),
     (SANE, 'if [[ $local_checks -eq 0 && -z "${SANE_CORPUS:-}" ]]', "if [[ $local_checks -eq 0 ]]",
      ("clean-on-every-bound",)),
+    (LIB, "    rows = [r for path in paths for r in check(path)]", "    rows = [r for path in paths[:1] for r in check(path)]",
+     ("d-store-two-second-red",)),
+    (LIB, "    rows = [r for path in paths for r in check(path)]", "    rows = [r for path in paths[1:] for r in check(path)]",
+     ("d-store-two-first-red",)),
+    (SANE, 'if [[ $local_checks -eq 0 && -z "${SANE_CORPUS:-}" ]]', 'if [[ -z "${SANE_CORPUS:-}" ]]',
+     ("l-local-store-red", "l-local-store-clean")),
 ]
 
 
