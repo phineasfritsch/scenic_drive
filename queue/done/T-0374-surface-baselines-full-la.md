@@ -1,7 +1,7 @@
 ---
 id: T-0374
 title: Re-measure surfacecoverage.BASELINES over the FULL LA corpus - the canyon-window baselines put motorway and motorway_link red on full LA
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T07:25:12Z
@@ -11,7 +11,7 @@ branch: task/T-0374
 exclusive: []
 touches: [services/etl/etl/surfacecoverage.py, services/etl/tests/, ops/lib/, ops/mutate/, pins/PINS.yaml, queue/]
 pins_affected: [P-OPS-09, P-DATA-04]
-reviewer: null
+reviewer: agent/rv1-t0374
 depends_on: [T-0372]
 verify: [ops/check-pins]
 acceptance:
@@ -178,3 +178,15 @@ LA corpus through sane_corpus.py green on corpus-surface. Do NOT touch prod/R2.
   OPEN (not this task): a second region's corpus is judged against LA's table until it has its own measured set
   (R1) - file when one is built; a box whose $SCENIC_REGION_WORK/la-corpus.sqlite is the canyon window now sees
   ops/sane exit 4 by design (R4).
+- 2026-10-16T07:59:37Z REVIEW PASS by agent/rv1-t0374 (PR #256, head f091f897). Arithmetic: all 15 BASELINES
+  == floor(quoted frac x 0.75, 3dp). Re-measured read-only (WSL python3, sqlite mode=ro) on the full LA corpus
+  meta.surface_coverage: motorway 3217/7486 = 0.429736 -> 0.322; trunk_link 132/178 = 0.741573 -> 0.556;
+  living_street 58/195 = 0.297436 -> 0.223; osm_features totals agree (7486, 178, 195); fixture rows match.
+  Mutant trunk_link 0.556 -> 0.742 (just above 0.7416): pytest RED by name (green_over_full_la_region,
+  every_baseline_is_met_by_the_region, baselines_are_exactly_the_measurement_times_the_ruled_margin,
+  a_large_class_with_no_baseline_is_reported_by_name); check-sane-corpus stayed 59/59; restored byte-equal.
+  A1 24 passed; A3 MUTATE OK caught=25/25 equivalent_caught=0; A4 full LA rc=0 `ok corpus-surface ... 16
+  classes, none below its baseline`, window rc=4 naming the 12 R4 classes; A5 check-sane-corpus 59/59,
+  P-DATA-04 assertion rc=0; A6 sane-exit-order, mutate-population, pins-yaml, queue-check (365) all rc=0;
+  A7 240/284/248. gh pr checks: core pass, pins-source-only pass. merge-base --is-ancestor origin/main
+  origin/task/T-0374 rc=0.
