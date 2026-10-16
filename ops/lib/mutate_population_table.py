@@ -8,8 +8,8 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
-DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "config.py", "corpusfetch.py", "corpusota.py", "drive.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
-           "hazards.py", "ledger.py", "menu.py", "search.py", "normalise.py", "onboarding.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py",
+DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "config.py", "corpusfetch.py", "corpusota.py", "curated.py", "drive.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
+           "hazards.py", "ledger.py", "menu.py", "search.py", "normalise.py", "onboarding.py", "placeallow.py", "plan.py", "profilegate.py", "plansheet.py", "retrace.py",
            "roadtrip.py", "routescore.py",
            "loopsheet.py", "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py", "hazardcopy.py",
            "scenic_tags.py",
@@ -64,8 +64,10 @@ COVERED_FLOOR = (
     "Sources/ScenicAPIClient/SessionStore.swift", "Sources/ScenicAPIClient/LedgerSurpriseSource.swift",
     "Sources/ScenicKit/Surprise/SurpriseShowing.swift",
     "Sources/ScenicKit/Surprise/SurpriseCardHistory.swift", "Sources/ScenicKit/Surprise/SurpriseShownDay.swift",
-    "services/etl/etl/accessrule.py", "services/etl/etl/extractadapter.py", "services/etl/etl/fallback.py",
+    "services/etl/etl/accessrule.py", "services/etl/etl/curated.py", "services/etl/etl/curatedslice.py",
+    "services/etl/etl/extractadapter.py", "services/etl/etl/fallback.py",
     "services/etl/etl/normalise.py", "services/etl/etl/placeallow.py", "services/etl/etl/proximity.py",
+    "services/etl/etl/profilegate.py",
     "services/etl/etl/region_reference.py", "services/etl/etl/scenecheck.py",
     "services/etl/etl/sinuosity.py",
     "services/etl/etl/snap.py", "services/etl/etl/surfacecoverage.py", "services/etl/etl/tagwriter.py",
