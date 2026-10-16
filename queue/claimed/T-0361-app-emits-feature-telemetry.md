@@ -104,3 +104,32 @@ ios-screenshot succeed with the touched screens looked at.
   A6 check-mutate-population, check-mutate-only, check-drive-display (+ --prove-red), bash check-safety-disclaimer,
      check-line-cap, check-pins-yaml, check-exec-bits, ops/queue-check -> each exit 0.
   A7 ios-compile and ios-screenshot -> success; the home, plan preview, drive and paywall shots looked at.
+- 2026-10-16T03:52:51Z RED FIRST (stubs returning nil/0, scratch .build/t0361): `Test run with 10 tests in 3 suites
+  failed ... with 60 issues` - every named test red: DriveProgressTests x5 (fraction on one line, across a reroute,
+  refused reroute, meters along, off-route count), DriveMomentLatchTests x3 (begins once, no end before begin, ends once
+  with the session), CorpusVersionNumberTests x2 (rows, every digit bound). Green after the code: 10 tests / 3 suites.
+  The emit guard was seen red on the wiring before the whitelist moved: `FAILED - 28 refusals` (19 unapproved sites,
+  9 constructions outside an emit row); check-store-links red on the new Entitlements file + PaywallScreen digest;
+  check-safety-disclaimer red on the frozen shell line; check-mutate-population red on the 4 added modules.
+- 2026-10-16T03:52:51Z CORRECTION to A4: there is no AppMomentTests suite - AppMoment is a case list with no code
+  (allowlisted in mutate-population-allowlist.json); its cases are compared whole in DriveMomentLatchTests. A4's filter
+  is the other three suites.
+- 2026-10-16T03:52:51Z MUTANTS: `python ops/mutate/drive.py --only 131,...,151` -> caught 20/21, 137 WRONG KILLER
+  (`1..<vertex` traps on vertex 0, so its named tests never reported); 137 rewritten to drop the last segment and
+  re-run alone: `MUTATE OK caught=1/1`. Population 151 (floor 151), test files 14.
+- 2026-10-16T03:52:51Z SHOTS (ios-screenshot run 38843419905, success, head 9c5c5127): plan-preview-light, drive-light,
+  paywall-light, home-light-medium looked at - each renders as before (the moments draw nothing). Observed, not caused
+  here: on home-light-medium the "Plan a drive" overlay button sits over the first two drive chips (the overlay line
+  is unchanged by this diff). ios-compile run 38843417078 FAILED in package resolution (SQLiteLib submodule clone,
+  environment); re-run 38847001130 on f04df33a+137 fix: success.
+- 2026-10-16T03:52:51Z merged origin/main (T-0362, PR #250): digest tables conflicted only; resolved as the union and
+  the merged PlanPreviewCard + shell re-approved from their bytes. ACCEPTANCE re-quoted on the merged head 28799319:
+  A1 `P-PRIV-05 emit sites: ok - 59 lines approved; 13 of 14 cases emitted once, 1 pending by task`.
+  A2 `PROVE-RED  ok - 17 rows`.
+  A3 the nine `record(TelemetryEvent.<case>` lines are each once, in LiveTelemetry.swift (the guard's emit rows).
+  A4 `Test run with 10 tests in 3 suites passed`; ScenicKitTests|TelemetryTests `498 tests in 97 suites passed`.
+  A5 caught 21/21 (above).
+  A6 check-mutate-population ok (floor 165), check-mutate-only OK, check-drive-display ok + `PROVE-RED OK: 7/7`,
+     check-store-links ok, check-map-attribution ok, check-hazard-copy-sites ok, bash check-safety-disclaimer exit 0,
+     check-line-cap (none over 300), check-pins-yaml ok, check-exec-bits ok, queue-check `QUEUE OK`.
+  A7 ios-compile + ios-screenshot dispatched on the merged head; results in the PR.
