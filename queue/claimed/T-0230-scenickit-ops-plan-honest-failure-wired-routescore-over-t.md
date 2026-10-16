@@ -20,7 +20,7 @@ acceptance:
   - "A3 FLOOR BOUNDS through ScenicPlanner.plan, one table, geometries found at run time: RouteScore nextDown(0.45) -> nothingPretty; exactly 0.45 -> a plan; nextUp(0.45) -> a plan; an unscored chosen route (RouteScore nil, the NaN/invalid row) -> nothingPretty; the motorway-shoulder fixture (integer image of RouteScore.swift:84's realistic route) -> nothingPretty, RED by name before the wiring (R9, R10)"
   - "A4 REAL DATA: PlanCommand.run over t0221/westwood-malibu at +25 throws nothingPretty with RouteScore 0.225555 and back roads unmeasured (no lambda-8 recording), RED by name before the wiring; santa-monica-topanga and westwood-woodland-hills still plan with their URLs unchanged (R8)"
   - "A5 couldNotUseBudget: ScenicPlan.couldNotUseBudget = budget > 0 and the measured duration < fastest + 0.5 * budget; report() prints a STATE couldNotUseBudget line before TABLE; bound table through ScenicPlanner.plan at fastest + 0.5B - 1 ms (true), exact (false), + 1 ms (false), budget 0 (false), NaN budget (budgetCeilingBreached); a stub solver claiming usedBudget true does not hide it; santa-monica-topanga +25 prints it (R5)"
-  - "A6 RECORD: T-0182's R4 corrected in a dated Log line here with a pointer line on T-0182's Log (R6); ops/mutate/plan.py MIN_MUTATIONS 31 -> 39 with the eight new mutants caught by name (--only run quoted); swift test count line for the touched suites; check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py, check-line-cap, check-pins-yaml.py, check-exec-bits, queue-check bare"
+  - "A6 RECORD: T-0182's R4 corrected in a dated Log line here with a pointer line on T-0182's Log (R6); ops/mutate/plan.py MIN_MUTATIONS 31 -> 42 with the eleven new mutants (honest/*, budget-state/*) caught by name (--only run quoted); swift test count line for the touched suites; check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py, check-line-cap, check-pins-yaml.py, check-exec-bits, queue-check bare"
 ---
 ## Brief
 
@@ -101,3 +101,36 @@ ops/plan the M3 exit and step 3 of Problem A is its honest failure. Ranked befor
   scenic search found no other road); nothingPretty = the chosen route's RouteScore < 0.45 (the road it found is
   dull). A score-8 canyon is the opposite of dull. After this task the two are separate PlanFailure cases with
   separate tests; t0213-pair stays the notActuallyDifferent witness.
+- 2026-10-16T13:57:30Z RED BY NAME (agent/claude-opus-5): types, checkedRoute and the tests in place, the gate and
+  couldNotUseBudget NOT wired (plan() returned the checked route; couldNotUseBudget was `false`):
+  `swift test --filter "ScenicPlannerHonestFailureTests|PlanCLILARecordingTests|ScenicPlannerMetaTests|PlanCeilingOverLATests|RouteAutopsy|ScenicPlanGoldenTests"`
+  -> "Test run with 35 tests in 8 suites failed after 1.684 seconds with 13 issues"; the eight failing, by name:
+    "the floor through ScenicPlanner.plan: nextDown(0.45) refused, exactly 0.45 and nextUp(0.45) planned" (:121, the nextDown row; the exact and nextUp rows planned - all three geometries found)
+    "the motorway-shoulder route (RouteScore.swift's realistic fixture, integer image) is not much pretty"
+    "a chosen route with no scored road is refused as nothingPretty, fail closed (the NaN/invalid row)"
+    "all back roads reuses a lambda 8 the search measured: no extra request, its measured ETA, +40 printed"
+    "all back roads not measured by the search is requested exactly once, after the search"
+    "a dull or unscored back-roads route is not offered; a refused one is unmeasured; malformed propagates" (4 issues)
+    "couldNotUseBudget: fastest + 0.5B - 1 ms true, exact and + 1 ms false, budget 0 false, NaN refused" (2 issues)
+    "westwood-malibu +25 is not much pretty: ops/plan refuses it with the two offers and issues nothing" (:162 "Issue recorded" - ops/plan issued it)
+  Every pre-existing test in those suites passed with the scored stubs (R3) and the autopsy on checkedRoute (R7).
+- 2026-10-16T13:58:08Z GREEN (agent/claude-opus-5): the gate (plan() = search + RouteScore + throw) and
+  couldNotUseBudget wired; same filter -> "Test run with 35 tests in 8 suites passed after 2.033 seconds". Whole
+  root suite: "Test run with 897 tests in 183 suites passed after 23.545 seconds" (XCTest: 51 tests, 1 skipped, 0
+  failures). Committed 0fa71b2e.
+- 2026-10-16T14:10:37Z GATES (bare, agent/claude-opus-5): check-safety-disclaimer exit 0 (after the five digest rows: four
+  re-approved, PlanNothingPretty.swift added); check-mutate-population.py "P-PROC-06: every added module is covered
+  or allowlisted; the floor of 165 holds" exit 0; check-mutate-only.py "NAME-PAIRS OK".
+- 2026-10-16T14:30:34Z MUTANTS + LINE CAP (agent/claude-opus-5): `SCENIC_MUTATE_SCRATCH=.../.build/t-0230-mutate python ops/mutate/plan.py --only honest/,budget-state/`
+  on 0fa71b2e -> "population 42 mutations over 11 modules ... (running 11 selected)"; CAUGHT honest/gate-never-fires,
+  honest/unscored-route-passes, honest/floor-inclusive, honest/floor-raised, honest/floor-lowered,
+  honest/back-roads-offered-when-dull, honest/back-roads-always-re-requested, honest/back-roads-refusal-fails-the-answer,
+  honest/more-time-is-plus-30, budget-state/inclusive-at-half, budget-state/whole-budget-instead-of-half;
+  "caught 11 of 11   trapped 0   compile-only 0   MISSED 0   skipped 0". The 31 pre-existing mutants were not re-run
+  (owner-approved faster-verification rule: rounds re-run the touched rows); their anchors are untouched
+  (ScenicPlanner's two guard lines and the ceiling line moved into search() unchanged). --prove-floor: one mutation
+  REFUSED (expected at least 42), an unmutated subject REFUSED, the shipped table accepted.
+  check-line-cap: "P-SRC-02: 680 Swift files tracked (Sources=327, Tests=243, apps/ios=110), none over 300 lines";
+  wc -l: ScenicPlanner.swift 149, ScenicPlan.swift 118, PlanNothingPretty.swift 79,
+  ScenicPlannerHonestFailureTests.swift 231, PlanCLILARecordingTests.swift 179 (ops/mutate/plan.py 313: P-SRC-02 is
+  Swift-only; hazards.py 604, handoff.py 643, segmentscore.py 648 are the precedent).
