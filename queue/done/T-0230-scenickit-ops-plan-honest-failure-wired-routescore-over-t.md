@@ -1,7 +1,7 @@
 ---
 id: T-0230
 title: ScenicKit/ops/plan - honest failure wired (plan:117): RouteScore over the chosen route < 0.45 -> a named plan state printed by ops/plan, the +40 / 'all back roads' offer at its real ETA, and couldNotUseBudget as a product state instead of a doc comment
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T13:33:10Z
@@ -11,7 +11,7 @@ branch: task/T-0230
 exclusive: []
 touches: [Sources/ScenicKit/, Sources/ScenicPlanCLI/AutopsyCommand.swift, ops/plan, ops/mutate/, Tests/, ops/lib/check-safety-disclaimer-linked-digests.txt, queue/done/T-0182-ops-plan-o-d-b-the-m3-cli-exit-an-apple-maps-url-a.md]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t-0230
 depends_on: [T-0182]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -189,3 +189,17 @@ ops/plan the M3 exit and step 3 of Problem A is its honest failure. Ranked befor
   second parent is 55c4b140 (origin/main had moved, carrying T-0012/profilegate, before the merge ran), so the
   suites and gates quoted there ran on a head containing 55c4b140. `git merge-base --is-ancestor origin/main HEAD`
   exit 0 at origin/main 55c4b140 before the push.
+- 2026-10-16T16:44:31Z REVIEW PASS round 2 (agent/rv2-t-0230) on bc86d620, detached worktree .worktrees/rv2-t-0230,
+  by-name driver over the plan population SUITES (44 tests in 10 suites, baseline exit 0). The rv1 mutants, each
+  RED by name: back-roads-floor-strict and back-roads-floor-nextdown fail "all back roads at lambda 8: nextDown(0.45)
+  is dull, exactly 0.45 and nextUp(0.45) are offered"; minutes-drops-whole-check (3 issues), minutes-zero-not-whole
+  and minutes-singular-below-two fail "ops/plan's refusal lines through ScenicPlanner.plan, whole, at budgets 0, 59,
+  60, 61, 90 and 1500 s". Reviewer's own mutants, both RED: ScenicPlanner.plan's chosen-route gate
+  `!score.isHonestFailure` -> `score.value > RouteScore.honestFailureThreshold` fails "the floor through
+  ScenicPlanner.plan: nextDown(0.45) refused, exactly 0.45 and nextUp(0.45) planned"; minutes()
+  `truncatingRemainder(dividingBy: 60)` -> `(dividingBy: 30)` fails the refusal-lines test. Bare gates exit 0:
+  check-safety-disclaimer; check-mutate-population "the floor of 168 holds"; check-mutate-only "MUTATE-ONLY OK: 226
+  of 226" / "NAME-PAIRS OK"; check-line-cap "682 Swift files ... none over 300 lines"; check-pins-yaml "ok pins=51
+  fields=410"; check-exec-bits "P-OPS-01: 233 files, 23 required present, all modes correct"; queue-check "QUEUE OK
+  (368 tasks)". gh pr checks 267: pins-source-only pass 3m57s, core pending at the one call. `git merge-base
+  --is-ancestor origin/main origin/task/T-0230` exit 0 at origin/main 55c4b140. B1, B2, B3 closed.
