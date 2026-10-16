@@ -1,7 +1,7 @@
 ---
 id: T-0362
 title: The plan sheet searches typed addresses through SearchClient and plans to one - rule how a searched address reaches /plan under P-PRIV-05 first, then wire PlanPlaceSearch, debounce to one request per submit, and carry the paid search allowance
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
