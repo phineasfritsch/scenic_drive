@@ -1,7 +1,7 @@
 ---
 id: T-0381
 title: The routing profile gates the five rows it cannot express today (tracktype>=grade3, locked barrier, ford, service values, rough smoothness) - encoded values in config.yml, clauses in car_scenic_base.json
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
