@@ -1,7 +1,7 @@
 ---
 id: T-0361
 title: The app emits the ten feature-side telemetry cases T-0355 left pending - a seam per feature target plus the shell, so each has its one emit site
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T02:25:35Z
@@ -11,7 +11,7 @@ branch: task/T-0361
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-SAFE-03]
-reviewer: null
+reviewer: agent/rv2-t0361
 depends_on: [T-0355]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -179,3 +179,20 @@ ios-screenshot succeed with the touched screens looked at.
      check-pins-yaml `PINS-YAML ok pins=50 fields=403` exit 0; check-line-cap `none over 300 lines` (DriveSession 183,
      DriveProgressTests 122) exit 0; check-exec-bits `all modes correct` exit 0; queue-check `QUEUE OK (363 tasks)`.
   A7 ios-compile dispatched on the pushed head (Sources changed); result in the PR.
+- 2026-10-16T06:19:15Z REVIEW round 2 by agent/rv2-t0361 (not the owner) on PR #251 head 2f244ec6: PASS.
+  (1) RV-A as rv1 spelled it (the line swapped before the metres) can no longer be spelled: rerouteArrived replaces
+      metres and line in ONE tuple assignment `(metersBefore, line) = (metersBefore + drivenMeters, next)`, whose
+      right side is evaluated before either is assigned. Its reachable spelling, entry 152 (metres read on `next` at
+      the old progressSegment), re-run `drive.py --only 152`: `caught 152 ... by: T-0361 R6: a taken reroute keeps
+      the old line's metres to its progress ...`; `MUTATE OK  caught=1/1` (BASELINE over the full drive filter exit=0).
+  (2) Own mutant RV2-A (careless reorder): `progressSegment = 0` hoisted above the tuple assignment, so drivenMeters
+      reads 0 at the reroute. RED by name: DriveProgressTests.swift:65 `(s.fractionDriven -> 0.0) ==
+      (... -> 0.7894736841552145)` and :68 `0.5000000000008882 == 0.8947368420777942`; DriveRerouteTests and
+      DriveMomentLatchTests stayed green. Restored (git checkout), worktree clean.
+  (3) shortB (2 segments, fewer than the old progress 3, ~369 m vs ~922 m segments) runs the reroute without a
+      trap: the unmutated baseline over the drive filter exited 0; meters(along:to:) is a zip over prefix(vertex + 1).
+  (4) gh pr checks 251: core pass, pins-source-only pass. ios-compile run 38857355445 on 2f244ec6: success
+      (headSha checked). linux-core pull_request run 38857350535: success. Bare on 2f244ec6: check-mutate-anchors
+      `17 drivers, 1263 anchors, 0 stale` exit 0; check-mutate-population `the floor of 165 holds` exit 0;
+      queue-check `QUEUE OK (363 tasks)` exit 0. LAST: `git merge-base --is-ancestor origin/main
+      origin/task/T-0361` exit 0 (origin/main aa1b1b22).
