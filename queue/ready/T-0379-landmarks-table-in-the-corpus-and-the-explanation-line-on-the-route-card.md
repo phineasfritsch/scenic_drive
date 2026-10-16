@@ -1,7 +1,7 @@
 ---
 id: T-0379
 title: landmarks table in the corpus (OSM half, ODbL) and the 'passes ...' explanation line on the route card
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
