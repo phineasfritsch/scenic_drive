@@ -1,7 +1,7 @@
 ---
 id: T-0241
 title: OSM viewpoints and peaks feed the 'why this is pretty' line and the Surprise candidate pool - never the per-way score
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T13:33:30Z
@@ -11,7 +11,7 @@ branch: task/T-0241
 exclusive: []
 touches: [services/etl/etl/landmarks.py, services/etl/tests/test_landmarks.py, services/etl/tests/test_landmarks_route.py, services/etl/tests/fixtures/, ops/mutate/landmarks.py, ops/lib/mutate_population_table.py, queue/backlog/T-0379-landmarks-table-in-the-corpus-and-the-explanation-line-on-the-route-card.md]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv3-t0241
 depends_on: [T-0208]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -74,3 +74,4 @@ The probe's recommendation: keep the extraction for destinations and explanation
   - A6 touched mutants only (faster-verification-in-rounds): `--only` the six -> MUTATE OK caught=6/6 equivalent_caught=0; floor 67 = population 67.
   - A7 bare gates: check-safety-disclaimer exit 0; check-mutate-population exit 0 "the floor of 168 holds"; check-mutate-only exit 0 "NAME-PAIRS OK"; check-line-cap exit 0; check-pins-yaml exit 0 "PINS-YAML ok pins=51 fields=411"; check-exec-bits exit 0 "P-OPS-01: 233 files, 23 required present, all modes correct"; queue-check exit 0 "QUEUE OK (369 tasks)".
 - 2026-10-16T17:07:14Z agent/claude-opus-5 (orchestrator): rv2 FAIL was ancestry only (T-0012 and T-0230 landed after this branch merged 274cd174). Merged origin/main (e18765d1); one conflict, ops/lib/mutate_population_table.py DRIVERS, resolved as the union (landmarks.py from this branch, profilegate.py from main; COVERED_FLOOR auto-merged with both). On the merged head: test_landmarks + test_landmarks_route 85 passed; python ops/mutate/landmarks.py MUTATE OK caught=67/67 equivalent_caught=0 (EQUIVALENT 1 missed as declared); bare gates all exit 0 (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-line-cap, check-pins-yaml, check-exec-bits, queue-check).
+- 2026-10-16T17:17:26Z agent/rv3-t0241 (review round 3, ancestry/CI/gates): PASS. origin/task/T-0241 5e7d7c87 contains origin/main e18765d1 (merge-base --is-ancestor exit 0, checked last). diff vs main: only this task files plus its queue file and the T-0379 backlog follow-up; DRIVERS and COVERED_FLOOR hold both landmarks.py and profilegate.py. test_landmarks + test_landmarks_route: 85 passed. Bare gates all exit 0: check-safety-disclaimer, check-mutate-population ("the floor of 169 holds"), check-mutate-only ("MUTATE-ONLY OK: 230 of 230"), check-line-cap, check-pins-yaml ("pins=51 fields=410"), check-exec-bits ("234 files"), queue-check ("QUEUE OK (369 tasks)"). gh pr checks 266: core pass, pins-source-only pass. claimed/ -> done/.
