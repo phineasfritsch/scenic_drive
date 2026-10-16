@@ -12,7 +12,9 @@ over code, never a list of bad spellings:
   (b) every occurrence of the identifier `UNPAVED_SURFACES` is a read, a plain `from .surface import
       UNPAVED_SURFACES`, or the ONE module-level binding in surface.py;
   (c) every module that names it holds surface's object at runtime, and the shipping entry points
-      (`assemble.gate_reason`, `surface.surface_state`) refuse every Swift value.
+      (`assemble.gate_reason`, `surface.surface_state`, `surfacecoverage.coverage`) call unpaved exactly the
+      Swift spelling: each Swift value x {exact, upper, title, leading/trailing space, trailing tab}, the
+      exact row refused and every variant admitted, as Swift's exact-match `contains` does.
 
 Comments are not code and are not read. The prove-red rows run the SAME functions over in-memory mutations of
 the shipped sources; a row whose `old` does not occur exactly once fails, it never skips.
@@ -23,10 +25,11 @@ import ast
 import importlib
 import pathlib
 import re
+import types
 
 import pytest
 
-from etl import assemble, surface
+from etl import assemble, surface, surfacecoverage
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 ETL_DIR = ROOT / "services" / "etl" / "etl"
@@ -151,10 +154,44 @@ def test_every_module_naming_the_set_holds_the_owners_object():
     assert set(surface.UNPAVED_SURFACES) == swift_unpaved()
 
 
-@pytest.mark.parametrize("value", sorted(swift_unpaved()))
-def test_the_shipping_entry_points_refuse_every_swift_value(value):
-    assert assemble.gate_reason({"highway": "residential", "surface": value}) == assemble.GATE_UNPAVED_SURFACE
-    assert surface.surface_state(highway="residential", surface=value) == surface.SURFACE_UNPAVED
+# Swift's `Gates.verdict` asks `unpavedSurfaces.contains(surface)` - exact match, no case fold, no trim. Each
+# ETL entry point must agree with it on EVERY spelling: refuse the exact value, admit each variant (rv1 B1/B2).
+VARIANTS = (
+    ("exact", lambda v: v),
+    ("upper", lambda v: v.upper()),
+    ("title", lambda v: v.title()),
+    ("lead-space", lambda v: " " + v),
+    ("trail-space", lambda v: v + " "),
+    ("trail-tab", lambda v: v + "\t"),
+)
+
+
+def variant_rows(swift: frozenset) -> list:
+    """(id, swift value, variant name, spelled tag) for every Swift value x every variant - f(parsed set)."""
+    return [("%s-%s" % (v, name), v, name, spell(v)) for v in sorted(swift) for name, spell in VARIANTS]
+
+
+def test_the_variant_table_skips_no_variant():
+    swift, rows = swift_unpaved(), variant_rows(swift_unpaved())
+    assert [n for n, _ in VARIANTS] == ["exact", "upper", "title", "lead-space", "trail-space", "trail-tab"]
+    assert {(v, name) for _, v, name, _ in rows} == {(v, n) for v in swift for n, _ in VARIANTS}
+    assert len(rows) == len(swift) * len(VARIANTS) == len({r[0] for r in rows})
+    for _, v, name, spelled in rows:
+        assert (spelled == v) == (name == "exact"), (v, name)   # a variant equal to v would test nothing
+        assert (spelled in swift) == (name == "exact"), (v, name)
+
+
+@pytest.mark.parametrize("row", variant_rows(swift_unpaved()), ids=[r[0] for r in variant_rows(swift_unpaved())])
+def test_the_shipping_entry_points_refuse_exactly_the_swift_spelling(row):
+    _, value, _, spelled = row
+    exact = spelled == value
+    reason = assemble.gate_reason({"highway": "residential", "surface": spelled})
+    assert (reason == assemble.GATE_UNPAVED_SURFACE) == exact, (spelled, reason)
+    state = surface.surface_state(highway="residential", surface=spelled)
+    assert (state == surface.SURFACE_UNPAVED) == exact, (spelled, state)
+    way = types.SimpleNamespace(highway="residential", surface=spelled)
+    table = surfacecoverage.coverage([way])
+    assert table["residential"][surfacecoverage.UNPAVED] == (1 if exact else 0), (spelled, table)
 
 
 IMPORT = "from .surface import UNPAVED_SURFACES"

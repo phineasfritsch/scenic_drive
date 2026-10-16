@@ -140,3 +140,28 @@ by merge order today; fixed here after both land, not as a round on either PR.
     queue-check rc=0 (`QUEUE OK (371 tasks)`).
   - OPEN (R5): the new tests are not in P-PROD-01's named list (ops/lib/named-tests.json + PINS.yaml are outside
     touches:); they run in ops/test's ETL pytest.
+- 2026-10-16T20:45:59Z rv1 FAIL (agent/rv1-t-0181, head 958c6580) - B1 surface.py:66 `surface.strip() in
+  UNPAVED_SURFACES` survives the suite; B2 assemble.py:135 `surface.lower() in UNPAVED_SURFACES` is caught only by
+  the anchor-text prove-red row. RULING: one root cause - guard (c) tested only that the exact Swift values are
+  refused, never that every other spelling is admitted, and Swift's `unpavedSurfaces.contains` is exact-match.
+  Fixed by CLASS in test_unpaved_surfaces_owner.py: VARIANTS (exact, upper, title, lead-space, trail-space,
+  trail-tab) x every value of the PARSED Swift set (`variant_rows`, rows = f(parsed set)); through the shipping
+  entry points `assemble.gate_reason`, `surface.surface_state`, `surfacecoverage.coverage` (the bucket counted
+  in the returned table): unpaved iff the row is `exact`. Meta-test `test_the_variant_table_skips_no_variant`:
+  the six names in order, the full cross product, ids unique, each non-exact spelling differs from v and is not
+  in the Swift set. Old `test_the_shipping_entry_points_refuse_every_swift_value` replaced by
+  `test_the_shipping_entry_points_refuse_exactly_the_swift_spelling` (42 rows). No product code changed.
+  - RED on 958c6580's tests (driver .artifacts/t0181_rm.py: pycache purged + 1.1 s, touched files
+    test_unpaved_surfaces_owner/test_assemble/test_surface_state/test_surfacecoverage/test_gate_port):
+    `RM1 MISSED rc=0 165 passed`; `RM2 CAUGHT rc=1 1 failed, 164 passed` - only
+    `test_each_prove_red_row_is_red[inline-comparison-beside-the-set]` (its `old` no longer occurs: anchor text,
+    not behaviour - MISSED by behaviour); RM3 (added, surfacecoverage.bucket `surface.rstrip() in`)
+    `RM3 MISSED rc=0 165 passed`.
+  - GREEN with the table: `62 passed` (test_unpaved_surfaces_owner.py). Same driver:
+    `RM1 CAUGHT rc=1 21 failed, 180 passed` - `refuse_exactly_the_swift_spelling[<v>-lead-space|trail-space|
+    trail-tab]` for all 7 values (e.g. `[compacted-lead-space]`, `[dirt-trail-tab]`);
+    `RM2 CAUGHT rc=1 15 failed, 186 passed` - `[<v>-upper|title]` x7 (e.g. `[gravel-upper]`, `[dirt-title]`) plus
+    the anchor row; `RM3 CAUGHT rc=1 14 failed, 187 passed` - `[<v>-trail-space|trail-tab]` x7.
+  - Meta-test red: the `("trail-tab", ...)` row deleted -> `FAILED
+    tests/test_unpaved_surfaces_owner.py::test_the_variant_table_skips_no_variant`; restored -> `1 passed`.
+  - wc -l test_unpaved_surfaces_owner.py 260. services/routing and profilegate untouched (T-0381).
