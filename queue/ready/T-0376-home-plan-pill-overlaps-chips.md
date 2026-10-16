@@ -1,7 +1,7 @@
 ---
 id: T-0376
 title: The home's "Plan a drive" pill no longer draws over the drive chips (Saddle Peak, Westwood loop) - seen in home-light-medium on every recent ios-screenshot run
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
