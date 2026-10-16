@@ -1,7 +1,7 @@
 ---
 id: T-0381
 title: The routing profile gates the five rows it cannot express today (tracktype>=grade3, locked barrier, ford, service values, rough smoothness) - encoded values in config.yml, clauses in car_scenic_base.json
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T19:37:33Z
@@ -11,7 +11,7 @@ branch: task/T-0381
 exclusive: [routing-profiles]
 touches: [services/routing/config.yml, services/routing/profiles/, services/routing/tests/, services/routing/plugins/scenic-score-parser/, services/etl/etl/profilegate.py, services/etl/tests/, services/etl/tests/fixtures/gate_parity.json, ops/mutate/profilegate.py, pins/PINS.yaml]
 pins_affected: [P-PROD-01, P-SAFE-01]
-reviewer: null
+reviewer: agent/rv3-t-0381
 depends_on: [T-0012, T-0188]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -200,3 +200,4 @@ re-import command and the expected graph hash change in the Log.
   (git diff empty). P-PROD-01 why_no_test_catches_it gains a dated T-0381 sentence (pins/PINS.yaml added to
   touches). NOT DONE HERE: gate_parity.json and Swift Gates.swift are not run over the corpus (the parity fixture
   is T-0181's in parallel; ScenicKit is outside this task's touches).
+- 2026-10-16T22:48:57Z agent/rv3-t-0381 REVIEW round 3 PASS (PR #273, HEAD 8ae0d0c7 == origin/task/T-0381). Corpus: services/etl/tests/gate_near_miss.py parses barrier/locked/ford/highway=service/4 service values from GateFacts.java and grade3-5 + 5 smoothness constants from the shipped car_scenic_base.json (16 literals, 7 keys, none skipped, highway=service included); every ruled family per literal; exact-equality oracle for the GateFacts keys, upper-cased valueOf for the two enums (ruled in this Log, Java-confirmed). Touched tests: services/etl test_profilegate.py + test_gate_parity.py 1593 passed; services/routing test_profiles_static.py 7 passed. rv2 mutants by name via ops/mutate/profilegate.py --only: a padded service highway trimmed, a cased service highway folded, a service list split on semicolons, a cased barrier folded -> each caught by test_encoding_matches_the_plugin_table, MUTATE OK caught=4/4 (floor 84). Own widenings (uncommitted probe, pycache purged + 1.1 s between runs, subject restored): W1 service startswith RED 48 failed (test_encoding_matches_the_plugin_table, test_the_shipped_profile_gates_no_near_miss); W2 ford re.match RED 12 failed (same two tests); W5 locked casefold RED 3 failed (same two tests). Recorded, non-blocking (outside the ruled families, not plausible slips): W3 highway unicodedata NFKC survived 1593 passed (no non-ASCII row; OSM tag values are ASCII); W4 enum raw.upper().replace("-", "_") survived 1593 passed (a substitution family; a deliberate normalization feature, not a refactor slip) - a follow-up could add a '-'/'_' substitution family. PINS.yaml P-PROD-01 change is append-only (dated T-0381 sentence). Gates bare in the review worktree: check-safety-disclaimer 0, check-mutate-population 0, check-mutate-only 0, check-line-cap 0, check-pins-yaml 0, check-exec-bits 0, queue-check 0 (QUEUE OK 373). gh pr checks 273: core pass, pins-source-only pass. git merge-base --is-ancestor origin/main origin/task/T-0381 -> 0 (main 14e1aab2). Java not re-run by the reviewer; the owner's quoted docker build (Tests run: 2 GateEncodingTest, BUILD SUCCESS over 1395 rows) stands. routing-profiles.lock released.
