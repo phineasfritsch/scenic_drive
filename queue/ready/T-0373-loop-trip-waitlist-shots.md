@@ -1,7 +1,7 @@
 ---
 id: T-0373
 title: ios-screenshot shoots the loop and trip regionUnsupported failure with "Count this area" and their waitlist card
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
