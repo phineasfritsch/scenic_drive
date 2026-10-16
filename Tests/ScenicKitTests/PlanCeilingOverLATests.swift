@@ -37,7 +37,8 @@ struct PlanCeilingOverLATests {
             }
             coordinates.append(Coordinate(latitude: 34.0 + Double(ways.count) / 100, longitude: -118.5))
             return RoutePath(durationMilliseconds: milliseconds, distanceMeters: 26_776.4,
-                             coordinates: coordinates, details: ["osm_way_id": ids])
+                             coordinates: coordinates, details: ["osm_way_id": ids, "scenic_score": ids.map {
+                                 RoutePath.DetailRun(from: $0.from, to: $0.to, value: .number(8)) }])
         }
     }
 

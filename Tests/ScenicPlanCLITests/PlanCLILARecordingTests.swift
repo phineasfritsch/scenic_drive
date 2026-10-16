@@ -46,8 +46,8 @@ struct PlanCLILARecordingTests {
         .deletingLastPathComponent()                    // Tests
         .appendingPathComponent("Fixtures/t0221")
 
-    static let pairs: [Pair] = [
-        Pair(name: "westwood-malibu",
+    /// T-0230: RouteScore 0.225555 - not a plan any more, refused as nothingPretty (its own test below).
+    static let westwoodMalibu = Pair(name: "westwood-malibu",
              origin: Coordinate(latitude: 34.0669, longitude: -118.4399),
              destination: Coordinate(latitude: 34.0356, longitude: -118.6894),
              typedOrigin: "34.0669,-118.4399", typedDestination: "34.0356,-118.6894",
@@ -58,7 +58,9 @@ struct PlanCLILARecordingTests {
                 + "&waypoint=34.05041,-118.48215&waypoint=34.05287,-118.50255&waypoint=34.04804,-118.54339"
                 + "&waypoint=34.04207,-118.56917&waypoint=34.03946,-118.58947&waypoint=34.03721,-118.60854"
                 + "&waypoint=34.03719,-118.63819&waypoint=34.03818,-118.65069&waypoint=34.03942,-118.66089"
-                + "&mode=driving"),
+                + "&mode=driving")
+
+    static let pairs: [Pair] = [
         Pair(name: "westwood-woodland-hills",
              origin: Coordinate(latitude: 34.0669, longitude: -118.4399),
              destination: Coordinate(latitude: 34.1684, longitude: -118.6058),
@@ -146,5 +148,32 @@ struct PlanCLILARecordingTests {
         #expect(lines.last == "URL \(pair.url)")
         #expect(plan.waypoints.count <= 9)
         #expect(pair.url.components(separatedBy: "&waypoint=").count - 1 == plan.waypoints.count)
+    }
+
+    // MARK: - T-0230: the honest failure over real data
+
+    @Test("westwood-malibu +25 is not much pretty: ops/plan refuses it with the two offers and issues nothing")
+    func westwoodMalibuIsNotMuchPretty() throws {
+        let pair = Self.westwoodMalibu
+        let fastest = try Self.recordedSeconds(pair, "fastest.json")
+        var refusal: PlanNothingPretty?
+        do {
+            let lines = try Self.printed(pair)
+            Issue.record("ops/plan issued a plan of \(lines.count) lines over a RouteScore-0.226 route")
+        } catch PlanFailure.nothingPretty(let state) {
+            refusal = state
+        }
+        let state = try #require(refusal)
+        // Field by field against numbers written here, then the printed text whole.
+        #expect(state.budget == 1500)
+        #expect(state.fastestDuration == fastest)
+        #expect(abs((state.routeScore ?? -1) - 0.225555177) < 1e-9)
+        #expect(state.moreTimeBudget == 3900)
+        #expect(state.backRoads == .unmeasured("no recorded response at lambda 8.0"))
+        #expect("\(PlanFailure.nothingPretty(state))" == [
+            "not much pretty within 25 minutes of this drive: RouteScore 0.226 is under the 0.45 floor",
+            "OFFER more-time: plan again with 65 minutes of extra time (+40 minutes)",
+            "NO-OFFER all-back-roads: lambda 8 was not measured (no recorded response at lambda 8.0)",
+        ].joined(separator: "\n"))
     }
 }

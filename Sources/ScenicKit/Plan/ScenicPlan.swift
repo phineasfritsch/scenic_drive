@@ -33,6 +33,13 @@ public struct ScenicPlan: Sendable, Equatable {
     /// from the thing under test is not a bound.
     public var ceiling: TimeInterval { fastestDuration + budget }
 
+    /// plan:214's product state (T-0230): less than half the extra time asked for was spent - the user said
+    /// "25 minutes" and was given "2". From the plan's own measured numbers, never `outcome.usedBudget`; a
+    /// zero budget has nothing to spend, as in LambdaSearch.
+    public var couldNotUseBudget: Bool {
+        budget > 0 && outcome.duration < fastestDuration + LambdaSearch.minBudgetUse * budget
+    }
+
     /// The report `ops/plan` prints, minus the handoff URL - which is built in Handoff, and ScenicKit does
     /// not know that a URL to a third-party maps app exists.
     ///
@@ -51,6 +58,10 @@ public struct ScenicPlan: Sendable, Equatable {
             "TABLE rows=\(table.rows.count) columns=way,highway,scenic_score,metres,seconds "
                 + "(seconds apportioned by metres; the scoring terms are not in the graph)",
         ]
+        if couldNotUseBudget {
+            lines.append("STATE couldNotUseBudget returned=\(Self.clock(outcome.duration)) under "
+                + "fastest+half-the-budget=\(Self.clock(fastestDuration + LambdaSearch.minBudgetUse * budget))")
+        }
         lines.append(Self.row("WAY", "HIGHWAY", "SCORE", "METRES", "SECONDS"))
         for row in table.rows {
             lines.append(Self.row(
