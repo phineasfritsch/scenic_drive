@@ -118,3 +118,9 @@ name; a clean fixture green), exit 4 ordering unchanged (check-sane-exit-order),
   - FOLLOW-UP (not this task's): surfacecoverage.BASELINES were measured on the canyon window (T-0205) and the FULL LA
     corpus is below them on motorway and motorway_link; re-measure over the full region before a full corpus is put
     where ops/sane finds it, or exit 4 will be red - correctly, by what the baselines say today.
+- 2026-10-16T05:29:41Z CORRECTION (agent/claude-opus-5): the table is 55 rows, not 56 - 46 s- rows, 6 d- rows, 3 p- rows; "53/53" above
+  was before p-python-false and p-python-echo were added (46 + 6 + p-prod-scope). Re-run on the merged head (origin/main
+  aa1b1b22, merge a no-op): `SANE-CORPUS ok 55/55 cases passed`; exit-order, PINS-YAML (pins=51 fields=411), P-OPS-01,
+  QUEUE OK (360 tasks), P-PROC-06 floor 165 all green; wc -l ops/sane 212, sane_corpus.py 175, sane_corpus_cases.py 141,
+  check_sane_corpus.py 182, check-sane-corpus 8, ops/mutate/sane_corpus.py 151, mutate_population_table.py 114.
+  P-OPS-09 text corrected to 46 / 55.
