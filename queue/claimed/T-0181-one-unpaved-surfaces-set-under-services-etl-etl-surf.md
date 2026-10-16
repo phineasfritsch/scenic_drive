@@ -92,3 +92,51 @@ by merge order today; fixed here after both land, not as a round on either PR.
   - A5 `cd services/etl && python -m pytest tests -rs -q -p no:cacheprovider -o addopts=` -> count line, 0 skips.
   - A6 bare gates: check-line-cap, check-pins-yaml.py, check-exec-bits, queue-check, check-safety-disclaimer,
     check-mutate-population.py, check-mutate-only.py -> each exit 0.
+- 2026-10-16T19:43:30Z RED FIRST (A4c): test_unpaved_surfaces_owner.py written, run on main's assemble.py (the
+  second literal still in place): `FAILED tests/test_unpaved_surfaces_owner.py::test_the_shipped_etl_has_one_
+  unpaved_set` and `::test_every_module_naming_the_set_holds_the_owners_object` (`AssertionError: assemble.py`,
+  not the owner's object). The guard's violations on main, verbatim: `assemble.py UNPAVED_SURFACES spells
+  ['compacted', 'dirt', 'fine_gravel', 'gravel', 'ground', 'sand', 'unpaved']; the one approved unpaved set is
+  surface.py UNPAVED_SURFACES` and `assemble.py:74 binds UNPAVED_SURFACES outside surface.py`. MEASURED literal
+  population on main (casefold members of the parsed Swift set, by module-level site): assemble.py
+  UNPAVED_SURFACES (7), profilegate.py SURFACES (7, uppercase), surface.py SURFACE_STATE_NAMES ['unpaved'],
+  surface.py UNPAVED_SURFACES (7), surfacecoverage.py UNPAVED ['unpaved'] - five sites, the four R4 approves
+  plus assemble's copy; nothing else under services/etl/etl spells a value.
+- 2026-10-16T19:45:00Z GREEN: assemble.py now `from .surface import UNPAVED_SURFACES` (exported in __all__; 299
+  lines), its literal and comment gone; test_assemble asserts `assemble.UNPAVED_SURFACES is
+  surface.UNPAVED_SURFACES` and `set(surface.UNPAVED_SURFACES) == _swift_set("unpavedSurfaces")` (299 lines; a
+  two-line docstring became one). The guard first flagged `assemble.py:73 names UNPAVED_SURFACES outside a read
+  or the owner's import` - the `__all__` string; ruled an approved site (a module-level `__all__` constant) and
+  row `bound-through-globals` added so a string-named binding elsewhere stays red. 26 passed. Each prove-red row's
+  violations, verbatim heads: second-literal-list-elsewhere `score.py ROUGH_SURFACES spells ['dirt', 'gravel']`;
+  import-replaced-by-a-literal-copy `assemble.py UNPAVED_SURFACES spells [...7]` + `assemble.py:62 binds`;
+  import-replaced-by-a-frozenset-copy `assemble.py:63 binds UNPAVED_SURFACES outside surface.py`;
+  reimported-from-assemble `surfacecoverage.py:59 imports UNPAVED_SURFACES other than ...`;
+  another-object-under-the-name `assemble.py:62 imports ...`; inline-comparison-beside-the-set `assemble.py
+  gate_reason spells ['Gravel']`; uppercase-copy `score.py _GH_ROUGH spells ['DIRT', 'GRAVEL']`; owner-narrowed
+  (6 values), owner-widened (+cobblestone), owner-renamed (`surface.py UNPAVED_VALUES spells` + `approved site
+  ... is gone`), owner-rebound-twice (+mud, `binds ... 2 times`), owner-assigned-from-another-module
+  `surfacecoverage.py:61 assigns .UNPAVED_SURFACES`, bound-through-globals `score.py:70 names ...`. Controls
+  a-comment-naming-the-values, a-docstring-sentence, a-non-member-literal -> [].
+- 2026-10-16T19:47:13Z A4a: Gates.swift loses "sand" -> `FAILED tests/test_assemble.py::test_the_gate_sets_are_
+  the_ones_scenickit_gates_on`, `FAILED tests/test_unpaved_surfaces_owner.py::test_the_shipped_etl_has_one_
+  unpaved_set` (7 failed, 33 passed); restored by git checkout. A4b: surface.py loses "sand" (pycache purged, 1.1
+  s) -> the same two plus `test_the_shipping_entry_points_refuse_every_swift_value[sand]` (9 failed, 32 passed);
+  restored, `"sand"` back at surface.py:46.
+- 2026-10-16T19:50:00Z A5 pre-merge: `python -m pytest tests -rs -q` -> `2030 passed in 97.58s`, no skips.
+- 2026-10-16T19:58:43Z FINAL, on the merged head ad1ecf28 (`git fetch origin` in the main checkout; origin/main
+  325c2cd3 merged - it brought only queue/LOCKS/routing-profiles.lock and the T-0381 task file):
+  - A1 `services/etl/etl/surface.py:45:UNPAVED_SURFACES = frozenset({` - the only line.
+  - A2 `services/etl/etl/assemble.py:62:from .surface import UNPAVED_SURFACES` and
+    `services/etl/etl/surfacecoverage.py:59:from .surface import UNPAVED_SURFACES`.
+  - A3 `236 passed in 5.50s`, no skip lines. wc -l: assemble.py 299, surface.py 70, test_assemble.py 299,
+    test_surface_state.py 119, test_unpaved_surfaces_owner.py 223.
+  - A4 as quoted at 19:43:30Z and 19:47:13Z (no code changed since; the merge touched queue/ only).
+  - A5 `2030 passed in 79.07s (0:01:19)`, no skips.
+  - A6 check-line-cap rc=0 (`P-SRC-02: 682 Swift files tracked ... none over 300 lines`), check-pins-yaml.py
+    rc=0 (`PINS-YAML ok pins=52 fields=418`), check-exec-bits rc=0 (`P-OPS-01: 235 files, 23 required present,
+    all modes correct`), check-safety-disclaimer rc=0, check-mutate-population.py rc=0 (`P-PROC-06: every added
+    module is covered or allowlisted; the floor of 169 holds`), check-mutate-only.py rc=0 (`NAME-PAIRS OK`),
+    queue-check rc=0 (`QUEUE OK (371 tasks)`).
+  - OPEN (R5): the new tests are not in P-PROD-01's named list (ops/lib/named-tests.json + PINS.yaml are outside
+    touches:); they run in ops/test's ETL pytest.
