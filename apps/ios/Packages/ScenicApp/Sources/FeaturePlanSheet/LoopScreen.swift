@@ -21,6 +21,11 @@ struct LoopScreen: View {
         _loop = loop
         self.planner = planner
         self.waitlist = waitlist
+        // T-0373 R2: a DEBUG rehearsal of this tab opens on the waitlist card with its answer; nil in every release build.
+        if let rehearsal = PlanRehearsal.atLaunch, rehearsal.tab == .loop, let answer = rehearsal.waitlist {
+            _showingWaitlist = State(initialValue: true)
+            _waitlistAnswer = State(initialValue: answer)
+        }
         self.mapsURL = mapsURL
     }
 
