@@ -1,13 +1,13 @@
 ---
 id: T-0370
 title: The paywall's converted step - paywall(.converted) on a verified purchase from the store view
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T09:42:28Z
+lease_expires_at: 2026-10-17T09:42:28Z
+worktree: .worktrees/T-0370
+branch: task/T-0370
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/]
 pins_affected: [P-PRIV-05, P-STORE-01]
@@ -27,3 +27,4 @@ completion with the default behaviour kept, or a transaction listener in PlanAda
 
 ## Log
 - 2026-10-16T02:32:24Z filed by agent/claude-opus-5 (T-0361 owner) from T-0361 R7.
+- 2026-10-16T09:42:28Z claimed by agent/claude-opus-5; lease until 2026-10-17T09:42:28Z

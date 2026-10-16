@@ -72,4 +72,39 @@ struct ConfigCacheTests {
             #expect(later == Self.fresh, "\(name): the kept answer is read back")
         }
     }
+
+    /// T-0368 R1: every stored variant plus feature_surprise stored both ways, typed bytes and typed answers.
+    static let keptStored: [(String, Data?, RemoteConfig)] = stored + [
+        ("surprise off", Data(#"{"min_app_build":4,"planning_paused":false,"feature_surprise":false}"#.utf8),
+         RemoteConfig(minAppBuild: 4, planningPaused: false, featureLoop: true, featureTrip: true, featureSurprise: false)),
+        ("surprise on", Data(#"{"min_app_build":4,"planning_paused":false,"feature_surprise":true}"#.utf8),
+         RemoteConfig(minAppBuild: 4, planningPaused: false, featureLoop: true, featureTrip: true, featureSurprise: true)),
+    ]
+
+    @Test("kept is the stored answer, else the Worker defaults, and asks the Worker nothing (T-0368 R1)")
+    func keptSendsNothing() async {
+        for (name, bytes, expected) in Self.keptStored {
+            let storage = MemoryConfigStorage(bytes)
+            let transport = ScriptedTransport(["GET /config": [PlanHTTPReply(status: 200, body: ConfigWireBody.of(Self.fresh))]])
+            let cache = ConfigCache(client: ConfigClient(base: ConfigWireBody.base, transport: transport), storage: storage)
+            #expect(cache.kept == expected, "\(name)")
+            #expect(await transport.requests.isEmpty, "\(name): kept sent a request")
+            #expect(storage.saves == 0 && storage.load() == bytes, "\(name)")
+        }
+        // Meta: the rows store feature_surprise both ways, so a kept that dropped the flag would show.
+        #expect(Set(Self.keptStored.map(\.2.featureSurprise)) == [true, false])
+    }
+
+    @Test("kept follows a good refresh and survives a refused one (T-0368 R1)")
+    func keptFollowsRefresh() async {
+        for (name, bytes, expected) in Self.keptStored {
+            let storage = MemoryConfigStorage(bytes)
+            for (failure, reply) in Self.failures {
+                _ = await Self.cache(storage, reply).refresh()
+                #expect(Self.cache(storage, nil).kept == expected, "\(name) / \(failure)")
+            }
+            _ = await Self.cache(storage, PlanHTTPReply(status: 200, body: ConfigWireBody.of(Self.fresh))).refresh()
+            #expect(Self.cache(storage, nil).kept == Self.fresh, "\(name)")
+        }
+    }
 }

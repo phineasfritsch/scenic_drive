@@ -296,7 +296,8 @@
         "TelemetryTests.TelemetryClientTests/waitingBoundTable(waiting:)",
         "TelemetryTests.TelemetryClientTests/everyOutcomeDropsTheBatch()",
         "TelemetryTests.TelemetryClientTests/capacityIsTheWorkersCap()",
-        "TelemetryTests.TelemetryClientTests/recordedOnlyAfterTheFirstPostReturns()"
+        "TelemetryTests.TelemetryClientTests/recordedOnlyAfterTheFirstPostReturns()",
+        "TelemetryTests.TelemetryClientTests/everyRequestStampsTheProvidersCurrentID()"
       ]
     }
   },

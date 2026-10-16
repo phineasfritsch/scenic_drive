@@ -1,0 +1,143 @@
+---
+id: T-0368
+title: The home's Surprise Me chip acts on /config's feature_surprise - hidden or its typed line when false, and the plan sheet's post-tap Surprise action follows it
+state: done
+owner: agent/claude-opus-5
+owner_session: null
+claimed_at: 2026-10-16T06:29:51Z
+lease_expires_at: 2026-10-17T06:29:51Z
+worktree: .worktrees/T-0368
+branch: task/T-0368
+exclusive: []
+touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/ScenicAPIClient/ConfigCache.swift, Tests/ScenicAPIClientTests/ConfigCacheTests.swift, Tests/ScenicAPIClientTests/NothingPrettyReaderTests.swift, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/, ops/mutate/, queue/]
+pins_affected: []
+reviewer: agent/rv2-t0368
+depends_on: [T-0364]
+verify: [ops/test, ops/check-pins]
+acceptance: []
+---
+## Brief
+
+T-0364 decodes feature_surprise (RemoteConfig.featureSurprise, per field, default true) and acts on it only in the
+plan sheet's pre-tap pause notice (ConfigDegrade.pausedSurpriseOff, R4). The home's SurpriseToggle (home.surprise)
+and SurpriseCard are composed by the shell apps/ios/ScenicDrive/ScenicDriveApp.swift, outside T-0364's touches, and
+FeatureScenicHome may import no adapter - so the chip still shows under feature_surprise=false, and the post-tap
+PlanFailureCopy rows (quotaExhausted, planningPaused, attestUnsupported) still offer "Surprise me instead".
+
+MEASURE first (the shell's composition, whether ScenicDriveApp.swift is frozen by check-safety-disclaimer-frozen,
+how the home could receive the config without a feature-to-adapter import). RULE hide vs typed line, and whether
+PlanFailureCopy takes the flag. Surprise Me sends the Worker nothing (no /surprise route), so the flag is advisory.
+
+## Log
+- 2026-10-16T00:26:47Z filed by agent/claude-opus-5 as T-0364's follow-up (T-0364 R6). Ids checked on origin/main and every
+  origin/task/* branch: highest T-0366, so T-0367.
+- 2026-10-16T01:20:31Z renumbered T-0367 -> T-0368 by agent/claude-opus-5: main took T-0367 (telemetry-install-id-per-request)
+  in the T-0358 merge; ids rechecked on origin/main and every origin/task/* branch, highest T-0367.
+- 2026-10-16T06:29:51Z claimed by agent/claude-opus-5; lease until 2026-10-17T06:29:51Z
+- 2026-10-16T06:34:53Z MEASURED by agent/claude-opus-5 (worktree at 6681d944):
+  - The shell (apps/ios/ScenicDrive/ScenicDriveApp.swift, 73 lines) composes the home as
+    `ScenicHomeScreen(onSettings: ..., surprise: { open, failure in AnyView(SurpriseCard(...)) })` and the plan sheet as
+    `PlanSheetScreen(planner: LivePlanner.make(), ..., onDrive: ..., onClose: ...)`; it imports PlanAdapter, so it can read
+    LivePlanner. It IS frozen: ops/lib/check-safety-disclaimer-frozen FROZEN_APP_SHELL lists every line of `struct
+    ScenicDriveApp` whole, and ops/lib/check-safety-disclaimer-pinned PINNED_SHELL_DIGEST pins its sha256 (760fe0f9...).
+  - The home's chip band is frozen too (FROZEN_CHIPS: `surpriseButton`, `if isShowingSurprise {`,
+    `surprise({ openSurprise($0) }, surpriseFailure)`). ScenicHomeScreen.swift is 299 lines (cap 300).
+  - FeatureScenicHome imports DesignSystem, Handoff, MapAdapter, ScenicKit, SwiftUI - never PlanAdapter or
+    ScenicAPIClient; RemoteConfig and anything typed over it in ScenicKit are reachable from the home.
+  - The only /config fetch is ConfigCache.refresh() (ScenicAPIClient), called by ConfiguredPlanner/LoopPlanner/
+    TripPlanner.degrade() when a plan, loop or trip form appears. The kept answer is `private var kept` (storage +
+    ConfigReader.decode, else RemoteConfig.bundled); nothing outside ScenicAPIClient can read it without a request.
+  - PlanFailureCopy.of(_:) has one caller in the app: PlanSheetScreen.planContent's `.failed` card; act(.surpriseMe) is
+    onClose(). Three rows carry .surpriseMe (quotaExhausted, planningPaused, attestUnsupported); two of their lines say
+    "Surprise Me still works". PlanOfferCopy, LoopFailure and TripFailure name no Surprise action.
+  - ConfigDegrade.of(_:appBuild:on: .plan) is .clear whenever planning_paused is false, whatever feature_surprise is,
+    so the sheet's degrade cannot tell a post-tap failure that Surprise is off.
+  - ios-screenshot's shot LIST is inside .github/workflows/ios-screenshot.yml (pinned by ops/lib/ios_screenshot_pinned.py),
+    outside touches.
+- 2026-10-16T06:34:53Z RULINGS by agent/claude-opus-5:
+  - R1 (source, privacy): the home and the sheet read feature_surprise from the KEPT /config answer only - no new
+    request anywhere (the owner is deciding a privacy rule; a launch-time /config fetch would be a new contact).
+    ConfigCache.kept becomes public (read-only: storage + ConfigReader, else bundled); touches widen by exactly
+    Sources/ScenicAPIClient/ConfigCache.swift and Tests/ScenicAPIClientTests/ConfigCacheTests.swift. PlanAdapter's
+    LivePlanner.surpriseGate() is the one live reader: SurpriseGate.of(cache(base).kept) with an https base, else
+    SurpriseGate.of(RemoteConfig.bundled) (on). The plan sheet reads it in its existing .task AFTER planner.degrade() -
+    so after the refresh that appearance already makes - and the shell re-reads it when the plan sheet is dismissed.
+  - R2 (home: typed line, not hide): the chip stays (the band's layout and the measured covered edge do not shift on an
+    async answer, and it matches T-0364 R5, where a switched-off loop or trip shows its typed line); with the flag off
+    the slot shows SurpriseGate.offLine "Surprise Me is switched off for now. You can still plan a drive." IN PLACE of
+    the card, and the shell's card builder is not called, so no deck, ledger or corpus read happens.
+  - R3 (new ScenicKit type SurpriseGate, .on/.off): `SurpriseGate.of(RemoteConfig)` is featureSurprise and nothing
+    else; `homeLine` is nil when on, offLine when off. Not numeric - no ops/mutate population (CLAUDE.md scopes it to
+    numeric modules).
+  - R4 (PlanFailureCopy takes the gate): `of(_:surprise:)` replaces `of(_:)` (the one-argument form is removed, so the
+    one app caller cannot compile without choosing). Off rows: quotaExhausted keeps its line, action .close;
+    planningPaused -> ConfigDegrade.pausedQuietLine, .close; attestUnsupported -> "This phone can't plan drives yet.",
+    .close. Every other row is identical under both gates. A DEBUG PlanRehearsal keeps .on (its .task returns first).
+  - R5 (no new shot): the shot list is in the workflow, outside touches; the existing 22 shots must stay green and the
+    `surprise` shot (no base URL in CI -> bundled -> on) must still show the card. The off line has no shot - gap.
+  - R6 (single binding): one reader (LivePlanner.surpriseGate) feeds both surfaces; the shell holds the home's copy in
+    one @State and hands the sheet the reader itself.
+
+- 2026-10-16T06:51:16Z RED -> GREEN by agent/claude-opus-5:
+  - R7 (touches): the one-argument PlanFailureCopy.of had a second caller,
+    Tests/ScenicAPIClientTests/NothingPrettyReaderTests.swift:77; touches widen by that one file, its row now asserted
+    under both gates.
+  - RED (before code, `swift test --filter "PlanFailureCopyTests|SurpriseGateTests|ConfigCacheTests"`, exit 1):
+    "cannot find type 'SurpriseGate' in scope", "extra argument 'surprise' in call", "'kept' is inaccessible due to
+    'private' protection level".
+  - GREEN (code in, the three suites plus NothingPrettyReaderTests, exit 0): "Test run with 13 tests in 3 suites passed";
+    XCTest "Executed 4 tests, with 0 failures".
+  - Mutants (each alone, restored after): M1 quotaExhausted off keeps .surpriseMe -> KILLED (onlySurpriseRowsReadTheGate);
+    M2 attestUnsupported off keeps the on line -> KILLED; M3 SurpriseGate.of returns .on -> KILLED (gateIsTheFlag);
+    M4 kept returns bundled -> KILLED (keptSendsNothing).
+  - Guard rows moved with their lines (whole-line, same commit): FROZEN_CHIPS, FROZEN_APP_SHELL (+ the surpriseGate
+    @State line), the FROZEN_SCREEN_BODY anchor (the init line), check-map-attribution-sheet SHELL_PLAN_PRESENTATION,
+    check-safety-disclaimer-doors DOORS_SHELL_LINE, store_links_pinned.py (init, shell mount, its mutant row).
+    Digests re-approved: ScenicHomeScreen, PlanSheetScreen, LivePlanner, new SurpriseGateSlot (both FeatureScenicHome
+    lists), PINNED_SHELL_DIGEST; linked: ConfigCache, PlanFailureCopy, new SurpriseGate.
+  - The shell's digest sits in two rows (PINNED_SHELL_DIGEST and the apps/ios table); check-safety-disclaimer and
+    check-map-attribution were seen RED on the second row's stale sha256 ("ScenicDrive/ScenicDriveApp.swift content
+    changed (sha256 b6981fdb..., approved 760fe0f9...)"), then GREEN once it was re-approved.
+- 2026-10-16T07:22:59Z iOS CI on 993de5fd by agent/claude-opus-5: ios-compile run 38863563031 success ("** BUILD
+  SUCCEEDED **"); ios-screenshot run 38863565664 success, 48 PNGs. Looked at surprise-light (the card drawn: the
+  gate is on with no base URL, R5), home-dark-collapsed (chip band unchanged: drives, sparkles chip, gear) and
+  plan-waitlist-light (unchanged). The switched-off line has no shot (R5 gap).
+- 2026-10-16T07:22:59Z merged origin/main (T-0365 waitlist across sheets) by agent/claude-opus-5. Conflict in
+  check-safety-disclaimer-pinned: main's RoadTripScreen row kept, PlanSheetScreen re-approved over the merged file.
+  R8: main's new PlanSheet.waitlistStart called the removed one-argument PlanFailureCopy.of; it now reads
+  `of(failure, surprise: .on)` - the waitlist row is gate-independent (acceptance 1's meta-row: only the three Surprise
+  rows differ), so either gate gives the same answer. PlanSheet.swift's linked digest re-approved.
+- 2026-10-16T07:40:00Z acceptance re-run on the merged head by agent/claude-opus-5:
+  - A1-A3 + merged neighbours (`--filter "PlanFailureCopyTests|SurpriseGateTests|ConfigCacheTests|
+    NothingPrettyReaderTests|PlanWaitlistStartTests|WaitlistAcrossSheetsTests|PlanSheet|LoopSheetTests|TripSheetTests|
+    ConfigFlagTests|ConfiguredSheetPlannerTests"`, exit 0): "Test run with 61 tests in 12 suites passed"; XCTest
+    "Executed 4 tests, with 0 failures".
+  - A4: ios-compile 38863563031 success, ios-screenshot 38863565664 success (pre-merge head 993de5fd; the merge adds
+    no Swift line of this task's beyond PlanSheet.waitlistStart's gate argument).
+  - A5 bare gates: check-safety-disclaimer 0, check-mutate-only 0, check-mutate-anchors 0, check-telemetry-emit-sites 0,
+    check-line-cap 0, check-pins-yaml 0, check-exec-bits 0, queue-check 0, store_links_pinned 0,
+    check-screen-rehearsals 0, check-map-attribution 0; check-mutate-population was RED on the merged head ("P-PROC-06:
+    module(s) added by this branch with no mutation population: Sources/ScenicKit/Config/SurpriseGate.swift"), R3's
+    non-numeric ruling is now an allowlist entry with its reason, and it is GREEN ("the floor of 165 holds").
+
+## Acceptance
+1. `swift test --filter PlanFailureCopyTests` passes: for every PlanSheetFailure x SurpriseGate (28 rows),
+   `PlanFailureCopy.of(failure, surprise: gate)` EQUALS a whole PlanFailureCopy typed in the test; meta-rows: exactly
+   the three cases quotaExhausted, planningPaused, attestUnsupported differ between .on and .off (every other row is
+   equal), no .off row carries .surpriseMe or a line containing "Surprise", 14 distinct lines under each gate.
+2. `swift test --filter SurpriseGateTests` passes: SurpriseGate.of over the cross product planning_paused x
+   feature_loop x feature_trip x feature_surprise x min_app_build {1, RemoteConfig.maxAppBuild} (32 configs) equals
+   the gate typed from feature_surprise alone, with a meta-row that both answers occur; homeLine is nil for .on and
+   exactly "Surprise Me is switched off for now. You can still plan a drive." for .off; allCases == [.on, .off];
+   RemoteConfig.bundled's gate is .on.
+3. `swift test --filter ConfigCacheTests` passes, including: `kept` over every stored variant (nothing, good bytes with
+   feature_surprise true and false, garbage, build 0) equals the row's decoded answer or the Worker defaults, with ZERO
+   requests on the transport and no save; after a good refresh `kept` equals the fresh answer; after a refused one it
+   is unchanged.
+4. The app half compiles and shows: ios-compile success and ios-screenshot success on task/T-0368, with the
+   `surprise-light`/`surprise-dark` shots showing the card (gate on) and a plan-sheet shot unchanged.
+5. Bare gates green: check-safety-disclaimer (FROZEN_APP_SHELL, FROZEN_CHIPS, PINNED_SHELL_DIGEST and every pinned/
+   linked digest re-approved), check-mutate-population, check-mutate-only, check-mutate-anchors,
+   check-telemetry-emit-sites, check-line-cap, check-pins-yaml, check-exec-bits, queue-check.
+- 2026-10-16T09:14:24Z agent/claude-opus-5 (owner): rv1-t0368 FAIL was ancestry-only (main gained PR #256 T-0374, #257 T-0373, #254 T-0367). Merged origin/main as d7e2c520; one conflict in ops/lib/check-safety-disclaimer-pinned: RoadTripScreen takes main's digest e9ba4942 (merged bytes = main's), PlanSheetScreen auto-merged (T-0373 rehearsal seeding + this branch's surpriseGate, both hunks disjoint) and is re-approved at the merged digest 842f33c9. On d7e2c520: swift test over PlanFailureCopy|SurpriseGate|ConfigCache|ConfigFlag|ConfigNotice|PlanWaitlistStart|WaitlistAcrossSheets "Test run with 23 tests in 7 suites passed"; bare gates rc=0: check-safety-disclaimer, check-mutate-population (floor 165), check-telemetry-emit-sites (54 lines), check-store-links, ios_screenshot_pinned, check-pins-yaml (pins=51), queue-check (365). ios-compile run 38878681896 success on d7e2c520; ios-screenshot 38878685784 dispatched on d7e2c520.
+- 2026-10-16T09:34:09Z agent/rv2-t0368 (reviewer, round 2, merge/ancestry only): PASS. `git show --remerge-diff d7e2c520`: the one conflict in ops/lib/check-safety-disclaimer-pinned resolves to one row each for PlanSheetScreen and RoadTripScreen, every other row untouched; PlanSheetScreen 842f33c9fe79519286927fca85f53c3ad45eca7fe8ee8437c2d99fb576341505 and RoadTripScreen e9ba4942a7b6b0c9bb0ced8f7985d457e80f3b66df52b6e24d1752bb7d302d3a each equal `sed 's/\r$//' FILE | sha256sum` of the merged file; RoadTripScreen has no branch change since merge-base a137f16c (diff vs main d40aa504: 0 lines). PlanSheetScreen.swift (272 lines) carries T-0373's rehearsedSearch, tab == .plan waitlist seeding and query seeding alongside this branch's surpriseGate init param, @State surprise, the .task refresh after setDegrade and PlanFailureCopy.of(failure, surprise: surprise); the one call site ScenicDriveApp.swift:64 passes surpriseGate. Bare gates in a detached worktree at b535c502, each rc=0: check-safety-disclaimer; check-mutate-population "P-PROC-06: every added module is covered or allowlisted; the floor of 165 holds"; check-telemetry-emit-sites "P-PRIV-05 emit sites: ok - 54 lines approved; 13 of 14 cases emitted once, 1 pending by task"; check-pins-yaml "PINS-YAML ok pins=51 fields=411"; queue-check "QUEUE OK (365 tasks)". CI: ios-compile 38878681896 success on d7e2c520; ios-screenshot 38878685784 completed success on d7e2c520, plan-paused-light shows "Planning is paused right now. Surprise Me on the home screen still works." and home-light-medium renders the home with the Saddle Peak sheet and the OpenStreetMap credit; PR #255 checks core pass 8m30s and pins-source-only pass 3m35s (run 38879104563 on b535c502). Ancestry after a fresh fetch: origin/main 7fb516e2 is not an ancestor (exit 1); the drift d40aa504..7fb516e2 is queue-only (b3096bd1, bfa5fcfe, 7fb516e2: T-0375-bind-telemetry-id-test-by-name.md under queue/, zero non-queue paths), accepted under the round-2 scope. Observation, not attributed to this PR: home-light-medium shows the "Plan a drive" pill overlapping the Saddle Peak / Westwood loop chips; this branch's ScenicHomeScreen diff touches only the surprise slot and its init.

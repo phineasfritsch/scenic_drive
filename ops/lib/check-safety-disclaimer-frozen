@@ -146,7 +146,7 @@ FROZEN_CHIPS=(
   'settingsButton'
   '}'
   'if isShowingSurprise {'
-  'surprise({ openSurprise($0) }, surpriseFailure)'
+  'SurpriseGateSlot(gate: surpriseGate, card: { surprise({ openSurprise($0) }, surpriseFailure) })'
   '}'
   '}'
   '.padding(6)'
@@ -183,6 +183,7 @@ FROZEN_APP_SHELL=(
   '@State private var corpus: LiveCorpus'
   '@State private var isShowingCorpusDownload: Bool'
   '@State private var drive = DriveRehearsal.atLaunch'
+  '@State private var surpriseGate = LivePlanner.surpriseGate()'
   ''
   'init() {'
   'let corpus = LiveCorpus.launch(wifiOnlyKey: SettingsScreen.corpusWifiOnlyKey)'
@@ -202,14 +203,14 @@ FROZEN_APP_SHELL=(
   '}'
   ''
   'private var home: some View {'
-  'ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })'
+  'ScenicHomeScreen(onSettings: { isShowingSettings = true }, surpriseGate: surpriseGate, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })'
   '.sheet(isPresented: $isShowingSettings) {'
   'SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, deleteAccount: { await LiveAccountDeletion.run() }, onDone: { isShowingSettings = false })'
   '}'
   '.overlay(alignment: .topLeading) {'
   'PlanDriveButton(action: { isPlanning = true })'
-  '.sheet(isPresented: $isPlanning) {'
-  'PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, onDrive: { isPlanning = false; drive = $0 }, onClose: { isPlanning = false })'
+  '.sheet(isPresented: $isPlanning, onDismiss: { surpriseGate = LivePlanner.surpriseGate() }) {'
+  'PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, surpriseGate: { LivePlanner.surpriseGate() }, onDrive: { isPlanning = false; drive = $0 }, onClose: { isPlanning = false })'
   '}'
   '}'
   '.sheet(isPresented: $isShowingCorpusDownload) {'
@@ -289,7 +290,7 @@ require_frozen_blocks() {
   local shell="$app_tree/ScenicDrive/ScenicDriveApp.swift"
   FROZEN_BAD=()
   frozen_block "$sheet" "HomeSheet's struct" FROZEN_HOME_SHEET "import SwiftUI"
-  frozen_block "$screen" "ScenicHomeScreen's body (the ZStack and its modifier chain)" FROZEN_SCREEN_BODY "public init(onSettings: @escaping () -> Void, surprise: @escaping SurpriseSlot.Builder) { self.onSettings = onSettings; self.surprise = surprise }"
+  frozen_block "$screen" "ScenicHomeScreen's body (the ZStack and its modifier chain)" FROZEN_SCREEN_BODY "public init(onSettings: @escaping () -> Void, surpriseGate: SurpriseGate, surprise: @escaping SurpriseSlot.Builder) { self.onSettings = onSettings; self.surpriseGate = surpriseGate; self.surprise = surprise }"
   frozen_block "$screen" "ScenicHomeScreen's chips" FROZEN_CHIPS "}"
   frozen_block "$screen" "ScenicHomeScreen's sheetDetails" FROZEN_SHEET_DETAILS "}"
   frozen_block "$screen" "ScenicHomeScreen's conditions" FROZEN_CONDITIONS "}"

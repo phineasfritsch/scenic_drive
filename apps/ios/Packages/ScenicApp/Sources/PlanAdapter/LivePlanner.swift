@@ -39,6 +39,14 @@ public enum LivePlanner {
                                                               appBuild: build))
     }
 
+    /// T-0368 R1: feature_surprise from the KEPT /config answer - the store only, no request - for the home and the plan
+    /// sheet alike; without an https base nothing was ever kept, so the bundled answer (on).
+    public static func surpriseGate() -> SurpriseGate {
+        guard let text = UserDefaults.standard.string(forKey: baseURLKey), let base = URL(string: text),
+              base.scheme == "https" else { return SurpriseGate.of(RemoteConfig.bundled) }
+        return SurpriseGate.of(cache(base).kept)
+    }
+
     /// The /config cache every live planner degrades through (T-0357 R4; T-0364 R3: plan, loop and trip alike).
     static func cache(_ base: URL) -> ConfigCache {
         ConfigCache(client: ConfigClient(base: base, transport: URLSessionPlanTransport()), storage: DefaultsConfigStorage())

@@ -59,9 +59,9 @@ APP_WIDE = {
     "import Entitlements": [(SHELL, "import Entitlements")],
     "onSettings": [
         (HOME, "private let onSettings: () -> Void"),
-        (HOME, "public init(onSettings: @escaping () -> Void, surprise: @escaping SurpriseSlot.Builder) { self.onSettings = onSettings; self.surprise = surprise }"),
+        (HOME, "public init(onSettings: @escaping () -> Void, surpriseGate: SurpriseGate, surprise: @escaping SurpriseSlot.Builder) { self.onSettings = onSettings; self.surpriseGate = surpriseGate; self.surprise = surprise }"),
         (HOME, "Button(action: onSettings) {"),
-        (SHELL, "ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })"),
+        (SHELL, "ScenicHomeScreen(onSettings: { isShowingSettings = true }, surpriseGate: surpriseGate, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })"),
     ],
     "settingsButton": [(HOME, "settingsButton"), (HOME, "private var settingsButton: some View {")],
     '"home.settings"': [(HOME, '.accessibilityIdentifier("home.settings")')],
@@ -153,8 +153,8 @@ MUTATIONS = [
     ("the app's ODbL notice edited", LG, "are themselves offered under the ODbL", "are themselves offered under a licence",
      "ODbL notice"),
     ("the shell drops the home's settings action", SHELL,
-     "ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })",
-     "ScenicHomeScreen(onSettings: {}, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })", "onSettings"),
+     "ScenicHomeScreen(onSettings: { isShowingSettings = true }, surpriseGate: surpriseGate, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })",
+     "ScenicHomeScreen(onSettings: {}, surpriseGate: surpriseGate, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })", "onSettings"),
     ("the settings button no longer mounted in the chip band", HOME, "            settingsButton\n", "", "settingsButton"),
     ("a second paywall surface with no links", f"{ENT}/QuickPaywall.swift", None,
      "import StoreKit\nimport SwiftUI\n\nstruct QuickPaywall: View {\n    var body: some View {\n"

@@ -148,6 +148,7 @@
     "Sources/ScenicAPIClient/AccountSessionProvider.swift": "a three-method protocol (T-0356 R4); no code",
     "Sources/ScenicAPIClient/LocalAccountEraser.swift": "a one-method protocol (T-0356 R3); no code",
     "Sources/ScenicAPIClient/LocalAccountItem.swift": "a thirteen-case inventory and its boolean erase ruling (T-0356 R3); no number",
-    "Sources/ScenicKit/Account/AccountDeletionPath.swift": "three accessibility identifiers in tap order (T-0356 R1); no number"
+    "Sources/ScenicKit/Account/AccountDeletionPath.swift": "three accessibility identifiers in tap order (T-0356 R1); no number",
+    "Sources/ScenicKit/Config/SurpriseGate.swift": "a two-case enum, a Bool read of RemoteConfig.featureSurprise and one copy line (T-0368 R3); no number reaches score, route or tags - its four mutants are quoted in T-0368's Log"
   }
 }
