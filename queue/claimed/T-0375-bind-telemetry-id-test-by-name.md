@@ -67,3 +67,17 @@ red by deleting the test (run-named-tests reports it MISSING) then green.
    UserStorePrivacyTests MISSING.
 5. Gates: `python ops/lib/check-pins-yaml.py`, `bash ops/queue-check`, `python ops/lib/check-mutate-population.py`
    exit 0 on the merged head.
+
+## Log (work)
+- 2026-10-16T09:27:13Z red/green on aa938e25 + the binding, driver `.worktrees/t0375-drive.py red` (outside the repo
+  tree; deletes lines 106-141 of TelemetryClientTests.swift - the doc comment, the test and its trailing blank line -
+  in memory-checked bytes, runs `run-named-tests.py P-PRIV-05` with SCENIC_SWIFT_SCRATCH=.build/t0375, restores):
+  `committed blob sha256 1e10fe05e7cd0412fbc14b82343686a70b844f198b03b1ca61cff4eefdbe223d worktree sha256 1e10fe05...223d equal True`
+  A pre-binding table, test DELETED: `exit=1` / `RED PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail(): MISSING - no test of this name ran` /
+  `NAMED P-PRIV-05 passed=73/74` - the deletion is not named (the gap the Brief describes; same result as an intact tree).
+  B bound table, test DELETED: `exit=1` / the same UserStorePrivacyTests MISSING line /
+  `RED TelemetryTests.TelemetryClientTests/everyRequestStampsTheProvidersCurrentID(): MISSING - no test of this name ran` /
+  `NAMED P-PRIV-05 passed=73/75`.
+  `restored sha256 1e10fe05e7cd0412fbc14b82343686a70b844f198b03b1ca61cff4eefdbe223d == committed blob True`
+  C bound table, test RESTORED: `exit=1` / the UserStorePrivacyTests MISSING line only / `NAMED P-PRIV-05 passed=74/75`
+  (green per R3: the bound name passed; the one non-pass is the Windows GRDB environment).
