@@ -1,7 +1,7 @@
 ---
 id: T-0365
 title: Loop and Trip sheets offer "Count this area" on regionUnsupported through the same WaitlistClient, once per cell per install
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
