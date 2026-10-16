@@ -38,6 +38,11 @@ public struct DriveSession: Sendable, Equatable {
     private var pinVertices: [Int]
     private var awaySince: TimeInterval?
     private var latest: DriveFix?
+    /// T-0361 R6: how many times this drive was DECLARED off-route (guiding -> rerouting or rejoining); a reconnect
+    /// that asks again is not a new one.
+    public private(set) var offRouteCount = 0
+    /// T-0361 R6: the metres driven along the lines this drive has left - each taken reroute adds its old line's.
+    private var metersBefore = 0.0
 
     /// nil unless the line is real, every pin is one of its vertices in route order, lambda is finite and both ETAs
     /// are inside 0...maxEtaSeconds.
@@ -85,6 +90,7 @@ public struct DriveSession: Sendable, Equatable {
         let since = awaySince ?? fix.timestamp
         awaySince = since
         guard fix.timestamp - since >= Self.offRouteDwellSeconds else { return nil }
+        offRouteCount += 1
         guard isOnline else {
             mode = .rejoining
             return nil
@@ -117,6 +123,7 @@ public struct DriveSession: Sendable, Equatable {
             mode = .rejoining
             return false
         }
+        metersBefore += Self.meters(along: line, to: progressSegment)
         line = next
         self.waypoints = waypoints
         pinVertices = vertices
@@ -137,6 +144,22 @@ public struct DriveSession: Sendable, Equatable {
 
     /// The current line cut at its pins: the steps NavAdapter hands Ferrostar (T-0321 R4).
     public var legs: [DriveLeg] { DriveLeg.split(line, at: pinVertices) }
+
+    /// T-0361 R6: the fraction of the drive driven - the metres along the driven lines to the progress vertex over
+    /// those before the current line plus the current line's whole length; 0 for a line with no length.
+    public var fractionDriven: Double {
+        let total = metersBefore + Self.meters(along: line, to: line.segmentCount)
+        return total > 0 ? (metersBefore + Self.meters(along: line, to: progressSegment)) / total : 0
+    }
+
+    /// The metres along `line` from its first vertex to `vertex`.
+    static func meters(along line: DriveLine, to vertex: Int) -> Double {
+        var meters = 0.0
+        for segment in 0..<vertex {
+            meters += Geo.distanceMeters(line.coordinates[segment], line.coordinates[segment + 1])
+        }
+        return meters
+    }
 
     /// Where the current leg ends - the first pin vertex past the progress, else the last vertex - and the metres
     /// to it ALONG the line from the latest usable fix (T-0329 R2). nil before the first one, and while that fix is

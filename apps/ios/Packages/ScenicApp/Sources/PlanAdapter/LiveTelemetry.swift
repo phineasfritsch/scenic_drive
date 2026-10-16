@@ -41,4 +41,42 @@ public enum LiveTelemetry {
     static func postDriveAnswer(prettier: Bool) {
         record(TelemetryEvent.postDriveAnswer(prettier: prettier))
     }
+
+    /// T-0361: the cases LiveMoments and LiveCorpus hand here, one emit line each (R2-R8).
+    static func previewShown() {
+        record(TelemetryEvent.previewShown)
+    }
+
+    static func handoffTapped(_ app: HandoffApp) {
+        record(TelemetryEvent.handoffTapped(app))
+    }
+
+    static func driveStarted() {
+        record(TelemetryEvent.driveStarted)
+    }
+
+    /// The fraction is floored to a whole percent here (CompletionPercent): no finer share of a route is sent.
+    static func driveCompleted(fraction: Double, deviations: Int) {
+        record(TelemetryEvent.driveCompleted(CompletionPercent(fraction: fraction), deviations: deviations))
+    }
+
+    static func driveAbandoned(fraction: Double) {
+        record(TelemetryEvent.driveAbandoned(CompletionPercent(fraction: fraction)))
+    }
+
+    static func surpriseNotThis(_ reason: SurpriseNotThisReason) {
+        record(TelemetryEvent.surpriseNotThis(reason))
+    }
+
+    static func surpriseTakeMeThere() {
+        record(TelemetryEvent.surpriseTakeMeThere)
+    }
+
+    static func corpusActivated(version: Int) {
+        record(TelemetryEvent.corpusActivated(version: version))
+    }
+
+    static func paywall(_ step: PaywallStep) {
+        record(TelemetryEvent.paywall(step))
+    }
 }
