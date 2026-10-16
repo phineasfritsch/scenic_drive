@@ -95,6 +95,30 @@ PlanFailureCopy takes the flag. Surprise Me sends the Worker nothing (no /surpri
     check-safety-disclaimer-doors DOORS_SHELL_LINE, store_links_pinned.py (init, shell mount, its mutant row).
     Digests re-approved: ScenicHomeScreen, PlanSheetScreen, LivePlanner, new SurpriseGateSlot (both FeatureScenicHome
     lists), PINNED_SHELL_DIGEST; linked: ConfigCache, PlanFailureCopy, new SurpriseGate.
+  - The shell's digest sits in two rows (PINNED_SHELL_DIGEST and the apps/ios table); check-safety-disclaimer and
+    check-map-attribution were seen RED on the second row's stale sha256 ("ScenicDrive/ScenicDriveApp.swift content
+    changed (sha256 b6981fdb..., approved 760fe0f9...)"), then GREEN once it was re-approved.
+- 2026-10-16T07:22:59Z iOS CI on 993de5fd by agent/claude-opus-5: ios-compile run 38863563031 success ("** BUILD
+  SUCCEEDED **"); ios-screenshot run 38863565664 success, 48 PNGs. Looked at surprise-light (the card drawn: the
+  gate is on with no base URL, R5), home-dark-collapsed (chip band unchanged: drives, sparkles chip, gear) and
+  plan-waitlist-light (unchanged). The switched-off line has no shot (R5 gap).
+- 2026-10-16T07:22:59Z merged origin/main (T-0365 waitlist across sheets) by agent/claude-opus-5. Conflict in
+  check-safety-disclaimer-pinned: main's RoadTripScreen row kept, PlanSheetScreen re-approved over the merged file.
+  R8: main's new PlanSheet.waitlistStart called the removed one-argument PlanFailureCopy.of; it now reads
+  `of(failure, surprise: .on)` - the waitlist row is gate-independent (acceptance 1's meta-row: only the three Surprise
+  rows differ), so either gate gives the same answer. PlanSheet.swift's linked digest re-approved.
+- 2026-10-16T07:40:00Z acceptance re-run on the merged head by agent/claude-opus-5:
+  - A1-A3 + merged neighbours (`--filter "PlanFailureCopyTests|SurpriseGateTests|ConfigCacheTests|
+    NothingPrettyReaderTests|PlanWaitlistStartTests|WaitlistAcrossSheetsTests|PlanSheet|LoopSheetTests|TripSheetTests|
+    ConfigFlagTests|ConfiguredSheetPlannerTests"`, exit 0): "Test run with 61 tests in 12 suites passed"; XCTest
+    "Executed 4 tests, with 0 failures".
+  - A4: ios-compile 38863563031 success, ios-screenshot 38863565664 success (pre-merge head 993de5fd; the merge adds
+    no Swift line of this task's beyond PlanSheet.waitlistStart's gate argument).
+  - A5 bare gates: check-safety-disclaimer 0, check-mutate-only 0, check-mutate-anchors 0, check-telemetry-emit-sites 0,
+    check-line-cap 0, check-pins-yaml 0, check-exec-bits 0, queue-check 0, store_links_pinned 0,
+    check-screen-rehearsals 0, check-map-attribution 0; check-mutate-population was RED on the merged head ("P-PROC-06:
+    module(s) added by this branch with no mutation population: Sources/ScenicKit/Config/SurpriseGate.swift"), R3's
+    non-numeric ruling is now an allowlist entry with its reason, and it is GREEN ("the floor of 165 holds").
 
 ## Acceptance
 1. `swift test --filter PlanFailureCopyTests` passes: for every PlanSheetFailure x SurpriseGate (28 rows),

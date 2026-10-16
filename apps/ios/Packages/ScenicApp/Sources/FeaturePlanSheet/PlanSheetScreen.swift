@@ -125,9 +125,9 @@ public struct PlanSheetScreen: View {
 
     @ViewBuilder private var content: some View {
         if showingLoop {
-            LoopScreen(loop: $loop, planner: loopPlanner, mapsURL: loopLink)
+            LoopScreen(loop: $loop, planner: loopPlanner, waitlist: planner, mapsURL: loopLink)
         } else if showingTrip {
-            RoadTripScreen(trip: $trip, planner: tripPlanner, dayLinks: dayLinks)
+            RoadTripScreen(trip: $trip, planner: tripPlanner, waitlist: planner, dayLinks: dayLinks)
         } else if showingSaved {
             SavedDrivesList(list: $saved, onReplay: replay)
         } else {
@@ -215,14 +215,15 @@ public struct PlanSheetScreen: View {
         }
     }
 
-    /// T-0360 R2, R3: the failed ticket's start, at most one request, the answer shown in place of the failure.
+    /// T-0360 R2, R3: the failed ticket's start (T-0365 R3: the sheet's waitlistStart), at most one request, the
+    /// answer shown in place of the failure.
     private func joinWaitlist() {
-        guard !showingWaitlist, case .failed(let ticket, _) = sheet.state else { return }
+        guard !showingWaitlist, let start = sheet.waitlistStart else { return }
         showingWaitlist = true
         waitlistAnswer = nil
         let planner = self.planner
         Task { @MainActor in
-            waitlistAnswer = await planner.joinWaitlist(near: ticket.origin)
+            waitlistAnswer = await planner.joinWaitlist(near: start)
         }
     }
 

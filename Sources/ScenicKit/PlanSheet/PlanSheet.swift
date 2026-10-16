@@ -118,6 +118,17 @@ public struct PlanSheet: Equatable, Sendable {
         }
     }
 
+    /// T-0365 R3: the start "Count this area" may hand the waitlist - the failed ticket's origin, already cut to
+    /// 2 dp, and only when the failure's action is the waitlist; nil in every other state. T-0368 R4: the waitlist row
+    /// reads no SurpriseGate (PlanFailureCopyTests: only the three Surprise rows differ), so either gate answers alike.
+    public var waitlistStart: Coordinate? {
+        guard case .failed(let ticket, let failure) = state,
+              PlanFailureCopy.of(failure, surprise: .on).action == .joinWaitlist else {
+            return nil
+        }
+        return ticket.origin
+    }
+
     /// The start as it may leave the device: each axis to the nearest hundredth (R4). PlanRequestBody refuses rather
     /// than rounds, so the rounding is the caller's - here.
     static func twoDecimals(_ coordinate: Coordinate) -> Coordinate {

@@ -58,6 +58,8 @@ WIRE = "the /trip request is exactly the whitelisted body, sent once"
 OUTCOME = "every Worker answer is one typed outcome from one request"
 OFFLINE = "an unreachable Worker is routingOffline after exactly one attempt"
 MAPPING = "every trip error is the sheet's failure of the same name"
+WAIT_COPY = "every trip failure's line and waitlist action, whole"
+WAIT_START = "the waitlist start is the failed ticket's 2-dp origin only on regionUnsupported"
 FULL = "a full answer carries each day's leg as its path"
 PREVIEW = "a preview reaches the sheet as exactly its itinerary: no path, so no per-day handoff"
 PINS = "a pin at the first vertex at or past each 20 km, never the ends"
@@ -182,6 +184,18 @@ MUTATIONS = [
      "case .nothingPretty: return .unexpectedResponse", [MAPPING, DULL_SHEET, DULL_LINE]),
     ("53 the dull trip's line reworded", FAILURE, '"Nothing on the way there was pretty enough to show.',
      '"Nothing along the way there was pretty enough to show.', [DULL_LINE]),
+    # T-0365: the waitlist offer on regionUnsupported and the one start it may hand the waitlist.
+    ("54 regionUnsupported offers no waitlist", FAILURE, "        case .regionUnsupported: return .joinWaitlist\n",
+     "        case .regionUnsupported: return nil\n", [WAIT_COPY, WAIT_START]),
+    ("55 a second failure offers the waitlist", FAILURE, "        case .regionUnsupported: return .joinWaitlist\n",
+     "        case .regionUnsupported, .noRoute: return .joinWaitlist\n", [WAIT_COPY, WAIT_START]),
+    ("56 the waitlist start ungated by the failure", SHEET,
+     "guard case .failed(let ticket, let failure) = state, failure.waitlistAction == .joinWaitlist else",
+     "guard case .failed(let ticket, _) = state else", [WAIT_START]),
+    ("57 the waitlist start is the place, not the 2-dp ticket", SHEET, "        return ticket.origin\n",
+     "        return start?.coordinate ?? ticket.origin\n", [WAIT_START]),
+    ("58 the trip region line loses its waitlist sentence", FAILURE, '"Road trips start inside the area we cover for now. We can count this area toward where we go next."',
+     '"Road trips start inside the area we cover for now."', [WAIT_COPY]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -191,6 +205,6 @@ EQUIVALENT = [
      "with exactly two points the loop runs over 1..<1, which is empty, so the pins are [] either way"),
 ]
 
-MIN_MUTATIONS = 53
+MIN_MUTATIONS = 58
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 6

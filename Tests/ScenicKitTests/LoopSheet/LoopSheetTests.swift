@@ -158,4 +158,54 @@ struct LoopSheetTests {
         #expect(Set(lines).count == LoopFailure.allCases.count)
         #expect(lines.allSatisfy { !$0.isEmpty && !$0.contains("!") })
     }
+
+    /// T-0365 R1, R2: every failure's whole line and its waitlist action, written out.
+    static let copy: [LoopFailure: (String, PlanFailureAction?)] = [
+        .quotaExhausted: ("That was today's loop. Another one opens up tomorrow.", nil),
+        .planningPaused: ("Planning is resting for a moment. Try again in a little while.", nil),
+        .routingOffline: ("We could not reach the planner. Check your connection and try again.", nil),
+        .noRoute: ("We could not find a loop from this start. Try another place.", nil),
+        .noCleanLoop: ("Every loop from here doubled back on itself. Try another start or another length.", nil),
+        .nothingPretty: ("No loop from here was pretty enough to show today. Try another start or another length.", nil),
+        .regionUnsupported: ("Loops start inside the area we cover for now. We can count this area toward where we go "
+                             + "next.", .joinWaitlist),
+        .invalidRequest: ("Something about this loop did not add up. Try choosing again.", nil),
+        .refusedOnDevice: ("This loop cannot be planned from here. Check the start and the time.", nil),
+        .unexpectedResponse: ("The planner answered in a way we did not expect. Try again.", nil),
+    ]
+
+    @Test("every loop failure's line and waitlist action, whole")
+    func failureCopyTable() {
+        #expect(Set(Self.copy.keys) == Set(LoopFailure.allCases))
+        for failure in LoopFailure.allCases {
+            #expect(failure.line == Self.copy[failure]?.0, "\(failure)")
+            #expect(failure.waitlistAction == Self.copy[failure]?.1, "\(failure)")
+        }
+    }
+
+    /// T-0365 R3: a sheet failed with `failure` from `place`.
+    static func failed(_ failure: LoopFailure, from place: PlanPlace) -> LoopSheet {
+        var sheet = LoopSheet(disclaimerAccepted: true)
+        sheet.search("q")
+        sheet.choose(place)
+        if let ticket = sheet.startPlanning() { sheet.finish(ticket, with: .failure(failure)) }
+        return sheet
+    }
+
+    @Test("the waitlist start is the failed ticket's 2-dp start only on regionUnsupported")
+    func waitlistStartTable() {
+        let starts: [(PlanPlace, Coordinate)] = [(Self.pier, Self.pierAt2dp),
+                                                 (Self.ojai, Coordinate(latitude: 34.45, longitude: -119.24))]
+        for (place, at2dp) in starts {
+            for failure in LoopFailure.allCases {
+                let expected: Coordinate? = failure == .regionUnsupported ? at2dp : nil
+                #expect(Self.failed(failure, from: place).waitlistStart == expected, "\(failure) \(place.name)")
+            }
+        }
+        #expect(Self.failed(.regionUnsupported, from: Self.pier).waitlistStart
+            != Self.failed(.regionUnsupported, from: Self.ojai).waitlistStart)
+        for from in From.allCases where from != .failed {
+            #expect(Self.sheet(from).waitlistStart == nil, "\(from)")
+        }
+    }
 }

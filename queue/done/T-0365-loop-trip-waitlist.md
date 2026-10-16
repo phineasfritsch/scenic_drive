@@ -1,0 +1,116 @@
+---
+id: T-0365
+title: Loop and Trip sheets offer "Count this area" on regionUnsupported through the same WaitlistClient, once per cell per install
+state: done
+owner: agent/claude-opus-5
+owner_session: null
+claimed_at: 2026-10-16T03:59:15Z
+lease_expires_at: 2026-10-17T03:59:15Z
+worktree: .worktrees/T-0365
+branch: task/T-0365
+exclusive: []
+touches: [Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, pins/PINS.yaml]
+pins_affected: [P-PRIV-05]
+reviewer: agent/rv2-t0365
+depends_on: [T-0360]
+verify: [ops/test, ops/check-pins]
+acceptance: []
+---
+## Brief
+
+T-0360 (PR #245) R1 gave the plan sheet's regionUnsupported failure the `.joinWaitlist` action ("Count this area"),
+backed by ScenicAPIClient's WaitlistClient (one res-5 cell from the start rounded to 2 dp, once per cell per
+install, six answers each with its line). Loop and Trip were ruled out of scope there: LoopFailure and TripFailure
+still offer no waitlist on their regionUnsupported failures (rv1-t0360 recordable 2).
+
+MEASURE FIRST: how regionUnsupported reaches LoopFailure / TripFailure today and what start each carries. RULE the
+action and copy (reuse PlanFailureAction.joinWaitlist and WaitlistAnswer lines; the same WaitlistMemory so a cell
+joined from any sheet is joined once). Tests: the failure-copy tables for Loop and Trip gain the row (whole-line
+equality); a cross-sheet row that a cell joined from Plan answers alreadyJoined from Loop with zero requests. Every
+apps/ios Swift edit needs the P-SAFE-03 digest re-approval; if refused, ship the Linux slice and say so.
+
+## Log
+- 2026-10-15T22:30:00Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0360 recordable 2 / T-0360 R1.
+- 2026-10-16T03:59:15Z claimed by agent/claude-opus-5; lease until 2026-10-17T03:59:15Z
+- 2026-10-16T04:03:05Z MEASURE + RULE (agent/claude-opus-5), before any code:
+  - M1 how regionUnsupported reaches the sheets: the Worker answers 422 `region_unsupported` on /loop at exactly one
+    site, services/api/src/loop.ts:74 `if (!inServedRegion(request.start))`, and on /trip at exactly one,
+    trip.ts:83 `if (!inServedRegion(request.origin))` (grep over src/loop*.ts and src/trip*.ts: no other site, the
+    planners never send it). LoopReplyReader.swift:21 / TripReplyReader.swift:23 read (422, "region_unsupported")
+    as LoopError/TripError.regionUnsupported, LoopError.swift:27 / TripError.swift:28 map it to
+    LoopFailure/TripFailure.regionUnsupported. No ScenicKit code makes either on the device.
+  - M2 the start each carries: the coordinate the Worker judged is the request's start, which is the ticket's -
+    `LoopTicket.start` (LoopSheet.startPlanning cuts it to 2 dp) and `TripTicket.origin` (TripSheet cuts it to 2 dp).
+    The failed state keeps that ticket: `LoopSheetState.failed(LoopTicket, LoopFailure)`,
+    `TripSheetState.failed(TripTicket, TripFailure)`.
+  - M3 the screens today: LoopScreen and RoadTripScreen show `failure.line` + "Try again" + "Change the loop/trip";
+    neither holds a WaitlistJoining. PlanSheetScreen holds `planner: any RoutePlanning & WaitlistJoining &
+    PlaceSearching` (the shell's one LivePlanner, whose WaitlistClient carries DefaultsWaitlistMemory) and builds
+    both sub-screens itself, so the same joiner can be handed down with no shell change and no new target dependency.
+  - M4 the failure-copy tables the Brief names do not exist for Loop/Trip: LoopSheetTests/TripSheetTests only check
+    the lines are distinct and calm. They are created here, whole-line, over allCases.
+  - R1 action: LoopFailure and TripFailure gain `waitlistAction: PlanFailureAction?` - an exhaustive switch,
+    `.joinWaitlist` for regionUnsupported, nil for every other case. The button's words are
+    `PlanFailureAction.joinWaitlist.title` ("Count this area"); the two existing buttons stay.
+  - R2 copy: the regionUnsupported lines gain the plan sheet's second sentence (T-0360 R1):
+    Loop "Loops start inside the area we cover for now. We can count this area toward where we go next."
+    Trip "Road trips start inside the area we cover for now. We can count this area toward where we go next."
+    Every other line is unchanged. The answer is WaitlistAnswer.line on the unchanged WaitlistCard.
+  - R3 the start, one binding per sheet: `LoopSheet.waitlistStart`, `TripSheet.waitlistStart` and
+    `PlanSheet.waitlistStart` (Coordinate?) - the failed ticket's start/origin iff the failure offers
+    `.joinWaitlist` (Loop/Trip: `waitlistAction`; Plan: `PlanFailureCopy.of(failure).action`), else nil. Each screen
+    joins only through it. PlanSheetScreen moves from "any failed ticket's origin" to it; that path was reachable only
+    from the .joinWaitlist action, so the plan's behaviour is unchanged. Privacy unchanged (Brief): WaitlistClient is
+    still the only sender, one res-5 cell from the 2-dp start, never a coordinate.
+  - R4 one memory: LoopScreen and RoadTripScreen take `waitlist: any WaitlistJoining`, which PlanSheetScreen passes as
+    its own `planner` - the same WaitlistClient, the same DefaultsWaitlistMemory, so a cell joined from any sheet is
+    joined once per install. Each sub-screen keeps its own showing/answer state, cleared on edit/try again/search.
+  - R5 touches: the cross-sheet row needs ScenicAPIClient's WaitlistClient, which ScenicKitTests does not depend on
+    (Package.swift is serial-only and not touched); it lives in Tests/ScenicAPIClientTests/, added to `touches:` by
+    this ruling (not a serial-only path). It is bound by name under P-PRIV-05 in ops/lib/named-tests.json.
+  - R6 shots: the shot list is .github/workflows/ios-screenshot.yml, outside touches; no new loop/trip waitlist shot
+    in this task. ios-screenshot must stay success and the existing loop, trip and waitlist PNGs are looked at.
+  - R7 mutants: no Sources/ file is added, so P-PROC-06 asks no new population; the loopsheet and tripsheet
+    populations gain the new lines' mutants (action dropped, start ungated, raw start, line reworded) with raised
+    literal floors, run with `--only`.
+
+### Acceptance (T-0365)
+  A1 `swift test --jobs 4 --scratch-path .build/t0365 --filter "ScenicKitTests.(LoopSheetTests|TripSheetTests|PlanWaitlistStartTests)|ScenicAPIClientTests.WaitlistAcrossSheetsTests"`
+     green, with: (a) LoopSheetTests `every loop failure's line and waitlist action, whole` and TripSheetTests
+     `every trip failure's line and waitlist action, whole` - every case's (line, waitlistAction) EQUAL to a literal
+     row, the table's keys equal to allCases; regionUnsupported's row is R2's line with .joinWaitlist, every other
+     row nil; (b) LoopSheetTests/TripSheetTests `the waitlist start is the failed ticket's 2-dp start only on
+     regionUnsupported` - every failure x two starts (pier, ojai): waitlistStart == the ticket's start for
+     regionUnsupported, nil otherwise, and nil in every non-failed state; (c) PlanWaitlistStartTests the same over
+     every PlanSheetFailure; (d) WaitlistAcrossSheetsTests `a cell joined from one sheet is alreadyJoined from every
+     other with zero requests` - Plan, Loop, Trip x Plan, Loop, Trip, each pair through one WaitlistClient and one
+     MemoryWaitlist, joining from each sheet's waitlistStart: the first is joined with exactly the one recomputed
+     request, the second alreadyJoined, the transport's requests still exactly that one; cellOf asked with the 2-dp
+     start each time.
+  A2 RED first: (a)-(d) written before waitlistAction/waitlistStart exist - the build fails naming them.
+  A3 `python ops/lib/run-named-tests.py P-PRIV-05` green with WaitlistAcrossSheetsTests bound.
+  A4 `python ops/mutate/loopsheet.py --only <new ids>` and `python ops/mutate/tripsheet.py --only <new ids>`: every
+     new mutant CAUGHT by its named killers; floors raised.
+  A5 bare gates: check-safety-disclaimer (digests re-approved), check-mutate-population, check-mutate-only,
+     check-telemetry-emit-sites, check-line-cap, check-pins-yaml, check-exec-bits, queue-check.
+  A6 ios-compile success and ios-screenshot success on task/T-0365; plan-loop, plan-trip and plan-waitlist PNGs
+     looked at.
+- 2026-10-16T04:49:43Z WORK (agent/claude-opus-5):
+  - RED first (A2, commit 5ee50b4d): the four test files were committed before any code; the A1 filter's build failed
+    by name - `WaitlistAcrossSheetsTests.swift:28:25: error: value of type 'PlanSheet' has no member
+    'waitlistStart'` (and :34 LoopSheet, :42 TripSheet). Then green (commit 745bff07): `Test run with 18 tests in
+    4 suites passed`; crossSheet 9 cases and otherCellSends 9 cases passed.
+  - A4 `python ops/mutate/loopsheet.py --only 66,67,68,69,70`: `MUTATE OK caught=5/5 (--only: 5 of 70 entries)`;
+    `python ops/mutate/tripsheet.py --only 54,55,56,57,58`: `MUTATE OK caught=5/5 (--only: 5 of 58 entries)`; every
+    one caught by its named killers; floors 65 -> 70 and 53 -> 58.
+  - A5 the first check-safety-disclaimer run was red (`Sources/ScenicKit/TripSheet/TripSheet.swift content
+    changed`) because it ran while the tripsheet driver had a mutant applied to that file; it was re-run on the
+    clean tree (git status: only the new backlog file) and exited 0. That shows the digest pin goes red on a changed
+    subject. The other gates exited 0 bare: check-mutate-population, check-mutate-only, check-telemetry-emit-sites,
+    check-line-cap (661 files, none over 300), check-pins-yaml, check-exec-bits, queue-check.
+  - A6 ios-compile run 38849780191 success; ios-screenshot run 38849782561 success. Looked at plan-loop-light,
+    plan-trip-dark and plan-waitlist-light: loop preview, trip itinerary and the plan waitlist card render as before
+    (PlanSheetScreen now joins through waitlistStart). No shot shows the new loop/trip offer (R6) - filed T-0373 (first filed as T-0372; renumbered after main took that id)
+    (ids checked on origin/main and every origin/task/* branch, highest T-0371).
+- 2026-10-16T06:44:29Z agent/claude-opus-5 (owner): rv1-t0365 FAIL was ancestry-only (main gained PR #251 T-0361). Merged origin/main as 1466563f; one conflict in ops/lib/check-safety-disclaimer-pinned resolved by provenance (LoopPreviewCard: main's 25119b5f; LoopScreen: this branch's 849c08f1; each equals the merged file). On 1466563f: A1 swift test over the 7 suites "Test run with 32 tests in 7 suites passed"; check-safety-disclaimer rc=0; check-mutate-population "floor of 165 holds" rc=0; check-telemetry-emit-sites "ok - 59 lines approved; 13 of 14 cases emitted once, 1 pending by task" rc=0; check-pins-yaml rc=0; check-mutate-anchors rc=0; queue-check "QUEUE OK (364 tasks)" rc=0; ios-compile run 38862203922 success on 1466563f.
+- 2026-10-16T06:54:30Z agent/rv2-t0365 (reviewer, round 2, merge/ancestry only): PASS. rv1-t0365 passed every code check; this round re-checks the merge 1466563f (parents 1e3ef989, 6681d944; merge-base aa1b1b22) on a detached worktree at origin/task/T-0365 = 0d9e3815. `git show --remerge-diff 1466563f` touches only ops/lib/check-safety-disclaimer-pinned: LoopPreviewCard row = main's 25119b5f (base b1b0bc8c, branch unchanged), LoopScreen row = branch's 849c08f1 (base f7751da3, main unchanged); `sed "s/\r$//" FILE | sha256sum` of the merged files gives 25119b5fefa84eba73db934abcf02a523c3340c07612c3a5e8d3193c3b2d2557 and 849c08f186fed96d62c20382b5957b404b2800c0c9886e25164d309e383ef1e6, equal to the pins at 1466563f and HEAD; pinned rows 102 (branch) / 108 (main) / 108 (merge), none dropped from either side. `git diff-tree --cc` also lists check-safety-disclaimer-linked-digests.txt: its remerge-diff is empty (clean auto-merge, hunks from one side each), rows 359 / 363 / 363, none dropped. Bare on 0d9e3815: check-safety-disclaimer exit=0 ("LAST all 109 app .swift, then 326 root + pbxproj file(s) (-linked)"); check-mutate-population "P-PROC-06: every added module is covered or allowlisted; the floor of 165 holds" exit=0; check-telemetry-emit-sites "P-PRIV-05 emit sites: ok - 59 lines approved; 13 of 14 cases emitted once, 1 pending by task" exit=0; check-pins-yaml "PINS-YAML ok pins=50 fields=403" exit=0; queue-check "QUEUE OK (364 tasks)" exit=0. CI: ios-compile run 38862203922 conclusion success, headSha 1466563f; `gh pr checks 252` core pass 6m46s, pins-source-only pass 2m42s (run 38862947687, headSha 0d9e3815, success). Last, after a fresh fetch: origin/main = 6681d944, `git merge-base --is-ancestor origin/main origin/task/T-0365` exit=0, no main drift since the merge. queue/claimed/ -> queue/done/.
