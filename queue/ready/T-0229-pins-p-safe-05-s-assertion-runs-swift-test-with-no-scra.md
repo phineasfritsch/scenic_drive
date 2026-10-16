@@ -1,7 +1,7 @@
 ---
 id: T-0229
 title: pins - P-SAFE-05's assertion runs `swift test --filter SolarFixtureTests` with NO --scratch-path: racy against any other swift build on the box (seen failing OPEN once on 2026-09-19); every pin that builds Swift takes its own scratch path
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
