@@ -81,3 +81,12 @@ red by deleting the test (run-named-tests reports it MISSING) then green.
   `restored sha256 1e10fe05e7cd0412fbc14b82343686a70b844f198b03b1ca61cff4eefdbe223d == committed blob True`
   C bound table, test RESTORED: `exit=1` / the UserStorePrivacyTests MISSING line only / `NAMED P-PRIV-05 passed=74/75`
   (green per R3: the bound name passed; the one non-pass is the Windows GRDB environment).
+- 2026-10-16T09:31:00Z ACCEPTANCE re-run at b5984ad7 after `git fetch origin` + `git merge origin/main` (`Already up
+  to date.`; origin/main 7fb516e2 is an ancestor, so 3 and 4 above ran on this tree's content):
+  1. P-PRIV-05 swift.tests: the bound name `count 1`, `distinct 38`, vitest 37 (unchanged); `git diff origin/main --
+     ops/lib/named-tests.json` is the comma on recordedOnlyAfterTheFirstPostReturns() plus the one added line.
+  2. `git diff origin/main -- pins/PINS.yaml`: one line changed (P-PRIV-05 why_no_test_catches_it, T-0375 sentence
+     appended); `PINS-YAML ok pins=51 fields=411` exit 0.
+  3./4. as quoted in the 09:27:13Z entry (73/74 unseen, 73/75 MISSING by name, restored sha256 equal, 74/75).
+  5. `PINS-YAML ok pins=51 fields=411` rc=0; `QUEUE OK (366 tasks)` rc=0; `P-PROC-06: every added module is covered
+     or allowlisted; the floor of 165 holds` rc=0.
