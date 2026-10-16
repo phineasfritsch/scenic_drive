@@ -1,7 +1,7 @@
 ---
 id: T-0183
 title: services/etl/regions/la/curated.yaml - the plan's M2 five seeds, authored for LA and the owner's commute, with the pytest the plan names
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
