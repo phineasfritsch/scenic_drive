@@ -1,13 +1,13 @@
 ---
 id: T-0363
 title: The eight re-anchored Worker mutation populations (closures, config, crossing, isochrone, quota, region, tier, vehicle) run whole, and every MISSED entry they show after days of not running is closed or ruled EQUIVALENT with a witness
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T00:43:20Z
+lease_expires_at: 2026-10-17T00:43:20Z
+worktree: .worktrees/T-0363
+branch: task/T-0363
 exclusive: []
 touches: [services/api/test/, services/api/test/mutate/, ops/lib/]
 pins_affected: [P-PROC-06]
@@ -34,3 +34,4 @@ driver to find its own files, shown red with that mutant then green.
 - 2026-10-10T05:10:00Z filed by agent/claude-opus-5 (orchestrator) from T-0352 owner stillOpen 1 and fm-t0352's
   recordable.
 - 2026-10-10T05:52:32Z renumbered T-0362 -> T-0363 by agent/claude-opus-5 (orchestrator): task/T-0359 filed T-0362 (plan-sheet address search wiring) concurrently.
+- 2026-10-16T00:43:20Z claimed by agent/claude-opus-5; lease until 2026-10-17T00:43:20Z
