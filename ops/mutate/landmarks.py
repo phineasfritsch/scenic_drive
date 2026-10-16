@@ -119,12 +119,24 @@ MUTATIONS = [
     ("a one-point route has no legs", SUBJECT, LEGS, "    legs = list(zip(route, route[1:]))"),
     ("unnamed landmarks named", SUBJECT, UNNAMED, '        if False:\n            continue'),
     ("the farthest leg measured", SUBJECT, NEAREST_LEG, NEAREST_LEG.replace("min(", "max(")),
+    ("the first leg within 300 m, not the nearest", SUBJECT, NEAREST_LEG,
+     "        distance, leg = next(((d, i) for d, i in ((geom.point_to_segment_m(point, a, b), i) for i, (a, b) in"
+     " enumerate(legs)) if d <= NEAR_M), (float('inf'), 0))"),
+    ("the last leg within 300 m, not the nearest", SUBJECT, NEAREST_LEG,
+     NEAREST_LEG.replace("min((", "min(((").replace("legs))", "legs)), key=lambda h: (h[0] > NEAR_M, -h[1]))")),
+    ("equidistant legs take the later leg", SUBJECT, NEAREST_LEG,
+     NEAREST_LEG.replace("min((", "min(((").replace("legs))", "legs)), key=lambda h: (h[0], -h[1]))")),
     ("route bound exclusive", SUBJECT, ROUTE_BOUND, ROUTE_BOUND.replace("<= NEAR_M", "< NEAR_M")),
     ("route bound gone", SUBJECT, ROUTE_BOUND, ROUTE_BOUND.replace("distance <= NEAR_M", "True")),
     ("ordered by distance, not by route position", SUBJECT, HIT,
      '            hits.append((distance, leg, lm["osm_id"], lm["name"]))'),
     ("ties ordered by id, not distance", SUBJECT, HIT,
      '            hits.append((leg, lm["osm_id"], distance, lm["name"]))'),
+    ("farther first on one leg", SUBJECT, HIT, '            hits.append((leg, -distance, lm["osm_id"], lm["name"]))'),
+    ("equal distance: higher osm id first", SUBJECT, HIT,
+     '            hits.append((leg, distance, -lm["osm_id"], lm["name"]))'),
+    ("equal distance: ordered by name, not osm id", SUBJECT, HIT,
+     '            hits.append((leg, distance, lm["name"], lm["name"]))'),
     ("unordered", SUBJECT, ORDER, "    for _leg, _distance, _osm_id, name in hits:"),
     ("ordered backwards", SUBJECT, ORDER, "    for _leg, _distance, _osm_id, name in sorted(hits, reverse=True):"),
     ("a repeated name said twice", SUBJECT, SEEN, "        if False:"),
@@ -140,7 +152,7 @@ EQUIVALENT = [
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 61
+MIN_MUTATIONS = 67
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
