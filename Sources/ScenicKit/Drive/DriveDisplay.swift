@@ -1,7 +1,7 @@
 import Foundation
 
 /// What the drive screen shows for one surface and mode (T-0324 R2), the line it draws (T-0328 R4), and the ETA line
-/// and fresh-route note of that line (T-0330 R3/R4). The screen renders these seven fields and reads neither DriveSurface nor DriveMode itself, so the motion gate (P-SAFE-09) is
+/// and fresh-route note of that line (T-0330 R3/R4). The screen renders these eight fields (T-0358: `arrived`, read through PostDriveQuestion) and reads neither DriveSurface nor DriveMode itself, so the motion gate (P-SAFE-09) is
 /// decided here, on Linux.
 public struct DriveDisplay: Sendable, Equatable {
     /// The one action, on both surfaces.
@@ -18,6 +18,8 @@ public struct DriveDisplay: Sendable, Equatable {
     public let etaLine: String
     /// T-0330 R3: freshNote on the full surface while the line is a fresh plan; nil otherwise (moving adds nothing).
     public let note: String?
+    /// T-0358 R8: the drive has arrived (DriveVoice's arrival, handed in by NavAdapter); false from a session alone.
+    public let arrived: Bool
 
     public static let freshNote = "A new route from here - not the rest of your plan."
     public static let endTitle = "End drive"
@@ -25,7 +27,7 @@ public struct DriveDisplay: Sendable, Equatable {
     public static let actionHeight = 44.0
 
     public init(surface: DriveSurface, mode: DriveMode, line: [Coordinate] = [], etaLine: String = "",
-                continued: Bool = true) {
+                continued: Bool = true, arrived: Bool = false) {
         let moving = surface == .minimal
         actionTitle = Self.endTitle
         actionMinHeight = moving ? Self.largeActionHeight : Self.actionHeight
@@ -38,10 +40,11 @@ public struct DriveDisplay: Sendable, Equatable {
         self.line = line
         self.etaLine = etaLine
         note = moving || continued ? nil : Self.freshNote
+        self.arrived = arrived
     }
 
     init(actionTitle: String, actionMinHeight: Double, status: String?, showsDetails: Bool,
-         line: [Coordinate] = [], etaLine: String = "", note: String? = nil) {
+         line: [Coordinate] = [], etaLine: String = "", note: String? = nil, arrived: Bool = false) {
         self.actionTitle = actionTitle
         self.actionMinHeight = actionMinHeight
         self.status = status
@@ -49,13 +52,14 @@ public struct DriveDisplay: Sendable, Equatable {
         self.line = line
         self.etaLine = etaLine
         self.note = note
+        self.arrived = arrived
     }
 
     /// The display for the session as it stands - what NavAdapter's DriveNavigator publishes after every input.
-    public init(session: DriveSession) {
+    public init(session: DriveSession, arrived: Bool = false) {
         self.init(surface: session.surface, mode: session.mode, line: session.line.coordinates,
                   etaLine: PlanPreview.etaLine(etaSeconds: session.etaSeconds,
                                                fastestEtaSeconds: session.fastestEtaSeconds),
-                  continued: session.continued)
+                  continued: session.continued, arrived: arrived)
     }
 }

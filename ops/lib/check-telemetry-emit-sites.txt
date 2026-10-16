@@ -8,12 +8,14 @@ site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveWaitlist.swift	import T
 emit	planRequested	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.planRequested(feature: feature, budgetMinutes: budgetMinutes, origin: cell))
 emit	planResult	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.planResult(kind))
 emit	surpriseShown	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.surpriseShown)
+emit	postDriveAnswer	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.postDriveAnswer(prettier: prettier))
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	            current = TelemetryClient(base: base, device: id, transport: URLSessionTelemetryTransport())
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	        let current: TelemetryClient
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	    func record(_ event: TelemetryEvent) async {
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	    private var client: TelemetryClient?
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	actor InstallBoundTelemetry {
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	import Telemetry
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LivePostDriveAnswers.swift	        LiveTelemetry.postDriveAnswer(prettier: prettier)
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        return InstallBoundTelemetry(base: base)
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    private static let client: InstallBoundTelemetry? = build()
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    static func build() -> InstallBoundTelemetry? {
@@ -41,7 +43,6 @@ pending	handoffTapped	T-0361
 pending	driveStarted	T-0361
 pending	driveCompleted	T-0361
 pending	driveAbandoned	T-0361
-pending	postDriveAnswer	T-0358
 pending	surpriseNotThis	T-0361
 pending	surpriseTakeMeThere	T-0361
 pending	surpriseArrived	T-0361

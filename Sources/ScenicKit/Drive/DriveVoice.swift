@@ -22,6 +22,9 @@ public struct DriveVoice: Sendable, Equatable {
     private var approached: Set<Int> = []
     private var arrived = false
 
+    /// T-0358 R8: the arrival line has been said on the current line (a taken reroute's new line clears it).
+    public var hasArrived: Bool { arrived }
+
     public init(session: DriveSession) {
         mode = session.mode
         line = session.line
