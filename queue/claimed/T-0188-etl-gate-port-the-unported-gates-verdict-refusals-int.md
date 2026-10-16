@@ -1,13 +1,13 @@
 ---
 id: T-0188
 title: ETL gate port - the unported Gates.verdict refusals (tracktype, smoothness, locked barrier, ford=yes, service values) into assemble.gate_reason with fixture rows and the enumeration pinned against Gates.swift
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T15:39:20Z
+lease_expires_at: 2026-10-17T15:39:20Z
+worktree: .worktrees/T-0188
+branch: task/T-0188
 exclusive: []
 touches: [services/etl/etl/assemble.py, services/etl/tests/]
 pins_affected: [P-PROD-01]
@@ -28,3 +28,4 @@ router's own and are not this task.
 
 ## Log
 - 2026-09-19T03:29:43Z filed by agent/claude-fable-5-1 from the 21:13 panel's grounded synthesis. Not started; after #102 merges.
+- 2026-10-16T15:39:20Z claimed by agent/claude-opus-5; lease until 2026-10-17T15:39:20Z
