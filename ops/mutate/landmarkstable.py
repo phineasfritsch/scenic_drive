@@ -73,6 +73,16 @@ def digest_reading(column: str, expression: str) -> str:
 
 # The digest keeps every column but loses its precision: two corpora one unit apart share a content_sha256.
 LOSSY_INTEGERS = ("ele_dm", "lat_e5", "lon_e5", "nearest_way_id")
+# Lossy projections a one-unit step can miss (rv3): a quotient by k keeps v and v + 1 together unless v + 1 is a
+# multiple of k; round(x, -1) and CAST(x AS REAL) return a REAL that render_field prints with 9 significant digits.
+LOSSY_READS = (
+    ("nearest_way_id", "nearest_way_id / 2"),
+    ("ele_dm", "ele_dm / 3"),
+    ("lat_e5", "lat_e5 / 7"),
+    ("ele_dm", "round(ele_dm, -1)"),
+    ("nearest_way_id", "CAST(nearest_way_id AS REAL)"),
+)
+assert SELECT.count("lat_e5, lon_e5") == 1
 UNORDERED = SELECT.replace('\n     "ORDER BY osm_type, osm_id"', "")
 assert UNORDERED != SELECT
 
@@ -121,6 +131,11 @@ MUTATIONS = [
 ] + [
     ("digest truncates name", DIGEST, SELECT, digest_reading("name", "substr(name, 1, 8)")),
 ] + [
+    ("digest reads %s" % expression, DIGEST, SELECT, digest_reading(column, expression))
+    for column, expression in LOSSY_READS
+] + [
+    ("digest reads lat_e5 and lon_e5 swapped", DIGEST, SELECT, SELECT.replace("lat_e5, lon_e5", "lon_e5, lat_e5")),
+] + [
     ("region build passes no landmarks", STAGE, FLAG,
      '                        "--built-at", BUILT_AT, "--region", layout.region])'),
 ]
@@ -139,10 +154,14 @@ EQUIVALENT = [
      "ROWID with no secondary index, so the table is one b-tree keyed (osm_type, osm_id) and the only plan for "
      "the unordered full scan walks it in key order - the rows reach the hash in the same sequence",
      DIGEST, SELECT, UNORDERED),
+    ("digest reads lon_e5 as REAL: schema.py statement 19 CHECKs lon_e5 BETWEEN -18000000 AND 18000000, at most 8 "
+     "digits, and render_field prints a REAL with format(value, '.9g'), so CAST(lon_e5 AS REAL) renders the same "
+     "digits as the INTEGER (-11855000.0 -> '-11855000', 18000000.0 -> '18000000') - the serialisation is unchanged",
+     DIGEST, SELECT, digest_reading("lon_e5", "CAST(lon_e5 AS REAL)")),
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 44
+MIN_MUTATIONS = 50
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
