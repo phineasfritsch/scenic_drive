@@ -10,18 +10,19 @@ import Testing
     static let telemetryURL = "https://api.example.test/telemetry"
 
     /// The request recomputed from the committed data point, independently of the client's own body type.
-    static func expected(_ events: [TelemetryEvent]) throws -> TelemetryRequest {
+    static func expected(_ events: [TelemetryEvent],
+                         wire: String = "6f9619ff-8b86-d011-b42d-00c04fc964ff") throws -> TelemetryRequest {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let body = try encoder.encode(["events": events.map(\.dataPoint)])
         return TelemetryRequest(url: URL(string: telemetryURL)!, method: "POST",
                                 headers: ["content-type": "application/json",
-                                          "x-scenic-device": "6f9619ff-8b86-d011-b42d-00c04fc964ff"],
+                                          "x-scenic-device": wire],
                                 body: body)
     }
 
     static func client(_ transport: ScriptedTelemetryTransport, base: URL = base) -> TelemetryClient {
-        TelemetryClient(base: base, device: device, transport: transport)
+        TelemetryClient(base: base, device: { device }, transport: transport)
     }
 
     @Test func everyEventPostsExactlyItsRequest() async throws {
@@ -100,6 +101,42 @@ import Testing
         let prefix = "export const MAX_TELEMETRY_EVENTS_PER_REQUEST = "
         let line = try #require(text.split(separator: "\n").first { $0.hasPrefix(prefix) })
         #expect(line == Substring(prefix + "\(TelemetryClient.capacity);"))
+    }
+
+    /// T-0367 (P-PRIV-04 R3): the x-scenic-device id is the provider's id when EACH post is built. Two records, the
+    /// provider's id set between them per row: unchanged, changed after the first post returned, and changed while
+    /// the first post is in flight with the second event waiting behind it. Every row's requests equal, WHOLE, the
+    /// ones recomputed from that row's two wire ids, and the two ids' requests differ.
+    @Test func everyRequestStampsTheProvidersCurrentID() async throws {
+        let first = (UUID(uuidString: "6F9619FF-8B86-D011-B42D-00C04FC964FF")!, "6f9619ff-8b86-d011-b42d-00c04fc964ff")
+        let next = (UUID(uuidString: "0A1B2C3D-4E5F-4A6B-8C7D-9E0F1A2B3C4D")!, "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d")
+        let one = TelemetryEvent.planResult(.routed)
+        let two = TelemetryEvent.driveStarted
+        #expect(try Self.expected([two], wire: first.1) != Self.expected([two], wire: next.1))
+        let rows: [(name: String, second: (UUID, String), inFlight: Bool)] = [
+            ("same id", first, false), ("changed after the first post", next, false),
+            ("changed while the first post is in flight", next, true),
+        ]
+        for row in rows {
+            let ids = ScriptedInstallID(first.0)
+            let transport = ScriptedTelemetryTransport(holdFirst: row.inFlight)
+            let client = TelemetryClient(base: Self.base, device: ids.read, transport: transport)
+            if row.inFlight {
+                let posting = Task { await client.record(one) }
+                while await !transport.isHolding { await Task.yield() }
+                await client.record(two)
+                ids.id = row.second.0
+                await transport.release()
+                await posting.value
+            } else {
+                await client.record(one)
+                ids.id = row.second.0
+                await client.record(two)
+            }
+            let sent = await transport.requests
+            #expect(sent == [try Self.expected([one], wire: first.1), try Self.expected([two], wire: row.second.1)],
+                    "\(row.name)")
+        }
     }
 
     @Test func recordedOnlyAfterTheFirstPostReturns() async throws {
