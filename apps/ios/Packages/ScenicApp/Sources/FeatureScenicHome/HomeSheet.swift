@@ -24,6 +24,10 @@ struct HomeSheet<Summary: View, Details: View>: View {
     @ViewBuilder let summary: () -> Summary
     @ViewBuilder let details: () -> Details
 
+    /// T-0378: above the default text size the details scroll inside a band 15% of the window tall, so the medium
+    /// sheet never grows past the window (at AX5 it laid out ~3335 pt and the map's Metal drawable passed 8192 px).
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     /// A drag shorter than this is not a request to change detent.
     private static var dragThreshold: CGFloat { 40 }
 
@@ -34,8 +38,14 @@ struct HomeSheet<Summary: View, Details: View>: View {
             VStack(alignment: .leading, spacing: 12) {
                 summary()
                 if detent == .medium {
-                    details()
-                        .transition(.opacity)
+                    if typeSize > .large {
+                        ScrollView { details() }
+                            .containerRelativeFrame(.vertical) { length, _ in length * 0.15 }
+                            .transition(.opacity)
+                    } else {
+                        details()
+                            .transition(.opacity)
+                    }
                 }
             }
             .padding(.horizontal, 16)
