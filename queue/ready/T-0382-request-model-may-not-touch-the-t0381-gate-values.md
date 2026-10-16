@@ -1,7 +1,7 @@
 ---
 id: T-0382
 title: The request custom model may not touch the T-0381 gate values - FORBIDDEN_ENCODED_VALUES gains track_type, smoothness, gate_locked_barrier, gate_ford, gate_service_way
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
