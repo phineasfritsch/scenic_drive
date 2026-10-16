@@ -24,6 +24,19 @@ OSM = HERE / "fixtures" / "corpus_landmarks.osm.xml"
 BUILT_AT = "2026-10-16T00:00:00Z"
 COLUMNS = ("osm_type", "osm_id", "kind", "name", "ele_dm", "lat_e5", "lon_e5", "nearest_way_id")
 SELECT = "SELECT %s FROM landmarks ORDER BY osm_type, osm_id" % ", ".join(COLUMNS)
+# One (row key, new value) per column, the digest test's perturbations: each changes exactly its column of one row
+# and keeps that row's place in ORDER BY osm_type, osm_id, so a digest that drops the column cannot be moved by
+# the row order instead. The key is perturbed in place too: w 201 -> n 201 stays last, n 101 -> n 100 stays first.
+PERTURB = {
+    "osm_type": (("w", 201), "'n'"),
+    "osm_id": (("n", 101), "100"),
+    "kind": (("n", 101), "'viewpoint'"),
+    "name": (("n", 101), "NULL"),
+    "ele_dm": (("n", 101), "NULL"),
+    "lat_e5": (("n", 101), "0"),
+    "lon_e5": (("n", 101), "0"),
+    "nearest_way_id": (("n", 101), "NULL"),
+}
 
 # Typed out by hand from the fixture: 851 m -> 8510 dm; 2800 ft = 853.44 m -> 853.4 -> 8534 dm; the ring's
 # point is the mean of its three distinct nodes at 5 dp. 101 ties ways 21 and 23 (one geometry) -> the lower.
@@ -99,11 +112,19 @@ def test_the_landmarks_table_is_odbl_and_in_the_content_digest(tmp_path):
         [t for t, _ in contentdigest.SELECTS].index("places") + 1
     conn = sqlite3.connect(str(build(tmp_path, "--landmarks-osm", str(OSM))))
     try:
+        assert tuple(row[1] for row in conn.execute("PRAGMA table_info(landmarks)")) == COLUMNS
+        assert tuple(PERTURB) == COLUMNS
         before = contentdigest.content_sha256(conn)
-        for column in ("kind", "name", "ele_dm", "lat_e5", "lon_e5", "nearest_way_id"):
-            value = {"kind": "'viewpoint'", "lat_e5": "0", "lon_e5": "0"}.get(column, "NULL")
+        rows = conn.execute(SELECT).fetchall()
+        for column in COLUMNS:
+            key, value = PERTURB[column]
+            at = [row[:2] for row in rows].index(key)
             conn.execute("SAVEPOINT s")
-            conn.execute("UPDATE landmarks SET %s = %s WHERE osm_id = 101" % (column, value))
+            conn.execute("UPDATE landmarks SET %s = %s WHERE osm_type = ? AND osm_id = ?" % (column, value), key)
+            after = conn.execute(SELECT).fetchall()
+            assert len(after) == len(rows), column
+            assert [i for i, (old, new) in enumerate(zip(rows, after)) if old != new] == [at], column
+            assert [c for c, old, new in zip(COLUMNS, rows[at], after[at]) if old != new] == [column]
             assert contentdigest.content_sha256(conn) != before, column
             conn.execute("ROLLBACK TO s")
             conn.execute("RELEASE s")
