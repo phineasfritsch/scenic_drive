@@ -62,7 +62,7 @@ def test_encoding_matches_the_plugin_table(row):
 
 
 def test_the_plugin_table_is_whole():
-    assert ENCODING_TABLE.is_file() and len(TABLE_ROWS) == 34
+    assert ENCODING_TABLE.is_file() and len(TABLE_ROWS) == 44
 
 
 def test_road_access_order_is_graphhoppers_enum():
@@ -216,6 +216,9 @@ GATED_BY_T0381 = [({"highway": "tertiary", "tracktype": t}, True) for t in ("gra
     ({"highway": "service", "service": "alley"}, False), ({"highway": "service"}, False),
     ({"highway": "motorway", "service": "driveway"}, False),
 ]
+# rv1 B1: every gating value padded is a near miss - GraphHopper 11's valueOf and GateFacts compare untrimmed.
+GATED_BY_T0381 += [({**tags, key: pad % tags[key]}, False) for tags, want in list(GATED_BY_T0381) if want
+                   for key in sorted(tags) if key != "highway" for pad in (" %s", "%s ")]
 
 
 @pytest.mark.parametrize("tags,want", GATED_BY_T0381, ids=[json.dumps(t, sort_keys=True) for t, _ in GATED_BY_T0381])

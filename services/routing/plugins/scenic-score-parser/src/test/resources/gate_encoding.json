@@ -34,6 +34,16 @@
     {"tags": {"highway": "service"}, "encoded": {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
     {"tags": {"highway": "residential", "service": "driveway"}, "encoded": {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
     {"tags": {"highway": "service_link", "service": "driveway"}, "encoded": {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
-    {"tags": {"highway": "service", "service": "driveway", "ford": "yes", "barrier": "gate", "locked": "yes", "tracktype": "grade3", "smoothness": "bad"}, "encoded": {"track_type": "GRADE3", "smoothness": "BAD", "gate_locked_barrier": true, "gate_ford": true, "gate_service_way": true}}
+    {"tags": {"highway": "service", "service": "driveway", "ford": "yes", "barrier": "gate", "locked": "yes", "tracktype": "grade3", "smoothness": "bad"}, "encoded": {"track_type": "GRADE3", "smoothness": "BAD", "gate_locked_barrier": true, "gate_ford": true, "gate_service_way": true}},
+    {"tags": {"highway": "tertiary", "tracktype": " grade3"}, "encoded": {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
+    {"tags": {"highway": "tertiary", "tracktype": "grade3 "}, "encoded": {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
+    {"tags": {"highway": "residential", "smoothness": " bad"}, "encoded": {"track_type": "MISSING", "smoothness": "OTHER", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
+    {"tags": {"highway": "residential", "smoothness": "bad "}, "encoded": {"track_type": "MISSING", "smoothness": "OTHER", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
+    {"tags": {"highway": "unclassified", "ford": " yes"}, "encoded": {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
+    {"tags": {"highway": "unclassified", "ford": "yes "}, "encoded": {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
+    {"tags": {"highway": "tertiary", "barrier": "gate", "locked": "yes "}, "encoded": {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
+    {"tags": {"highway": "tertiary", "barrier": " gate", "locked": "yes"}, "encoded": {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
+    {"tags": {"highway": "service", "service": " driveway"}, "encoded": {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}},
+    {"tags": {"highway": "service", "service": "driveway "}, "encoded": {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": false, "gate_ford": false, "gate_service_way": false}}
   ]
 }
