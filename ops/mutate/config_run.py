@@ -59,13 +59,13 @@ def not_at_head(paths) -> list:
 
 
 def build() -> int:
-    p = subprocess.run(["swift", "build", "--build-tests", "--scratch-path", SCRATCH],
+    p = subprocess.run(["swift", "build", "--build-tests", "--jobs", "4", "--scratch-path", SCRATCH],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode
 
 
 def test() -> tuple:
-    p = subprocess.run(["swift", "test", "--scratch-path", SCRATCH, "--filter", FILTER],
+    p = subprocess.run(["swift", "test", "--jobs", "4", "--scratch-path", SCRATCH, "--filter", FILTER],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode, (p.stdout + p.stderr)
 
