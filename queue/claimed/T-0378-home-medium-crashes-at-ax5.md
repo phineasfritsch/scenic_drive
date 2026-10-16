@@ -86,6 +86,46 @@ success, and home-ax5-medium looked at and quoted: credit, conditions line and b
   - R4 (the LIST). `medium` goes back into the ax5 LIST after `collapsed`, in the workflow and in
     ops/lib/ios_screenshot_pinned.py's AX5_LIST, with a prove-red row "T-0378: the AX5 medium shot dropped". RED
     first: the workflow edited alone must fail check-ios-compile-guardrails.py by name before the pinned copy follows.
+- 2026-10-16T21:31:48Z RED then GREEN (R4), by name.
+  - RED: ios-screenshot.yml's ax5 LIST edited alone to `collapsed medium preview ...`; `python
+    ops/lib/check-ios-compile-guardrails.py` exit=1: `IOS-COMPILE-GUARDRAILS: workflow.jobs.simulator-screenshot.
+    steps[4].run: differs from the pinned value (compared by equality)` / `IOS-COMPILE-GUARDRAILS FAIL: 1 guardrail(s)
+    gone in ios-screenshot.yml`.
+  - GREEN: ios_screenshot_pinned.py's run text and AX5_LIST follow; the same command exit=0 (`IOS-COMPILE-GUARDRAILS
+    OK: ios-screenshot.yml equals the pinned workflow ...`). `--prove-red` exit=0: `[red rc=1] ios-screenshot.yml:
+    T-0378: the AX5 medium shot dropped (the crash at the largest text size unseen again): ... differs from the pinned
+    value` and `PROVE-RED OK: 98 mutations red, 6 legitimate spellings green over 2 workflows, 0 unexpected result(s)`.
+  - The Swift edit, before its whitelists: `bash ops/lib/check-safety-disclaimer` exit=1, `P-SAFE-03: a frozen render
+    block changed: HomeSheet's struct line 6 of 62 ... found @Environment(\.dynamicTypeSize) private var typeSize` and
+    `ScenicHomeScreen's body ... line 38 of 39 ... found .dynamicTypeSize(userTypeSize)`; then, the frozen lists
+    edited, `the pinned render surface changed: HomeSheet.swift ... sha256 9be4c20e...` and `ScenicHomeScreen.swift
+    ... 8b8b0823...`; both digests re-approved (`sed 's/\r$//' FILE | sha256sum` agrees): exit=0.
+  - c78b78cd pushed; ios-compile run 38969961170 and ios-screenshot run 38969965368 dispatched.
+- 2026-10-16T21:52:41Z ACCEPTANCE re-run on c78b78cd (`git fetch origin` in the main checkout: origin/main 14e1aab2
+  is already an ancestor, nothing to merge).
+  - A1 ios-screenshot 38969965368: `completed success`, dark=success light=success ax5=success merge-screenshots=success.
+    The ax5 leg launched `-homeDetent medium` at AX5 and the process was alive after the settle and after the capture.
+  - A2 home-ax5-medium.png LOOKED AT: the chip band (labels wrap by syllable at most, "West-/wood/loop") under the
+    shell's pill; the map with the route; the credit `© MapLibre · Natural Earth · © OpenStreetMap contributors` in two
+    lines directly above the sheet; the sheet's title in two lines, the three menu chips, `Conditions change. Verify
+    locally.`, the orange `Open in Apple Maps` button, then the road list in the scrolling band, cut by the band's
+    edge at its fourth line (scrolls). Nothing drawn over anything; nothing under the status bar.
+  - A3 home-ax5-collapsed.png LOOKED AT: the same chips, the route fitted between the chip band and the credit, the
+    credit in two lines, the title, the menu chips, the conditions line and the button above the home indicator.
+    Main's run 38954903799 showed only the title's first line (conditions line and button off screen).
+  - A4 home-light-medium and home-dark-medium LOOKED AT beside 38954903799's light medium: the same layout line for
+    line (the unscrolled details, the caption ending "yet."); paywall-light LOOKED AT (Scenic Drive Pro, Subscription
+    Unavailable, Terms of Use / Privacy Policy). PNG sizes old/new: light-collapsed 512971/514067, light-medium
+    701427/702013, dark-collapsed 393868/394930, dark-medium 470243/471019, paywall-light 131999/131666,
+    paywall-dark 130484/129728 (the clock differs).
+  - A5 `python ops/lib/check-ios-compile-guardrails.py` exit=0; `--prove-red` exit=0, the T-0378 row red (quoted above).
+  - A6 ios-compile 38969961170: `completed success`.
+  - A7 bare gates exit=0: check-safety-disclaimer, check-map-attribution, check-line-cap (`694 Swift files ... none over
+    300 lines`), check-exec-bits, check-pins-yaml, ios_screenshot_pinned, check-store-links, check-telemetry-emit-sites,
+    check-mutate-population, check-mutate-only, queue-check (`QUEUE OK (373 tasks)`). `wc -l`: HomeSheet.swift 97,
+    ScenicHomeScreen.swift 299, ios_screenshot_pinned.py 296.
+  - GAP, recorded not fixed: the shell's "Plan a drive" pill (ScenicDriveApp, outside this task's touches) is not
+    capped and is still drawn at AX5 size above the chip band.
 
 ## Acceptance
 - A1 `gh workflow run ios-screenshot.yml --ref task/T-0378` on the final head: conclusion success, all three legs.
