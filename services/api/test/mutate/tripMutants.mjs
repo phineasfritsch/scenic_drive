@@ -30,7 +30,7 @@ export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlann
   "migrations/0009_trip_places.sql", "src/tripPlacesBox.ts", "migrations/0010_trip_places_lat.sql"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
   "test/killSwitchRoutes.test.ts", "test/tripPlaces.test.ts", "test/tripHonest.test.ts",
-  "test/tripLoopHazards.test.ts", "test/tripPlacesBox.test.ts"];
+  "test/tripLoopHazards.test.ts", "test/tripPlacesBox.test.ts", "test/tripPlacesReRequest.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
