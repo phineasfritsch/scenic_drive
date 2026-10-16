@@ -84,3 +84,30 @@ pin's assertion, not the branch. Harness, two rounds.
   A5 the race demo (two parallel `swift test --filter SolarFixtureTests`, shared .build, then own scratch paths) quoted.
   A6 bare: bash ops/check-pins --source-only; check-pins-yaml.py; check-exec-bits; check-line-cap; check-mutate-population.py;
      check-mutate-only.py; check-safety-disclaimer; queue-check.
+- 2026-10-16T15:58:52Z RED FIRST, then green, by agent/claude-opus-5 (commit 55ad7045).
+  * R6 (amends R4, found by the first RED run): the case-insensitive `swift` prefix also caught `SwiftUI` inside
+    P-SRC-01's grep alternation (`...|SwiftUI|MapLibre|...` - the `|` reads as a pipe). The word is now `swift` NOT
+    followed by a letter, digit or `_`: `SwiftUI` is a name, `swift-build`/`swift-test` (SwiftPM's executables) and
+    `SWIFT` are still words. P-SRC-01's shape is a control row (GREEN); `swift-test after a pipe` is a RED row.
+  * A2 RED on the base tree (`git stash push ops/lib/run-named-tests.py`; PINS.yaml still as on main):
+      RED P-SAFE-05: `swift test --filter SolarFixtureTests 2>&1 | grep -E 'Test run with [1` - not `swift test|build --scratch-path .build/pins-p-safe-05`
+      RED run-named-tests.py: scratch path `.build` is the shared .build or outside it
+      RED run-named-tests.py: SCENIC_SWIFT_SCRATCH=.build was not refused before swift ran (1 call(s))
+      RED run-named-tests.py: SCENIC_SWIFT_SCRATCH=./.build/ was not refused before swift ran (1 call(s))
+      SWIFT-SCRATCH pins=51 swift_words=1 refused=4   exit=1
+    GREEN on the branch: `PINS-YAML ok pins=52 fields=418`; `SWIFT-SCRATCH pins=52 swift_words=1 refused=0` exit=0.
+  * A1 `--list` on the branch: one line, `P-SAFE-05: swift test --scratch-path .build/pins-p-safe-05 --filter ...`.
+  * A3 `--prove-red`: `SWIFT-SCRATCH prove-red rows=30 wrong=0` exit=0 - 20 assertion rows RED (each by its own
+    reason line), 5 assertion controls GREEN, 4 runner mutants RED (flag pair dropped -> `not swift test
+    --scratch-path <dir>`; default back to .build -> `made 0 swift calls`; env .build accepted -> `SCENIC_SWIFT_SCRATCH=.build
+    was not refused`; scratch outside .build -> `is the shared .build or outside it`), shipped runner GREEN.
+  * A4 `SCENIC_SWIFT_SCRATCH=.build python ops/lib/run-named-tests.py P-NAV-01` ->
+    `NAMED P-NAV-01 REFUSED: SCENIC_SWIFT_SCRATCH=.build is the shared default .build - ...` exit=1; `./.build/` on
+    P-SAFE-09 refused the same way, exit=1.
+  * A5 the race, .build/t0229/race.sh (two `swift test --filter SolarFixtureTests` started together, this worktree):
+      shared default .build: run1 exit=1 verdict=FAIL
+        error: invalid access to ...\.build\x86_64-unknown-windows-msvc\debug\Telemetry.build\include\module.modulemap
+      shared default .build: run2 exit=0 verdict=PASS (√ Test run with 6 tests in 1 suite passed)
+      own scratch paths (.build/pins-race-a, .build/pins-race-b): run1 exit=0 PASS, run2 exit=0 PASS (6 tests each)
+    So R2 is settled on this box: two builds on one scratch path collide; on two scratch paths of one package they do not.
+    The failure is RED (fails closed), as R1 ruled; the open direction stays the by-construction argument of R1.
