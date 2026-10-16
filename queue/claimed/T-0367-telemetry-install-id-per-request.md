@@ -105,3 +105,14 @@ permission classifier refuses an apps/ios digest re-approval, ship the Linux sli
   ruled.
   `bash ops/lib/check-safety-disclaimer` exit 0 (Frozen; 33 feature files, shell, footer pinned; LAST all 108 app
   .swift, then 326 root + pbxproj files).
+- 2026-10-16T07:16:29Z ACCEPTANCE re-run on 151daea8 (origin/main be5e64e9 merged; the merge changes nothing under Sources/Telemetry,
+  Tests/TelemetryTests or the population):
+  1. `swift test --filter TelemetryTests`: `Test everyRequestStampsTheProvidersCurrentID() passed`,
+     `Test run with 21 tests in 7 suites passed`.
+  2. posttelemetry 17/18: MISSED 0/2 on ba3fdb16 (test absent), `MUTATE OK caught=2/2` on 43a63bc6 by
+     everyRequestStampsTheProvidersCurrentID(); moved anchors `--only 6,7,10,11,13` caught 5/5.
+  3. `grep -rn InstallBoundTelemetry apps Sources Tests ops/lib` -> 0 lines.
+  4. Every gate exits 0: mutate-population (floor 165), mutate-only, mutate-anchors (17 drivers), emit-sites (54 lines,
+     13 of 14 emitted, 1 pending), line-cap (674 files), pins-yaml (50 pins), exec-bits, queue-check (364 tasks),
+     check-safety-disclaimer.
+  5. ios-compile 38863380880 success, ios-screenshot 38863383999 success (on 43a63bc6; nothing under apps/ changed after).
