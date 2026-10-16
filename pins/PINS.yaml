@@ -146,7 +146,7 @@
   why_no_test_catches_it: Swapping or "simplifying" the solar math shifts every golden-hour card and the after-dark hazard flag; no functional test notices, and a fixture regenerated from our own code would bless the error. sunrise-sunset.org was tried first and rejected as an oracle - it disagreed with USNO by 84-343 s on rise/set.
   anchor: source
   runs_on: [linux, mac]
-  assertion: "grep -q 'Naval Observatory' Tests/Fixtures/solar/oracle.json && test $(grep -c 'SolarFixture(name:' Tests/ScenicKitTests/SolarFixtures.swift) -ge 20 && swift test --filter SolarFixtureTests 2>&1 | grep -E 'Test run with [1-9][0-9]* tests?( in [0-9]+ suites?)? passed' >/dev/null"
+  assertion: "grep -q 'Naval Observatory' Tests/Fixtures/solar/oracle.json && test $(grep -c 'SolarFixture(name:' Tests/ScenicKitTests/SolarFixtures.swift) -ge 20 && swift test --scratch-path .build/pins-p-safe-05 --filter SolarFixtureTests 2>&1 | grep -E 'Test run with [1-9][0-9]* tests?( in [0-9]+ suites?)? passed' >/dev/null"
   owner: agent/claude-opus-5
   added: "2026-09-07"
 
@@ -435,6 +435,15 @@
   anchor: source
   runs_on: [linux]
   assertion: "bash ops/lib/check-sane-corpus"
+  owner: agent/claude-opus-5
+  added: "2026-10-16"
+
+- id: P-OPS-10
+  statement: "Every swift build or test a pin runs uses its own --scratch-path under .build, never the shared default .build: each `swift` word in a PINS.yaml assertion sits at a command position as `swift test|build --scratch-path .build/pins-<own id>`, and run-named-tests.py runs swift test on .build/pins-named-tests and refuses SCENIC_SWIFT_SCRATCH pointing at .build"
+  why_no_test_catches_it: "A pin that builds Swift in the shared .build races every other build an agent starts in the same checkout: T-0182 saw P-SAFE-05 go red under a parallel swift test, and the open direction is a pin running a test binary someone else built there. Nothing functional notices a missing flag - the pin is green whenever nobody else is building. T-0229 measured the population (P-SAFE-05 directly; 11 pins through run-named-tests.py, which defaulted to .build) and fixed it; this whitelist keeps the next pin from regressing it. `--prove-red` holds 30 rows: flag missing, in an echo or comment, on another command, on only one of two calls, another pin's path, .build spelled out, overridden later, swift run, swift-build, quoted or wrapped, and runner mutants."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-swift-scratch.py && \"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-swift-scratch.py --prove-red >/dev/null"
   owner: agent/claude-opus-5
   added: "2026-10-16"
 
