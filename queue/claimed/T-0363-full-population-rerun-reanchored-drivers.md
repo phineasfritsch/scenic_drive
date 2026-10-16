@@ -89,3 +89,14 @@ driver to find its own files, shown red with that mutant then green.
 - 2026-10-16T04:00:19Z A3 region re-run WHOLE on 1ec1926e (after the move), from services/api, alone: `population mutations=67
   (floor 67) equivalent=3 subjects=9 tests=8` / `baseline green tests=44` / `RESULT caught=67 missed=0 trap=0 of
   67` exit 0.
+- 2026-10-16T04:02:09Z merged origin/main (9171fa71) as 062bb5f5. R6 (ruled on the merge): main's T-0362 (PR #250) changed
+  src/plan.ts, planSweep.ts, search.ts, searchPlaces.ts and re-anchored region plan-gate-below-resolve /
+  plan-gate-below-closures and tier plan-identify-unawaited; the A2 whole runs were on bf789086. On the merged head
+  every entry of the eight drivers whose file is src/plan.ts, planSweep.ts, search.ts or searchPlaces.ts (18:
+  closures 6, config 2, crossing 2, quota 2, region 5, tier 1; isochrone and vehicle 0) is re-run by --only
+  (faster-verification-in-rounds); the other 509 entries' files are byte-identical to bf789086's. Bare gates on
+  062bb5f5: check-mutate-population `P-PROC-06: every added module is covered or allowlisted; the floor of 165
+  holds` rc=0; check-mutate-only `MUTATE-ONLY OK: 219 of 219 driver runs refused with exit 64 (59 drivers, ...)`
+  rc=0; check-mutate-anchors `17 drivers, 1263 anchors, 0 stale` / `cwd arm: 17 drivers run from the repo root, 17
+  reached their population line` rc=0; check-pins-yaml `PINS-YAML ok pins=50 fields=403` rc=0; check-exec-bits
+  `P-OPS-01: 225 files, 23 required present, all modes correct` rc=0; queue-check `QUEUE OK (359 tasks)` rc=0.
