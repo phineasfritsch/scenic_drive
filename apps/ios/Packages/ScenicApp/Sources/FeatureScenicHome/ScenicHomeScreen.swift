@@ -8,10 +8,6 @@ import SwiftUI
 /// below the status bar, and a sheet that cannot be dismissed carries the drive - the title, a line about
 /// conditions that never leaves, and one gated button, with the roads and the timing one detent up.
 ///
-/// M1.5 exists to prove the seam, not the product - MapLibre draws on a real phone, `DesignSystem` renders on both
-/// appearances, and `Handoff` produces a URL Apple Maps accepts. The map, the credit, the disclaimer and the handoff
-/// are the parts that stay when the real surfaces (plan sheet, route preview, hazard strip) arrive in M4.
-///
 /// ## The credit sits on the map, above the sheet, at every detent (P-ATTR-01)
 ///
 /// The credit pill and `HomeSheet` are the only two children of one `VStack(spacing: 0)`, pill first: the pill is
@@ -72,9 +68,10 @@ public struct ScenicHomeScreen: View {
     /// How much of the drive the sheet shows. A launch argument can pick the first one (`HomeSheetDetent`).
     @State private var sheetDetent = HomeSheetDetent.atLaunch
 
-    /// The chip band's bottom edge and the credit band's top edge, in window points - the two edges `MapView`
-    /// converts into its own. Zero until measured, and the map then treats nothing as covered. The map's own height
-    /// is NOT measured here: SwiftUI reports the safe-area height for a view that ignores the safe area.
+    /// The user's own text size, read ABOVE the body's xxxLarge cap (T-0378 R2) and handed back to the disclaimer.
+    @Environment(\.dynamicTypeSize) private var userTypeSize
+    /// The chip band's bottom and the credit band's top, in window points: the two edges `MapView` converts into its
+    /// own; zero until measured. The map's own height is NOT measured (SwiftUI reports the safe-area height).
     @State private var isShowingSurprise = SurpriseSlot.atLaunch
 
     @State private var surpriseFailure: String?
@@ -134,7 +131,9 @@ public struct ScenicHomeScreen: View {
                 isShowingDisclaimer = false
             })
             .accessibilityIdentifier("home.disclaimer")
+            .dynamicTypeSize(userTypeSize)
         }
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     /// Ask `DriveBasemap` which tiles this drive can have on this device, and keep the answer: the LA drives get the
