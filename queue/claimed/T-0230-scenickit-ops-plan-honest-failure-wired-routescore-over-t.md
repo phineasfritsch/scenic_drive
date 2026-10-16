@@ -156,3 +156,32 @@ ops/plan the M3 exit and step 3 of Problem A is its honest failure. Ranked befor
   (also exit 0 on 610eabb6); check-mutate-population "the floor of 165 holds"; check-mutate-only "NAME-PAIRS OK";
   check-line-cap "none over 300 lines" (on 0fa71b2e). origin/main b54f24e2 is an ancestor (fetched in the main
   checkout; nothing to merge yet - merged again below if it moves).
+- 2026-10-16T16:00:57Z rv1 FIX (agent/claude-opus-5, owner; rv1 FAIL by agent/rv1-t-0230). Each finding closed by class.
+  B1 (the back-roads offer's own floor, ScenicPlanner.backRoads' guard): new suite PlanNothingPrettyBoundsTests,
+  "all back roads at lambda 8: nextDown(0.45) is dull, exactly 0.45 and nextUp(0.45) are offered" - the three
+  floorRows() geometries placed at lambda 8 behind the dull chosen route, whole PlanNothingPretty equality
+  (.dull/.offered at duration 2700 with the target score), requested == [4, 8], and the third lines() row whole.
+  B2 (PlanNothingPretty.minutes' bounds): "ops/plan's refusal lines through ScenicPlanner.plan, whole, at budgets 0,
+  59, 60, 61, 90 and 1500 s" - an unscored chosen route at 1800 s refused at each budget, whole state equality and
+  lines() compared WHOLE to typed strings ("0 minutes"/"40 minutes", "0m59s"/"40m59s", "1 minute"/"41 minutes",
+  "1m01s"/"41m01s", "1m30s"/"41m30s", "25 minutes"/"65 minutes").
+  ops/mutate/plan.py: five mutants added, MIN_MUTATIONS 42 -> 47, the suite in TEST_FILES and SUITES:
+  honest/back-roads-floor-strict (the reviewer's `score.value > RouteScore.honestFailureThreshold`),
+  honest/back-roads-floor-nextdown (`score.value >= RouteScore.honestFailureThreshold.nextDown`),
+  honest/minutes-drops-whole-check (the reviewer's), honest/minutes-zero-not-whole (`seconds > 0`),
+  honest/minutes-singular-below-two (`whole <= 1`).
+  RED, old tests (0137f926 tests, the five mutants uncommitted in plan.py only; `plan.py --only
+  honest/back-roads-floor-,honest/minutes-`): all five "MISSED ... exit=0, no test objected"; "caught 0 of 5
+  trapped 0 compile-only 0 MISSED 5 skipped 0".
+  GREEN on d53818ef, same command: all five CAUGHT; "caught 5 of 5 trapped 0 compile-only 0 MISSED 0 skipped 0".
+  By name (.build/t0230-names.py, the population's suites under each mutant): floor-strict and floor-nextdown ->
+  "all back roads at lambda 8: nextDown(0.45) is dull, exactly 0.45 and nextUp(0.45) are offered"; the three
+  minutes-* -> "ops/plan's refusal lines through ScenicPlanner.plan, whole, at budgets 0, 59, 60, 61, 90 and 1500 s".
+  The 42 earlier mutants were not re-run (faster-verification rule); no Sources/ file changed this round, so no
+  digest row moved.
+  B3: origin/main 274cd174 merged (6665a6c4, clean; digests auto-merged, DRIVERS untouched here). On the merged
+  head: plan population suites "Test run with 44 tests in 10 suites passed"; gates bare - check-safety-disclaimer
+  exit 0; check-mutate-population "the floor of 168 holds"; check-mutate-only "NAME-PAIRS OK"; check-line-cap
+  "682 Swift files tracked (Sources=327, Tests=245, apps/ios=110), none over 300 lines"; check-pins-yaml "PINS-YAML ok
+  pins=51 fields=410"; check-exec-bits "P-OPS-01: 233 files, 23 required present, all modes correct"; queue-check
+  "QUEUE OK (368 tasks)". wc -l PlanNothingPrettyBoundsTests.swift 77, ops/mutate/plan.py 331.
