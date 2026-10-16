@@ -6,10 +6,12 @@
   check-swift-scratch.py --prove-red  every synthetic row must come out as its expected verdict; exit 0 only then
 
 Two halves, both whitelists:
-  1. Assertions, read by ops/lib/pins.py's own `load` (what ops/check-pins runs). Every word `swift` - any case,
-     not glued to a letter, digit, `_`, `.`, `/` or `-` before it nor a letter, digit or `_` after it, so
-     `Package.swift` and `SwiftUI` are names but `swift-build`, `SWIFT` and a quoted `swift` are not excused (SwiftPM's
-     executables are `swift` and `swift-<subcommand>`) - must sit at a command position (start, after `&&`, `||`,
+  1. Assertions, read by ops/lib/pins.py's own `load` (what ops/check-pins runs). Every word `swift`, any case, is
+     counted. Only four shapes are excused: glued into an identifier (`SwiftUI`, `MySwift`), a file extension
+     (`Package.swift`), a directory component (`Sources/swift/`) and a hyphenated name component
+     (`check-swift-scratch.py`). So `swift-build`, `apple-swift`, `SWIFT`, `swift.exe`, a quoted
+     `swift` and a swift that ends a path (`/usr/bin/swift`, `"$T/usr/bin/swift"`, `~/.swiftly/bin/swift`) are words
+     (SwiftPM's executables are `swift` and `swift-<subcommand>`). Each must sit at a command position (start, after `&&`, `||`,
      `;`, `|`, `(`, `{`, `!`, then/do/else) and read exactly `swift test|build --scratch-path .build/pins-<own id,
      lowercased>`, with no second --scratch-path/--build-path later in the same command. Anything else is refused.
   2. ops/lib/run-named-tests.py, the one script a pin names that builds Swift (11 pins). The shipping function
@@ -28,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[2]
 LIB = ROOT / "ops" / "lib"
 RUNNER = LIB / "run-named-tests.py"
 SHARED = (ROOT / ".build").resolve()
-WORD = re.compile(r"(?<![A-Za-z0-9_./-])swift(?![A-Za-z0-9_])", re.IGNORECASE)
+WORD = re.compile(r"(?:(?<![A-Za-z0-9_./-])|(?<=/)(?!swift/)|(?<=-)(?!swift-))swift(?![A-Za-z0-9_])", re.IGNORECASE)
 COMMAND_POSITION = re.compile(r"(^|&&|\|\||[;|({!]|\bthen|\bdo|\belse)\s*$")
 SEGMENT_END = re.compile(r"&&|\|\||[;|)\n]")
 LATER_PATH_FLAG = re.compile(r"--(scratch|build)-path\b")
@@ -156,10 +158,23 @@ ASSERTION_ROWS = [
     ("swift-test after a pipe", "true | swift-test --scratch-path .build/pins-p-x-01", True),
     ("upper-case SWIFT", "SWIFT test --scratch-path .build/pins-p-x-01", True),
     ("flag before subcommand", "swift --scratch-path .build/pins-p-x-01 test", True),
+    ("swift by absolute path", "/usr/bin/swift test --filter X", True),
+    ("quoted toolchain path", '"$T/usr/bin/swift" build', True),
+    ("swiftly path", "~/.swiftly/bin/swift test", True),
+    ("relative path", "./swift test --filter X", True),
+    ("swift.exe by path", "C:/t/bin/swift.exe test --filter X", True),
+    ("swift-build by path", "/usr/bin/swift-build --filter X", True),
+    ("own flag but by path", "/usr/bin/swift test --scratch-path .build/pins-p-x-01", True),
+    ("xcrun wrapper", "xcrun swift test", True),
+    ("env wrapper", "env swift test", True),
+    ("swift ending a hyphenated token", "apple-swift test --filter X", True),
     ("control: one flagged call", OWN + " --filter X 2>&1 | grep -E 'passed' >/dev/null", False),
     ("control: two flagged calls", "swift build --scratch-path .build/pins-p-x-01 && " + OWN + " --filter X", False),
     ("control: in a subshell", "test $(" + OWN + " --filter X | wc -l) -ge 1", False),
     ("control: file names only", "grep -q 'iOS' Package.swift && test -f Tests/A/B.swift", False),
+    ("control: swift as a directory", "test -f Sources/swift/x", False),
+    ("control: .swift file", "grep Foo.swift", False),
+    ("control: hyphenated name component", "python ops/lib/check-swift-scratch.py --list", False),
     ("control: SwiftUI in a grep alternation (P-SRC-01's shape)", "! grep -rE 'import (UIKit|SwiftUI|MapKit)' Sources/", False),
 ]
 

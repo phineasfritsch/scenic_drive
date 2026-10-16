@@ -84,6 +84,10 @@ pin's assertion, not the branch. Harness, two rounds.
   A5 the race demo (two parallel `swift test --filter SolarFixtureTests`, shared .build, then own scratch paths) quoted.
   A6 bare: bash ops/check-pins --source-only; check-pins-yaml.py; check-exec-bits; check-line-cap; check-mutate-population.py;
      check-mutate-only.py; check-safety-disclaimer; queue-check.
+  A7 (rv1 B1) `--prove-red` also RED: `/usr/bin/swift test --filter X`, `"$T/usr/bin/swift" build`,
+     `~/.swiftly/bin/swift test`, `xcrun swift test`, `env swift test`; GREEN: `test -f Sources/swift/x`,
+     `grep Foo.swift`. The rv1 mutant (P-SAFE-05's swift spelled `/usr/bin/swift test`, no flag) MISSED on the old
+     guard, CAUGHT on the new one.
 - 2026-10-16T15:58:52Z RED FIRST, then green, by agent/claude-opus-5 (commit 55ad7045).
   * R6 (amends R4, found by the first RED run): the case-insensitive `swift` prefix also caught `SwiftUI` inside
     P-SRC-01's grep alternation (`...|SwiftUI|MapLibre|...` - the `|` reads as a pipe). The word is now `swift` NOT
@@ -128,3 +132,33 @@ pin's assertion, not the branch. Harness, two rounds.
   * Measured files: ops/lib/check-swift-scratch.py 223 lines, ops/lib/run-named-tests.py 204 lines (`wc -l`).
   * Recorded, not done: ops/test:23 `swift test --parallel` on the default .build (outside touches; it is the runner a
     human or CI starts alone, not a pin) - a candidate follow-up if the owner wants the rule there too.
+- 2026-10-16T17:50:38Z ROUND 2 (rv1 FAIL B1, agent/rv1-t-0229, head 62a5584c), by agent/claude-opus-5.
+  * Ruling R4' (amends R4's word class, which excused any swift preceded by `/`, `.`, `-` or `_`): a swift that ENDS
+    a path token is the executable, so the word class is now a whitelist of four excused shapes, everything else is
+    counted: glued into an identifier (`SwiftUI`), a file extension (`.swift`), a directory component (`/swift/`) and
+    a hyphenated name component (`-swift-`, P-OPS-10's own `check-swift-scratch.py`). `/usr/bin/swift`, `./swift`,
+    `swift.exe`, `/usr/bin/swift-build`, `apple-swift` are words; a word not at a command position is refused, so a
+    swift by path is refused even with its own flag (the approved site stays the bare word). The fourth excuse was
+    found by the guard: with only three, P-OPS-10's own assertion went RED (`swift-scratch.py && ...` not at a
+    command position, swift_words=3 refused=2) - recorded, then the `-swift-` component excused with a control row.
+    WORD = `(?:(?<![A-Za-z0-9_./-])|(?<=/)(?!swift/)|(?<=-)(?!swift-))swift(?![A-Za-z0-9_])`, IGNORECASE.
+  * RED (the rv1 mutant on the OLD guard, .build/t0229/rv1-mutants.sh: P-SAFE-05's `&& swift test --scratch-path
+    .build/pins-p-safe-05 --filter` rewritten in PINS.yaml, guard run bare, PINS.yaml restored byte-equal):
+      mutant [/usr/bin/swift test --filter] exit=0 MISSED :: SWIFT-SCRATCH pins=52 swift_words=0 refused=0
+      mutant [$TOOLCHAIN/usr/bin/swift build --filter] exit=0 MISSED :: SWIFT-SCRATCH pins=52 swift_words=0 refused=0
+      mutant [~/.swiftly/bin/swift test --filter] exit=0 MISSED :: SWIFT-SCRATCH pins=52 swift_words=0 refused=0
+    and the new table under the OLD WORD (.build/t0229/old-word-prove-red.py swaps only WORD):
+      FAIL GREEN swift by absolute path / quoted toolchain path / swiftly path / relative path / swift.exe by path /
+      swift-build by path / own flag but by path / swift ending a hyphenated token
+      SWIFT-SCRATCH prove-red rows=43 wrong=8   exit=1
+    (`xcrun swift test` and `env swift test` were already RED on the old guard - not at a command position.)
+  * GREEN (new guard):
+      mutant [/usr/bin/swift test --filter] exit=1 CAUGHT :: SWIFT-SCRATCH pins=52 swift_words=1 refused=1
+        RED P-SAFE-05: `swift test --filter SolarFixtureTests 2>&1 | ...` - swift not at a command position
+      mutant [$TOOLCHAIN/usr/bin/swift build --filter] exit=1 CAUGHT :: ... swift_words=1 refused=1
+      mutant [~/.swiftly/bin/swift test --filter] exit=1 CAUGHT :: ... swift_words=1 refused=1
+      `--prove-red` -> SWIFT-SCRATCH prove-red rows=43 wrong=0 exit=0 (10 new RED rows, 3 new GREEN controls:
+      `test -f Sources/swift/x`, `grep Foo.swift`, `python ops/lib/check-swift-scratch.py --list`)
+      bare guard -> SWIFT-SCRATCH pins=52 swift_words=1 refused=0 exit=0; `--list` -> P-SAFE-05 only.
+  * P-OPS-10 why_no_test_catches_it: row count 30 -> 43 and the path classes named. Measured: ops/lib/check-swift-scratch.py
+    238 lines (`wc -l`).
