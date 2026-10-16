@@ -182,3 +182,24 @@ Depends on T-0024 for the extract the fixture ways are drawn from.
      this box (swift contention); CI's pins-source-only job on the same head passed (quoted in 6).
   Line counts: profilegate.py 188, test_gate_parity.py 156, test_profilegate.py 117, GateParityFixtureTests.swift
   91, ops/mutate/profilegate.py 153, run-named-tests.py 199.
+- 2026-10-16T12:41:53Z rv1 B1 ruled: reviewer is right - `gated()` read only `priority`, and GraphHopper never routes an
+  edge of speed 0, so a `speed` exclusion of motorway/trunk was invisible (rv1 quoted 121 + 39 passed with it). Same
+  class in services/routing/tests/test_profiles_static.py (read `priority` only) - fixed there too; that path added
+  to `touches:`. Fix by class: profilegate reads the WHOLE model (`model()`, `speed_excludes()`): a firing speed
+  rule with limit_to 0 / multiply_by 0 is GATED; a top-level key outside speed/priority/distance_influence, a
+  distance_influence that is not a number >= 0, a speed rule other than `if` + one value, a speed value that is
+  neither a number >= 0 nor `car_average_speed` all refuse.
+  RED on the old evaluator (fe24a897, mutants committed first): `python ops/mutate/profilegate.py --only speed
+  --only "top-level key"` -> `MISSED profile: motorway and trunk speed limited to 0 (exit 0)`, `MISSED profile:
+  motorway and trunk speed multiplied by 0 (exit 0)`, `MISSED profile: a top-level key the evaluator cannot read
+  (exit 0)`; the six evaluator mutants SKIP (their anchors are the fix). `MUTATE FAILED caught=0/9`.
+  GREEN (b930bcc6): the same run plus `distance_influence`, `a low priority read as gated`, `any rule shape read`
+  -> `MUTATE OK caught=12/12 equivalent_caught=0`; `--prove-vacuity` on the 10 new -> `VACUITY PROVED` (0/10).
+  Driver `.build/t0012-rv1-red.py` (profile mutated, run, restored, sha256 equal): limit_to and multiply_by each
+  -> etl `7 failed, 126 passed` naming `test_profile_gives_the_fixture_verdict[motorway]`, `[motorway_link]`,
+  `[trunk]`, `[trunk_link]`, `test_etl_and_profile_agree_on_every_gate`,
+  `test_motorway_and_trunk_score_zero_and_are_routable_in_every_layer`; routing `1 failed, 4 passed` naming
+  `test_no_profile_hard_excludes_motorway_or_trunk`. Unmutated: etl 133 passed, routing 39 passed 3 skipped;
+  `run-named-tests.py P-PROD-01` -> `NAMED P-PROD-01 passed=135/135` (133 pytest + 2 swift; 12 names added).
+  MIN_MUTATIONS 43 -> 53. P-PROD-01 why_no_test_catches_it appended (dated text untouched). Line counts:
+  profilegate.py 236, test_profilegate.py 159, test_profiles_static.py 165, ops/mutate/profilegate.py 172.
