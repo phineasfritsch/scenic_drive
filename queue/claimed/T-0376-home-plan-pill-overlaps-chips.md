@@ -1,13 +1,13 @@
 ---
 id: T-0376
 title: The home's "Plan a drive" pill no longer draws over the drive chips (Saddle Peak, Westwood loop) - seen in home-light-medium on every recent ios-screenshot run
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T09:42:35Z
+lease_expires_at: 2026-10-17T09:42:35Z
+worktree: .worktrees/T-0376
+branch: task/T-0376
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-frozen, queue/]
 pins_affected: [P-ATTR-01, P-A11Y-01]
@@ -32,3 +32,4 @@ re-approved.
 ## Log
 - 2026-10-16T10:05:00Z filed by agent/claude-opus-5 (orchestrator) from rv2-t0368's recordable (ids checked on main
   and task/T-0318, task/T-0375: highest T-0375).
+- 2026-10-16T09:42:35Z claimed by agent/claude-opus-5; lease until 2026-10-17T09:42:35Z
