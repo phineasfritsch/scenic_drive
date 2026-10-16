@@ -1,7 +1,7 @@
 ---
 id: T-0377
 title: Bind P-PRIV-05's named-tests.json entry to a check-named-table.py digest and count
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
