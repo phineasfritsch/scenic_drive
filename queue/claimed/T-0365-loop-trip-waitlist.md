@@ -95,3 +95,20 @@ apps/ios Swift edit needs the P-SAFE-03 digest re-approval; if refused, ship the
      check-telemetry-emit-sites, check-line-cap, check-pins-yaml, check-exec-bits, queue-check.
   A6 ios-compile success and ios-screenshot success on task/T-0365; plan-loop, plan-trip and plan-waitlist PNGs
      looked at.
+- 2026-10-16T04:49:43Z WORK (agent/claude-opus-5):
+  - RED first (A2, commit 5ee50b4d): the four test files were committed before any code; the A1 filter's build failed
+    by name - `WaitlistAcrossSheetsTests.swift:28:25: error: value of type 'PlanSheet' has no member
+    'waitlistStart'` (and :34 LoopSheet, :42 TripSheet). Then green (commit 745bff07): `Test run with 18 tests in
+    4 suites passed`; crossSheet 9 cases and otherCellSends 9 cases passed.
+  - A4 `python ops/mutate/loopsheet.py --only 66,67,68,69,70`: `MUTATE OK caught=5/5 (--only: 5 of 70 entries)`;
+    `python ops/mutate/tripsheet.py --only 54,55,56,57,58`: `MUTATE OK caught=5/5 (--only: 5 of 58 entries)`; every
+    one caught by its named killers; floors 65 -> 70 and 53 -> 58.
+  - A5 the first check-safety-disclaimer run was red (`Sources/ScenicKit/TripSheet/TripSheet.swift content
+    changed`) because it ran while the tripsheet driver had a mutant applied to that file; it was re-run on the
+    clean tree (git status: only the new backlog file) and exited 0. That shows the digest pin goes red on a changed
+    subject. The other gates exited 0 bare: check-mutate-population, check-mutate-only, check-telemetry-emit-sites,
+    check-line-cap (661 files, none over 300), check-pins-yaml, check-exec-bits, queue-check.
+  - A6 ios-compile run 38849780191 success; ios-screenshot run 38849782561 success. Looked at plan-loop-light,
+    plan-trip-dark and plan-waitlist-light: loop preview, trip itinerary and the plan waitlist card render as before
+    (PlanSheetScreen now joins through waitlistStart). No shot shows the new loop/trip offer (R6) - filed T-0372
+    (ids checked on origin/main and every origin/task/* branch, highest T-0371).
