@@ -142,3 +142,26 @@ Depends on T-0024 for the extract the fixture ways are drawn from.
    `bash ops/check-pins --source-only` exit 0.
 7. Gates exit 0 on the merged head: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py,
    check-line-cap, check-pins-yaml.py, check-exec-bits, check-pins --source-only, queue-check.
+
+## Log (work)
+- 2026-10-16T11:01:47Z fixture built by `.build/t0012-measure/build_fixture.py` (gitignored, outside the
+  tree's history; reads services/etl/work/la/window-doc.json): 30 rows, isolated counts per class e.g. motorway
+  48, trunk_link 13, surface=dirt 12, highway=track 427, access=permit 1, access=destination 17,
+  motor_vehicle=no 8, service=driveway 606, no-surface residential 1606; 7 synthetic (M3).
+- 2026-10-16T11:01:47Z RED three ways (driver `.build/t0012-measure/red.py`; mutate one file, run, restore,
+  sha256 of the restored file == HEAD's blob each time):
+  (a) car_scenic_base.json without ` || road_access == DESTINATION` -> pytest exit 1, 2 failed / 63 passed:
+  `access=destination (way 23014646): PROFILE (car_scenic_base.json) says NOT_GATED, expected GATED; ETL
+  (assemble.scored_row) says GATED, ScenicKit (the fixture) says GATED` and `the ETL and the profile disagree:
+  access=destination (way 23014646): ETL says GATED, profile says NOT_GATED`. This is also the state of main
+  before this branch's profile edit - the drift M4 measured, now seen by the test.
+  (b) accessrule.py CLOSED_ACCESS without "destination" -> pytest exit 1, 2 failed / 63 passed:
+  `access=destination (way 23014646): ETL (assemble.scored_row) says ZERO_NOT_GATED, expected GATED; profile
+  (car_scenic_base.json) says GATED, ScenicKit (the fixture) says GATED`.
+  (c) Gates.swift without `if tags["highway"] == "track" { return .refused(.track) }` -> swift test exit 1:
+  `highway=track (way 10715427): ScenicKit (Gates.decide + SegmentScore) says PAVED, expected GATED; the ETL
+  is held to GATED and the profile (car_scenic_base.json) to GATED for this row by test_gate_parity.py`.
+- 2026-10-16T11:01:47Z GREEN: pytest test_gate_parity.py + test_profilegate.py 65 + 53 passed; swift
+  GateParityFixtureTests 2/2; `run-named-tests.py P-PROD-01` -> `NAMED P-PROD-01 passed=118/118` (before the
+  two refusal rows were added; re-run at the final commit below).
+- 2026-10-16T11:01:35Z acquired lock(s) services/routing/profiles/car_scenic_base.json for agent/claude-opus-5
