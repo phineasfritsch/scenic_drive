@@ -151,3 +151,31 @@ ios-screenshot succeed with the touched screens looked at.
      `next`); 133/134/136/137's anchors move to the new spellings; floor 151 -> 152.
   B2 RULED: merge origin/main LAST (T-0363 code drift: check-mutate-anchors.py, regionMutants.mjs) and run
      `python ops/lib/check-mutate-anchors.py` bare on the merged head.
+- 2026-10-16T05:43:45Z CORRECTION to the round-2 ruling's "shown MISSED at 11f91661": RV-A at 11f91661's spelling
+  (commit 45896f7e: 152 added against 11f91661's code and tests, nothing else changed) did not print MISSED under the
+  drive driver's whole filter, it printed `trapped  152 the driven metres read on the new line (rv1 RV-A)  non-zero
+  exit, but NO named test failed - DOES NOT COUNT` / `MUTATE FAILED  caught=0/1` - another drive suite takes a reroute
+  onto a line shorter than the old progress and the mis-read traps in `meters(along:to:)`, which is the crash B1
+  names. A trap is not a kill by name, so RV-A survived at 11f91661 either way (the reviewer's 8 passed under
+  DriveProgressTests|DriveMomentLatchTests; this trap under the whole filter).
+- 2026-10-16T05:43:45Z ROUND 2 FIX (487af43e): `drivenMeters` binding; `(metersBefore, line) = (metersBefore +
+  drivenMeters, next)`; `meters(along:to:)` sums zip over `coordinates.prefix(vertex + 1)`; fixture shortB (3 vertices
+  0.004 degree apart) after lineA progress 3, every fraction compared with `==` to the test's own segment-by-segment
+  recomputation, plus meta-rows (shortB's segment count 2 < 3; its segment length differs from lineA's by > 100 m; the
+  RV-A answer differs from the right one by > 0.1) and `meters(along:to:)` for vertices 6...8 equal to vertex 5.
+  `python ops/mutate/drive.py --only 133,134,135,136,137,152` -> each `caught`, 152 `by: T-0361 R6: a taken reroute
+  keeps the old line's metres to its progress - 3 of 5 segments, then a shorter 2-segment line with other segment
+  lengths, compared whole`; `MUTATE OK  caught=6/6 equivalent_caught=0  (--only: 6 of 152 entries)`. Floor 152.
+  Digest row Sources/ScenicKit/Drive/DriveSession.swift re-approved (53acf567...).
+- 2026-10-16T05:43:45Z merged origin/main (aa1b1b22: T-0363 check-mutate-anchors.py + regionMutants.mjs, queue moves),
+  no conflicts; merge commit 283ddaea. ACCEPTANCE (round 2) on the merged head 283ddaea, each run bare:
+  A4 swift test (drive suites + DriveProgressTests|DriveMomentLatchTests|DriveSession*|CorpusVersionNumberTests)
+     exit 0: `Test run with 77 tests in 14 suites passed`.
+  A5 caught 6/6 on the touched entries incl. RV-A 152 (above); population 152 (floor 152).
+  A6 `check-mutate-anchors: 17 drivers, 1263 anchors, 0 stale` + `17 reached their population line` exit 0;
+     check-mutate-population `the floor of 165 holds` exit 0; check-mutate-only `MUTATE-ONLY OK: 219 of 219` +
+     `NAME-PAIRS OK` exit 0; A1 `P-PRIV-05 emit sites: ok - 59 lines approved; 13 of 14 cases emitted once, 1 pending
+     by task` exit 0; check-drive-display `23 approved whole lines` exit 0; bash check-safety-disclaimer exit 0 (40 s);
+     check-pins-yaml `PINS-YAML ok pins=50 fields=403` exit 0; check-line-cap `none over 300 lines` (DriveSession 183,
+     DriveProgressTests 122) exit 0; check-exec-bits `all modes correct` exit 0; queue-check `QUEUE OK (363 tasks)`.
+  A7 ios-compile dispatched on the pushed head (Sources changed); result in the PR.
