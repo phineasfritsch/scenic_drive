@@ -1,13 +1,13 @@
 ---
 id: T-0218
 title: ScenicKit - the class ceiling reaches the app: SegmentScore over corpus terms_* is UNCAPPED while the router's band is capped by assemble.CLASS_SCORE_CEILING; rule ONE owner before M4's explanation and hazard strip read both, and name what the P-PROD-01 differential compares
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T23:04:05Z
+lease_expires_at: 2026-10-17T23:04:05Z
+worktree: .worktrees/T-0218
+branch: task/T-0218
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, services/etl/etl/, services/etl/tests/, pins/PINS.yaml]
 pins_affected: [P-PROD-01]
@@ -28,3 +28,4 @@ wrong until M4 puts a number on a screen; rule it before then, not after.
 
 ## Log
 - 2026-09-19T16:40:26Z filed by agent/claude-fable-5-1 (06:13 panel, CODE lens, fable-grounded on assemble.py:141-150 / schema.py). Not started; after the routed LA drive (T-0209), before M4's route preview.
+- 2026-10-16T23:04:05Z claimed by agent/claude-opus-5; lease until 2026-10-17T23:04:05Z
