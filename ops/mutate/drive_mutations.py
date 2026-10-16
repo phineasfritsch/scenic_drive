@@ -141,8 +141,8 @@ BAD_OLD = "            mode = .rejoining\n            return false\n        }\n 
 # corpus version's number, each killed by the suites T-0361 adds (DriveProgressTests, DriveMomentLatchTests,
 # CorpusVersionNumberTests).
 P_FRAC = "T-0361 R6: the fraction driven is the progress vertex's share of the line, k of 5 segments"
-P_REROUTE = ("T-0361 R6: a taken reroute keeps the metres already driven - 3 of 5, then 0 of 3 and 2 of 3 on the new "
-             "line")
+P_REROUTE = ("T-0361 R6: a taken reroute keeps the old line's metres to its progress - 3 of 5 segments, then a "
+             "shorter 2-segment line with other segment lengths, compared whole")
 P_METERS = "T-0361 R6: the meters along a line are the sum of its segments up to the vertex"
 P_COUNT = "T-0361 R6: off-route counts each declaration - not the dwell, not the wait, not a reconnect"
 M_BEGIN = "T-0361 R6: begin is guidanceBegan once, then nothing"
@@ -438,18 +438,18 @@ MUTATIONS = [
     ("131 an off-route declaration not counted", SESSION, "        offRouteCount += 1\n", "", [P_COUNT, M_END]),
     ("132 an off-route declaration counted twice", SESSION, "offRouteCount += 1", "offRouteCount += 2", [P_COUNT]),
     ("133 a taken reroute forgets the metres driven", SESSION,
-     "        metersBefore += Self.meters(along: line, to: progressSegment)\n", "", [P_REROUTE]),
+     "(metersBefore, line) = (metersBefore + drivenMeters, next)", "(metersBefore, line) = (metersBefore, next)",
+     [P_REROUTE]),
     ("134 a taken reroute counts its old line whole", SESSION,
-     "metersBefore += Self.meters(along: line, to: progressSegment)",
-     "metersBefore += Self.meters(along: line, to: line.segmentCount)", [P_REROUTE]),
+     "(metersBefore, line) = (metersBefore + drivenMeters, next)",
+     "(metersBefore, line) = (metersBefore + Self.meters(along: line, to: line.segmentCount), next)", [P_REROUTE]),
     ("135 the total leaves out the metres before", SESSION,
      "let total = metersBefore + Self.meters(along: line, to: line.segmentCount)",
      "let total = Self.meters(along: line, to: line.segmentCount)", [P_REROUTE]),
     ("136 the driven share leaves out the metres before", SESSION,
-     "(metersBefore + Self.meters(along: line, to: progressSegment)) / total",
-     "Self.meters(along: line, to: progressSegment) / total", [P_REROUTE]),
-    ("137 the metres along drop the last segment", SESSION, "for segment in 0..<vertex {",
-     "for segment in 0..<max(0, vertex - 1) {",
+     "(metersBefore + drivenMeters) / total", "drivenMeters / total", [P_REROUTE]),
+    ("137 the metres along drop the last segment", SESSION, "let ends = line.coordinates.prefix(vertex + 1)",
+     "let ends = line.coordinates.prefix(vertex)",
      [P_METERS, P_FRAC]),
     ("138 a second begin begins again", LATCH, "        guard !hasBegun else { return nil }\n", "", [M_BEGIN, M_END]),
     ("139 an end with no begin ends", LATCH, "guard hasBegun, !hasEnded else { return nil }",
@@ -470,8 +470,8 @@ MUTATIONS = [
     ("150 the digits read in base 16", VERSION, "value = value * 10 +", "value = value * 16 +", [V_ROWS]),
     ("151 the Z read as a digit", VERSION, "where index != 8 && index != 15", "where index != 8", [V_ROWS]),
     ("152 the driven metres read on the new line (rv1 RV-A)", SESSION,
-     "        metersBefore += Self.meters(along: line, to: progressSegment)\n        line = next\n",
-     "        line = next\n        metersBefore += Self.meters(along: line, to: progressSegment)\n", [P_REROUTE]),
+     "(metersBefore, line) = (metersBefore + drivenMeters, next)",
+     "(metersBefore, line) = (metersBefore + Self.meters(along: next, to: progressSegment), next)", [P_REROUTE]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -492,7 +492,7 @@ EQUIVALENT = [
      "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device run hears it (T-0329). What bounds it: ops/lib/check-drive-voice.py (P-SAFE-09's row) allows exactly this whole line and refuses its removal by name ('the navigator never asks DriveVoice'), and what DriveVoice returns is CAUGHT above (entries 82-99)"),
 ]
 
-MIN_MUTATIONS = 151
+MIN_MUTATIONS = 152
 EQUIVALENT.append(
     ("E5 (device-only) the navigator's session starts without the preview's token", NAVIGATOR,
      "guard let session = DriveSession(preview: preview, online: true) else { return nil }",

@@ -123,8 +123,7 @@ public struct DriveSession: Sendable, Equatable {
             mode = .rejoining
             return false
         }
-        metersBefore += Self.meters(along: line, to: progressSegment)
-        line = next
+        (metersBefore, line) = (metersBefore + drivenMeters, next)
         self.waypoints = waypoints
         pinVertices = vertices
         self.planToken = planToken
@@ -149,16 +148,17 @@ public struct DriveSession: Sendable, Equatable {
     /// those before the current line plus the current line's whole length; 0 for a line with no length.
     public var fractionDriven: Double {
         let total = metersBefore + Self.meters(along: line, to: line.segmentCount)
-        return total > 0 ? (metersBefore + Self.meters(along: line, to: progressSegment)) / total : 0
+        return total > 0 ? (metersBefore + drivenMeters) / total : 0
     }
 
-    /// The metres along `line` from its first vertex to `vertex`.
+    /// T-0361 rv1 B1: the metres along the CURRENT line to the progress vertex - one binding, read by the fraction
+    /// and by a taken reroute, which replaces the metres and the line in one assignment.
+    var drivenMeters: Double { Self.meters(along: line, to: progressSegment) }
+
+    /// The metres along `line` from its first vertex to `vertex` (its last vertex past the end): total, never a trap.
     static func meters(along line: DriveLine, to vertex: Int) -> Double {
-        var meters = 0.0
-        for segment in 0..<vertex {
-            meters += Geo.distanceMeters(line.coordinates[segment], line.coordinates[segment + 1])
-        }
-        return meters
+        let ends = line.coordinates.prefix(vertex + 1)
+        return zip(ends, ends.dropFirst()).reduce(0) { $0 + Geo.distanceMeters($1.0, $1.1) }
     }
 
     /// Where the current leg ends - the first pin vertex past the progress, else the last vertex - and the metres
