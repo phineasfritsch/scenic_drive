@@ -1,7 +1,7 @@
 ---
 id: T-0378
 title: The home at the medium detent crashes at AX5 (accessibility XXXL) - find the cause, fix it, and add home-ax5-medium back to the ax5 screenshot pass
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T21:15:30Z
@@ -11,7 +11,7 @@ branch: task/T-0378
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/MapAdapter/, .github/workflows/ios-screenshot.yml, ops/lib/ios_screenshot_pinned.py, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-frozen, queue/]
 pins_affected: [P-ATTR-01, P-A11Y-01, P-SAFE-03]
-reviewer: null
+reviewer: agent/rv1-t-0378
 depends_on: [T-0376]
 verify: [ops/check-pins]
 acceptance: []
@@ -126,6 +126,33 @@ success, and home-ax5-medium looked at and quoted: credit, conditions line and b
     ScenicHomeScreen.swift 299, ios_screenshot_pinned.py 296.
   - GAP, recorded not fixed: the shell's "Plan a drive" pill (ScenicDriveApp, outside this task's touches) is not
     capped and is still drawn at AX5 size above the chip band.
+- 2026-10-16T22:49:04Z REVIEW PASS by agent/rv1-t-0378 (not the owner) on origin/task/T-0378 9c9dbd74 (PR #274).
+  - A1 ios-screenshot 38969965368 (headSha c78b78cd; 9c9dbd74 differs from it only under queue/): conclusion success,
+    simulator-screenshot (dark)=success (light)=success (ax5)=success, merge-screenshots=success.
+  - A2 home-ax5-medium.png downloaded and LOOKED AT: chips, the credit `(c) MapLibre . Natural Earth . (c)
+    OpenStreetMap contributors` in two lines directly above the sheet, title in two lines, the three menu chips,
+    `Conditions change. Verify locally.`, the orange `Open in Apple Maps` button, the road list in the scroll band cut
+    at its edge. Nothing drawn over anything.
+  - A3 home-ax5-collapsed.png LOOKED AT: route, credit, title, menu chips, conditions line and button all on screen.
+  - A4 home-light-medium.png LOOKED AT: unscrolled details down to the caption ending "yet." (default size unchanged).
+  - A5 `python ops/lib/check-ios-compile-guardrails.py` rc=0; `--prove-red` rc=0: `[red rc=1] ios-screenshot.yml:
+    T-0378: the AX5 medium shot dropped ...` / `PROVE-RED OK: 98 mutations red, 6 legitimate spellings green over 2
+    workflows, 0 unexpected result(s)`.
+  - A6 ios-compile 38969961170 success; `gh pr checks 274`: core pass, pins-source-only pass.
+  - A7 bare gates rc=0: check-safety-disclaimer, check-ios-compile-guardrails, check-map-attribution, check-line-cap
+    (`694 Swift files ... none over 300 lines`), check-pins-yaml, check-exec-bits, check-store-links,
+    check-telemetry-emit-sites, check-mutate-population, check-mutate-only, queue-check (`QUEUE OK (373 tasks)`).
+    `wc -l`: ScenicHomeScreen.swift 299, HomeSheet.swift 97.
+  - Own mutants, each with BOTH digest rows re-approved, `bash ops/lib/check-safety-disclaimer`:
+    RM1 `.dynamicTypeSize(userTypeSize)` deleted (the disclaimer capped): rc=1 `P-SAFE-03: a frozen render block
+    changed: ScenicHomeScreen's body ... line 38 of 41 ... approved .dynamicTypeSize(userTypeSize), found }`. RED.
+    RM2 `if typeSize > .large {` -> `> .xxxLarge` (the band never engages under the cap): rc=1 `P-SAFE-03: a frozen
+    render block changed: HomeSheet's struct line 17 of 70 ... approved if typeSize > .large {, found if typeSize >
+    .xxxLarge {`. RED.
+  - `git merge-base --is-ancestor origin/main origin/task/T-0378` rc=0 (after `git fetch origin`).
+  - Recorded, not blocking: the disclaimer at AX5 is not in the ax5 shot list, so "the safety text is never capped"
+    rests on code reading (RM1 shows the line is frozen); the shell's "Plan a drive" pill is uncapped at AX5 (owner's
+    recorded gap, no task filed); the cap at xxxLarge is a product call an accessibility layout could replace.
 
 ## Acceptance
 - A1 `gh workflow run ios-screenshot.yml --ref task/T-0378` on the final head: conclusion success, all three legs.
