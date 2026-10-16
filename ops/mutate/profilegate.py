@@ -128,6 +128,9 @@ MUTATIONS = [
      '"gate_service_way && false", "multiply_by"'),
     ("a blank tag not trimmed to empty", SUBJECT, "    if raw is None or not raw.strip():", "    if raw is None:"),
     ("an enum tag not upper-cased", SUBJECT, "    return raw.upper()", "    return raw"),
+    ("a padded enum tag trimmed", SUBJECT, "    return raw.upper()", "    return raw.strip().upper()"),
+    ("a padded ford value trimmed", SUBJECT, '    return tags.get("ford") == YES',
+     '    return (tags.get("ford") or "").strip() == YES'),
     ("an unknown tracktype read as GRADE3", SUBJECT, 'return value if value in TRACK_TYPES else "MISSING"',
      'return value if value in TRACK_TYPES else "GRADE3"'),
     ("an unknown smoothness read as MISSING", SUBJECT, 'return value if value in SMOOTHNESS else "OTHER"',
@@ -160,7 +163,7 @@ EQUIVALENT = [
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 78
+MIN_MUTATIONS = 80
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
