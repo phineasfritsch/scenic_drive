@@ -1,7 +1,7 @@
 ---
 id: T-0375
 title: P-PRIV-05 binds everyRequestStampsTheProvidersCurrentID() by name, so deleting the per-request install-id test is caught, not only weakened inside the suite filter
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T09:15:21Z
@@ -11,7 +11,7 @@ branch: task/T-0375
 exclusive: []
 touches: [ops/lib/named-tests.json, pins/PINS.yaml, queue/]
 pins_affected: [P-PRIV-05]
-reviewer: null
+reviewer: agent/rv1-t0375
 depends_on: [T-0367]
 verify: [ops/check-pins]
 acceptance: []
@@ -90,3 +90,16 @@ red by deleting the test (run-named-tests reports it MISSING) then green.
   3./4. as quoted in the 09:27:13Z entry (73/74 unseen, 73/75 MISSING by name, restored sha256 equal, 74/75).
   5. `PINS-YAML ok pins=51 fields=411` rc=0; `QUEUE OK (366 tasks)` rc=0; `P-PROC-06: every added module is covered
      or allowlisted; the floor of 165 holds` rc=0.
+- 2026-10-16T09:40:13Z REVIEW PASS (round 1) by agent/rv1-t0375 of PR #259 at a2f11f0e (not the owner). Acceptance
+  block committed before code: aa938e25 touches only this task file; b5984ad7 carries named-tests.json + PINS.yaml.
+  Binding red re-shown in a separate worktree by RENAMING the test (`everyRequestStampsTheProvidersCurrentID()` ->
+  `...CurrentIDRenamed()`): `python ops/lib/run-named-tests.py P-PRIV-05` rc=1, `RED
+  TelemetryTests.TelemetryClientTests/everyRequestStampsTheProvidersCurrentID(): MISSING - no test of this name ran`,
+  `NAMED P-PRIV-05 passed=73/75`. Restored with `git checkout --` (status clean): rc=1, only the GRDB-gated
+  UserStorePrivacyTests MISSING (Windows environment, R3), `NAMED P-PRIV-05 passed=74/75`. swift.tests 38 names, 38
+  distinct. Gates run bare: `PINS-YAML ok pins=51 fields=411` rc=0; `QUEUE OK (366 tasks)` rc=0; `P-PROC-06: every
+  added module is covered or allowlisted; the floor of 165 holds` rc=0. `gh pr checks 259` (once): core pass 8m16s,
+  pins-source-only pass 3m22s (core is where UserStorePrivacyTests runs). `git merge-base --is-ancestor origin/main
+  origin/task/T-0375` rc=1: origin/main 8cf3c3c4 is ahead by one queue-only commit (queue: file T-0376, one new task
+  file), acceptable drift. Open gap carried from the owner's stillOpen 2: P-PRIV-05 has no check-named-table digest,
+  so dropping a name with its test stays green; worth filing after T-0318 merges.
