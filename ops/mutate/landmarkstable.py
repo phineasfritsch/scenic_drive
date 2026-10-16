@@ -58,6 +58,15 @@ SELECT = ('    ("landmarks",\n'
           '     "ORDER BY osm_type, osm_id"),\n')
 FLAG = ('                        "--built-at", BUILT_AT, "--region", layout.region,\n'
         '                        "--landmarks-osm", str(layout.places_xml)])')
+DIGEST_COLUMNS = ("osm_type", "osm_id", "kind", "name", "ele_dm", "lat_e5", "lon_e5", "nearest_way_id")
+SELECTED = ", ".join(DIGEST_COLUMNS)
+assert SELECT.count(SELECTED) == 1
+
+
+def digest_without(*dropped: str) -> str:
+    return SELECT.replace(SELECTED, ", ".join(c for c in DIGEST_COLUMNS if c not in dropped))
+
+
 CLI = "                       region=args.region, budget_bytes=args.budget_bytes, landmarks_osm=args.landmarks_osm)"
 
 MUTATIONS = [
@@ -93,7 +102,10 @@ MUTATIONS = [
     ("writer drops the first row", WRITER, INSERT, INSERT.replace("sorted(rows, key=lambda row: (row[0], row[1]))",
                                                                   "sorted(rows, key=lambda row: (row[0], row[1]))[1:]")),
     ("digest blind to landmarks", DIGEST, SELECT, ""),
-    ("digest blind to nearest_way_id", DIGEST, SELECT, SELECT.replace(", nearest_way_id FROM", " FROM")),
+    ("digest blind to the key (osm_type, osm_id)", DIGEST, SELECT, digest_without("osm_type", "osm_id")),
+] + [
+    ("digest blind to %s" % column, DIGEST, SELECT, digest_without(column)) for column in DIGEST_COLUMNS
+] + [
     ("region build passes no landmarks", STAGE, FLAG,
      '                        "--built-at", BUILT_AT, "--region", layout.region])'),
 ]
@@ -111,7 +123,7 @@ EQUIVALENT = [
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 31
+MIN_MUTATIONS = 39
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
