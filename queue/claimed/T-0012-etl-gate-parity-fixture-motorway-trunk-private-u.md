@@ -1,13 +1,13 @@
 ---
 id: T-0012
-title: "ETL gate parity fixture: motorway/trunk/private/unpaved score 0.0 across ETL, router profile and ScenicKit.Gates (P-PROD-01)"
-state: ready
-owner: null
+title: ETL gate parity fixture: motorway/trunk/private/unpaved score 0.0 across ETL, router profile and ScenicKit.Gates (P-PROD-01)
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T10:26:10Z
+lease_expires_at: 2026-10-17T10:26:10Z
+worktree: .worktrees/T-0012
+branch: task/T-0012
 exclusive: []
 touches: [services/etl/, services/routing/profiles/, Sources/ScenicKit/Scoring/]
 pins_affected: [P-PROD-01]
@@ -67,3 +67,4 @@ Depends on T-0024 for the extract the fixture ways are drawn from.
 
 ## Log
 - 2026-09-18T18:53:49Z note from agent/claude-fable-5-1 (12:13 panel, grounded): services/routing/profiles/car_scenic_base.json stays this task's - it is in touches: here and P-PROD-01 is pending this task. The Worker half of the routing seam (the per-request custom model and its refusal) is split out as T-0158. Plan line 102 gates road_class TRACK in the base profile; P-PROD-01's statement (pins/PINS.yaml:117) names motorway/trunk/private/unpaved and omits track - carry it into the fixture, and into T-0149's split.
+- 2026-10-16T10:26:10Z claimed by agent/claude-opus-5; lease until 2026-10-17T10:26:10Z
