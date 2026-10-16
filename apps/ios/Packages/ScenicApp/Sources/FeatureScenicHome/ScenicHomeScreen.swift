@@ -79,7 +79,6 @@ public struct ScenicHomeScreen: View {
 
     @State private var surpriseFailure: String?
     @Environment(\.homeMoments) private var moments
-
     @State private var chipBandBottom: CGFloat = 0
     @State private var creditBandTop: CGFloat = 0
 
@@ -88,8 +87,9 @@ public struct ScenicHomeScreen: View {
     private let onSettings: () -> Void
 
     private let surprise: SurpriseSlot.Builder
+    private let surpriseGate: SurpriseGate
 
-    public init(onSettings: @escaping () -> Void, surprise: @escaping SurpriseSlot.Builder) { self.onSettings = onSettings; self.surprise = surprise }
+    public init(onSettings: @escaping () -> Void, surpriseGate: SurpriseGate, surprise: @escaping SurpriseSlot.Builder) { self.onSettings = onSettings; self.surpriseGate = surpriseGate; self.surprise = surprise }
 
     public var body: some View {
         ZStack(alignment: .top) {
@@ -185,7 +185,7 @@ public struct ScenicHomeScreen: View {
                 settingsButton
             }
             if isShowingSurprise {
-                surprise({ openSurprise($0) }, surpriseFailure)
+                SurpriseGateSlot(gate: surpriseGate, card: { surprise({ openSurprise($0) }, surpriseFailure) })
             }
         }
             .padding(6)

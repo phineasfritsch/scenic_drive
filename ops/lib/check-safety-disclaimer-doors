@@ -58,7 +58,7 @@ DOORS_OPENERS=(
   "$S/FeaturePlanSheet/TripItineraryCard.swift|"'                            Link(Self.label(day: day.day, part: index + 1, of: links.count), destination: url)'
   "$S/FeaturePlanSheet/LoopPreviewCard.swift|"'                    Link("Open the loop in Apple Maps", destination: link)'
 )
-DOORS_SHELL_LINE='        ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })'
+DOORS_SHELL_LINE='        ScenicHomeScreen(onSettings: { isShowingSettings = true }, surpriseGate: surpriseGate, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })'
 DOORS_OPENERS+=("ScenicDrive/ScenicDriveApp.swift|$DOORS_SHELL_LINE")
 DOORS_VIEWS=(
   "$S/Entitlements/SettingsScreen.swift|"'public struct SettingsScreen: View {'

@@ -45,7 +45,7 @@ SHELL_REL="ScenicDrive/ScenicDriveApp.swift"
 SHELL_PRESENTATION='.sheet(isPresented: $isShowingSettings) {'
 # T-0294 (rv1-t0294 B1 ruling): the plan sheet, presented full height as Settings is - no presentationDetents line
 # anywhere, so no partial sheet ever covers the home's credit. Approved by WHOLE line, count 1, beside Settings'.
-SHELL_PLAN_PRESENTATION='.sheet(isPresented: $isPlanning) {'
+SHELL_PLAN_PRESENTATION='.sheet(isPresented: $isPlanning, onDismiss: { surpriseGate = LivePlanner.surpriseGate() }) {'
 # T-0305 R5: the places download sheet, presented full height as Settings and the plan sheet are - no
 # presentationDetents line anywhere. Approved by WHOLE line, count 1, beside theirs.
 SHELL_CORPUS_PRESENTATION='.sheet(isPresented: $isShowingCorpusDownload) {'

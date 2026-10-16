@@ -19,8 +19,9 @@ public struct ConfigCache: Sendable {
         return fresh
     }
 
-    /// The last good answer, else the bundled defaults.
-    private var kept: RemoteConfig {
+    /// The last good answer, else the bundled defaults - the store only, never a request (T-0368 R1: the home and the
+    /// plan sheet read feature_surprise here).
+    public var kept: RemoteConfig {
         storage.load().flatMap(ConfigReader.decode) ?? RemoteConfig.bundled
     }
 }
