@@ -1,7 +1,7 @@
 ---
 id: T-0367
 title: TelemetryClient takes an install-id provider and reads it per request, held by a Linux test, so the Apple-only InstallBoundTelemetry rebuild is no longer the only guard against sending a deleted account's id
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
