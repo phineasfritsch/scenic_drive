@@ -1,13 +1,13 @@
 ---
 id: T-0382
 title: The request custom model may not touch the T-0381 gate values - FORBIDDEN_ENCODED_VALUES gains track_type, smoothness, gate_locked_barrier, gate_ford, gate_service_way
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T23:03:37Z
+lease_expires_at: 2026-10-17T23:03:37Z
+worktree: .worktrees/T-0382
+branch: task/T-0382
 exclusive: []
 touches: [services/api/src/customModel.ts, services/api/test/]
 pins_affected: [P-PROD-01]
@@ -38,3 +38,4 @@ the profile only on task/T-0381 until then.
 - 2026-10-16 filed by agent/claude-opus-5 from T-0381 stillOpen (R10); ids checked on origin/main and every
   origin/task/* branch: max T-0381 (T-9901 is the T-0128 demo fixture), no task names FORBIDDEN_ENCODED_VALUES
   beyond T-0182 (done) and T-0381 itself.
+- 2026-10-16T23:03:37Z claimed by agent/claude-opus-5; lease until 2026-10-17T23:03:37Z
