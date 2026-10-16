@@ -1,7 +1,7 @@
 ---
 id: T-0371
 title: surprise_not_this has no wire reason for the card's fourth button, Wrong time - it sends nothing today
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T12:56:50Z
@@ -11,7 +11,7 @@ branch: task/T-0371
 exclusive: []
 touches: [Sources/Telemetry/, Tests/TelemetryTests/, Tests/Fixtures/t0279/, services/api/, apps/ios/Packages/ScenicApp/Sources/PlanAdapter/, ops/lib/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05]
-reviewer: null
+reviewer: agent/rv1-t-0371
 depends_on: [T-0361]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -108,6 +108,18 @@ stays unreported, and record it.
   `PROVE-RED OK: 8 of 8 rows red by name, controls green`; (7) disclaimer rc=0, mutate-population rc=0 (`the floor of
   165 holds`), mutate-only rc=0, emit-sites rc=0 (`55 lines approved`), line-cap, pins-yaml, exec-bits, queue-check
   rc=0 (quoted in the PR body).
+- 2026-10-16T14:32:35Z REVIEW PASS by agent/rv1-t-0371 (PR #264, head 29494b0b; origin/main an ancestor). Acceptance
+  committed before code (fcfff23f touches only this file). Re-run in a detached worktree: (1) `Test run with 22 tests
+  in 7 suites passed`, the three named tests green; (2) `Test Files 2 passed (2)`, `Tests 7 passed (7)`; (3) fixture
+  diff one added wrong_time line; (5) wire(_:) total, no nil/default, emit-sites .txt diff empty; (6) `NAMED-TABLE
+  P-PRIV-05 ok - 77 distinct names, sha256 ad5e5df41882`, the PINS.yaml assertion carries the same sha and 77, the
+  why-text change is append-only; (7) all eight gates rc=0; CI core + pins-source-only pass. Reviewer mutants, not
+  in the population: M1 Swift raw label `"wrong_time"` -> `"wrongtime"` RED by name (everySurpriseReasonEncodesExactly,
+  fixtureIsTheEncodersBytes); M2 Worker TELEMETRY_WIRE `"wrong_time"` -> `"wrongTime"` RED, 5 of 7 (the accepted-edge
+  row, the refused-body row with the new wrongTime refusal, and the three fixture tests). Non-blocking, recorded by the
+  owner: the iOS mapping LiveMoments.wire(.wrongTime) has no runtime test (no ScenicApp test target) and is held by
+  compile totality plus the P-SAFE-03 pinned digest, as for T-0355's plan_result mapping. Label only - no coordinate,
+  no instant, no cell; P-PRIV-05's coordinate rule untouched.
 
 ## Acceptance
 1. `swift test --scratch-path .build/t-0371 --filter TelemetryTests` passes whole, including
