@@ -97,6 +97,17 @@ stays unreported, and record it.
 - 2026-10-16T13:22:20Z R6 (ruled on the pre-commit refusal): the fixture lives at Tests/Fixtures/t0279/ and the
   P-PRIV-05 re-approval at pins/PINS.yaml, neither in the filed touches; both are this task's ruled outputs (R2b, R4)
   and neither is serial-only, so touches gains `Tests/Fixtures/t0279/` and `pins/PINS.yaml`.
+- 2026-10-16T13:55:00Z MERGED origin/main eb2d33c0 (T-0370, PR #260) as e94acd4a: LiveMoments.swift conflicted
+  (T-0370 added `paywallConverted()` above `wire(_:)`) - resolved by keeping both; the pinned row re-approved for
+  the merged file (993cb06c...dabe); check-telemetry-emit-sites.txt is main's (my diff to it is empty).
+  ACCEPTANCE re-run whole on the merged head: (1) `Test run with 22 tests in 7 suites passed` incl.
+  everySurpriseReasonEncodesExactly, fixtureIsTheEncodersBytes, fixtureCoversEveryWireName; (2) `Test Files 2 passed
+  (2)`, `Tests 7 passed (7)`; (3) the fixture diff is the one added wrong_time line, none removed; (4) RED/GREEN as
+  quoted above; (5) `-> SurpriseNotThisReason {` (:44), `case .wrongTime: return .wrongTime` (:49), no `nil`, no
+  `default:`, emit-sites table diff empty; (6) `NAMED-TABLE P-PRIV-05 ok - 77 distinct names, sha256 ad5e5df41882`,
+  `PROVE-RED OK: 8 of 8 rows red by name, controls green`; (7) disclaimer rc=0, mutate-population rc=0 (`the floor of
+  165 holds`), mutate-only rc=0, emit-sites rc=0 (`55 lines approved`), line-cap, pins-yaml, exec-bits, queue-check
+  rc=0 (quoted in the PR body).
 
 ## Acceptance
 1. `swift test --scratch-path .build/t-0371 --filter TelemetryTests` passes whole, including
