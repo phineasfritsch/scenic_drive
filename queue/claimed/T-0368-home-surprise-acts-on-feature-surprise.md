@@ -78,6 +78,24 @@ PlanFailureCopy takes the flag. Surprise Me sends the Worker nothing (no /surpri
   - R6 (single binding): one reader (LivePlanner.surpriseGate) feeds both surfaces; the shell holds the home's copy in
     one @State and hands the sheet the reader itself.
 
+- 2026-10-16T06:51:16Z RED -> GREEN by agent/claude-opus-5:
+  - R7 (touches): the one-argument PlanFailureCopy.of had a second caller,
+    Tests/ScenicAPIClientTests/NothingPrettyReaderTests.swift:77; touches widen by that one file, its row now asserted
+    under both gates.
+  - RED (before code, `swift test --filter "PlanFailureCopyTests|SurpriseGateTests|ConfigCacheTests"`, exit 1):
+    "cannot find type 'SurpriseGate' in scope", "extra argument 'surprise' in call", "'kept' is inaccessible due to
+    'private' protection level".
+  - GREEN (code in, the three suites plus NothingPrettyReaderTests, exit 0): "Test run with 13 tests in 3 suites passed";
+    XCTest "Executed 4 tests, with 0 failures".
+  - Mutants (each alone, restored after): M1 quotaExhausted off keeps .surpriseMe -> KILLED (onlySurpriseRowsReadTheGate);
+    M2 attestUnsupported off keeps the on line -> KILLED; M3 SurpriseGate.of returns .on -> KILLED (gateIsTheFlag);
+    M4 kept returns bundled -> KILLED (keptSendsNothing).
+  - Guard rows moved with their lines (whole-line, same commit): FROZEN_CHIPS, FROZEN_APP_SHELL (+ the surpriseGate
+    @State line), the FROZEN_SCREEN_BODY anchor (the init line), check-map-attribution-sheet SHELL_PLAN_PRESENTATION,
+    check-safety-disclaimer-doors DOORS_SHELL_LINE, store_links_pinned.py (init, shell mount, its mutant row).
+    Digests re-approved: ScenicHomeScreen, PlanSheetScreen, LivePlanner, new SurpriseGateSlot (both FeatureScenicHome
+    lists), PINNED_SHELL_DIGEST; linked: ConfigCache, PlanFailureCopy, new SurpriseGate.
+
 ## Acceptance
 1. `swift test --filter PlanFailureCopyTests` passes: for every PlanSheetFailure x SurpriseGate (28 rows),
    `PlanFailureCopy.of(failure, surprise: gate)` EQUALS a whole PlanFailureCopy typed in the test; meta-rows: exactly
