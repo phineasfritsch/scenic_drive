@@ -5,13 +5,14 @@ import SwiftUI
 /// The search half of the plan sheet: a field, the corpus places matching it, best first (T-0294), and (T-0362) the
 /// addresses the Worker found for the SUBMITTED text. The corpus list follows every keystroke on the device; the address
 /// search is asked only from the field's submit action, once per submit (R6), and its answer is dropped as soon as the
-/// text changes so a list never stands under text it was not asked for.
+/// text changes so a list never stands under text it was not asked for. The loop and trip screens pass no search
+/// (T-0362 R10): /trip resolves corpus ids only, and the loop keeps the list it had.
 struct PlanPlaceList: View {
     let field: PlanField
     @Binding var query: String
-    let search: PlaceSearchSubmit
-    let start: PlanPlace?
-    let destination: PlanPlace?
+    var search: PlaceSearchSubmit?
+    var start: PlanPlace?
+    var destination: PlanPlace?
     let onPick: (PlanPlace) -> Void
     let onCancel: () -> Void
     @State private var answer: PlaceSearchAnswer?
@@ -27,7 +28,7 @@ struct PlanPlaceList: View {
                     .onSubmit(submit)
                     .accessibilityIdentifier("plan.search")
             } footer: {
-                Text("Press Search to look up a street address.")
+                if search != nil { Text("Press Search to look up a street address.") }
             }
             Section {
                 ForEach(PlanPlaceSearch.find(query), id: \.id) { place in
@@ -63,7 +64,7 @@ struct PlanPlaceList: View {
 
     /// R6: the one call site of the address search - a submit, never a keystroke; one submit at a time.
     private func submit() {
-        guard !asking else { return }
+        guard let search, !asking else { return }
         let text = query
         asking = true
         Task {
