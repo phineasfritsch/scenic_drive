@@ -1,7 +1,7 @@
 ---
 id: T-0366
 title: After a handoff the app asks "Prettier than your usual way?" at the next open, only with a known stopped speed
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
