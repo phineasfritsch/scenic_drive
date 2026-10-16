@@ -1,7 +1,7 @@
 ---
 id: T-0354
 title: check-mutate-only's POSIX process-group tree kill is seen red then green on Linux CI, and PAIR_FLOOR is raised to the measured merged-head count
-state: claimed
+state: review
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-15T23:39:57Z
@@ -11,7 +11,7 @@ branch: task/T-0354
 exclusive: []
 touches: [ops/lib/check-mutate-only.py, ops/lib/mutate_only_pairs.py, ops/lib/tree-kill-demo.py]
 pins_affected: [P-PROC-06]
-reviewer: null
+reviewer: agent/rv1-t0354
 depends_on: [T-0353]
 verify: [ops/check-pins]
 acceptance:
@@ -66,3 +66,25 @@ parent-plus-sleeping-grandchild demo. (b) PAIR_FLOOR = 192168 is the pre-merge m
   `NAME-PAIRS FAILED: 201117 pair tokens over 44 id populations, each refused in process by select_only in 4 modes and by onlyIds (0 calls not refused, floor 201118 tokens)`
   `EXIT 2`
   PAIR_FLOOR then set to the literal 201117; the green run is the A1 run on the final merged head.
+- 2026-10-16T00:16:49Z FINAL acceptance re-run on the merged head fb0d3999 (`git fetch origin` in the main checkout: origin/main still 97299cc5, merge a no-op). Each gate run bare, its exit read from PIPESTATUS[0] (only display piped through tail):
+  A1 + A2-restore (00:07:59Z): `NAME-PAIRS OK: 201117 pair tokens over 44 id populations, each refused in process by select_only in 4 modes and by onlyIds (0 calls not refused, floor 201117 tokens)` EXIT 0; `MUTATE-ONLY OK: 219 of 219 driver runs refused with exit 64 (59 drivers, 101 range probes: 23 digit, 42 name, 36 N-(N+1))`; mutate_only_pairs.py carries `PAIR_FLOOR = 201117`.
+  A2 RED: quoted in the 2026-10-16T00:06:01Z entry (floor 201118 -> `NAME-PAIRS FAILED: 201117 ... floor 201118 tokens`, EXIT 2).
+  A3/A4 (00:08:00Z, WSL docker python:3.12-slim --init, fb0d3999):
+    `== tree-kill-demo.py `
+    `shipped run_tree: exit None after 3.0s, kill: killpg 9 SIGKILL`
+    `shipped output: child 9 started grandchild 10`
+    `GRANDCHILD KILLED (shipped): pid 10 is gone`
+    `EXIT 0`
+    `== tree-kill-demo.py --mutant direct-child`
+    `mutant direct-child run_tree: exit None after 33.0s, kill: killpg 12 SIGKILL`
+    `mutant direct-child output: (the output pipe is still held by a descendant the tree kill missed)`
+    `GRANDCHILD SURVIVED (mutant direct-child): pid 13 is still running (state S)`
+    `EXIT 1`
+    `== tree-kill-demo.py --mutant no-session`
+    `mutant no-session run_tree: exit None after 33.0s, kill: killpg 15: no such group`
+    `mutant no-session output: (the output pipe is still held by a descendant the tree kill missed)`
+    `GRANDCHILD SURVIVED (mutant no-session): pid 16 is still running (state S)`
+    `EXIT 1`
+  Off POSIX (this Windows box): `tree-kill-demo: needs POSIX with /proc (run it in Linux): REFUSING` EXIT 2.
+  A5: check-mutate-population EXIT 0 `P-PROC-06: every added module is covered or allowlisted; the floor of 165 holds`; check-exec-bits EXIT 0 `P-OPS-01: 225 files, 23 required present, all modes correct` (tree-kill-demo.py 100644); check-pins-yaml EXIT 0 `PINS-YAML ok pins=50 fields=403`; queue-check EXIT 0 `QUEUE OK (356 tasks)` (before this move to review/). wc -l: tree-kill-demo.py 102, mutate_only_pairs.py 125, check-mutate-only.py 249 (unchanged).
+- 2026-10-16T00:16:50Z claimed -> review; reviewer agent/rv1-t0354.
