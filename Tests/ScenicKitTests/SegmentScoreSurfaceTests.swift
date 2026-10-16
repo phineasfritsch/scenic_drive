@@ -34,8 +34,10 @@ struct SegmentScoreSurfaceTests {
         var out: [String] = []
         while let next = walker.nextObject() as? String {
             let relative = next.replacingOccurrences(of: "\\", with: "/")
-            let name = relative.split(separator: "/").last.map(String.init) ?? relative
-            if name.hasPrefix(".") || name == "DerivedData" || name == "build" { walker.skipDescendants(); continue }
+            // Build products are skipped by path component, not by skipDescendants(), which on this
+            // Windows Foundation ended the whole walk at the first dot-file (apps/ read 1 file of 113).
+            let parts = relative.split(separator: "/")
+            if parts.contains(where: { $0.hasPrefix(".") || $0 == "DerivedData" || $0 == "build" }) { continue }
             if relative.hasSuffix(".swift") { out.append(dir + "/" + relative) }
         }
         return out.sorted()
@@ -56,8 +58,11 @@ struct SegmentScoreSurfaceTests {
 
     @Test("every call of the formula in Sources/ and apps/ is at an approved site")
     func formulaOnlyAtApprovedSites() throws {
-        let files = Self.swiftFiles(under: "Sources") + Self.swiftFiles(under: "apps")
-        #expect(files.count > 100, "read only \(files.count) Swift files - the walk is not seeing the tree")
+        let sources = Self.swiftFiles(under: "Sources"), apps = Self.swiftFiles(under: "apps")
+        // Fail closed per root: a walk that silently reads nothing under one root guards nothing there.
+        #expect(sources.count > 300, "read only \(sources.count) Swift files under Sources/")
+        #expect(apps.count > 50, "read only \(apps.count) Swift files under apps/")
+        let files = sources + apps
         var found: [String: [String]] = [:]
         for f in files {
             let text = try String(contentsOf: Self.root.appendingPathComponent(f), encoding: .utf8)
