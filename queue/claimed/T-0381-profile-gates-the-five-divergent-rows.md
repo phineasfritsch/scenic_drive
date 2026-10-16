@@ -146,3 +146,25 @@ re-import command and the expected graph hash change in the Log.
   base, nothing to merge. STILL OPEN (R10): services/api FORBIDDEN_ENCODED_VALUES lacks the five new names;
   pins/PINS.yaml P-PROD-01 prose still says five rows diverge; the case-variant rows (tracktype=Grade3,
   smoothness=Bad) are gated by the profile only (fail-safe direction).
+- 2026-10-16T20:52:48Z rv1 FAIL (agent/rv1-t-0381, head 7a4a7035) B1 closed by CLASS. RULING: GraphHopper 11's
+  TrackType/Smoothness find is valueOf(toUpperCase(name)) with no trim, and GateFacts.tag, Gates.swift and
+  assemble.gate_reason compare exactly, so a padded value is NOT the fact; no oracle row padded any of the five, so
+  a trim on either reader survived. RED at 99e5c24d (two mutants added, floor 78 -> 80, no rows yet): `python
+  ops/mutate/profilegate.py --only "a padded enum tag trimmed" --only "a padded ford value trimmed"` -> `MISSED a
+  padded enum tag trimmed (exit 0)`, `MISSED a padded ford value trimmed (exit 0)`, `MUTATE FAILED caught=0/2`.
+  FIX at 9af64946: gate_encoding.json +10 padded rows (tracktype ' grade3'/'grade3 ', smoothness ' bad'/'bad ', ford
+  ' yes'/'yes ', locked 'yes ' with barrier=gate, barrier ' gate' with locked=yes, service ' driveway'/'driveway '),
+  34 -> 44 in GateEncodingTest and test_the_plugin_table_is_whole; GATED_BY_T0381 derives a leading and a trailing
+  padded not-gated row from every gating literal (every non-highway key of every want=True row, +30 rows). GREEN:
+  same command -> `caught a padded enum tag trimmed <- tests/test_profilegate.py::test_encoding_matches_the_plugin_table`,
+  `caught a padded ford value trimmed <- ...test_encoding_matches_the_plugin_table`, `MUTATE OK caught=2/2`;
+  `--prove-vacuity` same names -> `VACUITY PROVED`. Touched tests: test_profilegate.py + test_gate_parity.py -> `255
+  passed`. JAVA (values confirmed by GraphHopper, not restated): `wsl docker build -t scenic-routing:t0381
+  services/routing` -> `Tests run: 2, Failures: 0 ... in com.scenicdrive.routing.GateEncodingTest`, `Tests run: 32,
+  Failures: 0`, `BUILD SUCCESS` over the 44 rows (smoothness ' bad' -> OTHER, tracktype ' grade3' -> MISSING, every
+  padded fact false). Java twin RED: GateFacts.tag `(String) value` -> `((String) value).trim()` ->
+  `GateEncodingTest.everyRowEncodesExactlyItsTable:86 {"highway":"unclassified","ford":" yes"} ==> expected:
+  <{gate_ford=false, ...}> but was: <{gate_ford=true, ...}>`, `BUILD FAILURE`; restored (git diff empty).
+  FOLLOW-UP FILED: T-0382 (main 334b1891) - FORBIDDEN_ENCODED_VALUES gains track_type, smoothness, gate_*; ids
+  checked on origin/main and every origin/task/* branch first. NOT DONE HERE: gate_parity.json carries no padded
+  row (it also runs Swift Gates and assemble.gate_reason; T-0181 touches it in parallel).
