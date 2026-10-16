@@ -6,7 +6,7 @@ ordered pair (a, b) of every driver's listed ids, a == b included, whose `a-b` n
 to both parsers the drivers share - mutate_only.select_only in all four (substring, split) modes and onlyIds.mjs
 through one `node` harness - against that driver's ids, and every call must refuse: exit 64 with a
 `REFUSING TO RUN: ` line. Every population goes to both parsers, so the class closes whichever driver uses which
-parser and whatever order its ids are listed in. PAIR_FLOOR (the pair tokens measured 2026-10-10) keeps a drained
+parser and whatever order its ids are listed in. PAIR_FLOOR (the pair tokens measured 2026-10-15) keeps a drained
 population from passing as `0 of 0`.
 """
 from __future__ import annotations
@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT / "ops/mutate"))
 
 import mutate_only  # noqa: E402
 
-PAIR_FLOOR = 192168
+PAIR_FLOOR = 201117
 MODES = ((False, True), (True, True), (False, False), (True, False))
 REFUSED = "REFUSING TO RUN: "
 SHOW = 3
