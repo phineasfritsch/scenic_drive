@@ -70,7 +70,8 @@ def test_expression_evaluator(expression, want):
 
 
 REFUSED = ["road_class = TRACK", "road_class == TRACK ||", "(road_class == TRACK", "road_class == TRACK)",
-           "max_speed > 50", "road_class", "road_class == TRACK road_access", "", "scenic_score >= 7"]
+           "max_speed > 50", "road_class", "road_class == TRACK road_access", "", "scenic_score >= 7", "(true true",
+           "true ;"]
 
 
 @pytest.mark.parametrize("expression", REFUSED, ids=[repr(e) for e in REFUSED])
