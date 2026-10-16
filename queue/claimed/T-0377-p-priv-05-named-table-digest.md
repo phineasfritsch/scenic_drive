@@ -82,5 +82,25 @@ in the assertion). Do the same for P-PRIV-05:
   the committed table is unchanged (acceptance 2).
   R5: the pin runs_on [linux]; on this box the assertion is run directly by `bash -c` on the string
   yaml.safe_load reads from PINS.yaml, so the demonstration exercises the shipped text, not a retyped copy.
+- 2026-10-16T10:46:59Z CHANGE: pins/PINS.yaml P-PRIV-05 assertion gains, between check-learned-speeds-sites.py and
+  run-named-tests.py, `check-named-table.py P-PRIV-05 4c879f4d...1a45 76 && check-named-table.py --prove-red
+  P-PRIV-05 4c879f4d...1a45 76 >/dev/null &&` (each with the inline `${PYTHON:-...}`; one replacement asserted by
+  the edit script); why_no_test_catches_it gains one appended dated T-0377 sentence. `python
+  ops/lib/check-pins-yaml.py`: `PINS-YAML ok pins=51 fields=411`, exit 0.
+- 2026-10-16T10:46:59Z RED through the shipped assertion (yaml.safe_load of PINS.yaml -> `PYTHON=python bash -c`):
+  dropped the P-PRIV-05 row `POST /search takes ... (T-0359 R3/R4, P-PRIV-05) > a body that is not JSON is 400
+  with zero Photon requests` from named-tests.json AND deleted that test (lines 99-103) from
+  services/api/test/searchShape.test.ts, neither committed (`git diff --stat`: 1 and 5 deletions). Printed:
+  `P-PRIV-05 emit sites: ok ...`, `P-PRIV-05 learned speeds: ok ...`, `REFUSED count 75 distinct names != approved
+  76`, `REFUSED digest 63cdaf75e25f9ea39371fc8f831523e8d046e1fadf9e795017169ef4194b742a != approved
+  4c879f4d...1a45`, `NAMED-TABLE P-PRIV-05 FAILED - re-approve the digest and count beside the assertion`, rc=1;
+  no NAMED line (run-named-tests not reached). Restored: git hash-object equals HEAD's blob for both files
+  (named-tests.json 05a0ad8d..., searchShape.test.ts 4ecfd008...).
+- 2026-10-16T10:46:59Z GREEN, same shipped assertion on the restored tree (SCENIC_SWIFT_SCRATCH=.build/t0377 of
+  the main checkout; the worktree first needed `npm ci` in services/api, whose absence the runner refused by
+  name): `NAMED-TABLE P-PRIV-05 ok - 76 distinct names, sha256 4c879f4d82fe`, then `RED
+  PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail(): MISSING - no test of this name ran` and
+  `NAMED P-PRIV-05 passed=75/76`, rc=1 - the GRDB-gated environment MISSING of ruling R2 and nothing else; CI's
+  Linux core job runs it whole.
 - 2026-10-16 filed by agent/claude-opus-5 from T-0375 R2 / stillOpen 2, after T-0318 merged.
 - 2026-10-16T10:29:45Z claimed by agent/claude-opus-5; lease until 2026-10-17T10:29:45Z
