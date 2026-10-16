@@ -10,6 +10,10 @@
   {"access_ok": 1, "cls": "tertiary", "highway": "tertiary", "id": 25, "name": "Lon Edge Road", "oneway": 0,
    "nodes": [[34.05, -118.8001], [34.06, -118.8001]]},
   {"access_ok": 1, "cls": "primary", "highway": "primary", "id": 26, "name": "Long Road", "oneway": 0,
-   "nodes": [[34.0855, -118.9], [34.0855, -118.6]]}
+   "nodes": [[34.0855, -118.9], [34.0855, -118.6]]},
+  {"access_ok": 1, "cls": "tertiary", "highway": "tertiary", "id": 27, "name": "Lon Top Road", "oneway": 0,
+   "nodes": [[34.065, -118.70928], [34.075, -118.70928]]},
+  {"access_ok": 1, "cls": "tertiary", "highway": "tertiary", "id": 28, "name": "Lat Bottom Road", "oneway": 0,
+   "nodes": [[34.03995, -118.66], [34.03995, -118.64]]}
  ]
 }

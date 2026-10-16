@@ -30,6 +30,15 @@
     <tag k="name" v="Long Way Peak"/>
     <tag k="natural" v="peak"/>
   </node>
+  <node id="108" lat="34.07" lon="-118.71208">
+    <tag k="name" v="Lon Top Cell"/>
+    <tag k="tourism" v="viewpoint"/>
+  </node>
+  <node id="109" lat="34.04005" lon="-118.65">
+    <tag k="ele" v="100 m"/>
+    <tag k="name" v="Lat Bottom Cell"/>
+    <tag k="natural" v="peak"/>
+  </node>
   <node id="301" lat="34.03" lon="-118.65"/>
   <node id="302" lat="34.03" lon="-118.6499"/>
   <node id="303" lat="34.0301" lon="-118.64995"/>
