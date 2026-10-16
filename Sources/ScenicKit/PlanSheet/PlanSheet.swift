@@ -13,6 +13,8 @@ public struct PlanSheet: Equatable, Sendable {
     public private(set) var destination: PlanPlace?
     public private(set) var budgetMinutes: Int
     public private(set) var disclaimerAccepted: Bool
+    /// T-0357 R6: /config's degrade, set by the view from its planner; the gate issues nothing unless it is clear.
+    public private(set) var degrade: ConfigDegrade = .clear
     private var issued = 0
 
     public init(disclaimerAccepted: Bool, budgetMinutes: Int = 30) {
@@ -23,6 +25,11 @@ public struct PlanSheet: Equatable, Sendable {
     /// The home's on-device acknowledgement, read by the view; the sheet never writes it (R3).
     public mutating func setDisclaimerAccepted(_ accepted: Bool) {
         disclaimerAccepted = accepted
+    }
+
+    /// The planner's /config degrade (T-0357 R7), read by the view.
+    public mutating func setDegrade(_ degrade: ConfigDegrade) {
+        self.degrade = degrade
     }
 
     /// The user typed into a field's search. Ignored while a plan is in flight.
@@ -76,7 +83,7 @@ public struct PlanSheet: Equatable, Sendable {
     /// The one place a ticket is made. The minutes are the stepper's (clamped by setBudget) or an offer's (bounded by
     /// ScenicAPIClient's NothingPrettyOffer read); they become the sheet's budget only when a ticket is issued.
     private mutating func gate(budgetMinutes minutes: Int, allBackRoads: Bool) -> PlanTicket? {
-        guard disclaimerAccepted, let start, let destination else { return nil }
+        guard disclaimerAccepted, degrade == .clear, let start, let destination else { return nil }
         switch state {
         case .chosen, .preview, .failed: break
         case .idle, .searching, .planning: return nil

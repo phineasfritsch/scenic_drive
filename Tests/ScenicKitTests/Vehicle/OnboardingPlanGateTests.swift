@@ -12,6 +12,7 @@ struct OnboardingPlanGateTests {
             calls += 1
             return .failure(.routingOffline)
         }
+        func degrade() async -> ConfigDegrade { .clear }
     }
 
     static let start = PlanPlace(id: 7, name: "Santa Monica Pier",

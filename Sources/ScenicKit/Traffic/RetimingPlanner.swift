@@ -20,4 +20,9 @@ public struct RetimingPlanner: RoutePlanning {
         let speeds = await learner.speeds
         return .preview(RetimedPreview.of(preview, timeRuns: runs, by: speeds, departsAt: now()))
     }
+
+    /// T-0357 R7: the inner planner's degrade, unchanged.
+    public func degrade() async -> ConfigDegrade {
+        await inner.degrade()
+    }
 }

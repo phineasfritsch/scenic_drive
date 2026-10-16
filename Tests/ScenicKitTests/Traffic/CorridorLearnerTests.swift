@@ -75,6 +75,7 @@ import Testing
     struct Fixed: RoutePlanning {
         let outcome: PlanOutcome
         func plan(_ ticket: PlanTicket) async -> PlanOutcome { outcome }
+        func degrade() async -> ConfigDegrade { .clear }
     }
 
     static let ticket = PlanTicket(serial: 1, origin: Coordinate(latitude: 34.05, longitude: -118.25), place: 42,

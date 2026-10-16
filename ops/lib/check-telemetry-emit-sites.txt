@@ -1,7 +1,7 @@
 site	apps/ios/Packages/ScenicApp/Package.swift	                .product(name: "Telemetry", package: "ScenicDrive"),
 site	apps/ios/Packages/ScenicApp/Sources/Entitlements/SettingsScreen.swift	            .accessibilityIdentifier("settings.paywall")
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveLoopPlanner.swift	        return TelemetryLoopPlanner(inner: ClientLoopPlanner(client: LoopClient(base: base, transport: URLSessionPlanTransport(),
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift	        return TelemetryRoutePlanner(inner: ClientPlanner(client: client(base)))
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift	        return TelemetryRoutePlanner(inner: ConfiguredPlanner(planner: ClientPlanner(client: client(base)), cache: cache,
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift	    private static let live: (any SurpriseLedgerSource)? = TelemetrySurpriseLedger(inner: build())
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift	import Telemetry
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveWaitlist.swift	import Telemetry

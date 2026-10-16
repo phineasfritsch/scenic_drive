@@ -1,0 +1,247 @@
+---
+id: T-0357
+title: The app reads /config - a ConfigClient fetches the Worker's remote config with cached defaults, and the kill switch and min build degrade the UI to the typed PlanError copy instead of failing
+state: done
+owner: agent/claude-opus-5
+owner_session: null
+claimed_at: 2026-10-10T05:16:25Z
+lease_expires_at: 2026-10-10T13:16:25Z
+worktree: .worktrees/T-0357
+branch: task/T-0357
+exclusive: []
+touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, pins/PINS.yaml, .github/workflows/ios-screenshot.yml, queue/]
+pins_affected: []
+reviewer: agent/rv2-t0357
+depends_on: []
+verify: [ops/test, ops/check-pins]
+acceptance:
+  - "A1 MEASURE (Log, before code): the Worker's /config body and every field quoted from services/api/src/config.ts; what the app does on planning_paused today; which fields the app could act on"
+  - "A2 ConfigClient.fetch() (the shipping client) sends exactly ONE request equal to PlanHTTPRequest(url: base/config, method GET, headers [:], body empty) and never retries; no reply is nil after exactly one request"
+  - "A3 Whole-answer equality: for the Worker's full answer body with min_app_build in {1, 2, 41, 2147483646, 2147483647} x planning_paused in {false, true}, fetch() == RemoteConfig(minAppBuild:planningPaused:) exactly; fields the app does not read (supported_regions, feature_*, quota, config_warnings, an unknown key) dropped, garbled or added never change the answer"
+  - "A4 Decode-failure table, rows as functions of two variants (build 7 paused / build 3 unpaused) with a meta-test that every body row differs across the variants: min_app_build 0, -1, 2147483648, 1.5, 1e20, \"7\", true, null, missing; planning_paused \"true\", 1, 0, null, missing; body not an object ([], \"x\", 7, null, empty, invalid JSON); status 201, 204, 304, 404, 500, 503 with a good body -> fetch() is nil"
+  - "A5 ConfigCache.refresh(): a good answer is returned and stored; a refused answer or no reply returns the stored last good answer, else RemoteConfig.bundled (== the Worker's DEFAULTS: 1, false), as a cross product over stored {none, paused build 7, unpaused build 3, garbage bytes} x failure {no reply, 503, malformed}; a refusal never rewrites the stored bytes"
+  - "A6 ScenicKit ConfigDegrade.of(config, appBuild:) equals a literal table over planning_paused {false,true} x min_app_build {1, 41, 42, 43, 2147483647} x appBuild {nil, 1, 42, 2147483647}: updateRequired iff appBuild != nil and min > appBuild, else planningPaused iff paused, else none; AppBuild.parse reads only a positive ASCII-decimal Int within 1...2147483647 (table over every bound and \"\", \"+1\", \"-1\", \" 1\", \"1.0\", \"0\", nil)"
+  - "A7 The gate: PlanSheet.startPlanning() issues no ticket under planningPaused or updateRequired and one under none; the notice is PlanFailureCopy.of(.planningPaused).line for planningPaused, the update line for updateRequired, nil for none; ConfiguredPlanner.degrade() through ScriptedTransport is ConfigDegrade.of(the refreshed answer, our build)"
+  - "A8 Each new test named in the Log seen RED on the pre-code tree (missing symbols) and on a planted mutant, then GREEN: swift test --filter ConfigClientTests|ConfigCacheTests|ConfigDegradeTests|ConfiguredPlannerTests"
+  - "A9 ops/mutate/config.py: population with a literal floor over every added Sources module, run in full: caught = all, equivalents MISSED; --prove-vacuity OK; --prove-floor OK"
+  - "A10 Apple half: P-SAFE-03 digests re-approved for every edited apps/ios and Sources file; ios-compile success and ios-screenshot success with the new plan-paused and plan-update shots looked at"
+  - "A11 Final head (after merging origin/main last): bare check-safety-disclaimer, check-mutate-population, check-line-cap, check-pins-yaml, queue-check each exit 0; every touched file <= 300 lines"
+---
+## Brief
+
+Survey 2026-10-10 (M6 exit: "kill switch by hand -> typed degrade, no 500s"): the Worker serves /config
+(services/api/src index.ts, T-0288), but no client in Sources or apps/ios reads it.
+
+MEASURE FIRST: /config's body and every field (quote the Worker), what the app already does on planningPaused
+(503 from /plan under KILL=1), and which fields the app could act on. RULE the fields read (fail-closed decoding:
+unknown or malformed -> cached defaults, never a crash), the cache (last good answer, bundled defaults), and what the
+UI does per field (kill -> planningPaused copy before the user taps Plan; min build above ours -> an update prompt).
+Tests through the shipping client: whole-answer equality over every field and bound, decode-failure rows, and the
+degrade mapping as a table. Every apps/ios Swift edit needs the P-SAFE-03 digest re-approval; if refused, ship the
+Linux slice and say so.
+
+## Log
+- 2026-10-10T03:20:00Z filed by agent/claude-opus-5 (orchestrator) from the 2026-10-10 milestone survey (top-3).
+- 2026-10-10T05:16:25Z claimed by agent/claude-opus-5; lease until 2026-10-10T13:16:25Z
+- 2026-10-10T05:30:16Z MEASURE (A1), from services/api/src/config.ts on this branch's base (8ef9c6c0):
+  - GET /config -> `handleConfig(env)` (index.ts: `"/config": (_req, env) => handleConfig(env)` - the request is never
+    read), status 200, `content-type: application/json; charset=utf-8`, `cache-control: public, max-age=300`
+    (CONFIG_MAX_AGE_S). The body is `{...DEFAULTS, ...valid KV overlay, planning_paused: killed || merged, quota,
+    config_warnings}`; with no KV record and no kill it is exactly
+    `{"min_app_build":1,"planning_paused":false,"supported_regions":["la"],"feature_loop":true,"feature_trip":true,"feature_surprise":true,"quota":{"anon":{"plan":3,"loop":1,"surprise":3,"trip":1},"free":{"plan":10,"loop":1,"surprise":3,"trip":1},"paid":{"plan":200,"loop":200,"surprise":200,"trip":200}},"config_warnings":[]}`
+    (quota = dailyQuota(kind, tier) over DAILY_PLAN_QUOTA's tiers anon/free/paid and DISPLAY_KINDS plan/loop/surprise/trip).
+  - Fields and the Worker's own whitelist (FIELDS): `min_app_build` Number.isInteger and 1..MAX_APP_BUILD=2147483647;
+    `planning_paused` boolean, and the kill switch (env KILL=1 or KV KILL_SWITCH "1" or a throwing KV read) forces it
+    true - KV can never unpause; `supported_regions` non-empty unique subset of ["la"]; `feature_loop|trip|surprise`
+    booleans; `quota` the tier x kind numbers; `config_warnings` the names of KV fields that fell to defaults.
+  - The app today: nothing under Sources/ or apps/ios reads /config (grep "config" in Sources/ScenicAPIClient: none).
+    Under KILL=1 /plan, /loop and /trip answer 503 `{"error":"planning_paused"}` before the body is read (plan.ts :72,
+    :87; loop.ts :50, :62; trip.ts :53, :71); PlanResponseReader maps it to PlanError.planningPaused ->
+    PlanSheetFailure.planningPaused -> PlanFailureCopy "Planning is paused right now. Surprise Me still works." with
+    action surpriseMe - shown only AFTER the user taps Plan and a request has gone out.
+  - Fields the app could act on: planning_paused (say so before the tap, send nothing), min_app_build (an update
+    prompt; our CFBundleVersion is CURRENT_PROJECT_VERSION = 1 in both configurations of project.pbxproj).
+    supported_regions is ["la"] only and /plan already answers 422 region_unsupported; feature_* have no switch in the
+    UI to drive; quota is display-only and no screen shows allowances; config_warnings is an operator diagnostic.
+- 2026-10-10T05:30:16Z RULINGS (before code):
+  - R1 Fields read: `min_app_build` and `planning_paused` ONLY. Every other key the Worker sends (supported_regions,
+    feature_*, quota, config_warnings) and any unknown key is ignored: present, absent or garbled, it never changes the
+    answer (the Worker always sends them, so refusing unknown keys would make every answer the defaults). Acting on
+    feature_* and on /loop and /trip is the follow-up filed at the end of this task, not this slice.
+  - R2 Fail-closed decoding (ConfigReader): an answer is accepted only when the status is 200, the body is a JSON
+    object, `min_app_build` is a JSON integer in 1...2147483647 (the Worker's MAX_APP_BUILD) and `planning_paused` is
+    a JSON boolean. Anything else refuses the WHOLE answer (no per-field overlay: the Worker already did that, so a
+    malformed answer is a protocol disagreement). No force unwrap, no `try!`: a refusal is nil, never a crash.
+  - R3 The request: GET {base}/config with NO headers and an empty body - the handler takes env only, so nothing
+    identifying the device is sent. One request per refresh, never retried; a throwing transport is nil.
+  - R4 The cache (ConfigCache over a ConfigStorage): the last good answer is stored re-encoded as the two-field object
+    and read back through the same ConfigReader.decode; stored bytes that do not decode are as if absent. A refused
+    answer or no reply returns the stored answer, else RemoteConfig.bundled = the Worker's DEFAULTS for the two
+    fields (min 1, not paused); a refusal never rewrites the store. The bundled defaults never pause: the server's
+    503 stays authoritative, the config is advance notice.
+  - R5 The degrade (ScenicKit ConfigDegrade.of(config, appBuild:)): `updateRequired` iff appBuild is known and
+    min_app_build > appBuild; else `planningPaused` iff planning_paused; else `none`. Update outranks pause (an old
+    build cannot plan once unpaused either). An unknown build (CFBundleVersion absent or not a positive decimal
+    within Int32, AppBuild.parse) never prompts an update: we cannot claim one is needed, and the Worker enforces no
+    build - pause is still honoured.
+  - R6 The UI: PlanSheet carries the degrade; THE GATE issues no ticket unless it is `none`, so under a known pause no
+    /plan is sent. The form shows the notice in place of the Plan button: planningPaused -> PlanFailureCopy.of(
+    .planningPaused).line (the typed PlanError copy, by reference, never a second literal); updateRequired -> "This
+    version can't plan drives anymore. Update Scenic Drive from the App Store to keep planning."
+  - R7 The wiring: RoutePlanning gains `func degrade() async -> ConfigDegrade` with NO default implementation, so every
+    conformer states its answer (ClientPlanner, UnreachablePlanner and the test fakes: none - they read no config;
+    RetimingPlanner: its inner's). ScenicAPIClient's ConfiguredPlanner wraps a ClientPlanner with a ConfigCache and
+    our build; LivePlanner.make() returns it, its store is UserDefaults (PlanAdapter, the only ScenicAPIClient
+    importer). PlanSheetScreen asks the planner once per appearance (`.task`), skipped under a DEBUG rehearsal.
+    ScenicDriveApp.swift (outside touches) is unchanged.
+  - R8 Seeing it: two DEBUG rehearsals, `-screen paused|update`, and ios-screenshot shoots them (touches widened to
+    .github/workflows/ios-screenshot.yml; ops/lib/ios_screenshot_pinned.py moves in the same commit).
+  - R9 Population: ops/mutate/config.py (config_mutations.py, config_run.py, ledger's three-file shape) covers every
+    added Sources module that holds logic; pure declarations (ConfigStorage protocol, ConfigWire Codable shape,
+    RemoteConfig value) go to the allowlist with one reason each.
+- 2026-10-10T06:46:39Z R9 revised as built: ConfigWire and RemoteConfig hold mutable logic-bearing literals (the wire
+  keys, the bundled defaults, MAX_APP_BUILD), so both are config.py SUBJECTS; only the ConfigStorage protocol is
+  allowlisted. A test file written as a table of 26 closure literals sent the type checker past 30 min on this box
+  (killed; rows rewritten as plain data with "$" = the variant's value) - recorded so nobody re-tries the shape.
+- 2026-10-10T06:46:39Z A8 RED, on the tree with the four test files and no code (`swift build --build-tests
+  --scratch-path .build/t0357`): `error: cannot find 'RemoteConfig' in scope`, `error: cannot find type
+  'ConfigDegrade' in scope`, `error: cannot find 'AppBuild' in scope`, `error: value of type 'PlanSheet' has no member
+  'setDegrade'` (and the ConfigClient/ConfigCache/ConfiguredPlanner names). Then GREEN with the code: `swift test
+  --filter "ConfigClientTests|ConfigCacheTests|ConfiguredPlannerTests|ConfigDegradeTests|CorridorLearnerTests|
+  OnboardingPlanGateTests"` -> the first run had ConfiguredPlannerTests.plan red (a PlanClient with no install id
+  refuses on the device - a test-fixture fault, fixed by PlanWire.install), then `Test run with 2 tests in 1 suite
+  passed`; the whole root suite `swift test` -> `Test run with 796 tests in 158 suites passed after 30.754 seconds.`
+  exit 0. The planted-mutant half of A8 is the config.py run (A9), each mutant red by the test it names.
+- 2026-10-15T19:35:43Z Work CONTINUED after a session break (the earlier run was cut off after pushing 313684ef and
+  98d4d098; worktree clean and equal to origin/task/T-0357, no PR). Nothing above is edited. Still to do then: the
+  A9 run, the A10 CI runs, the follow-up, A11 on the merged head, the PR.
+- 2026-10-15T19:35:43Z A9 floor: `python ops/mutate/config.py --prove-floor` -> 7 arms refused (MUTATIONS emptied /
+  one short of 44 / floor raised to 45 / EQUIVALENT one short of 4 / killers emptied / ConfigReader.swift unmutated /
+  a test file missing), `FLOOR PROOF OK: 7 of 7 arms refused and the control did not`, exit 0.
+- 2026-10-15T19:35:43Z Follow-up filed: queue/backlog/T-0364-app-acts-on-config-features.md (R1's feature_* and
+  /loop, /trip, Surprise degrade). Ids listed on origin/main and every origin/task/* branch: highest T-0363.
+- 2026-10-15T20:29:18Z A9 full run at 98d4d098 (`python ops/mutate/config.py`, baseline `--filter
+  ConfigClientTests|ConfigCacheTests|ConfiguredPlannerTests|ConfigDegradeTests exit=0`): `caught by the test that names
+  it: 43 of 44   (wrong killer 1, trapped 0, compile-only 0, MISSED 0, skipped 0)`, `MUTATE FAILED  caught=43/44
+  equivalent_caught=0`; E1-E4 each `MISSED ... no test objected` (as required). The one: `WRONG KILLER  39 the bundled
+  defaults paused` - named [bundled(), fallsBack()], red were [the live planner's degrade, bundled()]. A REAL GAP, not
+  a naming slip: ConfigCacheTests.stored took its fallback expectation FROM `RemoteConfig.bundled`, the value under
+  test, so a paused default passed fallsBack() by comparing the mutant to itself (memory full-equality-oracle). Fix:
+  the rows now expect `workerDefaults = RemoteConfig(minAppBuild: 1, planningPaused: false)` written out, never the
+  shipping constant. RED was that WRONG KILLER line on the old test; GREEN `python ops/mutate/config.py --only
+  18,38,39` (every mutant of the bundled value) -> `caught by the test that names it: 3 of 3 ... MISSED 0`, `MUTATE OK
+  caught=3/3`, 39 now red by fallsBack(), bundled() and the live planner's degrade.
+- 2026-10-15T20:29:18Z A10 at 98d4d098: ios-compile run 38795097050 `completed success` (2m22s); ios-screenshot run
+  38795103440 `completed success` (15m19s). LOOKED at plan-paused-light.png and plan-update-dark.png (gh run download
+  -> .artifacts/T-0357-shots): the Plan button's place holds the notice card - "Planning is paused right now. Surprise
+  Me still works." (PlanFailureCopy's line, by reference) and "This version can't plan drives anymore. Update Scenic
+  Drive from the App Store to keep planning." - with From/To/Extra time unchanged. Seen and left for T-0364: the
+  "Plan a road trip" and "Just drive a loop" buttons stay live under both, and /loop and /trip 503 under the kill.
+- 2026-10-15T20:53:31Z A9 `python ops/mutate/config.py --prove-vacuity` (tests at the fallsBack() fix): `caught by the test that
+  names it: 0 of 44   (wrong killer 0, trapped 0, compile-only 0, MISSED 44, skipped 0)`, `VACUITY PROOF OK: with the 4
+  test file(s) emptied, caught=0 (need 0) and MISSED=44 of 44`, exit 0.
+- 2026-10-15T21:04:25Z MERGED origin/main (6ceffea2: T-0355 telemetry and T-0359 search landed) LAST. Conflicts ruled: (1)
+  ops/lib/mutate_population_table.py - union: DRIVERS main's list plus config.py, COVERED_FLOOR ours plus main's
+  Telemetry rows. (2) LivePlanner.make() - both wrap the ClientPlanner: TelemetryRoutePlanner(inner:
+  ConfiguredPlanner(...)), telemetry outermost so plan_requested still brackets the plan. (3) SEMANTIC: main's new
+  TelemetryRoutePlanner conforms to RoutePlanning, which R7 gave `degrade()` with no default - it now forwards
+  `await inner.degrade()` (sends no telemetry). Every other conformer under Sources/Tests/apps/ios already states one
+  (grep of conformers lacking `func degrade()`: none left). (4) check-safety-disclaimer-pinned - main's rows, then
+  re-approved (sed 's/\r$//' | sha256sum) every apps/ios file differing from origin/main: PlanRehearsalFixtures,
+  PlanSheetScreen, DefaultsConfigStorage, LivePlanner, TelemetryRoutePlanner, UnreachablePlanner; index mode kept 100755.
+  The Apple half of (2)-(3) is proved only by ios-compile on the pushed merged head (Linux cannot build it).
+- 2026-10-15T21:04:25Z ACCEPTANCE re-quoted on the merged head:
+  - A1 MEASURE: the 2026-10-10T05:30:16Z entry. A2-A4: ConfigClientTests (request(), offline(), inBounds() over
+    {1,2,41,2147483646,2147483647}x{false,true}, unreadKeys(), refusedRows() 20 rows + 6 non-objects over both
+    variants, rowsReadTheVariant() meta). A5: ConfigCacheTests 5 stored x 3 failures, oracle the written-out Worker
+    defaults. A6-A7: ConfigDegradeTests, ConfiguredPlannerTests.
+  - A8: RED (missing symbols) and GREEN in the 2026-10-10T06:46:39Z entry; planted mutants are A9's.
+  - A9: full run 43/44 -> the fallsBack() oracle fix -> `--only 18,38,39` 3/3; `--prove-vacuity` OK 0 of 44 caught,
+    MISSED=44; `--prove-floor` OK 7 of 7 arms. (The full run was at 98d4d098; the fix touched only a test file.)
+  - A10: ios-compile 38795097050 success, ios-screenshot 38795103440 success, plan-paused/plan-update looked at (at
+    98d4d098); the merged head's ios-compile is dispatched after the push and quoted in the PR.
+  - A11 + suite: `swift test --scratch-path .build/t0357m` -> `Test run with 807 tests in 161 suites passed after
+    14.464 seconds.` exit=0; gates run bare at the merge commit (quoted in the PR).
+- 2026-10-15T21:48:09Z PR #244 core failed on P-PRIV-05 (T-0355's emit-site WHITELIST, ops/lib/check-telemetry-emit-sites.txt): `REFUSED  site not on the
+  whitelist: ...LivePlanner.swift: return TelemetryRoutePlanner(inner: ConfiguredPlanner(...` and `approved site missing:
+  ... TelemetryRoutePlanner(inner: ClientPlanner(...` - the merge's ruling (2) moved the approved site. The row now
+  names the merged line; `python ops/lib/check-telemetry-emit-sites.py` -> `P-PRIV-05 emit sites: ok - 32 lines
+  approved`, exit 0 (RED was the CI line above). iOS on the merged head 6a3cd7f3: ios-compile 38807552565 success,
+  ios-screenshot 38807557666 success.
+- 2026-10-15T22:38:09Z MERGE origin/main 2fdde971 (PR #245, T-0360 waitlist) after rv1-t0357 failed on ancestry alone
+  (every substantive check PASSED at a54cfb23). `git merge origin/main` stopped on 7 content conflicts; each ruled a
+  UNION of both tasks: (1) ios-screenshot.yml and ops/lib/ios_screenshot_pinned.py - LIST carries both sides' screens,
+  `... preview nothingPretty waitlist offered loop trip saved paused update legal`, and the collapsed-plan case arm
+  `preview|nothingPretty|waitlist|offered|loop|trip|saved|paused|update)`. (2) PlanRehearsalFixtures.swift - this
+  task's `degraded(_:)` (R8) kept, main's `plan(_:budgetMinutes:waitlist:)` signature taken; 148 lines. (3)
+  LivePlanner.swift - NESTING RULING: `make() -> any RoutePlanning & WaitlistJoining` returns
+  `WaitlistRoutePlanner(planner: planner(), waitlist: LiveWaitlist.make())`, and `planner()` returns
+  `TelemetryRoutePlanner(inner: ConfiguredPlanner(planner: ClientPlanner(...), cache:, appBuild:))` (or
+  UnreachablePlanner without an https base). WaitlistRoutePlanner is outermost because it is the only wrapper that
+  conforms to WaitlistJoining, which PlanSheetScreen's init requires; it forwards plan and degrade and adds no
+  behaviour of its own, so TelemetryRoutePlanner is the outermost wrapper that acts on a plan, and plan_requested still
+  wraps the whole plan including ConfiguredPlanner's gate. ConfiguredPlanner's degrade is reachable through two forwards
+  (Waitlist -> Telemetry -> Configured). 45 lines. (4) SEMANTIC: R7 gave `RoutePlanning.degrade()` no default; main's
+  `struct WaitlistRoutePlanner: RoutePlanning, WaitlistJoining` declared only plan and joinWaitlist, so it now has
+  `func degrade() async -> ConfigDegrade { await planner.degrade() }` (21 lines). Every RoutePlanning conformer on the
+  merged tree, from a grep: ClientPlanner, ConfiguredPlanner, RetimingPlanner, TelemetryRoutePlanner,
+  UnreachablePlanner, WaitlistRoutePlanner, and the test fakes in ConfigDegradeTests, CorridorLearnerTests and
+  OnboardingPlanGateTests. The root ones compile below; the Apple ones are proved only by ios-compile. (5)
+  check-safety-disclaimer-pinned - union of rows (DefaultsConfigStorage and DefaultsWaitlistMemory both kept), then
+  every row recomputed with sed 's/\r$//' | sha256sum. Re-approved: PlanRehearsal.swift b5c84b13 -> f3fe13c3 (main's
+  file), PlanRehearsalFixtures.swift 37993c40 -> dce120fe, PlanSheetScreen.swift 5ebc932a -> ae7e473e (auto-merged:
+  main's waitlist card plus R7's degrade), LivePlanner.swift a43e0885 -> c96bfa22, WaitlistRoutePlanner.swift
+  ed9f1257 -> 481433dd. (6) check-safety-disclaimer-linked-digests.txt - this task's RoutePlanning.swift row (the
+  merged file is this branch's) plus main's WaitlistAnswer and WaitlistJoining rows; no other row changed on
+  recompute. (7) mutate_population_table.py COVERED_FLOOR - both tasks' modules.
+- 2026-10-15T22:38:09Z GATES on the merged tree, all run bare:
+  - `swift test --scratch-path .build/t0357m --filter 'Config|Waitlist|PlanFailureCopyTests|Telemetry'` ->
+    `Test run with 50 tests in 14 suites passed after 0.547 seconds.` exit=0. The suites: ConfigCacheTests,
+    ConfigClientTests, ConfigDegradeTests, ConfiguredPlannerTests, PlanFailureCopyTests, WaitlistAnswerTests,
+    WaitlistClientTests, TelemetryClient, Telemetry wire fixture, TelemetryEvent encoding, P-PRIV-05 payload whitelist,
+    URLSessionTelemetryTransport, plus two that only matched the filter. Full `swift test` -> `Test run with 817 tests in
+    163 suites passed after 14.801 seconds.`
+  - `bash ops/lib/check-safety-disclaimer` -> `... LAST all 97 app .swift, then 299 root + pbxproj file(s) (-linked).`
+    exit 0.
+  - `python ops/lib/check-mutate-population.py` -> `P-PROC-06: 349 modules, 202 covered by 42 populations, 126
+    allowlisted, 9 added by this branch` / `every added module is covered or allowlisted; the floor of 165 holds`
+    exit 0.
+  - `python ops/lib/check-telemetry-emit-sites.py` -> `P-PRIV-05 emit sites: ok - 33 lines approved; 3 of 14 cases
+    emitted once, 11 pending by task` exit 0. The LivePlanner row auto-merged and still matches, so no re-approval
+    was needed.
+  - `python ops/lib/check-pins-yaml.py` -> `PINS-YAML ok pins=50 fields=403` exit 0. `python
+    ops/lib/ios_screenshot_pinned.py` exit 0. ops/lib/check-ios-compile-guardrails does not exist on this tree.
+  - `bash ops/queue-check` -> `QUEUE OK (356 tasks)` exit 0.
+  - ios-compile and ios-screenshot are dispatched on the pushed merge head; their results go in the PR.
+- 2026-10-15T23:02:54Z REVIEW round 2 (agent/rv2-t0357, not the owner) of PR #244 head 98ccc86d (merge of
+  a54cfb23 + origin/main 2fdde971, merge-base 6ceffea2). Scope: the merge only; round 1's substantive checks
+  (rv1-t0357 at a54cfb23) stand. VERDICT PASS.
+  - Conflicts (`git show --remerge-diff 98ccc86d`): all 7 resolved as a union. ios-screenshot.yml and
+    ios_screenshot_pinned.py: LIST and the collapsed-plan arm carry waitlist and paused/update. PlanRehearsalFixtures:
+    `degraded(_:)` kept, main's `plan(_:budgetMinutes:waitlist:)` taken. LivePlanner: main's `make()` ->
+    WaitlistRoutePlanner(planner: planner(), ...) and branch's Telemetry(Configured(Client)) inside `planner()`.
+    COVERED_FLOOR holds both tasks' modules. Digest rows by path, base/ours/theirs/merged:
+    check-safety-disclaimer-pinned 92/93/96/97, linked-digests.txt 296/305/301/310. That is an exact union with no row
+    missing and none extra. PlanRehearsal.swift is byte-identical to main's (the branch never changed it).
+  - Conformers of RoutePlanning on the merged tree (grep): ClientPlanner, ConfiguredPlanner, RetimingPlanner,
+    TelemetryRoutePlanner, UnreachablePlanner, WaitlistRoutePlanner, and the test fakes in ConfigDegradeTests,
+    CorridorLearnerTests and OnboardingPlanGateTests. All 9 declare `func degrade() async -> ConfigDegrade`.
+    WaitlistRoutePlanner forwards `await planner.degrade()`.
+  - Mutant A (delete WaitlistRoutePlanner's degrade forwarding): no root test can see it, because the file is
+    Apple-only. It is caught by ios-compile (no protocol default, so the conformance fails to compile) and by the
+    content pin (digest fa6fa6df != pinned 481433dd). Ruled ACCEPTABLE: the failure mode is a compile refusal, not a
+    silent default. Mutant B (swap the order to Configured(Telemetry(Client)) in LivePlanner.planner()):
+    `python ops/lib/check-telemetry-emit-sites.py` -> `P-PRIV-05 emit sites: FAILED - 2 refusals` exit 1
+    (site not on the whitelist / approved site missing). Both mutants were restored, and git status was clean.
+  - Bare gates on 98ccc86d, all exit 0: `bash ops/lib/check-safety-disclaimer` (`LAST all 97 app .swift, then 299
+    root + pbxproj file(s) (-linked).`); `python ops/lib/check-mutate-population.py` (`P-PROC-06: 349 modules, 202
+    covered by 42 populations, 126 allowlisted, 9 added by this branch` / `the floor of 165 holds`); `python
+    ops/lib/check-telemetry-emit-sites.py` (`ok - 33 lines approved`); `python ops/lib/check-pins-yaml.py`
+    (`PINS-YAML ok pins=50 fields=403`); `python ops/lib/ios_screenshot_pinned.py`; `bash ops/queue-check`
+    (`QUEUE OK (356 tasks)`).
+  - CI on 98ccc86d: ios-compile 38819108891 success; ios-screenshot 38819112448 success; linux-core 38819117618
+    success. `gh pr checks 244`: core pass, pins-source-only pass.
+  - Ancestry, run last after `git fetch origin`: origin/main 2fdde971, and `git merge-base --is-ancestor origin/main
+    origin/task/T-0357` exit 0.
+- 2026-10-15T23:15:58Z agent/claude-opus-5 (owner): after rv2-t0357 PASS, main gained PR #243 (T-0356 account deletion). Merged origin/main as 8bea1a2c; one conflict in ops/lib/check-safety-disclaimer-pinned resolved as a union (DefaultsConfigStorage + DeviceAccountEraser kept; WaitlistRoutePlanner keeps this branch's digest with degrade(); ScenicDriveApp.swift takes main's file digest 23e29839). On 8bea1a2c: swift test "Test run with 832 tests in 167 suites passed"; check-safety-disclaimer rc=0; check-mutate-population "floor of 165 holds" rc=0; check-telemetry-emit-sites "ok - 38 lines approved" rc=0; check-pins-yaml rc=0; ios_screenshot_pinned rc=0; queue-check "QUEUE OK (356 tasks)" rc=0; ios-compile run 38821732186 success on 8bea1a2c.
+- 2026-10-15T23:27:25Z agent/rv3-t0357 (reviewer, round 3): rv3-t0357 PASS (post-sign-off merge). git show --remerge-diff 8bea1a2c touches only ops/lib/check-safety-disclaimer-pinned: union kept DefaultsConfigStorage 49343ed0 (branch), DeviceAccountEraser 9d3b839b and InstallBoundTelemetry 00cf5e6e (main); WaitlistRoutePlanner.swift pinned 481433dd == sed-CRLF-stripped sha256 of the merged file (branch-only change; main pin ed9f1257 was the merge-base digest); ScenicDriveApp.swift pinned 23e29839 == merged file digest == PINNED_SHELL_DIGEST (main-only change, branch never touched it). Other files differing from both parents (linked-digests.txt, check-telemetry-emit-sites.txt, mutate-population-allowlist.json) are clean auto-merges, absent from the remerge diff. Bare on 32d655ab: check-safety-disclaimer rc=0 (LAST all 100 app .swift, then 308 root + pbxproj); check-mutate-population "every added module is covered or allowlisted; the floor of 165 holds" rc=0; check-telemetry-emit-sites "ok - 38 lines approved; 3 of 14 cases emitted once, 11 pending by task" rc=0; check-pins-yaml "PINS-YAML ok pins=50 fields=403" rc=0; queue-check "QUEUE OK (356 tasks)" rc=0. gh pr checks 244 on 32d655ab (run 38822602889 success): core pass 8m3s, pins-source-only pass 3m40s. ios-compile 38821732186 success on 8bea1a2c (32d655ab adds one Log line). Ancestry, run last after git fetch origin: origin/main a8fcf659, git merge-base --is-ancestor origin/main origin/task/T-0357 exit 0, no drift.
