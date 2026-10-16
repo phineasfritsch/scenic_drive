@@ -1,7 +1,7 @@
 ---
 id: T-0368
 title: The home's Surprise Me chip acts on /config's feature_surprise - hidden or its typed line when false, and the plan sheet's post-tap Surprise action follows it
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T06:29:51Z
@@ -11,7 +11,7 @@ branch: task/T-0368
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/ScenicAPIClient/ConfigCache.swift, Tests/ScenicAPIClientTests/ConfigCacheTests.swift, Tests/ScenicAPIClientTests/NothingPrettyReaderTests.swift, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/, ops/mutate/, queue/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t0368
 depends_on: [T-0364]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -140,3 +140,4 @@ PlanFailureCopy takes the flag. Surprise Me sends the Worker nothing (no /surpri
    linked digest re-approved), check-mutate-population, check-mutate-only, check-mutate-anchors,
    check-telemetry-emit-sites, check-line-cap, check-pins-yaml, check-exec-bits, queue-check.
 - 2026-10-16T09:14:24Z agent/claude-opus-5 (owner): rv1-t0368 FAIL was ancestry-only (main gained PR #256 T-0374, #257 T-0373, #254 T-0367). Merged origin/main as d7e2c520; one conflict in ops/lib/check-safety-disclaimer-pinned: RoadTripScreen takes main's digest e9ba4942 (merged bytes = main's), PlanSheetScreen auto-merged (T-0373 rehearsal seeding + this branch's surpriseGate, both hunks disjoint) and is re-approved at the merged digest 842f33c9. On d7e2c520: swift test over PlanFailureCopy|SurpriseGate|ConfigCache|ConfigFlag|ConfigNotice|PlanWaitlistStart|WaitlistAcrossSheets "Test run with 23 tests in 7 suites passed"; bare gates rc=0: check-safety-disclaimer, check-mutate-population (floor 165), check-telemetry-emit-sites (54 lines), check-store-links, ios_screenshot_pinned, check-pins-yaml (pins=51), queue-check (365). ios-compile run 38878681896 success on d7e2c520; ios-screenshot 38878685784 dispatched on d7e2c520.
+- 2026-10-16T09:34:09Z agent/rv2-t0368 (reviewer, round 2, merge/ancestry only): PASS. `git show --remerge-diff d7e2c520`: the one conflict in ops/lib/check-safety-disclaimer-pinned resolves to one row each for PlanSheetScreen and RoadTripScreen, every other row untouched; PlanSheetScreen 842f33c9fe79519286927fca85f53c3ad45eca7fe8ee8437c2d99fb576341505 and RoadTripScreen e9ba4942a7b6b0c9bb0ced8f7985d457e80f3b66df52b6e24d1752bb7d302d3a each equal `sed 's/\r$//' FILE | sha256sum` of the merged file; RoadTripScreen has no branch change since merge-base a137f16c (diff vs main d40aa504: 0 lines). PlanSheetScreen.swift (272 lines) carries T-0373's rehearsedSearch, tab == .plan waitlist seeding and query seeding alongside this branch's surpriseGate init param, @State surprise, the .task refresh after setDegrade and PlanFailureCopy.of(failure, surprise: surprise); the one call site ScenicDriveApp.swift:64 passes surpriseGate. Bare gates in a detached worktree at b535c502, each rc=0: check-safety-disclaimer; check-mutate-population "P-PROC-06: every added module is covered or allowlisted; the floor of 165 holds"; check-telemetry-emit-sites "P-PRIV-05 emit sites: ok - 54 lines approved; 13 of 14 cases emitted once, 1 pending by task"; check-pins-yaml "PINS-YAML ok pins=51 fields=411"; queue-check "QUEUE OK (365 tasks)". CI: ios-compile 38878681896 success on d7e2c520; ios-screenshot 38878685784 completed success on d7e2c520, plan-paused-light shows "Planning is paused right now. Surprise Me on the home screen still works." and home-light-medium renders the home with the Saddle Peak sheet and the OpenStreetMap credit; PR #255 checks core pass 8m30s and pins-source-only pass 3m35s (run 38879104563 on b535c502). Ancestry after a fresh fetch: origin/main 7fb516e2 is not an ancestor (exit 1); the drift d40aa504..7fb516e2 is queue-only (b3096bd1, bfa5fcfe, 7fb516e2: T-0375-bind-telemetry-id-test-by-name.md under queue/, zero non-queue paths), accepted under the round-2 scope. Observation, not attributed to this PR: home-light-medium shows the "Plan a drive" pill overlapping the Saddle Peak / Westwood loop chips; this branch's ScenicHomeScreen diff touches only the surprise slot and its init.
