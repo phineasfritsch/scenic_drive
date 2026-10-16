@@ -63,14 +63,15 @@ TEST_FILES = (
     "Tests/ScenicPlanCLITests/PlanCLIRequestBodyTests.swift",
     "Tests/ScenicKitTests/ScenicPlannerHonestFailureTests.swift",
     "Tests/ScenicPlanCLITests/PlanCLILARecordingTests.swift",
+    "Tests/ScenicKitTests/PlanNothingPrettyBoundsTests.swift",
 )
 
 SUITES = ("ScenicPlannerMetaTests|LambdaCustomModelParityTests|ScenicPlanGoldenTests"
           "|PlanCLIBudgetTests|PlanCLIRequestBodyTests|LambdaCustomModelRatRunTests|PlanCeilingOverLATests"
-          "|ScenicPlannerHonestFailureTests|PlanCLILARecordingTests")
+          "|ScenicPlannerHonestFailureTests|PlanCLILARecordingTests|PlanNothingPrettyBoundsTests")
 SCRATCH = os.environ.get("SCENIC_MUTATE_SCRATCH", ".build-mutate-plan")
 
-MIN_MUTATIONS = 42
+MIN_MUTATIONS = 47
 
 # name, module, old, new
 MUTATIONS = [
@@ -177,6 +178,23 @@ MUTATIONS = [
      "case .noRecordedResponse: return .unmeasured(failure.description)"),
     ("honest/more-time-is-plus-30", "Sources/ScenicKit/Plan/PlanNothingPretty.swift",
      "public static let moreTimeOffer: TimeInterval = 40 * 60", "public static let moreTimeOffer: TimeInterval = 30 * 60"),
+    # T-0230 rv1 B1: the back-roads offer's own floor, at nextDown(0.45), exactly 0.45 and nextUp(0.45).
+    ("honest/back-roads-floor-strict", "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+     "guard let score = scored, !score.isHonestFailure else {",
+     "guard let score = scored, score.value > RouteScore.honestFailureThreshold else {"),
+    ("honest/back-roads-floor-nextdown", "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+     "guard let score = scored, !score.isHonestFailure else {",
+     "guard let score = scored, score.value >= RouteScore.honestFailureThreshold.nextDown else {"),
+    # T-0230 rv1 B2: PlanNothingPretty.minutes at 0, 59, 60, 61 and 90 seconds.
+    ("honest/minutes-drops-whole-check", "Sources/ScenicKit/Plan/PlanNothingPretty.swift",
+     "guard seconds.isFinite, seconds >= 0, seconds.truncatingRemainder(dividingBy: 60) == 0 else {",
+     "guard seconds.isFinite, seconds >= 0 else {"),
+    ("honest/minutes-zero-not-whole", "Sources/ScenicKit/Plan/PlanNothingPretty.swift",
+     "guard seconds.isFinite, seconds >= 0, seconds.truncatingRemainder(dividingBy: 60) == 0 else {",
+     "guard seconds.isFinite, seconds > 0, seconds.truncatingRemainder(dividingBy: 60) == 0 else {"),
+    ("honest/minutes-singular-below-two", "Sources/ScenicKit/Plan/PlanNothingPretty.swift",
+     "return whole == 1 ? \"1 minute\" : \"\\(whole) minutes\"",
+     "return whole <= 1 ? \"1 minute\" : \"\\(whole) minutes\""),
     ("budget-state/inclusive-at-half", "Sources/ScenicKit/Plan/ScenicPlan.swift",
      "budget > 0 && outcome.duration < fastestDuration + LambdaSearch.minBudgetUse * budget",
      "budget > 0 && outcome.duration <= fastestDuration + LambdaSearch.minBudgetUse * budget"),
