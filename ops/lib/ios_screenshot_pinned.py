@@ -69,7 +69,7 @@ for LOOK in ${{ matrix.look }}; do
   LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty waitlist offered loop trip saved paused update loopPaused tripPaused loopRegion tripRegion loopWaitlist tripWaitlist searchResults searchNotice legal"
   if [ "$LOOK" = ax5 ]; then
     SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)
-    LIST="preview nothingPretty offered loop trip saved"
+    LIST="collapsed preview nothingPretty offered loop trip saved"
     xcrun simctl ui "$UDID" appearance light
   else
     xcrun simctl ui "$UDID" appearance "$LOOK"
@@ -181,7 +181,7 @@ T0373_SHOTS = " loopRegion tripRegion loopWaitlist tripWaitlist searchResults se
 T0373_ARM = "|loopRegion|tripRegion|loopWaitlist|tripWaitlist|searchResults|searchNotice) DETENT=collapsed"
 LOOKS = "          for LOOK in ${{ matrix.look }}; do\n"
 AX5_SIZE = "              SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)\n"
-AX5_LIST = '              LIST="preview nothingPretty offered loop trip saved"\n'
+AX5_LIST = '              LIST="collapsed preview nothingPretty offered loop trip saved"\n'
 LS = '          ls -l "$SHOTS"\n'
 
 
@@ -239,6 +239,8 @@ MUTATIONS = [
      AX5_SIZE.replace("AccessibilityXXXL", "AccessibilityL")),
     ("T-0346: the AX5 trip card dropped (the card this task was filed for)", AX5_LIST,
      AX5_LIST.replace(" trip", "")),
+    ("T-0376: the AX5 home shot dropped (the pill over the chips unseen at the largest text size)", AX5_LIST,
+     AX5_LIST.replace("collapsed ", "")),
     ("T-0346: the AX5 pass shoots every home screen too (the 30-minute cap)", AX5_LIST,
      SHOTS_LIST.replace("            ", "              ")),
     ("T-0336: the plan-offered shot dropped (T-0334's offer card unseen)", SHOTS_LIST,
