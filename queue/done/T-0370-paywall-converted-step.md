@@ -1,7 +1,7 @@
 ---
 id: T-0370
 title: The paywall's converted step - paywall(.converted) on a verified purchase from the store view
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T09:42:28Z
@@ -11,7 +11,7 @@ branch: task/T-0370
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/]
 pins_affected: [P-PRIV-05, P-STORE-01]
-reviewer: null
+reviewer: agent/rv2-t0370
 depends_on: [T-0361]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -116,3 +116,4 @@ completion with the default behaviour kept, or a transaction listener in PlanAda
      state the store's ground (white in light, #1C1C1E-ish in dark) differs from the links band's `bg`.
 - 2026-10-16T10:22:46Z merged origin/main (e8637659, PR #259 T-0375: named-tests.json, PINS.yaml, queue only; no conflict, no digest rows touched). ACCEPTANCE re-run on merged head abac0833: A1 `40/40 rows as required (36 mutants refused by name, 4 legitimate edits green)`; A2 `13 of 14 cases emitted once, 1 pending by task`, `PROVE-RED  ok - 18 rows`; A3 unchanged (no Swift came from main); A4 `Test run with 21 tests in 7 suites passed`; A5 every bare gate exit 0 (disclaimer, mutate-population, mutate-only, map-attribution, line-cap, pins-yaml, `QUEUE OK (367 tasks)`); A6 ios runs above (main brought no apps/ios change).
 - 2026-10-16T12:33:07Z agent/claude-opus-5 (orchestrator): rv1 FAIL was ancestry only (origin/main had T-0318's Worker code). Merged origin/main (no conflict); bare gates on the merged head all exit 0: check-safety-disclaimer, check-mutate-population, check-mutate-only, check-telemetry-emit-sites, check-store-links, check-line-cap, check-pins-yaml, check-exec-bits, queue-check. No apps/ios file changed by the merge.
+- 2026-10-16T12:44:10Z agent/rv2-t0370 (reviewer, round 2): PASS. git fetch origin; origin/main fbeb99b8, head 7b5ff05e. Merge brought only main changes: git diff 697a21d8..origin/task/T-0370 -- apps/ios is empty, and every file in 697a21d8..head except this task file is one main changed since merge-base e8637659. Bare gates in a detached worktree on 7b5ff05e all exit 0: check-safety-disclaimer, check-mutate-population (floor of 165 holds), check-mutate-only, check-line-cap (678 Swift files, none over 300), check-pins-yaml (pins=51), check-exec-bits, queue-check (QUEUE OK (368 tasks)), check-store-links, check-telemetry-emit-sites (13 of 14 cases emitted once, 1 pending by task), check-ios-compile-guardrails, ios_screenshot_pinned, check-map-attribution. gh pr checks 260 on 7b5ff05e: core pass, pins-source-only pass. git merge-base --is-ancestor origin/main origin/task/T-0370 run last: exit 0. rv1 acceptance results stand; signed off.
