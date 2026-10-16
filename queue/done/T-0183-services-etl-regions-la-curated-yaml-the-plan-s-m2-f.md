@@ -1,7 +1,7 @@
 ---
 id: T-0183
 title: services/etl/regions/la/curated.yaml - the plan's M2 five seeds, authored for LA and the owner's commute, with the pytest the plan names
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T12:57:03Z
@@ -11,7 +11,7 @@ branch: task/T-0183
 exclusive: [curated-la]
 touches: [services/etl/regions/la/, services/etl/tests/, services/etl/etl/, ops/mutate/curated, ops/lib/mutate_population_table.py]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-t-0183
 depends_on: [T-0168]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -172,3 +172,22 @@ candidates of M5), not Bay Area ones. `curated.yaml` is a serial-only file (CLAU
      check-exec-bits `P-OPS-01: 232 files ... all modes correct`; queue-check `QUEUE OK (368 tasks)`.
   OPEN, not done here: the approach predicate runs in CI over the committed slice, not over the PBF itself; a
   re-cut needs the tagged PBF and an osmium (or pyosmium) clip. No pin was added (pins_affected: []).
+- 2026-10-16T14:39:43Z REVIEW PASS (agent/rv1-t-0183, not the owner) of PR #265 at 952cfd34, detached worktree:
+  1. touched tests `154 passed`, 0 skipped. 2. RED BY NAME re-run for break 3 (stunt-road-viewpoint verified_on
+  2025-09-11) -> `FAILED tests/test_curated_la.py::test_verified_on_is_within_twelve_months`; restored -> green.
+  3. `python -m etl.curatedslice` over the measured clip (sha256 163008e4...230c) -> `CURATED SLICE seeds=5
+  ways=130`, `cmp` BYTE-IDENTICAL to the fixture. Independent of the clip, a pyosmium pass over the tagged PBF
+  itself (sha256 648fc3db...3d39) found 14+27+28+33+28 = 130 highway ways within 300 m of the five seeds and the
+  same five approach roads (13357693 6.8 m 0.6446; 402534633 44.3 m 0.6099; 1533792498 12.8 m 0.6952;
+  174533647 48.8 m 0.6860; 1079750100 42.0 m 0.7487), each ungated; the five places rows match name and 5 dp
+  coordinates. 4. `MUTATE OK  caught=45/45 equivalent_caught=0`; `VACUITY PROVED`. 5. `1740 passed`, 0 skipped.
+  6. the eight bare gates exit 0 (`QUEUE OK (368 tasks)`). CI core + pins-source-only pass. origin/main is an
+  ancestor of the head. REVIEWER MUTANTS (operator changes, not in the population): CAUGHT by name - dwell_min
+  lower bound exclusive (`test_every_bound[dwell_min=5]`), curation_score bounds exclusive (`[curation_score=0.6]`,
+  `[curation_score=1.0]`), hook of exactly 90 refused, notes dropped from TEXT_FIELDS (`[notes='']`), whitespace
+  text accepted (`[hook='   ']`), fresh exclusive at 365 (`test_fresh_bounds[365-True]`), lon bbox dropped
+  (`[lon=-119.00001]`), NaN unit passing (`[unit nan]`). SURVIVED, ruled non-blocking: `d <= RADIUS_M` -> `<` in
+  approach (differs only at a distance of exactly 300.0 m; the table tests 299.9/300.1); name compare with
+  .strip() on both sides (more lenient on padding only); a way with no node refs kept (osmium never writes one;
+  it would fail closed). RECORDED: the Nominatim User-Agent carried the owner's email (owner's own Log note);
+  only public OSM ids were sent, no user location.
