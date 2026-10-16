@@ -1,7 +1,7 @@
 ---
 id: T-0012
 title: "ETL gate parity fixture: motorway/trunk/private/unpaved score 0.0 across ETL, router profile and ScenicKit.Gates (P-PROD-01)"
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
