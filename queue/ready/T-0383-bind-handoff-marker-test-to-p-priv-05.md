@@ -1,7 +1,7 @@
 ---
 id: T-0383
 title: Bind T-0366's handoff-marker privacy test (HandoffMarkingMomentsTests.defaultsDomainIsOneInt) to P-PRIV-05 by name
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
