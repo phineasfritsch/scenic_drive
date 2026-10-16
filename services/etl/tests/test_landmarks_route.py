@@ -102,7 +102,7 @@ def test_explain_orders_by_route_position_caps_at_two_and_says_a_name_once():
 
 
 def test_explain_same_leg_breaks_on_distance_then_id():
-    a, b = lm("A", 34.0 + 50 * PER_M, -118.55, 9), lm("B", 34.0 + 20 * PER_M, -118.55, 8)
+    a, b = lm("A", 34.0 + 50 * PER_M, -118.55, 8), lm("B", 34.0 + 20 * PER_M, -118.55, 9)
     assert landmarks.explain(LINE, [a, b]) == ["B", "A"]
     c, d = lm("C", 34.0 + 20 * PER_M, -118.55, 9), lm("D", 34.0 + 20 * PER_M, -118.55, 8)
     assert landmarks.explain(LINE, [c, d]) == ["D", "C"]
