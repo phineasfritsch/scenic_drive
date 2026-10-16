@@ -93,3 +93,28 @@ name; a clean fixture green), exit 4 ordering unchanged (check-sane-exit-order),
     runs --prod against a fake Worker; these rows run SANE_SCOPE=prod SANE_CORPUS=<fixture> bash ops/sane (no --prod),
     so only the corpus block decides the exit. Fixtures are built per case in a temp dir by schema.apply_schema plus
     inserts - no binary fixture is committed.
+- 2026-10-16T05:27:10Z BUILT (agent/claude-opus-5): ops/lib/sane_corpus.py (175 lines), its block in ops/sane after
+  "bounds" (fail() code 4), ops/lib/check-sane-corpus (100755) + check_sane_corpus.py + sane_corpus_cases.py,
+  ops/mutate/sane_corpus.py (PROBES entry in ops/lib/mutate_population_table.py), pin P-OPS-09.
+  - A5 FULL LA (WSL python3 3.12.3, read-only, no git): `python3 ops/lib/sane_corpus.py --corpus
+    /home/phineas/t0242/la-corpus.sqlite` -> rc=4: `ok corpus-open schema_version 3, build_complete 1, region 'la'`,
+    `ok corpus-terms 0 term rows, every value within 0..1`, `ok corpus-viewpoints 102 viewpoints >= region la's floor 76`,
+    `FAIL corpus-surface motorway: surface coverage 0.4297 is below the baseline 0.593 (3217 known of 7486 ways);
+    motorway_link: surface coverage 0.1905 is below the baseline 0.318 (1887 known of 9908 ways)`, `skip corpus-score`.
+    Canyon window (t0266) through the shipped ops/sane with SANE_SCOPE=prod SANE_CORPUS=...: all four ok, SANE OK.
+  - A3 RED FIRST: `bash ops/lib/check-sane-corpus --sane <main's ops/sane>` -> `SANE-CORPUS FAIL 47 of 53 cases failed`
+    (e.g. `clean-on-every-bound: row corpus-open None, want [ok]`; `p-prod-scope: row corpus-db None, want [skip]`;
+    the 6 d- rows run sane_corpus.py directly and pass). Green on this branch: `SANE-CORPUS ok 53/53`, then 56/56 with
+    the p-python-false / p-python-echo rows.
+  - A3 MUTANTS: `python ops/mutate/sane_corpus.py` -> 25 killed by case name, #9 SURVIVED: it widened the range to
+    +-1e308 and named the inf rows as killers, but 2.0 rows are what kill a widening and the infinities stay outside
+    1e308 - a duplicate of #7, not an inf mutant. Replaced by `... AND abs(value) < 1e308` (infinities exempted):
+    `MUTATE killed #9 ... by terms-terms_osm-plus-inf, terms-terms_raster-minus-inf`, `MUTATE ok 1/1` (faster-verification:
+    only the touched mutant re-run). Population 26, MIN_MUTATIONS 26.
+  - A4/A6 gates: `SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=23`; `SANE-PROD ok 3/3`
+    (--only q-kill,m-schema-other,x-version-string); `PINS-YAML ok pins=51 fields=411`; `P-OPS-01: 230 files, 23 required
+    present, all modes correct`; `P-PROC-06: ... every added module is covered or allowlisted; the floor of 165 holds`;
+    `QUEUE OK (360 tasks)`.
+  - FOLLOW-UP (not this task's): surfacecoverage.BASELINES were measured on the canyon window (T-0205) and the FULL LA
+    corpus is below them on motorway and motorway_link; re-measure over the full region before a full corpus is put
+    where ops/sane finds it, or exit 4 will be red - correctly, by what the baselines say today.
