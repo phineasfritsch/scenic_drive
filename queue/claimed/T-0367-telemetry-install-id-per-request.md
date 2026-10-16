@@ -83,3 +83,25 @@ permission classifier refuses an apps/ios digest re-approval, ship the Linux sli
 4. Gates green: check-safety-disclaimer, check-mutate-population, check-mutate-only, check-mutate-anchors,
    check-telemetry-emit-sites, check-line-cap, check-pins-yaml, check-exec-bits, queue-check.
 5. ios-compile and ios-screenshot on task/T-0367: success, relevant shots looked at.
+
+## Log (work)
+- 2026-10-16T06:54:47Z ba3fdb16 (code, killer test ABSENT), `python ops/mutate/posttelemetry.py --only 17,18`:
+  `MISSED 17 the install id read once, at init exit=0 no test objected` /
+  `MISSED 18 the install id read once per sending run exit=0 no test objected` /
+  `MUTATE FAILED caught=0/2 equivalent_caught=0 (--only: 2 of 18 entries)`.
+  43a63bc6 (test added), same command: `caught 17 ... by: everyRequestStampsTheProvidersCurrentID()` /
+  `caught 18 ... by: everyRequestStampsTheProvidersCurrentID()` / `MUTATE OK caught=2/2 equivalent_caught=0`.
+  The moved anchors re-run (`--only 6,7,10,11,13`): `MUTATE OK caught=5/5 equivalent_caught=0`.
+  Emit-site guard seen RED on the rewire before its rows moved: `P-PRIV-05 emit sites: FAILED - 13 refusals`
+  (4 new LiveTelemetry lines not on the whitelist, 9 approved InstallBoundTelemetry/LiveTelemetry lines missing),
+  then `ok - 54 lines approved; 13 of 14 cases emitted once, 1 pending by task`.
+  Digests re-approved: LiveTelemetry.swift 3d795866...0bc0 (pinned), InstallBoundTelemetry row removed,
+  Sources/Telemetry/TelemetryClient.swift 8b8c06e8...f730 (linked-digests).
+- 2026-10-16T07:16:00Z on 43a63bc6: ios-compile run 38863380880 success (3m32s); ios-screenshot run 38863383999 success
+  (15m23s). Telemetry draws nothing, so I looked at the launch surfaces LiveTelemetry is reached from:
+  home-light-medium.png renders the map, attribution and the Saddle Peak sheet. The home's "Plan a drive" chip is
+  drawn over the Saddle Peak / Westwood loop chips. plan-offered-light.png shows the "Not much pretty within 25
+  extra minutes" sheet. This diff changes no view file, so neither shot is a change from this task: noted, not
+  ruled.
+  `bash ops/lib/check-safety-disclaimer` exit 0 (Frozen; 33 feature files, shell, footer pinned; LAST all 108 app
+  .swift, then 326 root + pbxproj files).
