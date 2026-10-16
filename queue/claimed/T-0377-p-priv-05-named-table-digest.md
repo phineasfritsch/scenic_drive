@@ -102,5 +102,23 @@ in the assertion). Do the same for P-PRIV-05:
   PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail(): MISSING - no test of this name ran` and
   `NAMED P-PRIV-05 passed=75/76`, rc=1 - the GRDB-gated environment MISSING of ruling R2 and nothing else; CI's
   Linux core job runs it whole.
+- 2026-10-16T11:46:02Z ACCEPTANCE re-quoted on the merged head f08d8094 (`git fetch origin` in the main checkout;
+  origin/main fbeb99b8 is an ancestor, `merge-base --is-ancestor` yes):
+  1. `git diff origin/main -- pins/PINS.yaml`: P-PRIV-05's assertion and why_no_test_catches_it lines only; the
+     assertion's new text is exactly `... check-learned-speeds-sites.py && <py> ops/lib/check-named-table.py
+     P-PRIV-05 4c879f4d82feb076775b971c0c7ead5730f3c4c5252a5eec84fb8fa5de7f1a45 76 && <py>
+     ops/lib/check-named-table.py --prove-red P-PRIV-05 4c879f4d...1a45 76 >/dev/null &&<py>
+     ops/lib/run-named-tests.py P-PRIV-05`; no passed= line. PASS.
+  2. named-tests.json sha256 a578ae8e9f3753d09376cd927fbf74cf2b9803e9ee6546124f849d3777597695 (unchanged);
+     `NAMED-TABLE P-PRIV-05 ok - 76 distinct names, sha256 4c879f4d82fe` [rc=0]; `PROVE-RED OK: 8 of 8 rows red
+     by name, controls green` [rc=0]. PASS.
+  3. RED: the 10:46:59Z entry above (rc=1, count 75 and digest refused by name, run-named-tests not reached;
+     both files restored to HEAD's blobs). PASS.
+  4. GREEN: the 10:46:59Z entry above (`NAMED-TABLE P-PRIV-05 ok`, passed=75/76 with only UserStorePrivacyTests
+     MISSING). PASS (Windows); CI's Linux job is the whole-green confirmation.
+  5. why_no_test_catches_it gains one appended T-0377 sentence, earlier text unchanged. Gates, bare:
+     `PINS-YAML ok pins=51 fields=411` [rc=0]; `P-OPS-01: 230 files, 23 required present, all modes correct`
+     [rc=0]; `QUEUE OK (368 tasks)` [rc=0]; `PINS ok=22 skipped=28 pending=1 expired=0 failed=0 tier=linux
+     source-only` [rc=0]. PASS.
 - 2026-10-16 filed by agent/claude-opus-5 from T-0375 R2 / stillOpen 2, after T-0318 merged.
 - 2026-10-16T10:29:45Z claimed by agent/claude-opus-5; lease until 2026-10-17T10:29:45Z
