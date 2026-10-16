@@ -9,12 +9,19 @@ lease_expires_at: 2026-10-17T19:37:33Z
 worktree: .worktrees/T-0381
 branch: task/T-0381
 exclusive: [routing-profiles]
-touches: [services/routing/config.yml, services/routing/profiles/, services/routing/tests/, services/etl/etl/profilegate.py, services/etl/tests/, services/etl/tests/fixtures/gate_parity.json, ops/mutate/profilegate.py]
+touches: [services/routing/config.yml, services/routing/profiles/, services/routing/tests/, services/routing/plugins/scenic-score-parser/, services/etl/etl/profilegate.py, services/etl/tests/, services/etl/tests/fixtures/gate_parity.json, ops/mutate/profilegate.py]
 pins_affected: [P-PROD-01, P-SAFE-01]
 reviewer: null
 depends_on: [T-0012, T-0188]
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "A1 cd services/etl && python -m pytest -q -p no:cacheprovider -o addopts= tests/test_gate_parity.py tests/test_profilegate.py -> all pass; test_only_the_typed_classes_diverge holds ZERO divergent rows"
+  - "A2 cd services/routing && python -m pytest -q -p no:cacheprovider -o addopts= tests/test_profiles_static.py -> all pass, incl. every encoded value the base profile and profilegate read is in config.yml graph.encoded_values"
+  - "A3 python ops/mutate/profilegate.py -> MUTATE OK caught=N/N, N == MIN_MUTATIONS > 53; --prove-vacuity -> VACUITY PROVED"
+  - "A4 RED first by name: on the pre-change profile the five fixture rows fail test_profile_gives_the_fixture_verdict once their divergent records are removed (quoted), then green"
+  - "A5 the one encoding table (plugins/scenic-score-parser/src/test/resources/gate_encoding.json) is read by test_profilegate (profilegate.encode) and by GateEncodingTest (GraphHopper 11's own OSMTrackTypeParser/OSMSmoothnessParser and GateFactParser) - the Java half counts only if `docker build` (mvn package runs the tests) ran here; otherwise UNVERIFIED in stillOpen"
+  - "A6 swift test --filter GateParityFixtureTests green with the divergent records gone"
+  - "A7 bare gates: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py, check-line-cap, check-pins-yaml.py, check-exec-bits, queue-check"
 ---
 ## Brief
 
@@ -38,3 +45,58 @@ re-import command and the expected graph hash change in the Log.
 ## Log
 - 2026-10-16 filed by agent/claude-opus-5 from T-0012 stillOpen and T-0188 stillOpen (the profile half of the five divergent rows was never filed).
 - 2026-10-16T19:37:33Z claimed by agent/claude-opus-5; lease until 2026-10-17T19:37:33Z
+- 2026-10-16T19:42:22Z MEASURED (GraphHopper 11.0 = `graphhopper.version` in plugins/scenic-score-parser/pom.xml; sources
+  fetched from github.com/graphhopper/graphhopper tag 11.0, core/src/main/java/com/graphhopper/routing/; no jar or graph on
+  this box). DefaultImportRegistry 11.0 knows: roundabout get_off_bike road_class road_class_link road_environment
+  foot_road_access bike_road_access road_access max_speed max_speed_estimated urban_density max_weight max_weight_except
+  max_height max_width max_axle_load max_length orientation surface smoothness hgv toll track_type hazmat hazmat_tunnel
+  hazmat_water lanes footway osm_way_id mtb_rating hike_rating horse_rating country state crossing ferry_speed curvature
+  average_slope max_slope bus_access hov_access *_temporal_access. Per divergent class:
+  - tracktype: `track_type` EXISTS. OSMTrackTypeParser.handleWayTags reads `readerWay.getTag("tracktype")` on EVERY way
+    (no highway test) and `TrackType.find` is `TrackType.valueOf(Helper.toUpperCase(name))`, MISSING on empty/unknown;
+    enum `MISSING, GRADE1, GRADE2, GRADE3, GRADE4, GRADE5`.
+  - smoothness (the title's fifth class): `smoothness` EXISTS. OSMSmoothnessParser reads `smoothness`;
+    `Smoothness.find` upper-cases, MISSING on empty, OTHER on unknown; enum `MISSING, EXCELLENT, GOOD, INTERMEDIATE,
+    BAD, VERY_BAD, HORRIBLE, VERY_HORRIBLE, IMPASSABLE, OTHER`.
+  - ford: only `road_environment`, and OSMRoadEnvironmentParser sets FORD on `readerWay.hasTag("ford") ||
+    readerWay.hasTag("highway", "ford")` - ANY ford value, ford=no included - and only after the bridge/tunnel
+    branches. CarAccessParser:130 blocks on `way.hasTag("ford")` only under `block_fords` (default false, :56).
+  - locked barrier on a WAY: nothing. AbstractAccessParser:102 (`node.hasTag("locked", "yes")`) and the `barriers` set
+    (CarAccessParser:58-68, gate not in it) read NODES only, through gh:barrier_edge.
+  - service values: nothing reads `service` except CarAccessParser:103 (`"service".equals(highwayValue) &&
+    "emergency_access".equals(way.getTag("service"))` -> car access false), which etl.profilegate holds TRUE (T-0012).
+  Cost: a graph re-import (graph.encoded_values changes the edge layout); track_type 3 bits (6 values), smoothness 4
+  bits (10), three booleans 1 bit each - 10 bits per edge, at most one more 4-byte int of edge flags. No query cost.
+- 2026-10-16T19:42:22Z RULINGS (before code).
+  R1 tracktype: the built-in `track_type`; clause `track_type == GRADE3 || track_type == GRADE4 || track_type ==
+     GRADE5`. GraphHopper upper-cases, Gates.swift/assemble compare exactly, so `tracktype=Grade3` is GATED by the
+     profile only - the fail-safe direction (same standing as T-0012's motor_vehicle=private rows), recorded, not fixed.
+  R2 smoothness: the built-in `smoothness`; clause BAD|VERY_BAD|HORRIBLE|VERY_HORRIBLE|IMPASSABLE (Gates.refusedSmoothness).
+     Same casing note. NO fixture row: Tests/ScenicKitTests/GateParityFixtureTests.swift:68 pins `rows.count == 33` and
+     Tests/ is not this task's; smoothness is held by test_profilegate and the encoding table (R7) instead.
+  R3 ford: road_environment == FORD is REFUSED - it gates ford=no, and the fixture's own near-miss rows ford=stepping_stones
+     and ford=Yes (PAVED in every layer, T-0188 rv1) would go GATED. Not positive evidence. A custom boolean `gate_ford`
+     (true iff the way's `ford` is exactly "yes").
+  R4 locked barrier: a custom boolean `gate_locked_barrier` (way `barrier` in {gate} and `locked` exactly "yes").
+     Node-level locked barriers are GraphHopper's own car-access concern and stay so.
+  R5 service: a custom boolean `gate_service_way` (highway=service and `service` in {driveway, parking_aisle,
+     drive-through, emergency_access}, exact - Gates.refusedServiceValues).
+  R6 SCOPE: R3-R5 need Java, so services/routing/plugins/scenic-score-parser/ joins `touches:`. Smallest: ONE TagParser
+     class (GateFactParser: a boolean encoded value set true when a predicate holds), ONE holder of the three predicates
+     and their sets (GateFacts), three branches in ScenicScoreImportRegistry. Positive evidence only: no tag -> false.
+     No Dockerfile change (it copies src/ whole).
+  R7 ONE encoding table, src/test/resources/gate_encoding.json, read by GateEncodingTest (GraphHopper's real
+     OSMTrackTypeParser + OSMSmoothnessParser and our GateFactParser, run by `mvn package` inside `docker build`) and by
+     test_profilegate (etl.profilegate.encode). The Python restatement and the real parsers meet on one file.
+  R8 etl.profilegate learns exactly: track_type, smoothness and the three booleans in `encode`, and two NEW refusals - a
+     comparison to a constant outside the named value's enum, and `==`/`!=` on a boolean value - since GraphHopper
+     refuses both at load and a misspelt GRADE_3 must not read as "does not fire".
+  R9 the five rows lose `divergent`; test_only_the_typed_classes_diverge keeps its name (bound in
+     ops/lib/named-tests.json) and asserts ZERO divergent rows.
+  R10 OUT OF TOUCHES, to stillOpen: services/api customModel.ts FORBIDDEN_ENCODED_VALUES is ["road_access", "surface"];
+     the five new gate values are not in it (a request model cannot raise a priority-0 edge, so defence in depth only);
+     pins/PINS.yaml P-PROD-01 prose still describes five divergent rows.
+  R11 owner re-import (VPS, not run here): `docker build -t scenic-routing:t0381 services/routing` then
+     `bash services/routing/import-graph.sh <tagged LA pbf> <graph dir> scenic-routing:t0381`; the graph's
+     `properties` sha256 (import-graph.sh:36) changes because graph.encoded_values gains track_type, smoothness,
+     gate_locked_barrier, gate_ford, gate_service_way.
