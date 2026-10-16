@@ -1,7 +1,7 @@
 ---
 id: T-0363
 title: The eight re-anchored Worker mutation populations (closures, config, crossing, isochrone, quota, region, tier, vehicle) run whole, and every MISSED entry they show after days of not running is closed or ruled EQUIVALENT with a witness
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
