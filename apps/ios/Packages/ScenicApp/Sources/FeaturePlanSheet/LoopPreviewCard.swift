@@ -12,6 +12,7 @@ struct LoopPreviewCard: View {
     let start: String
     let link: URL?
     let onChange: () -> Void
+    @Environment(\.planMoments) private var moments
 
     var body: some View {
         List {
@@ -49,6 +50,7 @@ struct LoopPreviewCard: View {
             PlanCardExit("Change the loop", action: onChange)
                 .accessibilityIdentifier("loop.change")
         }
+        .onAppear { moments?.report(.planPreviewOnScreen) }
     }
 
     static func retraceLine(_ fraction: Double) -> String {

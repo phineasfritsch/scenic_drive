@@ -22,7 +22,8 @@ public enum TripFailure: String, CaseIterable, Equatable, Sendable {
         case .planningPaused: return "Planning is resting for a moment. Try again in a little while."
         case .routingOffline: return "We could not reach the planner. Check your connection and try again."
         case .noRoute: return "We could not find a road trip between these two places."
-        case .regionUnsupported: return "Road trips start inside the area we cover for now."
+        case .regionUnsupported:
+            return "Road trips start inside the area we cover for now. We can count this area toward where we go next."
         case .unknownPlace: return "We could not find that place. Try choosing it again."
         case .tooFewDays: return "That is more road than these days hold. Add a day and try again."
         case .ceilingBreached: return "Every scenic way ran past your extra time. Try a little more time."
@@ -31,6 +32,16 @@ public enum TripFailure: String, CaseIterable, Equatable, Sendable {
         case .invalidRequest: return "Something about this trip did not add up. Try choosing again."
         case .refusedOnDevice: return "This trip cannot be planned from here. Check the start and the days."
         case .unexpectedResponse: return "The planner answered in a way we did not expect. Try again."
+        }
+    }
+
+    /// T-0365 R1: what this failure offers beside Try again and Change - a start outside the served region offers
+    /// the plan sheet's "Count this area"; every other failure, nothing.
+    public var waitlistAction: PlanFailureAction? {
+        switch self {
+        case .regionUnsupported: return .joinWaitlist
+        case .quotaExhausted, .planningPaused, .routingOffline, .noRoute, .unknownPlace, .tooFewDays, .ceilingBreached,
+             .nothingPretty, .planRefused, .invalidRequest, .refusedOnDevice, .unexpectedResponse: return nil
         }
     }
 }

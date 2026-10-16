@@ -78,6 +78,7 @@ public struct ScenicHomeScreen: View {
     @State private var isShowingSurprise = SurpriseSlot.atLaunch
 
     @State private var surpriseFailure: String?
+    @Environment(\.homeMoments) private var moments
 
     @State private var chipBandBottom: CGFloat = 0
     @State private var creditBandTop: CGFloat = 0
@@ -157,7 +158,7 @@ public struct ScenicHomeScreen: View {
             drive: selectedDrive,
             row: selectedRow,
             onBlocked: { isShowingDisclaimer = true },
-            onFailure: { handoffFailure = $0 }
+            onFailure: { handoffFailure = $0; if $0 == nil { moments?.report(.driveHandedToAppleMaps) } }
         )
     }
 
@@ -169,7 +170,7 @@ public struct ScenicHomeScreen: View {
             row: nil,
             place: place,
             onBlocked: { isShowingDisclaimer = true },
-            onFailure: { surpriseFailure = $0 }
+            onFailure: { surpriseFailure = $0; if $0 == nil { moments?.report(.surpriseHandedToAppleMaps) } }
         ).attempt()
     }
 

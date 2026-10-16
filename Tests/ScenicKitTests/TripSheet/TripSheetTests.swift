@@ -195,4 +195,59 @@ struct TripSheetTests {
         #expect(Set(lines).count == TripFailure.allCases.count)
         #expect(lines.allSatisfy { !$0.isEmpty && !$0.contains("!") })
     }
+
+    /// T-0365 R1, R2: every failure's whole line and its waitlist action, written out.
+    static let copy: [TripFailure: (String, PlanFailureAction?)] = [
+        .quotaExhausted: ("That is all the planning for today. It opens up again soon.", nil),
+        .planningPaused: ("Planning is resting for a moment. Try again in a little while.", nil),
+        .routingOffline: ("We could not reach the planner. Check your connection and try again.", nil),
+        .noRoute: ("We could not find a road trip between these two places.", nil),
+        .regionUnsupported: ("Road trips start inside the area we cover for now. We can count this area toward where "
+                             + "we go next.", .joinWaitlist),
+        .unknownPlace: ("We could not find that place. Try choosing it again.", nil),
+        .tooFewDays: ("That is more road than these days hold. Add a day and try again.", nil),
+        .ceilingBreached: ("Every scenic way ran past your extra time. Try a little more time.", nil),
+        .nothingPretty: ("Nothing on the way there was pretty enough to show. Try another place to head for.", nil),
+        .planRefused: ("We could not settle on a scenic way this time. Try again.", nil),
+        .invalidRequest: ("Something about this trip did not add up. Try choosing again.", nil),
+        .refusedOnDevice: ("This trip cannot be planned from here. Check the start and the days.", nil),
+        .unexpectedResponse: ("The planner answered in a way we did not expect. Try again.", nil),
+    ]
+
+    @Test("every trip failure's line and waitlist action, whole")
+    func failureCopyTable() {
+        #expect(Set(Self.copy.keys) == Set(TripFailure.allCases))
+        for failure in TripFailure.allCases {
+            #expect(failure.line == Self.copy[failure]?.0, "\(failure)")
+            #expect(failure.waitlistAction == Self.copy[failure]?.1, "\(failure)")
+        }
+    }
+
+    /// T-0365 R3: a sheet failed with `failure` from `place` to Big Sur.
+    static func failed(_ failure: TripFailure, from place: PlanPlace) -> TripSheet {
+        var sheet = TripSheet(disclaimerAccepted: true)
+        sheet.search("q", for: .start)
+        sheet.choose(place)
+        sheet.search("big", for: .destination)
+        sheet.choose(bigSur)
+        if let ticket = sheet.startPlanning() { sheet.finish(ticket, with: .failure(failure)) }
+        return sheet
+    }
+
+    @Test("the waitlist start is the failed ticket's 2-dp origin only on regionUnsupported")
+    func waitlistStartTable() {
+        let starts: [(PlanPlace, Coordinate)] = [(Self.pier, Self.pierAt2dp),
+                                                 (Self.ojai, Coordinate(latitude: 34.45, longitude: -119.24))]
+        for (place, at2dp) in starts {
+            for failure in TripFailure.allCases {
+                let expected: Coordinate? = failure == .regionUnsupported ? at2dp : nil
+                #expect(Self.failed(failure, from: place).waitlistStart == expected, "\(failure) \(place.name)")
+            }
+        }
+        #expect(Self.failed(.regionUnsupported, from: Self.pier).waitlistStart
+            != Self.failed(.regionUnsupported, from: Self.ojai).waitlistStart)
+        for from in From.allCases where from != .failed {
+            #expect(Self.sheet(from).waitlistStart == nil, "\(from)")
+        }
+    }
 }

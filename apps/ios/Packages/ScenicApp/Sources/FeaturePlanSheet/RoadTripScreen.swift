@@ -9,11 +9,18 @@ struct RoadTripScreen: View {
     @Binding var trip: TripSheet
     let planner: any TripPlanning
     let dayLinks: ([Coordinate]) -> [URL]
+    /// T-0365 R4: the plan sheet's own joiner - one WaitlistClient, one memory, so an area counts once per install.
+    let waitlist: any WaitlistJoining
     @State private var query = ""
+    /// T-0365: the waitlist card replaces the failure from the tap; nil answer while the request is out.
+    @State private var showingWaitlist = false
+    @State private var waitlistAnswer: WaitlistAnswer?
 
-    init(trip: Binding<TripSheet>, planner: any TripPlanning, dayLinks: @escaping ([Coordinate]) -> [URL]) {
+    init(trip: Binding<TripSheet>, planner: any TripPlanning, waitlist: any WaitlistJoining,
+         dayLinks: @escaping ([Coordinate]) -> [URL]) {
         _trip = trip
         self.planner = planner
+        self.waitlist = waitlist
         self.dayLinks = dayLinks
     }
 
@@ -30,15 +37,34 @@ struct RoadTripScreen: View {
             TripItineraryCard(itinerary: itinerary, destination: trip.destination?.name ?? "", dayLinks: dayLinks,
                               onChange: { trip.edit() })
         case .failed(_, let failure):
-            VStack(alignment: .leading, spacing: 12) {
-                Text(failure.line)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("trip.failure")
-                Button("Try again", action: planTrip)
-                Button("Change the trip") { trip.edit() }
+            if showingWaitlist {
+                WaitlistCard(answer: waitlistAnswer, onChangeStart: { searchFor(.start) })
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(failure.line)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("trip.failure")
+                    if let action = failure.waitlistAction {
+                        Button(action.title, action: joinWaitlist)
+                            .accessibilityIdentifier("trip.failure.waitlist")
+                    }
+                    Button("Try again", action: planTrip)
+                    Button("Change the trip") { trip.edit() }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .padding()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    /// T-0365 R3, R4: the sheet's waitlistStart only, at most one request, the answer shown in place of the failure.
+    private func joinWaitlist() {
+        guard !showingWaitlist, let start = trip.waitlistStart else { return }
+        showingWaitlist = true
+        waitlistAnswer = nil
+        let waitlist = self.waitlist
+        Task { @MainActor in
+            waitlistAnswer = await waitlist.joinWaitlist(near: start)
         }
     }
 
@@ -92,11 +118,15 @@ struct RoadTripScreen: View {
 
     private func searchFor(_ field: PlanField) {
         query = ""
+        showingWaitlist = false
+        waitlistAnswer = nil
         trip.search("", for: field)
     }
 
     private func planTrip() {
         guard let ticket = trip.startPlanning() else { return }
+        showingWaitlist = false
+        waitlistAnswer = nil
         let planner = self.planner
         Task { @MainActor in
             let outcome = await planner.plan(ticket)

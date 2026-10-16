@@ -89,6 +89,13 @@ public struct TripSheet: Equatable, Sendable {
         }
     }
 
+    /// T-0365 R3: the start "Count this area" may hand the waitlist - the failed ticket's origin, already cut to
+    /// 2 dp, and only when the failure offers the waitlist; nil in every other state.
+    public var waitlistStart: Coordinate? {
+        guard case .failed(let ticket, let failure) = state, failure.waitlistAction == .joinWaitlist else { return nil }
+        return ticket.origin
+    }
+
     static func twoDecimals(_ coordinate: Coordinate) -> Coordinate {
         Coordinate(latitude: (coordinate.latitude * 100).rounded() / 100,
                    longitude: (coordinate.longitude * 100).rounded() / 100)
