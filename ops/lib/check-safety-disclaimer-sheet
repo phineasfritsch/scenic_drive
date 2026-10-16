@@ -25,6 +25,7 @@ SUMMARY_OPEN="private var sheetSummary: some View {"
 SUMMARY_MOUNT="HomeSheet(detent: \$sheetDetent, summary: { sheetSummary }, details: { sheetDetails })"
 SUMMARY_BLOCK=(
   "$SUMMARY_OPEN"
+  "PostDriveOpenSlot()"
   "Text(DriveCopy.title(for: selectedDrive))"
   ".font(.title3)"
   ".fontWeight(.semibold)"

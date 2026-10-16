@@ -1,13 +1,13 @@
 ---
 id: T-0378
 title: The home at the medium detent crashes at AX5 (accessibility XXXL) - find the cause, fix it, and add home-ax5-medium back to the ax5 screenshot pass
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T21:15:30Z
+lease_expires_at: 2026-10-17T21:15:30Z
+worktree: .worktrees/T-0378
+branch: task/T-0378
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/MapAdapter/, .github/workflows/ios-screenshot.yml, ops/lib/ios_screenshot_pinned.py, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-frozen, queue/]
 pins_affected: [P-ATTR-01, P-A11Y-01, P-SAFE-03]
@@ -44,3 +44,4 @@ success, and home-ax5-medium looked at and quoted: credit, conditions line and b
   shows the whole home overflowing at AX5: the chip band runs up under the status bar with labels wrapping a few
   letters per line, the credit takes six lines, and the collapsed sheet's title is drawn over its menu chips. T-0376
   R8 holds the shell's "Plan a drive" pill on screen with a fixed home frame. The home's own overflow is this task's.
+- 2026-10-16T21:15:30Z claimed by agent/claude-opus-5; lease until 2026-10-17T21:15:30Z

@@ -241,6 +241,7 @@ public struct ScenicHomeScreen: View {
     /// if the handoff refused, the conditions line, the button. Short, because it is the first thing anyone sees.
     @ViewBuilder
     private var sheetSummary: some View {
+        PostDriveOpenSlot()
         Text(DriveCopy.title(for: selectedDrive))
             .font(.title3)
             .fontWeight(.semibold)
