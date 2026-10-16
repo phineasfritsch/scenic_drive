@@ -30,7 +30,7 @@ export const LAMBDA_MAX = 8;
 export const MAX_CLOSURE_POLYGONS = 50;
 /** A GeoJSON linear ring is >= 4 positions and closes on itself (RFC 7946 3.1.6). */
 export const MIN_RING_POSITIONS = 4;
-/** T-0382: what car_scenic_base.json's zero clauses read, minus road_class (the builder reads it), in profile order. */
+/** T-0382: what the shipped base routing profile's zero clauses read, minus road_class (the builder reads it), in profile order. */
 export const FORBIDDEN_ENCODED_VALUES = ["car_access", "road_access", "surface", "track_type", "smoothness", "gate_locked_barrier", "gate_ford", "gate_service_way"] as const;
 /** Decimals kept when a multiplier is serialised. Fixed so the model is byte-stable across boxes. */
 export const MULTIPLIER_DECIMALS = 6;
