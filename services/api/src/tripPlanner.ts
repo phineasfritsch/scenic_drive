@@ -140,9 +140,23 @@ function dayCeilingMs(ceilingMs: number, dayMs: number, totalMs: number): number
   return Number((BigInt(ceilingMs) * BigInt(dayMs)) / BigInt(totalMs));
 }
 
+export type PlacesNear = (vertices: LatLon[]) => Promise<RoadTripPlace[] | null>;
+
+/** One path's split: its edges, its OWN trip_places read over its vertices (T-0318 R1; closes over nothing, so no read
+ *  is shared across splits - rv1 R9) and the day plan over them. */
+export interface TripSplit { path: RoutePath; edges: RoadTripEdge[]; places: RoadTripPlace[] | null; split: ReturnType<typeof planRoadTrip> }
+
+export async function tripSplit(path: RoutePath, placesNear: PlacesNear, fastestMs: number, days: number,
+  extraBudgetPct: number): Promise<TripSplit> {
+  const pathEdges = edgesOf(path);
+  const places = await placesNear([pathEdges[0]!.start, ...pathEdges.map((e) => e.end)]);
+  return { path, edges: pathEdges, places, split: planRoadTrip(pathEdges, places ?? [], fastestMs,
+    { days, maxDriveSeconds: MAX_DRIVE_MS_PER_DAY, maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct) };
+}
+
 export async function planTrip(call: GuardedFetch, routerBase: string, origin: LatLon, destination: LatLon,
   days: number, extraBudgetPct: number, full: boolean, closuresFor: ClosuresFor, returned: PathGuard,
-  placesNear: (vertices: LatLon[]) => Promise<RoadTripPlace[] | null>): Promise<TripResult> {
+  placesNear: PlacesNear): Promise<TripResult> {
   let used = 0;
   const counted: GuardedFetch = (url, init) => {
     used += 1;
@@ -155,7 +169,8 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
   const ceilingMs = fastestMs + budgetMs;
   // T-0340 rv2: the search and the closure re-request decide the ONE path that ships. The measured paths stay inside
   // this scope; route coordinates, edges, vertices, pointOf and hazards below all read `shipped` (and its own split).
-  const { outcome, shipped, edges, split, places } = await (async () => {
+  // T-0318 rv1 R9: the shipped split is ONE binding, `chosen`; its places and places_searched come from it alone.
+  const { outcome, chosen } = await (async () => {
     const measured = new Map<string, RoutePath>();
     const outcome = await searchLambda(fastestMs / 1000, budgetMs / 1000, async (lambda) => {
       const path = await route(counted, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(lambda, closures));
@@ -165,12 +180,7 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
     const measuredChosen = measured.get(formatMultiplier(outcome.lambda));
     if (!measuredChosen) throw new TripFailure("no_recorded_lambda", `no route was measured at lambda ${outcome.lambda}`);
 
-    const splitOf = async (path: RoutePath) => {
-      const pathEdges = edgesOf(path);
-      const places = await placesNear([pathEdges[0]!.start, ...pathEdges.map((e) => e.end)]);
-      return { path, edges: pathEdges, places, split: planRoadTrip(pathEdges, places ?? [], fastestMs,
-        { days, maxDriveSeconds: MAX_DRIVE_MS_PER_DAY, maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct) };
-    };
+    const splitOf = (path: RoutePath) => tripSplit(path, placesNear, fastestMs, days, extraBudgetPct);
     const first = await splitOf(measuredChosen);
     if ("over_budget" in first.split) {
       throw new TripFailure("ceiling_breached",
@@ -183,8 +193,9 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
         const again = await splitOf(await route(counted, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(outcome.lambda, swapped)));
         return "plan" in again.split ? again : null;
       } : null);
-    return { outcome, shipped: shown.path, edges: shown.edges, split: shown.split, places: shown.places };
+    return { outcome, chosen: shown };
   })();
+  const { path: shipped, edges, split, places } = chosen;
   if (!("plan" in split)) throw new TripFailure("too_few_days", `the route needs more than ${days} days`);
   // T-0335 R2: the route that would ship, scored before any day leg is requested; dull or unscorable is refused.
   if (isHonestFailure(routeScoreOf(shipped))) {
