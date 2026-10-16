@@ -1,7 +1,7 @@
 ---
 id: T-0218
 title: ScenicKit - the class ceiling reaches the app: SegmentScore over corpus terms_* is UNCAPPED while the router's band is capped by assemble.CLASS_SCORE_CEILING; rule ONE owner before M4's explanation and hazard strip read both, and name what the P-PROD-01 differential compares
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
