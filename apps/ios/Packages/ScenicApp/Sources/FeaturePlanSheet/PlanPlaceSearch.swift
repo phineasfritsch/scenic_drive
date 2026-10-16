@@ -2,8 +2,9 @@ import Foundation
 import PlaceStore
 import ScenicKit
 
-/// The plan sheet's search over the bundled corpus: PlaceStore's FTS5 (T-0254), named places only. Photon is not
-/// deployed and typed street addresses are a later task (Brief).
+/// The plan sheet's search over the bundled corpus: PlaceStore's FTS5 (T-0254), named places only, on the device and
+/// per keystroke. Typed street addresses go to the Worker's /search once per submit (T-0362: PlanPlaceList's
+/// PlaceSearchSubmit), and a searched row plans by the place id the Worker issued, never by its coordinate.
 enum PlanPlaceSearch {
     static let corpusName = "corpus-fallback"
     static let limit = 20

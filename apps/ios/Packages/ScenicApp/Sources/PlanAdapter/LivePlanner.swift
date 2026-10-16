@@ -14,8 +14,18 @@ public enum LivePlanner {
 
     /// The sheet's planner composed once (T-0357 x T-0360 merge ruling): WaitlistRoutePlanner outermost, so joining is
     /// reachable from the one value; it forwards plan and degrade to `planner()`.
-    public static func make() -> any RoutePlanning & WaitlistJoining {
-        WaitlistRoutePlanner(planner: planner(), waitlist: LiveWaitlist.make())
+    public static func make() -> any RoutePlanning & WaitlistJoining & PlaceSearching {
+        WaitlistRoutePlanner(planner: planner(), waitlist: LiveWaitlist.make(), search: placeSearch())
+    }
+
+    /// T-0362 R2, R9: the address search on the same base and the same identity as the plan client - the Worker
+    /// remembers each row's place id under the identity /plan computes; NoPlaceSearch without an https base.
+    static func placeSearch() -> any PlaceSearching {
+        guard let text = UserDefaults.standard.string(forKey: baseURLKey), let base = URL(string: text),
+              base.scheme == "https" else { return NoPlaceSearch() }
+        return ClientPlaceSearch(client: SearchClient(base: base, transport: URLSessionPlanTransport(),
+                                                      installID: StoredInstallID(), accountToken: StoreKitAccountToken(),
+                                                      session: LiveSession.store))
     }
 
     /// T-0357 R7: the ClientPlanner with the /config cache and our build, so the sheet hears a pause or an update

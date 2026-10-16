@@ -171,7 +171,7 @@ export const MUTATIONS = [
   // T-0326: DELETE /account sweeps PLANS (planSweep.ts) for every one of the user's devices (account.ts).
   m("sweep-stops-on-empty-page", "planSweep.ts", "if (page.list_complete) break;", "if (page.list_complete || page.keys.length === 0) break;"),
   m("sweep-ignores-cursor", "planSweep.ts", "kv.list(cursor === undefined ? { prefix } : { prefix, cursor })", "kv.list({ prefix })"),
-  m("sweep-key-shape-prefix-only", "planSweep.ts", "name.startsWith(prefix) && PLAN_TOKEN.test(name.slice(prefix.length))", "name.startsWith(prefix)"),
+  m("sweep-key-shape-prefix-only", "planSweep.ts", "name.startsWith(prefix) && isSweptKey(name.slice(prefix.length))", "name.startsWith(prefix)"),
   m("sweep-delete-failure-ignored", "planSweep.ts", "if (settled.some((s) => s.status === \"rejected\")) whole = false;", ""),
   m("sweep-list-failure-aborts", "planSweep.ts", "        whole = false;\n        break;\n      }\n      const mine", "        return false;\n      }\n      const mine"),
   m("sweep-no-cursor-complete", "planSweep.ts", "if (typeof page.cursor !== \"string\" || page.cursor === \"\") {\n        whole = false;", "if (typeof page.cursor !== \"string\" || page.cursor === \"\") {"),
