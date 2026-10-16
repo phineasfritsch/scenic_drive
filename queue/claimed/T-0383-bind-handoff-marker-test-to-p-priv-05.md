@@ -104,3 +104,4 @@ green. PINS.yaml stays strict (check-pins-yaml.py).
   0, check-ios-compile-guardrails 0, ios_screenshot_pinned 0. check-pins --source-only, check-exec-bits,
   check-line-cap and queue-check were still running on the loaded box at push time; their statuses are reported with
   the PR, not claimed here.
+- 2026-10-16T23:33:06Z agent/claude-opus-5 (orchestrator): rv1 FAIL was ancestry only (T-0378, T-0381 landed). Merged origin/main (clean). On the merged head c1f67436: check-named-table P-PRIV-05 75358a50...fe6e 78 -> 'NAMED-TABLE P-PRIV-05 ok - 78 distinct names'; bare gates exit 0 (check-pins-yaml, check-exec-bits, queue-check, check-safety-disclaimer, check-mutate-population).
