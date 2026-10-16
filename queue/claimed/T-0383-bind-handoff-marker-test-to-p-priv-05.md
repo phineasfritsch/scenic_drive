@@ -73,3 +73,21 @@ green. PINS.yaml stays strict (check-pins-yaml.py).
     (GRDB, T-0175 R2), so the green line here is passed=77/78 and that is the only expected miss; no exact
     passed=N/N check is added (T-0377 R2 stands).
   - R4 in flight: T-0381 edits PINS.yaml P-PROD-01, a different pin; merge from main is a union.
+- 2026-10-16T21:31:00Z RED (A3, A4). With `defaultsDomainIsOneInt()` deleted (lines 35-53 of
+  HandoffMarkingMomentsTests.swift, never committed), `SCENIC_SWIFT_SCRATCH=.build/t-0383 python
+  ops/lib/run-named-tests.py P-PRIV-05` under the OLD 77-name table: `RED PlaceStoreTests.UserStorePrivacyTests/
+  noColumnNamesAPlaceOrATrail(): MISSING` only, `NAMED P-PRIV-05 passed=76/77`, exit 1 - the deletion unseen. Table
+  edited (A1), old approval: `check-named-table.py P-PRIV-05 ad5e5df4...054e 77` -> `REFUSED count 78 distinct names
+  != approved 77`, `REFUSED digest 75358a5090a01ec914c1ec784f3c26c330f63c5c351787aca42a5e9aefcbfe6e != approved
+  ad5e5df4...`, `NAMED-TABLE P-PRIV-05 FAILED`, exit 1 (38 vitest, 40 Swift; the new filter re.search-matches the
+  bound name). NEW table, test still deleted: `RED ...UserStorePrivacyTests/noColumnNamesAPlaceOrATrail(): MISSING`,
+  `RED ScenicKitTests.HandoffMarkingMomentsTests/defaultsDomainIsOneInt(): MISSING - no test of this name ran`,
+  `NAMED P-PRIV-05 passed=76/78`, exit 1.
+- 2026-10-16T21:31:46Z GREEN (A2, A5). Test file restored by `git checkout`: sha256 3fcb06a0...87a5e2, blob
+  9069a893 = HEAD's. PINS.yaml edited by .build/t0383_pin_edit.py (each old call asserted exactly once; one tail
+  asserted once): both calls now `75358a5090a01ec914c1ec784f3c26c330f63c5c351787aca42a5e9aefcbfe6e 78`, one
+  sentence appended; `python ops/lib/check-pins-yaml.py` -> `PINS-YAML ok pins=52 fields=418`. The SHIPPED assertion
+  (yaml.safe_load, `bash -c`): `NAMED-TABLE P-PRIV-05 ok - 78 distinct names, sha256 75358a5090a0`, then
+  `NAMED P-PRIV-05 passed=77/78` with the only RED the GRDB-gated UserStorePrivacyTests MISSING (R3; exit 1 here
+  for that reason alone, as T-0377 recorded). `--prove-red ... 78` -> `PROVE-RED OK: 8 of 8 rows red by name,
+  controls green`.
