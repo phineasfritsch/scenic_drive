@@ -123,3 +123,43 @@ LA corpus through sane_corpus.py green on corpus-surface. Do NOT touch prod/R2.
   here. Touched anchors: the residential, service and motorway literals, and the "add a baseline" mutant moves
   from living_street (now a real baseline) to `road` (3 ways, which the derivation omits). MIN_MUTATIONS stays 25.
 - 2026-10-16T07:31:00Z ACCEPTANCE written (front matter), before any code.
+- 2026-10-16T07:37:31Z CORRECTION to the two entries above: their `07:31:00Z` stamps were typed, not read from
+  `date -u`; both were written between 07:28:19Z and 07:30:50Z (`date -u` at the next run) and committed in
+  9f9dbe74 before any code. Stamps below are read from `date -u`.
+- 2026-10-16T07:30:50Z A2 RED FIRST. Tests edited (R5), module literals still the window's:
+  `python -m pytest -q -o addopts= tests/test_surfacecoverage.py` -> `7 failed, 17 passed`, FAILED:
+  test_the_check_is_green_over_the_measured_full_la_region, test_the_check_refuses_the_canyon_window_because_a_
+  window_is_not_its_region, test_every_baseline_is_met_by_the_region_it_was_measured_from,
+  test_baselines_are_exactly_the_measurement_times_the_ruled_margin, test_a_large_class_with_no_baseline_is_
+  reported_by_name, test_a_class_exactly_at_its_baseline_passes, test_a_class_one_way_below_its_baseline_is_refused.
+  New literals in: `1 failed, 23 passed` - test_a_class_with_no_baseline_is_never_refused_however_bare used
+  living_street as its unbaselined class, which R3 now baselines; moved to `road` (3 ways region-wide, unbaselined).
+  Then `24 passed in 6.03s` (Windows python); in the pinned image (`docker run ... scenic-etl python3 -m pytest
+  -q -p no:cacheprovider -o addopts= tests/test_surfacecoverage.py`, 07:37Z) `24 passed in 2.69s`.
+- 2026-10-16T07:31:46Z A4. `wsl -e python3 ops/lib/sane_corpus.py --corpus /home/phineas/t0242/la-corpus.sqlite`
+  (SCENIC_REGION_WORK unset) at d164c4f3:
+  ```
+  ok	corpus-open	la-corpus.sqlite: schema_version 3, build_complete 1, region 'la'
+  ok	corpus-terms	la-corpus.sqlite: 0 term rows, every value within 0..1
+  ok	corpus-viewpoints	la-corpus.sqlite: 102 viewpoints >= region la's floor 76
+  ok	corpus-surface	la-corpus.sqlite: 16 classes, none below its baseline
+  skip	corpus-score	the corpus stores no score (schema.py rule 6): ...
+  rc=0
+  ```
+  The canyon window through the same command: corpus-open/terms/viewpoints ok, then `FAIL corpus-surface
+  la-corpus.sqlite: class living_street has only 4 ways ...; class primary_link has only 10 ways ...; class
+  secondary_link has only 6 ways ...; class tertiary_link has only 8 ways ...; class trunk_link has only 14 ways
+  ...; residential: surface coverage 0.1222 is below the baseline 0.164 (313 known of 2562 ways); secondary: 0.3827
+  < 0.430 (106 of 277); service: 0.0393 < 0.065 (268 of 6818); tertiary: 0.2931 < 0.417 (119 of 406); track:
+  0.0182 < 0.033 (18 of 988); trunk: 0.3267 < 0.533 (82 of 251); unclassified: 0.1383 < 0.241 (13 of 94)`, rc=4 -
+  exactly R4's twelve.
+- 2026-10-16T07:37:13Z A3 (finished before this stamp) at d164c4f3 (`python ops/mutate/surfacecoverage.py`): `BASELINE exit=0, 25 mutations,
+  floor 25` ... `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2`, `MUTATE OK  caught=25/25 equivalent_caught=0`,
+  rc=0. The four touched rows: residential -> 0.0 caught by test_the_check_refuses_residential_below_its_baseline_
+  by_name; service -> 0.9 caught by test_the_check_is_green_over_the_measured_full_la_region; motorway -> 0.001
+  caught by test_baselines_are_exactly_the_measurement_times_the_ruled_margin; `"road": 0.001` added caught by
+  test_the_check_is_green_over_the_measured_full_la_region. `--prove-vacuity`: `VACUITY: 0 caught, 25 missed, 0
+  skipped, of 25`, `VACUITY PROVED`, rc=0. (Run whole, R7: the driver has no --only.)
+- 2026-10-16T07:37:13Z A5. `bash ops/lib/check-sane-corpus` -> `SANE-CORPUS ok       59/59 cases passed
+  (sane=ops/sane)` rc=0. P-DATA-04's assertion, extracted from PINS.yaml by yaml.safe_load and run with bash
+  (PYTHON=python) -> rc=0. `python ops/lib/check-pins-yaml.py` -> `PINS-YAML ok pins=51 fields=411`.
