@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# check-sane-corpus - ops/sane exit 4 corpus invariants over fixture corpora (T-0372, pin P-OPS-09).
+#   bash ops/lib/check-sane-corpus [--sane PATH] [--only name,name]
+# The rows live in ops/lib/sane_corpus_cases.py, the driver in ops/lib/check_sane_corpus.py; this wrapper finds Python.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+exec "$PY" ops/lib/check_sane_corpus.py "$@"
