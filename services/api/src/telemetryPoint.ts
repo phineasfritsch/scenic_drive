@@ -37,7 +37,7 @@ export const TELEMETRY_WIRE: Readonly<Record<string, WireRule>> = Object.freeze(
   drive_abandoned: { ...NONE, doubles: [PERCENT, UNUSED] },
   post_drive_answer: { ...NONE, labels: ["prettier", "not_prettier"] },
   surprise_shown: NONE,
-  surprise_not_this: { ...NONE, labels: ["too_far", "been_there", "not_my_thing"] },
+  surprise_not_this: { ...NONE, labels: ["too_far", "been_there", "not_my_thing", "wrong_time"] },
   surprise_take_me_there: NONE,
   surprise_arrived: NONE,
   corpus_activated: { ...NONE, doubles: [[0, 2147483647], UNUSED] },

@@ -21,8 +21,8 @@ afterEach(() => {
 const cellsOf = (raw: string) => [...new Set(raw.split(/\r?\n/).filter((l) => l.length > 0).map((l) => l.split(" ")[0]!))];
 
 describe("POST /telemetry over the Swift encoder's own JSON (T-0279 R10)", () => {
-  it("the fixture is the 36 rows the Swift suite pins, one JSON object per line", () => {
-    expect(FIXTURE_LINES.length).toBe(36);
+  it("the fixture is the 37 rows the Swift suite pins, one JSON object per line", () => {
+    expect(FIXTURE_LINES.length).toBe(37);
     expect(FIXTURE_LINES.map((line) => JSON.stringify(JSON.parse(line)))).toEqual(FIXTURE_LINES);
   });
 
@@ -43,7 +43,7 @@ describe("POST /telemetry over the Swift encoder's own JSON (T-0279 R10)", () =>
     }
     expect(rig.writes).toStrictEqual(FIXTURE);
     expect(rig.writes.map((w) => JSON.stringify(w))).toEqual(FIXTURE_LINES);
-    expect(rig.quota.state()).toEqual(dailyTelemetry(36));
+    expect(rig.quota.state()).toEqual(dailyTelemetry(37));
   });
 
   it("the fixture's wire names and labels are exactly the whitelist's: fifteen names, every label of every closed enum", () => {
