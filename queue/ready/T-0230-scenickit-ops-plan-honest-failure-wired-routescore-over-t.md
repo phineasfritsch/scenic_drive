@@ -1,7 +1,7 @@
 ---
 id: T-0230
 title: ScenicKit/ops/plan - honest failure wired (plan:117): RouteScore over the chosen route < 0.45 -> a named plan state printed by ops/plan, the +40 / 'all back roads' offer at its real ETA, and couldNotUseBudget as a product state instead of a doc comment
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
