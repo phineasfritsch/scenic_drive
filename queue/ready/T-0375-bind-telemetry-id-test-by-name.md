@@ -1,7 +1,7 @@
 ---
 id: T-0375
 title: P-PRIV-05 binds everyRequestStampsTheProvidersCurrentID() by name, so deleting the per-request install-id test is caught, not only weakened inside the suite filter
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
