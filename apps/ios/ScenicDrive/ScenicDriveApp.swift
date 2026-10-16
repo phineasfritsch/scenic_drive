@@ -27,6 +27,9 @@ import SwiftUI
 ///
 /// T-0368 R1, R6: the shell reads feature_surprise once from the kept /config answer (no request) for the home, again
 /// when the plan sheet closes, and hands the plan sheet the same reader.
+///
+/// T-0366 R4: the shell builds the home's PostDriveOpenModel from NavAdapter's LiveOpenFix and PlanAdapter's
+/// LivePostDriveAnswers, wraps the home's moments with its marker, and calls `opened()` on every foreground open.
 @main
 struct ScenicDriveApp: App {
     @State private var isShowingSettings = LaunchScreen.atLaunch != .home
@@ -35,6 +38,8 @@ struct ScenicDriveApp: App {
     @State private var isShowingCorpusDownload: Bool
     @State private var drive = DriveRehearsal.atLaunch
     @State private var surpriseGate = LivePlanner.surpriseGate()
+    @State private var nextOpen = PostDriveOpenModel(fix: LiveOpenFix(), answers: LivePostDriveAnswers())
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         let corpus = LiveCorpus.launch(wifiOnlyKey: SettingsScreen.corpusWifiOnlyKey)
@@ -73,7 +78,9 @@ struct ScenicDriveApp: App {
             }
             .environment(\.surpriseLedger, LiveSurpriseLedger.make())
             .environment(\.surpriseMoments, LiveMoments())
-            .environment(\.homeMoments, LiveMoments())
+            .environment(\.homeMoments, nextOpen.marking(LiveMoments()))
+            .environment(nextOpen)
+            .onChange(of: scenePhase, initial: true) { if $1 == .active { nextOpen.opened() } }
             .environment(\.planMoments, LiveMoments())
             .environment(\.paywallShown, { LiveMoments.paywallShown() })
             .environment(\.paywallConverted, { LiveMoments.paywallConverted() })
