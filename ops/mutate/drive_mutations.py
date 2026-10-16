@@ -469,6 +469,9 @@ MUTATIONS = [
     ("149 a colon is a digit", VERSION, 'byte <= UInt8(ascii: "9")', 'byte <= UInt8(ascii: ":")', [V_DIGITS]),
     ("150 the digits read in base 16", VERSION, "value = value * 10 +", "value = value * 16 +", [V_ROWS]),
     ("151 the Z read as a digit", VERSION, "where index != 8 && index != 15", "where index != 8", [V_ROWS]),
+    ("152 the driven metres read on the new line (rv1 RV-A)", SESSION,
+     "        metersBefore += Self.meters(along: line, to: progressSegment)\n        line = next\n",
+     "        line = next\n        metersBefore += Self.meters(along: line, to: progressSegment)\n", [P_REROUTE]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)

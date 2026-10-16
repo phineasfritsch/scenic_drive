@@ -133,3 +133,21 @@ ios-screenshot succeed with the touched screens looked at.
      check-store-links ok, check-map-attribution ok, check-hazard-copy-sites ok, bash check-safety-disclaimer exit 0,
      check-line-cap (none over 300), check-pins-yaml ok, check-exec-bits ok, queue-check `QUEUE OK`.
   A7 ios-compile + ios-screenshot dispatched on the merged head; results in the PR.
+- 2026-10-16T05:10:45Z ROUND 2 (rv1-t0361 FAIL on PR #251, head 11f91661), ruled before code:
+  B1 RULED a real defect. RV-A (rerouteArrived reads the NEW line for the OLD progress vertex) survives because the
+     reroute fixture's lineA/lineB have equal segment lengths and the old progress (3) <= lineB's segment count (3);
+     on a real reroute it sends a wrong fraction, and an old progress past the new line's last segment TRAPS in
+     `meters(along:to:)` (`line.coordinates[segment + 1]`). Structural fix, not a spelling: (1) the current line's
+     driven metres are ONE binding, `drivenMeters` (meters along the current line to the progress vertex), read by
+     both fractionDriven's numerator and rerouteArrived; (2) rerouteArrived replaces the metres and the line in ONE
+     tuple assignment `(metersBefore, line) = (metersBefore + drivenMeters, next)` - Swift evaluates the right side
+     whole before either write, so there is no statement order to swap and the new line is never named on the
+     metres' side; (3) `meters(along:to:)` sums `zip(ends, ends.dropFirst())` over `coordinates.prefix(vertex + 1)`,
+     total for any vertex >= 0, so no mis-read can trap (a trap reports WRONG KILLER, as 137 did in round 1).
+     Fixtures: lineB's segments are 0.004 degree (lineA's 0.01) and lineB has 2 segments, below the old progress 3;
+     the fraction is compared whole to a recomputation from Geo.distanceMeters over the fixture coordinates, with a
+     meta-row that the mis-read's answer differs from the right one. RV-A joins the drive population as 152 (shown
+     MISSED at 11f91661's code and tests, CAUGHT by name after, re-expressed on the new code as the metres read on
+     `next`); 133/134/136/137's anchors move to the new spellings; floor 151 -> 152.
+  B2 RULED: merge origin/main LAST (T-0363 code drift: check-mutate-anchors.py, regionMutants.mjs) and run
+     `python ops/lib/check-mutate-anchors.py` bare on the merged head.
