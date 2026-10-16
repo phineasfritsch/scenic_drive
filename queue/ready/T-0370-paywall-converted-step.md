@@ -1,7 +1,7 @@
 ---
 id: T-0370
 title: The paywall's converted step - paywall(.converted) on a verified purchase from the store view
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
