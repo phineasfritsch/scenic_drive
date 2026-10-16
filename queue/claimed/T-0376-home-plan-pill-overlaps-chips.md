@@ -144,3 +144,22 @@ re-approved.
   CORRECTION to my 10:58 entry's pixel numbers (I divided display pixels by 3 without the 1.31 display factor):
   in home-light-medium of run 38882932440 the pill is at about y 71-113 pt, the chip band top is at about 118 pt,
   and the chips are about 43 pt tall (44 in code). The ordering is the same: pill above band, no overlap.
+- 2026-10-16T11:49:23Z agent/claude-opus-5 (owner) ACCEPTANCE re-run on 03b20800 (contains the origin/main merge 6d71d35c).
+  1. GREEN: the shell line is `.safeAreaInset(edge: .top, alignment: .leading, spacing: 0) {` and no overlay remains;
+     check-safety-disclaimer rc=0 with FROZEN_APP_SHELL and PINNED_SHELL_DIGEST e3ea537e; red seen 09:5x (Log above).
+  2. GREEN: ax5 LIST `collapsed preview nothingPretty offered loop trip saved` (amended per R7);
+     check-ios-compile-guardrails rc=0, --prove-red "97 mutations red ... 0 unexpected"; red seen (Log above).
+  3. PARTIAL: ios-compile 38893772524 success; ios-screenshot 38893775590 success on 03b20800. LIGHT and DARK pass:
+     home-light-medium shows "Plan a drive" alone above the chip band, "Saddle Peak", "Westwood loop", "SF Peninsula",
+     the sparkle and the gear whole, and "(c) OpenStreetMap contributors" directly above the sheet. The other light and
+     dark home shots (collapsed, medium, fastest) are laid out the same in 38890737661 and 38882932440. AX5 FAILS:
+     home-ax5-collapsed shows the pill on screen and reachable (R8), but drawn over the top of the chips. The cause is
+     the home's own AX5 overflow: the chip band starts under the status bar and runs ~220 pt, letters wrapping. That
+     overflow was there before this task and is T-0378's, with home-ax5-medium (crash). The acceptance's AX5
+     no-overlap clause is not met by this PR.
+  4. GREEN on the merged head: check-safety-disclaimer, check-mutate-population (floor 165), check-mutate-only,
+     check-telemetry-emit-sites (54 lines), check-store-links, check-map-attribution, check-line-cap (677 files),
+     check-pins-yaml (pins=51), check-ios-compile-guardrails, queue-check (369) all rc=0; PR #261 core and
+     pins-source-only pass.
+  PR #261 is open as a DRAFT because of 3's AX5 clause. Two ways to land it: T-0378 lands first, or the owner accepts
+  the light/dark fix with the AX5 overlap recorded against T-0378.
