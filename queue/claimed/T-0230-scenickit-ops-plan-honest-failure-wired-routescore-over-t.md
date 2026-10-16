@@ -134,3 +134,25 @@ ops/plan the M3 exit and step 3 of Problem A is its honest failure. Ranked befor
   wc -l: ScenicPlanner.swift 149, ScenicPlan.swift 118, PlanNothingPretty.swift 79,
   ScenicPlannerHonestFailureTests.swift 231, PlanCLILARecordingTests.swift 179 (ops/mutate/plan.py 313: P-SRC-02 is
   Swift-only; hazards.py 604, handoff.py 643, segmentscore.py 648 are the precedent).
+- 2026-10-16T14:42:50Z CORRECTION + ACCEPTANCE RE-RUN (agent/claude-opus-5): running ops/plan for the record showed the STATE
+  couldNotUseBudget line printed AFTER the TABLE line, not before it as R5/A5 say. 610eabb6 moves it above TABLE,
+  re-approves ScenicPlan.swift's digest row, adds an adjacency check to the stub table and adds
+  PlanCLILARecordingTests "santa-monica-topanga +25 prints couldNotUseBudget above its table; westwood-woodland-hills
+  does not". Touched rows re-run on 610eabb6: `plan.py --only budget-state/,honest/gate-never-fires` -> "caught 3 of 3
+  trapped 0 compile-only 0 MISSED 0 skipped 0". wc -l ScenicPlan.swift 120, ScenicPlannerHonestFailureTests.swift 235,
+  PlanCLILARecordingTests.swift 194.
+  A1/A4 ops/plan, recorded (`SCENIC_PLAN_SCRATCH=.build/t-0230 bash ops/plan 34.0669,-118.4399 34.0356,-118.6894 25
+  --recorded Tests/Fixtures/t0221/westwood-malibu`): exit 3, stdout empty, stderr:
+    ops/plan REFUSED: not much pretty within 25 minutes of this drive: RouteScore 0.226 is under the 0.45 floor
+    OFFER more-time: plan again with 65 minutes of extra time (+40 minutes)
+    NO-OFFER all-back-roads: lambda 8 was not measured (no recorded response at lambda 8.0)
+  santa-monica-topanga +25: exit 0, a plan with "STATE couldNotUseBudget returned=22m26s under
+  fastest+half-the-budget=32m44s" (asserted by the test above).
+  A2/A3/A5: the 6 ScenicPlannerHonestFailureTests tests plus the stub-table rows, green. Touched suites: "Test run
+  with 36 tests in 8 suites passed". Whole root suite on b6955a99 (code identical to 0fa71b2e): "Test run with 897
+  tests in 183 suites passed after 14.142 seconds".
+  A6 gates, bare, on b6955a99: check-pins-yaml "PINS-YAML ok pins=51 fields=411"; check-exec-bits "P-OPS-01: 230
+  files, 23 required present, all modes correct"; queue-check "QUEUE OK (368 tasks)"; check-safety-disclaimer exit 0
+  (also exit 0 on 610eabb6); check-mutate-population "the floor of 165 holds"; check-mutate-only "NAME-PAIRS OK";
+  check-line-cap "none over 300 lines" (on 0fa71b2e). origin/main b54f24e2 is an ancestor (fetched in the main
+  checkout; nothing to merge yet - merged again below if it moves).
