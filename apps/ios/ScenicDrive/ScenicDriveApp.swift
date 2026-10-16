@@ -56,7 +56,7 @@ struct ScenicDriveApp: App {
     private var home: some View {
         GeometryReader { proxy in
         ScenicHomeScreen(onSettings: { isShowingSettings = true }, surpriseGate: surpriseGate, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })
-            .frame(width: proxy.size.width, height: proxy.size.height)
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
         }
             .sheet(isPresented: $isShowingSettings) {
                 SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, deleteAccount: { await LiveAccountDeletion.run() }, onDone: { isShowingSettings = false })

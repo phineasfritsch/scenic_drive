@@ -151,6 +151,9 @@ rows=(
   "T-0303 a digest edited in the data only|%ops/lib/check-safety-disclaimer-linked-digests.txt|s#^\(Sources/Handoff/AppleMapsDirections.swift \)[0-9a-f]*\$#\10000000000000000000000000000000000000000000000000000000000000000#|Sources/Handoff/AppleMapsDirections.swift content changed"
   "T-0303 a path row deleted in the data only|%ops/lib/check-safety-disclaimer-linked-digests.txt|/^Sources\/ScenicKit\/Geo\/Geo.swift /d|root: added Sources/ScenicKit/Geo/Geo.swift"
   "T-0303 a section header repeated|%ops/lib/check-safety-disclaimer-linked-digests.txt|\$s#\$#\n[ROOT_TOP_FILES]\nPackage@swift-6.swift#|section [ROOT_TOP_FILES] duplicated"
+  # Row 61 is T-0376 R9: the shell's fixed home frame places its child top-first, so an AX5 home taller than the
+  # frame overflows downward and never over the pill's inset; centring it again is refused by the frozen shell.
+  "T-0376 the home's overflow centred again|ScenicDrive/ScenicDriveApp.swift|s/, alignment: .top)/)/|the app shell ScenicDriveApp line 29 of 50"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies

@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-17T09:42:35Z
 worktree: .worktrees/T-0376
 branch: task/T-0376
 exclusive: []
-touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-frozen, .github/workflows/ios-screenshot.yml, ops/lib/ios_screenshot_pinned.py, queue/]
+touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-frozen, ops/lib/check-safety-disclaimer-mutations, .github/workflows/ios-screenshot.yml, ops/lib/ios_screenshot_pinned.py, queue/]
 pins_affected: [P-ATTR-01, P-A11Y-01]
 reviewer: null
 depends_on: []
@@ -163,3 +163,28 @@ re-approved.
      pins-source-only pass.
   PR #261 is open as a DRAFT because of 3's AX5 clause. Two ways to land it: T-0378 lands first, or the owner accepts
   the light/dark fix with the AX5 overlap recorded against T-0378.
+- 2026-10-16T12:36:39Z agent/claude-opus-5 (owner) rv1 FAIL B1 taken (acceptance 3 AX5 clause; the Brief is not narrowed).
+  MEASURED rv1's home-ax5-collapsed.png (run 38893775590, .artifacts/rv1-t-0376-shots; 1206x2622 px = 402x874 pt):
+  the chip band runs from y ~0 to ~297 pt (letters wrapping, "Sa/dd/le/Pea/k"), so its top is ABOVE the status bar;
+  the "Plan a drive" capsule is at y ~70-131 pt, drawn across Saddle Peak, Westwood loop and SF Peninsula; the credit
+  box is at y ~301-622 pt (six lines, "(c) OpenStreetMap contributors" whole); the sheet starts at y ~631 pt and runs
+  past the bottom edge. So the home's content is ~970 pt tall against a frame of ~710 pt (874 minus the status bar and
+  the pill's inset), and R8's `.frame(width: proxy.size.width, height: proxy.size.height)` CENTRES that overflow:
+  ~130 pt of it goes up past the frame's top, through the inset strip and the status bar.
+  R9 The class fix is the frame's alignment, in the shell: `.frame(width: proxy.size.width, height:
+  proxy.size.height, alignment: .top)`. The frame still reports exactly the size it is offered (R8 holds: the inset
+  cannot be moved), and its child is now placed top-first, so whatever the home's height, its top edge is the
+  frame's top edge, which is the pill inset's bottom edge: overflow can only go DOWN, never above the inset, at any
+  size or detent. When the home fits (every non-accessibility size) the alignment changes nothing, so the light and
+  dark shots must be unchanged. Not "clip below the inset": `.clipped()` on the frame would also cut the map, whose
+  `.ignoresSafeArea()` runs under the status bar and the pill strip. Not "let the chip band scroll": a horizontal
+  scroll at AX5 puts SF Peninsula, the sparkle and the gear off screen, failing "every chip visible"; not "wrap":
+  the band already wraps, letter by letter, which is the overflow; reshaping it is T-0378's (whole AX5 overflow).
+  R10 P-ATTR-01 at AX5: moving the overflow down shifts the measured layout by ~130 pt, so the credit box lands at
+  ~y 430-750 pt and the sheet's top at ~760 pt: the credit stays on screen directly above the sheet, and less of the
+  collapsed sheet shows. That is predicted, not seen: acceptance 3 is decided by the new ax5 shot, quoted below.
+  The P-SAFE-03 conditions line is in the sheet (untouched); whether its AX5 position is on screen is quoted too.
+  R11 Guard: the frozen shell line is a whole-line WHITELIST (FROZEN_APP_SHELL), so the alignment is pinned by
+  the approval itself; the digest moves with it (PINNED_SHELL_DIGEST and the -pinned table row, 9bd481bf). A
+  prove-red row "T-0376 the home's overflow centred again" (sed drops `, alignment: .top`) is added to
+  ops/lib/check-safety-disclaimer-mutations, so touches widen by that one file. T-0378's medium crash is not taken.
