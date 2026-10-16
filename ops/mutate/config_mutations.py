@@ -184,9 +184,9 @@ MUTATIONS = [
     ("59 the loop flag's default off", REMOTE, "featureLoop: Bool = true", "featureLoop: Bool = false",
      [FBUNDLED]),
     ("60 the trip flag never stored", REMOTE, "self.featureTrip = featureTrip", "self.featureTrip = true",
-     [PER, STABLE]),
+     [FCACHE, STABLE]),
     ("61 the surprise flag never stored", REMOTE, "self.featureSurprise = featureSurprise",
-     "self.featureSurprise = true", [PER, STABLE]),
+     "self.featureSurprise = true", [FCACHE, STABLE]),
     ("62 the screens reordered", SCREEN, "    case plan\n    case loop\n", "    case loop\n    case plan\n",
      [NOTICES]),
     # The per-screen degrade and notices (63-71).
