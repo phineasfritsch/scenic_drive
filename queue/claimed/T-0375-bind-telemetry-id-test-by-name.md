@@ -1,13 +1,13 @@
 ---
 id: T-0375
 title: P-PRIV-05 binds everyRequestStampsTheProvidersCurrentID() by name, so deleting the per-request install-id test is caught, not only weakened inside the suite filter
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T09:15:21Z
+lease_expires_at: 2026-10-17T09:15:21Z
+worktree: .worktrees/T-0375
+branch: task/T-0375
 exclusive: []
 touches: [ops/lib/named-tests.json, pins/PINS.yaml, queue/]
 pins_affected: [P-PRIV-05]
@@ -28,3 +28,4 @@ red by deleting the test (run-named-tests reports it MISSING) then green.
 ## Log
 - 2026-10-16T09:40:00Z filed by agent/claude-opus-5 (orchestrator) from T-0367 R4 / rv2-t0367 (ids checked on main
   and task/T-0318, task/T-0368: highest T-0374).
+- 2026-10-16T09:15:21Z claimed by agent/claude-opus-5; lease until 2026-10-17T09:15:21Z
