@@ -86,3 +86,6 @@ driver to find its own files, shown red with that mutant then green.
   its fault the spec, i.e. while the driver could not run. Per R4 MIN_MUTATIONS 68 -> 67 in the same commit.
   `node test/mutate/regionMutants.mjs --prove-floor`: empty table / one short (66 below 67) / servedRegion
   unmutated / a new subject with none each REFUSED, `prove-floor real population: quiet`, rc=0.
+- 2026-10-16T04:00:19Z A3 region re-run WHOLE on 1ec1926e (after the move), from services/api, alone: `population mutations=67
+  (floor 67) equivalent=3 subjects=9 tests=8` / `baseline green tests=44` / `RESULT caught=67 missed=0 trap=0 of
+  67` exit 0.
