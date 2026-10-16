@@ -8,8 +8,8 @@ claimed_at: 2026-10-16T10:26:10Z
 lease_expires_at: 2026-10-17T10:26:10Z
 worktree: .worktrees/T-0012
 branch: task/T-0012
-exclusive: []
-touches: [services/etl/, services/routing/profiles/, Sources/ScenicKit/Scoring/]
+exclusive: [services/routing/profiles/car_scenic_base.json]
+touches: [services/etl/, services/routing/profiles/, Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/GateParityFixtureTests.swift, pins/PINS.yaml, ops/lib/named-tests.json, ops/lib/run-named-tests.py, ops/lib/mutate_population_table.py, ops/mutate/profilegate.py, queue/]
 pins_affected: [P-PROD-01]
 reviewer: null
 depends_on: [T-0024]
@@ -68,3 +68,77 @@ Depends on T-0024 for the extract the fixture ways are drawn from.
 ## Log
 - 2026-09-18T18:53:49Z note from agent/claude-fable-5-1 (12:13 panel, grounded): services/routing/profiles/car_scenic_base.json stays this task's - it is in touches: here and P-PROD-01 is pending this task. The Worker half of the routing seam (the per-request custom model and its refusal) is split out as T-0158. Plan line 102 gates road_class TRACK in the base profile; P-PROD-01's statement (pins/PINS.yaml:117) names motorway/trunk/private/unpaved and omits track - carry it into the fixture, and into T-0149's split.
 - 2026-10-16T10:26:10Z claimed by agent/claude-opus-5; lease until 2026-10-17T10:26:10Z
+- 2026-10-16T10:38:02Z MEASURED on task/T-0012 at 96652610 (main + claim).
+  M1 WHERE THE THREE LAYERS LIVE. ETL: `services/etl/etl/assemble.py` `gate_reason` (four branches: unpaved
+  surface, highway=track, `accessrule.access_refused` = access in {private,no,permit,destination} or
+  motor_vehicle=no), applied in `assemble.scored_row` (gated -> score 0.0, then `CLASS_SCORE_CEILING`
+  residential/living_street 0.6499, service 0.0), which `assemble.assemble` maps every way through; the class
+  zero and the x0.8 are `score.score` (`SCENIC_ZERO_CLASSES`, `UNSURVEYED_MULTIPLIER`). PROFILE:
+  `services/routing/profiles/car_scenic_base.json` `priority`: `!car_access`, `road_access == PRIVATE ||
+  road_access == NO`, the seven unpaved surfaces, `road_class == TRACK`, each `multiply_by: "0"`.
+  SCENICKIT: `Sources/ScenicKit/Gates/Gates.swift` (not under Scoring/ as touches: said) - `Gates.decide`, NINE
+  refusal branches; the zero class and the x0.8 are `Sources/ScenicKit/Scoring/SegmentScore.swift`
+  (`dullClasses`, `unsurveyedClasses`, `score(for:)`, `raisesSurfaceUnknownFlag`).
+  M2 HOW EACH IS EVALUATED ON ONE TAG ROW. ETL and ScenicKit: their shipping functions take a tag dict. The
+  profile: nothing in the tree evaluates it (test_profiles_static.py greps the strings) - a GraphHopper-11
+  encoding (pom.xml pins 11.0) plus an `if`-expression evaluator is new code, read over the SHIPPED json.
+  M3 REAL WAYS. No Bay Area extract is on this box (memory: LA is the first graph). Committed fixtures (git
+  ls-files services Tests, *.json/*.osm/*.osm.xml) hold 123 tagged ways, most synthetic ids. T-0206's LA canyon
+  window (services/etl/work/la/window-doc.json, gitignored, bbox -118.95,33.98,-118.55,34.15) holds 11740 ways:
+  motorway 48, motorway_link 73, trunk 251, trunk_link 13; surface gravel 6, dirt 23, ground 1, sand 0, unpaved
+  39, compacted 1, fine_gravel 0; highway=track 988; tracktype grade3-5 on a non-track 0; access private 4863,
+  no 73, permit 3, destination 22; motor_vehicle=no 64; barrier=gate+locked=yes on a WAY 0; ford=yes 1;
+  service driveway 3427, parking_aisle 1139; no-surface primary 90, secondary 171, tertiary 263, unclassified
+  63, residential 1382. ISOLATED (no gate fires but the class's own, so a deleted clause shows on that row
+  alone): ground, sand, compacted, fine_gravel, tracktype-on-tertiary, locked barrier and ford have 0 - those 7
+  rows are synthetic tag sets and say so in `source`; the other 23 are the lowest isolated way id, all tags.
+  M4 DRIFT TODAY over the window, ETL `gate_reason` vs the profile under M2's encoding: 52 of 11740 disagree -
+  22 access=destination (ETL gates, profile does not), 29 motor_vehicle=private and 1 motor_vehicle=permit
+  (profile gates, ETL does not). With `|| road_access == DESTINATION` added: 30, the 22 gone, none new.
+- 2026-10-16T10:38:02Z RULINGS (author rule, before code):
+  R1 Brief "every layer returns the same verdict for every row" over NINE refusal classes vs reality: the ETL
+  ports four of `Gates.verdict`'s branches by T-0146 R5 (test_assemble_wiring counts them) and T-0188
+  (backlog) owns the port of the other five; the profile CANNOT express tracktype on a non-track, a locked
+  barrier, a ford or a service value (no such encoded value in config.yml; adding one is config.yml + a graph
+  re-import, serial-only and not this task). CLAUDE.md's hard gates are three. So the fixture carries those
+  Brief classes (tracktype=grade3 on tertiary, barrier=gate+locked=yes, ford=yes, service=driveway,
+  service=parking_aisle) with verdict GATED - ScenicKit's - and a `divergent` record of the ETL's and the
+  profile's answer TODAY; each layer is held to that record, so T-0188 landing turns the row red until the
+  record is deleted. A meta-test refuses a divergent row outside that typed set of five and any core class.
+  R2 access=destination: the profile is brought into line (`road_access == DESTINATION` added, exclusive:
+  declared) - M4 measured 22 fixed and 0 new. NOT deployed: the live GraphHopper picks it up on restart.
+  R3 access=permit: GraphHopper's OSMRoadAccessParser maps `permit` to PRIVATE (restated in profilegate, not
+  verifiable on this box - no GraphHopper jar here). If that is wrong the profile lets permit through; recorded.
+  R4 car_access is held TRUE in the evaluator: the parity is over the clauses this repository writes, and
+  modelling GraphHopper's own car-access parser would hide a deleted `road_access` clause. Fail closed.
+  R5 Residual drift (M4: 30 ways, motor_vehicle=private|permit, the profile STRICTER - fail-safe) is outside the
+  Brief's rows and is recorded, not fixed: GraphHopper folds motor_vehicle into road_access and the ETL/Swift
+  rule refuses only motor_vehicle=no on purpose (accessrule.py). Still open.
+  R6 Verdict vocabulary: GATED / ZERO_NOT_GATED / PAVED / UNKNOWN_X08. The profile answers only GATED or
+  NOT_GATED (priority 0 or not); the three score verdicts are compared between the ETL (`assemble.scored_row`)
+  and ScenicKit (`SegmentScore.score(for:)` + `raisesSurfaceUnknownFlag`), each against the same row with a
+  paved surface. The cross-language join is the fixture: pytest holds the ETL and the profile to each row,
+  `GateParityFixtureTests` holds ScenicKit to the same row, and each failure names the layer and what the
+  others answer. No Sources/ change is needed, so no digest is re-approved.
+  R7 P-PROD-01's statement says motorway/trunk/private/unpaved "score exactly 0.0" in all three; gated is not
+  score 0 and the profile has no score. The statement is restated to what is asserted (gate verdicts in three
+  layers, score verdicts in two, motorway/trunk score 0 and NOT gated in all three) and adds track.
+  R8 run-named-tests.py binds vitest and swift only; it gains a `pytest` runner (junit xml, same MISSING /
+  SKIPPED / FAILED verdicts) so P-PROD-01 binds its pytest names by NAME. touches: widened accordingly.
+  R9 profilegate.py is a new evaluator module: ops/mutate/profilegate.py ships its population (subject the
+  module AND the shipped profile json) with a literal floor.
+
+## Acceptance
+1. `cd services/etl && python -m pytest -q tests/test_gate_parity.py tests/test_profilegate.py` all pass;
+   gate_parity.json has 30 rows, 23 real LA way ids, 7 synthetic, 5 divergent (R1's set).
+2. `swift test --scratch-path .build/t0012 --filter GateParityFixtureTests` all pass.
+3. `python ops/lib/run-named-tests.py P-PROD-01` prints `NAMED P-PROD-01 passed=N/N` (pytest + swift names).
+4. RED three ways, each quoted with its message naming the layer: (a) the DESTINATION clause removed from
+   car_scenic_base.json -> pytest names the profile against ETL and ScenicKit; (b) `access_refused` narrowed
+   in the ETL -> pytest names the ETL; (c) a `Gates.swift` branch removed -> GateParityFixtureTests names
+   ScenicKit. Each restored, `git status` clean.
+5. `python ops/mutate/profilegate.py` -> `MUTATE OK caught=N/N`, N == MIN_MUTATIONS; `--prove-vacuity` PROVED.
+6. pins/PINS.yaml P-PROD-01 has no `pending:`, assertion `run-named-tests.py P-PROD-01`;
+   `bash ops/check-pins --source-only` exit 0.
+7. Gates exit 0 on the merged head: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py,
+   check-line-cap, check-pins-yaml.py, check-exec-bits, check-pins --source-only, queue-check.
