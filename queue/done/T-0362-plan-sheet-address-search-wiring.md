@@ -1,7 +1,7 @@
 ---
 id: T-0362
 title: The plan sheet searches typed addresses through SearchClient and plans to one - rule how a searched address reaches /plan under P-PRIV-05 first, then wire PlanPlaceSearch, debounce to one request per submit, and carry the paid search allowance
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T01:06:49Z
@@ -11,7 +11,7 @@ branch: task/T-0362
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, services/api/src/, services/api/test/, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-COST-01]
-reviewer: null
+reviewer: agent/rv1-t0362
 depends_on: [T-0359]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -119,3 +119,19 @@ A8 ios-compile + ios-screenshot success; the plan-sheet search shot looked at. A
   P-PROC-06: six non-numeric modules allowlisted with reasons (ClientPlaceSearch, PlaceSearchCopy, NoPlaceSearch,
   PlaceSearchAnswer, PlaceSearchSubmit, PlaceSearching). `npm run typecheck` stops in this worktree at TS2688 (the
   installed @cloudflare/workers-types has no 2023-07-01 entry point) before reading any source; not compared on main.
+- 2026-10-16T03:35:14Z agent/rv1-t0362 REVIEW PASS of PR #250 on head 7baa5de9 (detached worktree .worktrees/rv1-t0362).
+  Invariant: every action carries at most one coordinate at 2 dp - /search sends q and at most one 2-dp near; /plan to
+  a searched row sends the 2-dp origin and a negative place id under the unchanged destination:{place} whitelist; the
+  reroute sends origin, token and id. Worker touched files: "Test Files 8 passed (8) / Tests 85 passed (85)". Swift
+  touched suites: "Test run with 21 tests in 5 suites passed". Reviewer mutants, not in the population: RV-1
+  searchPlaces.ts readSearchPlace inRange(lat, 90) -> inRange(lat, 180): RED "lat just above 90: 404 unknown_place with
+  zero upstream calls" and "lat just below -90: ..." (2 failed | 27 passed). RV-2 search.ts placed() drops the
+  UNIDENTIFIED_DEVICE check: RED "writes nothing for the shared unidentified caller, whose ids any other unidentified
+  caller could read" (1 failed | 28 passed). Both restored. Gates all exit 0: check-safety-disclaimer,
+  check-mutate-population (floor 165), check-mutate-only, check-mutate-anchors (0 stale), check-telemetry-emit-sites,
+  check-line-cap, check-pins-yaml, check-exec-bits, queue-check. gh pr checks: core pass, pins-source-only pass.
+  iOS on 7baa5de9 (re-dispatched by the reviewer): ios-compile 38844471382 success, ios-screenshot 38844474062 success;
+  plan-preview-light and plan-trip-light looked at. No search screen exists in the shot list, so the address-results and
+  notice UI has still never been seen rendered. Recorded, not blocking: there is no follow-up task yet for that
+  screenshot rehearsal, or for address search on the loop and trip screens (R10).
+  `git merge-base --is-ancestor origin/main origin/task/T-0362` exit 0 (main 53d4d761).
