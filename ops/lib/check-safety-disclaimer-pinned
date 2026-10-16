@@ -100,7 +100,7 @@ PINNED_SHELL_ENTRIES=(
   'f ScenicDriveApp.swift' 'f Tiles/.gitignore'
 )
 PINNED_SHELL_TILE='^f Tiles/[A-Za-z0-9_-][A-Za-z0-9._-]*\.pmtiles(\.json)?$'
-PINNED_SHELL_DIGEST='93ae2a78c27411440b2e47e4e659078d09f815305ce5c984a15c7a397f5718f3'
+PINNED_SHELL_DIGEST='e3ea537e7b7c13b8636c431b0e2ac5d4766a81d14bed7bf7edf54ff3aa8c4ef7'
 
 # pinned_shell DIR: the shell's entries against the whitelist, its index for links, ScenicDriveApp.swift's digest.
 pinned_shell() {
@@ -335,7 +335,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachablePlanner.swift e098b539ef40f85966854b5c37f019862d2c67dc8ae9a84098959ef956774e13'
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachableTripPlanner.swift 8c528ceb1d7d9c9d335f4c5e9054dddbc4fd16fb76153259792215d1144ad8a6'
   'Packages/ScenicApp/Sources/PlanAdapter/WaitlistRoutePlanner.swift 241dd0d2481ecfb39a5da298cf2b5ae0e9ecff7bd682a93531ed23845b6cf909'
-  'ScenicDrive/ScenicDriveApp.swift 93ae2a78c27411440b2e47e4e659078d09f815305ce5c984a15c7a397f5718f3'
+  'ScenicDrive/ScenicDriveApp.swift e3ea537e7b7c13b8636c431b0e2ac5d4766a81d14bed7bf7edf54ff3aa8c4ef7'
   'Packages/ScenicApp/Sources/FeatureScenicHome/PostDriveAnswersKey.swift 4645890d05d7e48b432975096622922ddf0499a64619eeda935402ffab4866b9'
   'Packages/ScenicApp/Sources/FeatureScenicHome/PostDriveCard.swift 99d2890873e431a966ebe20061a69375f277e391b6b40c3f997ef528107da99c'
   'Packages/ScenicApp/Sources/PlanAdapter/LivePostDriveAnswers.swift 460d0bf415cbfd00d3e2e395dd19bab19b00570690b40605703241767d2e3efc'

@@ -40,3 +40,7 @@ success, and home-ax5-medium looked at and quoted: credit, conditions line and b
 ## Log
 - 2026-10-16T10:58:18Z filed by agent/claude-opus-5 (T-0376 owner). Ids checked on main and on all 271 remote task/*
   branches: the highest was T-0377.
+- 2026-10-16T11:26:00Z scope widened by agent/claude-opus-5 (T-0376 owner). home-ax5-collapsed.png (run 38890737661, af793caf)
+  shows the whole home overflowing at AX5: the chip band runs up under the status bar with labels wrapping a few
+  letters per line, the credit takes six lines, and the collapsed sheet's title is drawn over its menu chips. T-0376
+  R8 holds the shell's "Plan a drive" pill on screen with a fixed home frame. The home's own overflow is this task's.

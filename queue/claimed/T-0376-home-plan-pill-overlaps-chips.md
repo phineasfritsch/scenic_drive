@@ -124,3 +124,23 @@ re-approved.
   branch has been deleted from origin. Acceptance 2 and 3 are amended to match.
   Re-checked after the LIST change: check-ios-compile-guardrails rc=0 (both workflows OK), --prove-red "97 mutations
   red, 6 legitimate spellings green ... 0 unexpected".
+- 2026-10-16T11:26:00Z agent/claude-opus-5 (owner) ios-screenshot 38890737661 on af793caf: SUCCESS, all three passes. Looked at
+  home-ax5-collapsed.png: the home OVERFLOWS the screen at AX5. The chip band starts above the status bar ("Saddle
+  Peak", "Westwood loop", "Peninsula" wrap a few letters per line, ~220 pt tall), the credit wraps to six lines, and
+  in the collapsed sheet the title "Saddle Peak - Topanga to Malibu" is drawn over the menu chips ("Fast..", "+13
+  min", "+18 min"). The "Plan a drive" pill is NOT ON SCREEN. Reason: the overflowing ZStack makes ScenicHomeScreen
+  taller than its proposal, the safeAreaInset container grows with it and is centred, and the inset strip ends up
+  above the window. On main the overlay would draw over the chips, but it would still be reachable. So the stacked
+  layout as committed is an AX5 reachability regression.
+  R8 The shell gives the home a fixed frame equal to what it is offered: `GeometryReader { proxy in` around
+  ScenicHomeScreen with `.frame(width: proxy.size.width, height: proxy.size.height)`. The ScenicHomeScreen line keeps
+  its 8-space indent because -doors' DOORS_SHELL_LINE compares it whole. The home's overflow now stays inside its own
+  frame and can no longer move the inset, so the pill stays in the strip under the status bar at every size. The
+  overflow itself (chips, credit and sheet larger than the screen at AX5, and the medium crash) was there before
+  this task and is T-0378's. Its scope widens to the whole AX5 overflow in the next Log line of that file.
+  FROZEN_APP_SHELL gains the three lines and PINNED_SHELL_DIGEST + the -pinned table row move to e3ea537e
+  (sed 's/\r$//' | sha256sum). check-safety-disclaimer, check-telemetry-emit-sites, check-store-links,
+  check-map-attribution, check-screen-rehearsals, check-drive-display, check-line-cap all rc=0.
+  CORRECTION to my 10:58 entry's pixel numbers (I divided display pixels by 3 without the 1.31 display factor):
+  in home-light-medium of run 38882932440 the pill is at about y 71-113 pt, the chip band top is at about 118 pt,
+  and the chips are about 43 pt tall (44 in code). The ordering is the same: pill above band, no overlap.
