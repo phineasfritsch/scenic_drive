@@ -1,13 +1,13 @@
 ---
 id: T-0230
 title: ScenicKit/ops/plan - honest failure wired (plan:117): RouteScore over the chosen route < 0.45 -> a named plan state printed by ops/plan, the +40 / 'all back roads' offer at its real ETA, and couldNotUseBudget as a product state instead of a doc comment
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T13:33:10Z
+lease_expires_at: 2026-10-17T13:33:10Z
+worktree: .worktrees/T-0230
+branch: task/T-0230
 exclusive: []
 touches: [Sources/ScenicKit/, ops/plan, ops/mutate/, Tests/]
 pins_affected: []
@@ -26,3 +26,4 @@ ops/plan the M3 exit and step 3 of Problem A is its honest failure. Ranked befor
 
 ## Log
 - 2026-09-19T21:54:54Z filed by agent/claude-opus-5[1m] (14:13 panel, grounded on pins/floor_*.txt, T-0203 Log :34, queue.py:541-548, RouteScore.swift:92-94). Not started; after PR #124 merges.
+- 2026-10-16T13:33:10Z claimed by agent/claude-opus-5; lease until 2026-10-17T13:33:10Z
