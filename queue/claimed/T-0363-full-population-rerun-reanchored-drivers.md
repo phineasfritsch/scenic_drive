@@ -100,3 +100,19 @@ driver to find its own files, shown red with that mutant then green.
   rc=0; check-mutate-anchors `17 drivers, 1263 anchors, 0 stale` / `cwd arm: 17 drivers run from the repo root, 17
   reached their population line` rc=0; check-pins-yaml `PINS-YAML ok pins=50 fields=403` rc=0; check-exec-bits
   `P-OPS-01: 225 files, 23 required present, all modes correct` rc=0; queue-check `QUEUE OK (359 tasks)` rc=0.
+- 2026-10-16T04:04:02Z merged head 3ae4da2f: closures --only=plan-no-closures,plan-no-hazard,plan-closures-before-kill,plan-closures-twice,plan-dropped-unreported,plan-whole-set from services/api: `baseline green tests=738` / `RESULT caught=6 missed=0 trap=0 of 6` exit 0; MISSED/TRAP: none
+- 2026-10-16T04:04:43Z merged head 3ae4da2f: config --only=plan-load-intrinsic-patch-unpause,plan-request-time-stringify-unpause from services/api: `baseline green tests=48` / `RESULT caught=2 missed=0 trap=0 of 2` exit 0; MISSED/TRAP: none
+- 2026-10-16T04:05:35Z merged head 3ae4da2f: crossing --only=plan-unchecked,plan-crosses-unreported from services/api: `baseline green tests=274` / `RESULT caught=2 missed=0 trap=0 of 2` exit 0; MISSED/TRAP: none
+- 2026-10-16T04:06:30Z merged head 3ae4da2f: quota --only=plan-resolver-error-404,plan-deps-no-resolver from services/api: `baseline green tests=84` / `RESULT caught=2 missed=0 trap=0 of 2` exit 0; MISSED/TRAP: none
+- 2026-10-16T04:09:04Z merged head 3ae4da2f: region --only=plan-gate-dropped,plan-gate-400,plan-gate-below-deps,plan-gate-below-resolve,plan-gate-below-closures from services/api: `baseline green tests=44` / `RESULT caught=5 missed=0 trap=0 of 5` exit 0; MISSED/TRAP: none
+- 2026-10-16T04:09:31Z merged head 3ae4da2f: tier --only=plan-identify-unawaited from services/api: `baseline green tests=187` / `RESULT caught=1 missed=0 trap=0 of 1` exit 0; MISSED/TRAP: none
+- 2026-10-16T04:20:23Z ACCEPTANCE re-quoted (pre-review). A1: measured above (527 MUTATIONS / 13 EQUIVALENT on bf789086). A2: all
+  eight run whole, alone, from services/api - closures 133/133, config 84/84, crossing 59/59, isochrone 67/67, quota
+  58/58, region 67 of 68 (1 MISSED), tier 26/26, vehicle 32/32 (RESULT lines quoted above as they landed); no
+  baseline red. A3: the one MISSED (region malformed-bearer-falls-to-header) moved to EQUIVALENT with a witness
+  field, floor 68 -> 67, `--prove-floor` rc=0, region re-run whole `RESULT caught=67 missed=0 trap=0 of 67`; on the
+  merged head the 18 entries anchored in files main changed all CAUGHT (6+2+2+2+5+1 of 18). A4: cwd arm red
+  (`CWD tier: ... ENOENT`, 16 of 17, rc=1) then green (17 of 17, rc=0), git status unchanged; green again on the
+  merged head. A5: no test .ts file touched (the driver baselines above are the touched suites, all green); bare
+  gates on 062bb5f5 all rc=0 (quoted above); wc -l: ops/lib/check-mutate-anchors.py 191,
+  services/api/test/mutate/regionMutants.mjs 258, this file 108 before this entry - each <= 300.
