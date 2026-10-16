@@ -165,3 +165,8 @@ by merge order today; fixed here after both land, not as a round on either PR.
   - Meta-test red: the `("trail-tab", ...)` row deleted -> `FAILED
     tests/test_unpaved_surfaces_owner.py::test_the_variant_table_skips_no_variant`; restored -> `1 passed`.
   - wc -l test_unpaved_surfaces_owner.py 260. services/routing and profilegate untouched (T-0381).
+- 2026-10-16T21:01:42Z rv1 fix FINAL on d19277a3 (origin/main 325c2cd3 merged: already up to date): touched tests
+  (A3 set) `272 passed in 7.14s`, no skips; bare gates each rc=0 - check-safety-disclaimer, check-mutate-population.py
+  (`the floor of 169 holds`), check-mutate-only.py (`NAME-PAIRS OK`), check-line-cap (`682 Swift files ... none over 300
+  lines`), check-pins-yaml.py (`PINS-YAML ok pins=52 fields=418`), check-exec-bits (`235 files ... all modes correct`),
+  queue-check (`QUEUE OK (371 tasks)`).
