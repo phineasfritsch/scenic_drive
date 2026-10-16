@@ -40,6 +40,47 @@ in the assertion). Do the same for P-PRIV-05:
   sentence; do not edit earlier dated record text).
 - PINS.yaml stays strict (`python ops/lib/check-pins-yaml.py`).
 
+## Acceptance
+1. pins/PINS.yaml P-PRIV-05 `assertion` runs, after check-learned-speeds-sites.py and BEFORE
+   `run-named-tests.py P-PRIV-05`, exactly `check-named-table.py P-PRIV-05
+   4c879f4d82feb076775b971c0c7ead5730f3c4c5252a5eec84fb8fa5de7f1a45 76` and `check-named-table.py --prove-red
+   P-PRIV-05 <same sha> 76 >/dev/null`, each joined by `&&`; nothing else in the assertion changes and no
+   `passed=N/N` line check is added (ruling R2).
+2. `ops/lib/named-tests.json` is byte-identical to origin/main's (sha256
+   a578ae8e9f3753d09376cd927fbf74cf2b9803e9ee6546124f849d3777597695 at fbeb99b8); `python
+   ops/lib/check-named-table.py P-PRIV-05 <sha> 76` exits 0 and `--prove-red` prints `PROVE-RED OK: 8 of 8`.
+3. Seen RED through the SHIPPED assertion string (read from PINS.yaml by yaml.safe_load, run by `bash -c`): with
+   one vitest row dropped from the P-PRIV-05 entry AND that test deleted from its .ts file (neither committed),
+   the assertion exits non-zero with `NAMED-TABLE P-PRIV-05 FAILED` and the count/digest refusals, and
+   run-named-tests never runs. Both files are then restored and their sha256 equal the committed blobs'.
+4. GREEN: the same shipped assertion on the restored tree prints `NAMED-TABLE P-PRIV-05 ok - 76 distinct names`
+   and reaches run-named-tests, whose only non-pass on this Windows box is the GRDB-gated UserStorePrivacyTests
+   MISSING (passed=75/76, ruling R2); CI's Linux job runs it whole.
+5. pins/PINS.yaml P-PRIV-05 `why_no_test_catches_it` gains one appended dated T-0377 sentence; no earlier text
+   and no other field or pin changes. Gates `python ops/lib/check-pins-yaml.py`, `bash ops/check-pins
+   --source-only`, `bash ops/lib/check-exec-bits`, `bash ops/queue-check` exit 0 on the merged head.
+
 ## Log
+- 2026-10-16 filed by agent/claude-opus-5 from T-0375 R2 / stillOpen 2, after T-0318 merged.
+- 2026-10-16T10:29:45Z claimed by agent/claude-opus-5; lease until 2026-10-17T10:29:45Z
+- 2026-10-16T10:31:18Z MEASURE (worktree at fbeb99b8, named-tests.json sha256 a578ae8e...7695, last touched by
+  9d5551c9 2026-10-16): `check-named-table.py P-PRIV-05 000...0 0` printed `REFUSED count 76 distinct names !=
+  approved 0` and `REFUSED digest 4c879f4d82feb076775b971c0c7ead5730f3c4c5252a5eec84fb8fa5de7f1a45 != approved
+  000...0`, exit 1. The entry is {vitest: 15 files, 38 names; swift: filter + 38 tests}. `--prove-red P-PRIV-05
+  4c879f4d...1a45 76` printed both CONTROLs green, eight RED rows by name, `PROVE-RED OK: 8 of 8 rows red by name,
+  controls green`, exit 0.
+- 2026-10-16T10:31:18Z RULINGS before the change.
+  R1: the Brief says the row binds "38 Swift and 32 vitest" tests; measured 38 vitest + 38 Swift = 76 distinct.
+  The 32 is T-0318's vitest count from its own dated sentence; later entries added names. Reality wins: the
+  approved count is 76, which agrees with the Brief's own passed=75/76 measurement.
+  R2: no exact `NAMED P-PRIV-05 passed=76/76` line check, as the Brief directs: UserStorePrivacyTests is
+  GRDB-gated and MISSING by design on the Windows box (passed=75/76), so an exact line would be red there.
+  run-named-tests' own exit status stays the test gate, as before.
+  R3: the two calls use the assertion's existing inline `${PYTHON:-...}` spelling (not P-STORE-02's `py=`
+  prefix), so no other part of the assertion changes; the --prove-red output goes to /dev/null as in P-STORE-02.
+  R4: `touches:` names named-tests.json, but this task changes it only uncommitted, for the RED demonstration;
+  the committed table is unchanged (acceptance 2).
+  R5: the pin runs_on [linux]; on this box the assertion is run directly by `bash -c` on the string
+  yaml.safe_load reads from PINS.yaml, so the demonstration exercises the shipped text, not a retyped copy.
 - 2026-10-16 filed by agent/claude-opus-5 from T-0375 R2 / stillOpen 2, after T-0318 merged.
 - 2026-10-16T10:29:45Z claimed by agent/claude-opus-5; lease until 2026-10-17T10:29:45Z
