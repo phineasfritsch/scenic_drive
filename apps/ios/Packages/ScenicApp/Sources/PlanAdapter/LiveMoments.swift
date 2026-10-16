@@ -16,7 +16,7 @@ public struct LiveMoments: AppMomentReporting {
         case .surpriseHandedToAppleMaps:
             LiveTelemetry.surpriseTakeMeThere()
         case let .surpriseDeclined(reason):
-            guard let wire = Self.wire(reason) else { return }
+            let wire = Self.wire(reason)
             LiveTelemetry.surpriseNotThis(wire)
         case .guidanceBegan:
             LiveTelemetry.driveStarted()
@@ -34,13 +34,13 @@ public struct LiveMoments: AppMomentReporting {
         LiveTelemetry.paywall(.shown)
     }
 
-    /// R5: the card's reason on the closed wire list; Wrong time has no wire reason and sends nothing (T-0371).
-    static func wire(_ reason: SurpriseFeedback.Reason) -> SurpriseNotThisReason? {
+    /// R5: the card's reason on the closed wire list - total, one wire label per button (T-0371 R3: Wrong time is wrong_time).
+    static func wire(_ reason: SurpriseFeedback.Reason) -> SurpriseNotThisReason {
         switch reason {
         case .tooFar: return .tooFar
         case .beenThere: return .beenThere
         case .notMyThing: return .notMyThing
-        case .wrongTime: return nil
+        case .wrongTime: return .wrongTime
         }
     }
 }

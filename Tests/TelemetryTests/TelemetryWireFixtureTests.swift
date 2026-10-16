@@ -74,6 +74,6 @@ import Testing
         #expect(names.count == 15)
         let lines = String(decoding: try Self.encoded(), as: UTF8.self).split(separator: "\n")
         #expect(lines.count == Set(lines).count)
-        #expect(lines.count == 36)
+        #expect(lines.count == 37)
     }
 }

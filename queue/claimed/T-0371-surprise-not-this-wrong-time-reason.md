@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-17T12:56:50Z
 worktree: .worktrees/T-0371
 branch: task/T-0371
 exclusive: []
-touches: [Sources/Telemetry/, Tests/TelemetryTests/, services/api/, apps/ios/Packages/ScenicApp/Sources/PlanAdapter/, ops/lib/]
+touches: [Sources/Telemetry/, Tests/TelemetryTests/, Tests/Fixtures/t0279/, services/api/, apps/ios/Packages/ScenicApp/Sources/PlanAdapter/, ops/lib/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05]
 reviewer: null
 depends_on: [T-0361]
@@ -74,6 +74,29 @@ stays unreported, and record it.
     string" property): count 76 -> 77, digest re-approved in the same diff in PINS.yaml, one appended dated
     sentence in why_no_test_catches_it, no earlier text edited.
   - R5 No Package.swift change is needed (TelemetryTests already depends on Telemetry); serial files untouched.
+- 2026-10-16T13:22:20Z RED, by name, tests + fixture line in, src unchanged (fcfff23f + worktree):
+  - `swift test --jobs 4 --scratch-path .build/t-0371 --filter TelemetryTests` -> `Test run with 22 tests in 7 suites
+    failed after 0.191 seconds with 3 issues`: × "every surprise_not_this reason encodes to its whole data point, the
+    four labels and no other" (TelemetryEventEncodingTests.swift:81), × "the fixture names all fifteen wire names and
+    holds no row twice" (`(lines.count → 36) == 37`), × "the shared fixture is the Swift encoder's exact JSON for every
+    row, by bytes" (`(stored → 3342 bytes) == (bytes ...`).
+  - `npx vitest run test/telemetryWhitelist.test.ts test/telemetryFixture.test.ts` -> `Test Files 2 failed (2)`, 4
+    failed: × every fixture row is accepted alone ... (`events[0] label is not one of surprise_not_this's`), × the
+    whole fixture, in requests of MAX_TELEMETRY_EVENTS_PER_REQUEST ... (`events[8] label is not one of
+    surprise_not_this's`), × the fixture's wire names and labels are exactly the whitelist's (`+ "wrong_time"`),
+    × every ruled bound and closed-enum edge is accepted and written exactly (row `"surprise_not_this label wrong_time"`).
+- 2026-10-16T13:22:20Z GREEN after the src change (enum case, TELEMETRY_WIRE label, LiveMoments total):
+  `Test run with 22 tests in 7 suites passed after 0.846 seconds`; vitest `Test Files 2 passed (2)`, `Tests 7 passed (7)`.
+  P-PRIV-05: old approval refused (`REFUSED count 77 distinct names != approved 76`, `REFUSED digest ad5e5df4...054e
+  != approved 4c879f4d...a45`, rc=1); re-approved -> `NAMED-TABLE P-PRIV-05 ok - 77 distinct names, sha256
+  ad5e5df41882`, `PROVE-RED OK: 8 of 8 rows red by name, controls green`. The shipped assertion string (yaml.safe_load,
+  run by bash): emit sites ok (54 lines), learned speeds ok, named table ok, `NAMED P-PRIV-05 passed=76/77`, rc=1 -
+  the only non-pass is `PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail(): MISSING`, the GRDB-gated
+  test absent on this Windows box by design (T-0377 recorded the same, passed=75/76); CI's Linux job runs it.
+  check-safety-disclaimer rc=0 with the two digest rows re-approved.
+- 2026-10-16T13:22:20Z R6 (ruled on the pre-commit refusal): the fixture lives at Tests/Fixtures/t0279/ and the
+  P-PRIV-05 re-approval at pins/PINS.yaml, neither in the filed touches; both are this task's ruled outputs (R2b, R4)
+  and neither is serial-only, so touches gains `Tests/Fixtures/t0279/` and `pins/PINS.yaml`.
 
 ## Acceptance
 1. `swift test --scratch-path .build/t-0371 --filter TelemetryTests` passes whole, including
