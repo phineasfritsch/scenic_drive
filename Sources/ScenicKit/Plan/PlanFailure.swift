@@ -40,6 +40,10 @@ public enum PlanFailure: Error, Equatable, Sendable {
     /// `buildCustomModel` states: a clamp turns "the caller has a bug" into "the route is quietly not the
     /// one that was asked for".
     case lambdaOutOfRange(Double)
+
+    /// The chosen route is inside the ceiling and is not the fastest route, but it is not pretty (T-0230, plan
+    /// Problem A step 3): `RouteScore.isHonestFailure`, or no scored road. Never `notActuallyDifferent`.
+    case nothingPretty(PlanNothingPretty)
 }
 
 extension PlanFailure: CustomStringConvertible {
@@ -61,6 +65,8 @@ extension PlanFailure: CustomStringConvertible {
                 + "never be sent per request"
         case let .lambdaOutOfRange(lambda):
             return "lambda \(lambda) is outside [0, \(LambdaSearch.maxLambda)]"
+        case let .nothingPretty(state):
+            return state.lines().joined(separator: "\n")
         }
     }
 }
