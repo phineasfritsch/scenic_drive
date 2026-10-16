@@ -48,6 +48,13 @@ def test_approach_road_within_300_m_passes_the_gate_and_scores_at_least_half():
     assert [s["id"] for s in SEEDS if not curatedslice.approach_ok(s, doc["ways"])] == []
 
 
+def test_the_committed_slice_is_the_cutters_own_encoding():
+    text = SLICE.read_text(encoding="utf-8")
+    doc = json.loads(text)
+    assert text == curatedslice.encode(doc["source_sha256"], SEEDS, doc["ways"])
+    assert doc["source_sha256"] == "163008e47d5fc59e6e3efe05cd7004f42d5ec7cd3732c8c7f056797ea933230c"
+
+
 def test_verified_on_is_within_twelve_months():
     assert [s["id"] for s in SEEDS if not curated.fresh(s, TODAY)] == []
 

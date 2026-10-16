@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-17T12:57:03Z
 worktree: .worktrees/T-0183
 branch: task/T-0183
 exclusive: [curated-la]
-touches: [services/etl/regions/la/, services/etl/tests/, services/etl/etl/, ops/mutate/curated.py, ops/lib/mutate_population_table.py]
+touches: [services/etl/regions/la/, services/etl/tests/, services/etl/etl/, ops/mutate/curated, ops/lib/mutate_population_table.py]
 pins_affected: []
 reviewer: null
 depends_on: [T-0168]
