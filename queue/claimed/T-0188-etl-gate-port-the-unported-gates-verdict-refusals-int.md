@@ -188,3 +188,9 @@ router's own and are not this task.
   GateParityFixtureTests` -> `Test run with 3 tests in 1 suite passed` (ford=Yes row PAVED through
   Gates.decide in everyRowGetsTheFixtureVerdict and fordAndLockOtherThanYesAreNotGated). Only the two new
   mutants were re-run (faster-verification rule); the 75-mutant driver was not.
+- 2026-10-16T18:58:40Z rv2 fix re-run on the merged head (578693b6 + git fetch origin, merge origin/main ->
+  93335acf, clean; main brought T-0376 and T-0229): test_gate_port.py + test_gate_parity.py `112 passed in
+  0.55s`; `swift test --filter GateParityFixtureTests` -> `Test run with 3 tests in 1 suite passed`.
+  Gates bare, each exit=0: check-safety-disclaimer; check-mutate-population (`the floor of 169 holds`);
+  check-mutate-only (`NAME-PAIRS OK`); check-line-cap (`682 Swift files tracked ... none over 300 lines`);
+  check-pins-yaml (`pins=52`); check-exec-bits (`all modes correct`); queue-check (`QUEUE OK (370 tasks)`).
