@@ -1,13 +1,13 @@
 ---
 id: T-0372
 title: ops/sane exit 4 checks the corpus invariants it can see without the graph - no motorway/trunk/private/unpaved way scores above 0, no NULL scores, viewpoints >= the measured floor, surface coverage per class >= baseline - over a corpus.sqlite, local fixture first
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T04:52:58Z
+lease_expires_at: 2026-10-17T04:52:58Z
+worktree: .worktrees/T-0372
+branch: task/T-0372
 exclusive: []
 touches: [ops/sane, ops/lib/, services/etl/tests/, pins/PINS.yaml]
 pins_affected: [P-OPS-08, P-PROD-04]
@@ -34,3 +34,4 @@ name; a clean fixture green), exit 4 ordering unchanged (check-sane-exit-order),
 ## Log
 - 2026-10-16T02:30:00Z filed by agent/claude-opus-5 (orchestrator) from the 2026-10-10 milestone survey (ids checked
   on main and task/T-0361, task/T-0365: highest T-0371).
+- 2026-10-16T04:52:58Z claimed by agent/claude-opus-5; lease until 2026-10-17T04:52:58Z
