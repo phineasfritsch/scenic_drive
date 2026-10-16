@@ -25,7 +25,7 @@ import { onlyIds } from "./onlyIds.mjs";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
 
-export const MIN_MUTATIONS = 130;
+export const MIN_MUTATIONS = 133;
 export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts", "src/tripPlaces.ts",
   "migrations/0009_trip_places.sql", "src/tripPlacesBox.ts", "migrations/0010_trip_places_lat.sql"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
@@ -174,6 +174,10 @@ export const MUTATIONS = [
   // T-0318 round 1 (M3): the planner hands the box only the two endpoints - every vertex a road bows through is lost.
   m("places-near-endpoints-only", "tripPlanner.ts", "placesNear([pathEdges[0]!.start, ...pathEdges.map((e) => e.end)])",
     "placesNear([pathEdges[0]!.start, pathEdges[pathEdges.length - 1]!.end])"),
+  m("places-near-no-start", "tripPlanner.ts", "placesNear([pathEdges[0]!.start, ...pathEdges.map((e) => e.end)])", "placesNear(pathEdges.map((e) => e.end))"),
+  m("places-near-starts-only", "tripPlanner.ts", "placesNear([pathEdges[0]!.start, ...pathEdges.map((e) => e.end)])", "placesNear(pathEdges.map((e) => e.start))"),
+  m("places-near-every-other", "tripPlanner.ts", "placesNear([pathEdges[0]!.start, ...pathEdges.map((e) => e.end)])",
+    "placesNear([pathEdges[0]!.start, ...pathEdges.map((e) => e.end)].filter((_, i) => i % 2 === 0))"),
   { id: "index-dropped", file: "migrations/0010_trip_places_lat.sql", find: "CREATE INDEX IF NOT EXISTS trip_places_lat ON trip_places (lat);", replace: "SELECT 1;" },
   { id: "index-on-lon", file: "migrations/0010_trip_places_lat.sql", find: "ON trip_places (lat);", replace: "ON trip_places (lon);" },
 ];
