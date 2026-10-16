@@ -1,7 +1,7 @@
 ---
 id: T-0188
 title: ETL gate port - the unported Gates.verdict refusals (tracktype, smoothness, locked barrier, ford=yes, service values) into assemble.gate_reason with fixture rows and the enumeration pinned against Gates.swift
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
