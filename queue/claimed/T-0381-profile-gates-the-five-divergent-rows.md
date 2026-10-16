@@ -100,3 +100,49 @@ re-import command and the expected graph hash change in the Log.
      `bash services/routing/import-graph.sh <tagged LA pbf> <graph dir> scenic-routing:t0381`; the graph's
      `properties` sha256 (import-graph.sh:36) changes because graph.encoded_values gains track_type, smoothness,
      gate_locked_barrier, gate_ford, gate_service_way.
+- 2026-10-16T20:02:58Z RED FIRST, by name (fixture `divergent` records removed, profile and profilegate unchanged):
+  `FAILED test_profile_gives_the_fixture_verdict[tracktype=grade3 on tertiary]`, `[barrier=gate+locked=yes]`,
+  `[ford=yes]`, `[service=driveway]`, `[service=parking_aisle]`, `FAILED test_etl_and_profile_agree_on_every_gate`,
+  `FAILED test_only_the_typed_classes_diverge` - `7 failed, 64 passed`. Then the code (commit 80399262):
+  car_scenic_base.json gains five priority-0 clauses (track_type GRADE3-5; smoothness BAD..IMPASSABLE;
+  gate_locked_barrier; gate_ford; gate_service_way); config.yml graph.encoded_values gains the five names;
+  GateFacts + GateFactParser + three ScenicScoreImportRegistry branches; profilegate encodes the five and refuses a
+  comparison outside DOMAINS.
+  GREEN at 80399262:
+  A1 `tests/test_gate_parity.py tests/test_profilegate.py` -> `215 passed in 1.25s`; test_only_the_typed_classes_diverge
+     asserts `divergent == {}`.
+  A2 `tests/test_profiles_static.py` -> `7 passed`. RED by name with gate_ford deleted from config.yml:
+     `FAILED test_every_encoded_value_the_base_profile_reads_is_configured`, `FAILED test_the_t0381_gates_are_read_and_built`
+     (`2 failed, 5 passed`), restored -> `7 passed`.
+  A3 `python ops/mutate/profilegate.py` -> `MUTATIONS: 78 caught, 0 missed, 0 skipped, of 78`, `MUTATE OK
+     caught=78/78 equivalent_caught=0` (MIN_MUTATIONS 53 -> 78; 25 new: 9 on the shipped profile incl. "ford read off
+     road_environment" and "INTERMEDIATE smoothness gated", 16 on profilegate). `--prove-vacuity` -> `VACUITY: 0
+     caught, 78 missed, 0 skipped, of 78`, `VACUITY PROVED`.
+  A5 VERIFIED HERE, not only restated: `wsl docker build -t scenic-routing:t0381 services/routing` (mvn package runs
+     the Java tests) -> `Tests run: 2, Failures: 0 ... in com.scenicdrive.routing.GateEncodingTest`, `Tests run: 32,
+     Failures: 0`, `BUILD SUCCESS` over the 34-row gate_encoding.json that test_profilegate also passes. RED by name:
+     GateFacts FORD `YES.equals` -> `YES.equalsIgnoreCase` -> `GateEncodingTest.everyRowEncodesExactlyItsTable:86
+     {"highway":"unclassified","ford":"Yes"} ==> expected: <{gate_ford=false, ...}> but was: <{gate_ford=true, ...`,
+     `BUILD FAILURE`; restored -> green. GraphHopper 11 ACCEPTS the config and profile: `bash
+     services/routing/import-graph.sh .../services/etl/work/la/window-tagged-1.osm.pbf services/routing/work/graph-t0381
+     scenic-routing:t0381` -> `accepted ways: 11,740`, `nodes: 21,137, edges: 24,057`, both profiles' CustomWeighting
+     built in PrepareRoutingSubnetworks, `EXIT=0`. Graph change measured on the same window: `graph.em.bytes_for_flags`
+     12 (scenic-routing:t0213, the shipped image) -> 13 (+1 byte per edge); properties sha256
+     a1abefe12204b4c8c2a7ede48ae717e7ecd48594335f4295aa7280adece83a6f -> 08fdf1c929f6753c3e4ce62bf51088207a7595d80d58a5317005e2caec2e93d0
+     (properties also carries the import date, so the hash differs on every import; the graph.encoded_values entries
+     for track_type, smoothness and gate_* are what to look for).
+  A6 `swift test --filter GateParityFixtureTests` -> `Test run with 3 tests in 1 suite passed`, EXIT=0 (Swift reads
+     an absent `divergent` as nil).
+  OWNER RE-IMPORT (R11, VPS): `docker build -t scenic-routing:t0381 services/routing` then `bash
+  services/routing/import-graph.sh <tagged LA pbf> <graph dir> scenic-routing:t0381`; expect bytes_for_flags +1 and
+  the five new entries in graph.encoded_values; the served router must run the new image (the old jar cannot build
+  gate_* and refuses the config).
+- 2026-10-16T20:10:33Z A7 gates BARE at 80399262, each its own exit: check-safety-disclaimer=0, check-mutate-population.py=0 ("P-PROC-06:
+  every added module is covered or allowlisted; the floor of 169 holds"), check-mutate-only.py=0 ("MUTATE-ONLY OK: 230
+  of 230"), check-line-cap=0 ("682 Swift files tracked ... none over 300 lines"), check-pins-yaml.py=0 ("pins=52
+  fields=418"), check-exec-bits=0 ("235 files ... all modes correct"), queue-check=0 ("QUEUE OK (371 tasks)").
+  Measured files: profilegate.py 288 lines, test_profilegate.py 224, test_gate_parity.py 157, test_profiles_static.py
+  200, ops/mutate/profilegate.py under 300. `git fetch origin` (main checkout): origin/main 325c2cd3 == this branch's
+  base, nothing to merge. STILL OPEN (R10): services/api FORBIDDEN_ENCODED_VALUES lacks the five new names;
+  pins/PINS.yaml P-PROD-01 prose still says five rows diverge; the case-variant rows (tracktype=Grade3,
+  smoothness=Bad) are gated by the profile only (fail-safe direction).
