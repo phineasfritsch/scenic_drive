@@ -1,7 +1,7 @@
 ---
 id: T-0371
 title: surprise_not_this has no wire reason for the card's fourth button, Wrong time - it sends nothing today
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
