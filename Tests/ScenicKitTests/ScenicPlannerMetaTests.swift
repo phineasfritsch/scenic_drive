@@ -60,7 +60,8 @@ struct ScenicPlannerMetaTests {
                                       longitude: -118.6 + Double(ways.count) / 100))
         return RoutePath(durationMilliseconds: Int(seconds * 1000), distanceMeters: 8121.6,
                          coordinates: coordinates,
-                         details: ["osm_way_id": runs, "road_class": classes])
+                         details: ["osm_way_id": runs, "road_class": classes,
+                                   "scenic_score": runs.map { RoutePath.DetailRun(from: $0.from, to: $0.to, value: .number(8)) }])
     }
 
     /// A solver that always answers `lambda`, reporting whatever the router measured there.
