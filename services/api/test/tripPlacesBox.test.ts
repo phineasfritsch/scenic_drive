@@ -12,7 +12,7 @@ import tripsRaw from "../../../Tests/Fixtures/t0268/trips.json?raw";
 import worker, { type Env } from "../src/index";
 import { planRoadTrip, type RoadTripPlace } from "../src/roadTrip";
 import { fakeQuotaNamespace, type FakeQuota } from "./doFake";
-import { BIG_SUR, NOW, ROAD, TRIP_BODY, tripRouter } from "./tripHarness";
+import { BIG_SUR, NOW, ROAD, SCENIC_EDGE_MS, TRIP_BODY, tripPath, tripRouter } from "./tripHarness";
 
 const DEVICE = "1f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
 const EARTH_M = 6_371_008.8;
@@ -172,6 +172,29 @@ describe("the trip_places read follows the quota reservation and reads the route
     await env.DB.prepare("DROP INDEX trip_places_lat").run();
     const base = await rowsRead(near);
     expect([indexed[1]! - indexed[0]!, (await rowsRead([...near, ...far])) - base]).toEqual([0, 100]);
+  });
+
+  /** Round 1 M3: a scenic road whose interior bows 2 degrees south of the straight line - its middle lies far outside
+   *  the box of its two endpoints, so the read must range over every vertex the planner holds (R3), not the ends. */
+  const BOWED = ROAD.map(([lon, lat], i) => [lon, lat - 2 * Math.sin((Math.PI * i) / (ROAD.length - 1))] as [number, number]);
+  const BOWED_LL = BOWED.map(([lon, lat]) => ({ lat, lon }));
+  it("a road that bows outside its endpoints' box: the read binds every vertex's box, and the inn and stop by its middle are placed", async () => {
+    const all = oracle(BOWED_LL), ends = oracle([BOWED_LL[0]!, BOWED_LL[BOWED_LL.length - 1]!]);
+    const inn = BOWED_LL[16]!, stop = BOWED_LL[20]!;
+    expect([inBox(ends, inn), inBox(ends, stop), inBox(all, inn), inBox(all, stop)]).toEqual([false, false, true, true]);
+    await env.DB.prepare("DELETE FROM trip_places").run();
+    for (const [id, kind, p] of [["Bow Inn", "lodging", inn], ["Bow Stop", "stop", stop]] as const) {
+      await env.DB.prepare("INSERT INTO trip_places (id, name, kind, score, lat, lon) VALUES (?1, ?1, ?2, 0, ?3, ?4)")
+        .bind(id, kind, p.lat, p.lon).run();
+    }
+    vi.stubGlobal("fetch", tripRouter({ scenic: tripPath(BOWED, SCENIC_EDGE_MS) }).fetchImpl);
+    const { status, json } = await send();
+    expect(status).toBe(200);
+    expect(tripRead().map(({ binds, names }) => ({ binds, names })))
+      .toEqual([{ binds: [all.south, all.north, all.west, all.east], names: ["Bow Inn", "Bow Stop"] }]);
+    const NONE = { kind: "no_lodging" };
+    expect((json.days as { stops: string[]; overnight: unknown }[]).map((d) => [d.stops, d.overnight])).toEqual([[[], NONE],
+      [[], { kind: "lodging", name: "Bow Inn", meters: 0 }], [["Bow Stop"], NONE], [[], NONE], [[], null]]);
   });
 });
 
