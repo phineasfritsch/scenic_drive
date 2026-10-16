@@ -69,3 +69,4 @@ driver to find its own files, shown red with that mutant then green.
   printed `population mutations=26 (floor 26) equivalent=1 subjects=7 tests=5 ONLY=1` (it works from there, which
   is why only the repo-root run sees it). Mutant reverted with git checkout: GREEN again, 17 of 17, rc=0, git status
   empty.
+- 2026-10-16T01:51:37Z A2 closures whole (no --only), from services/api, alone: `population mutations=133 (floor 133) equivalent=1 subjects=14 tests=7` / `baseline green tests=738` / `RESULT caught=133 missed=0 trap=0 of 133` exit 0; MISSED/TRAP: none
