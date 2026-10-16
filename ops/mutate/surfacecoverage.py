@@ -34,11 +34,16 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 ETL = ROOT / "services" / "etl"
 COVERAGE = ETL / "etl" / "surfacecoverage.py"
 COVERAGE_TESTS = ETL / "tests" / "test_surfacecoverage.py"
-EMPTIED = (COVERAGE_TESTS,)
-SUBJECTS = (COVERAGE,)
+# T-0181: the unpaved set's three shipping entry points, held by its owner test (and its near-miss corpus).
+SURFACE = ETL / "etl" / "surface.py"
+ASSEMBLE = ETL / "etl" / "assemble.py"
+OWNER_TESTS = ETL / "tests" / "test_unpaved_surfaces_owner.py"
+EMPTIED = (COVERAGE_TESTS, OWNER_TESTS)
+SUBJECTS = (COVERAGE, SURFACE, ASSEMBLE)
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
-SUBJECT_MODULES = ("services/etl/etl/surfacecoverage.py",)
+SUBJECT_MODULES = ("services/etl/etl/surfacecoverage.py", "services/etl/etl/surface.py",
+                   "services/etl/etl/assemble.py")
 GUARDED = SUBJECTS + EMPTIED + (pathlib.Path(__file__).resolve(),)
 
 # Anchors reused by more than one mutation, verbatim from the subject.
@@ -117,6 +122,17 @@ MUTATIONS = [
      UNKNOWN_CLASSES, "    return []"),
     ("refuse a class sitting exactly on its baseline, the boundary ruled the other way (S4)", COVERAGE,
      COMPARE, "        if fraction <= baseline:"),
+
+    # --- T-0181 rv2 B3: unpaved is EXACTLY a Swift value; every near miss of one is admitted ---------------
+    ("OWN3 surface_state reads only the first value of a semicolon multi-value tag", SURFACE,
+     "    if surface is not None and surface in UNPAVED_SURFACES:\n        return SURFACE_UNPAVED",
+     '    if surface is not None and surface.split(";")[0] in UNPAVED_SURFACES:\n        return SURFACE_UNPAVED'),
+    ("OWN4 bucket calls a semicolon multi-value tag unpaved when any of its values is", COVERAGE, UNPAVED_TAG,
+     '    if any(p in UNPAVED_SURFACES for p in surface.split(";")):\n        return UNPAVED'),
+    ("PREFIX gate_reason refuses a tag that merely starts with an unpaved value", ASSEMBLE,
+     '    surface = tags.get("surface")',
+     '    surface = tags.get("surface")\n    surface = next((u for u in sorted(UNPAVED_SURFACES)\n'
+     '                    if surface and surface.startswith(u)), surface)'),
 ]
 
 # Cannot change behaviour, so anything but MISSED is a FAILURE. Each has its witness in the name.
@@ -131,8 +147,8 @@ EQUIVALENT = [
 # promoted into MUTATIONS. Empty is a claim, not an omission.
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 25
-PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", str(COVERAGE_TESTS)]
+MIN_MUTATIONS = 28
+PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", "-p", "no:cacheprovider"] + [str(p) for p in EMPTIED]
 # Past the filesystem's timestamp granularity, so a mutation always lands rather than hitting a stale .pyc.
 SETTLE_S = 1.1
 

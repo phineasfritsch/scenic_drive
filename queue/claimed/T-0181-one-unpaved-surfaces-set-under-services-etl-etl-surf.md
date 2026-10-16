@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-17T19:37:00Z
 worktree: .worktrees/T-0181
 branch: task/T-0181
 exclusive: []
-touches: [services/etl/etl/assemble.py, services/etl/etl/surface.py, services/etl/tests/]
+touches: [services/etl/etl/assemble.py, services/etl/etl/surface.py, services/etl/tests/, ops/mutate/surfacecoverage.py]
 pins_affected: [P-PROD-01]
 reviewer: null
 depends_on: [T-0146, T-0173]
