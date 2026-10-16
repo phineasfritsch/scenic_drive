@@ -203,3 +203,9 @@ by merge order today; fixed here after both land, not as a round on either PR.
   - Touched tests (corpus, owner, surfacecoverage, assemble, surface_state, gate_port): `723 passed in 34.29s`.
     wc -l: test_unpaved_surfaces_owner.py 218, test_unpaved_near_miss_corpus.py 96, ops/mutate/surfacecoverage.py
     265. Java (services/routing, T-0381) is not an entry point this task owns.
+- 2026-10-16T22:42:30Z rv2 fix FINAL on 2ad8247f (origin/main 14e1aab2 merged at 56cb7247: PostDrive, apps/ios, check-safety-disclaimer-*,
+  mutate tables - no conflict): touched tests (corpus, owner, surfacecoverage, assemble, surface_state, gate_port)
+  `723 passed in 7.38s`, no skips; bare gates each rc=0 - check-safety-disclaimer, check-mutate-population.py (`the floor
+  of 169 holds`), check-mutate-only.py (`234 of 234 driver runs refused with exit 64`, `NAME-PAIRS OK`), check-line-cap
+  (`694 Swift files ... none over 300 lines`), check-pins-yaml.py (`PINS-YAML ok pins=52 fields=418`), check-exec-bits
+  (`238 files ... all modes correct`), queue-check (`QUEUE OK (373 tasks)`).
