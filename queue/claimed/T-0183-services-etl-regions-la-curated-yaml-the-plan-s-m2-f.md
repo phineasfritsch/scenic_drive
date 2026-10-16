@@ -125,3 +125,50 @@ candidates of M5), not Bay Area ones. `curated.yaml` is a serial-only file (CLAU
 5. `cd services/etl && python -m pytest tests -rs` -> count line, zero skips.
 6. Bare gates exit 0: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py,
    check-telemetry-emit-sites.py, check-line-cap, check-pins-yaml.py, check-exec-bits, queue-check.
+- 2026-10-16T14:01:12Z BUILT AND MEASURED (agent/claude-opus-5). Shipped: services/etl/regions/la/curated.yaml
+  (5 seeds, 87 lines), services/etl/etl/curated.py (loader + join + freshness, 193 lines),
+  services/etl/etl/curatedslice.py (approach predicate + slice cutter, 128), tests/test_curated_schema.py (142),
+  tests/test_curated_la.py (169), tests/fixtures/la_curated_approach.json (94171 bytes, sha256
+  cbe9512502bbbec97910dfda6f381f7fb369855ae9c5d278b50d933b8607d65b), ops/mutate/curated.py (144) and
+  ops/mutate/curated_mutations.py (106); curated.py and curatedslice.py registered in DRIVERS / COVERED_FLOOR.
+  * The loader's first real input was the file it guards: it refused my own first hook ("hook must be 1..90
+    characters", 93 chars) before any test existed; shortened to 86.
+  * `python -m etl.curatedslice --input seeds-tagged.osm.xml --region la --today 2026-10-16 --out ...` ->
+    `CURATED SLICE seeds=5 ways=130`. Approach roads judged from the 5 dp seed point (the notes quote the
+    7 dp place point, hence 44.3 vs 44.0 m for Topanga): stunt-road-viewpoint 13357693 6.8 m 0.6446;
+    top-of-topanga-overlook 402534633 44.3 m 0.6099; stone-canyon-overlook 1533792498 12.8 m 0.6952;
+    griffith-observatory 174533647 48.8 m 0.6860; calabasas-peak-trailhead 1079750100 42.0 m 0.7487. All five
+    join their places row by id, name and 5 dp coordinate.
+  * CORRECTIONS TO R6/R8 (the dated entry above stands): the plan's field list is THIRTEEN keys (lat and lon are
+    two); touches now reads `ops/mutate/curated` as a prefix, covering the population file
+    ops/mutate/curated_mutations.py beside the driver.
+  * MUTATION, first run 38/47 caught - nine survivors, every one a real gap, closed in ed2aa63a: five bounds were
+    tabled against the module's own constants (curated.HOOK_MAX, SCORE_MAX, DWELL_MIN/MAX, FRESH_DAYS - a table
+    compared to itself), now literals 90, 0.6, 1.0, 5, 180, 365, and the required-field loop reads a literal
+    PLAN_FIELDS; no row moved the longitude of a joined seed (added); the only refused-way row also lacked a
+    unit (added one carrying 0.6000). `math.isfinite` was redundant - NaN and +-inf fail every closed range the
+    float guard feeds - so it was DELETED rather than ruled; the bool guard on dwell_min is an EQUIVALENT entry
+    with its witness (True and False lie below DWELL_MIN = 5), as is `len(rows) != 1` vs `not rows` (the
+    places_by_osm UNIQUE index).
+- 2026-10-16T14:01:12Z ACCEPTANCE RE-RUN on the merged head 210629da (origin/main eb2d33c0 merged; no conflict):
+  1. `python -m pytest tests/test_curated_schema.py tests/test_curated_la.py -rs` -> `154 passed`, 0 skipped.
+  2. RED BY NAME (../work/t0183/red.sh, each break restored from HEAD):
+     break 1, griffith-observatory joined to way/1 ->
+     `FAILED tests/test_curated_la.py::test_every_seed_joins_exactly_one_place_or_is_hours_exempt`, 1 failed 2 passed;
+     break 2, top-of-topanga-overlook approached by Navajo Lane (gated no_access) ->
+     `FAILED tests/test_curated_la.py::test_approach_road_within_300_m_passes_the_gate_and_scores_at_least_half`;
+     break 3, stunt-road-viewpoint verified_on 2025-09-11 ->
+     `FAILED tests/test_curated_la.py::test_verified_on_is_within_twelve_months`; restored -> `3 passed`.
+  3. Slice regenerated from the measured clip: `CURATED SLICE seeds=5 ways=130`, `cmp` -> BYTE-IDENTICAL, sha256
+     cbe95125...d65b.
+  4. `python ops/mutate/curated.py` -> `MUTATE OK  caught=45/45 equivalent_caught=0` (EQUIVALENT 0 caught of 2,
+     MIN_MUTATIONS 45); `--prove-vacuity` -> `VACUITY: 0 caught, 45 missed, 0 skipped, of 45`, `VACUITY PROVED`
+     (on ed2aa63a; the merge touched neither subject nor test).
+  5. `cd services/etl && python -m pytest tests -rs` -> `1740 passed in 174.74s`, zero skipped.
+  6. Bare gates, exit 0 each: check-safety-disclaimer; check-mutate-population.py `P-PROC-06: every added module
+     is covered or allowlisted; the floor of 167 holds`; check-mutate-only.py `MUTATE-ONLY OK: 222 of 222 driver
+     runs refused with exit 64 (60 drivers ...)` + `NAME-PAIRS OK`; check-telemetry-emit-sites.py `ok - 55 lines
+     approved`; check-line-cap `P-SRC-02 ... none over 300 lines`; check-pins-yaml.py `PINS-YAML ok pins=51`;
+     check-exec-bits `P-OPS-01: 232 files ... all modes correct`; queue-check `QUEUE OK (368 tasks)`.
+  OPEN, not done here: the approach predicate runs in CI over the committed slice, not over the PBF itself; a
+  re-cut needs the tagged PBF and an osmium (or pyosmium) clip. No pin was added (pins_affected: []).
