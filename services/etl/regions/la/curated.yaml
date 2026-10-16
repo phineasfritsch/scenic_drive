@@ -1,0 +1,87 @@
+region: la
+seeds:
+  - id: stunt-road-viewpoint
+    name: Stunt Road Viewpoint
+    hook: Saddle Peak Road's switchbacks to a ridge with the ocean on one side, the Valley below
+    lat: 34.08133
+    lon: -118.6455
+    join:
+      osm: node/12073372395
+    category: viewpoint
+    hours_exempt: true
+    dwell_min: 10
+    approach_hint: Saddle Peak Road
+    verified_on: 2026-10-16
+    curation_score: 0.9
+    notes: >-
+      Desk-verified 2026-10-16 from OSM data, not visited: the place row of the committed LA places corpus and a
+      Nominatim lookup agree to 7 dp; the approach, Saddle Peak Road way 13357693, sits 6.8 m away in the tagged
+      LA PBF ungated at scenic_score_unit 0.6446. The owner's taste in one seed - Saddle Peak over PCH.
+  - id: top-of-topanga-overlook
+    name: Top of Topanga Overlook
+    hook: Topanga Canyon's curves end at a lookout over the whole San Fernando Valley
+    lat: 34.13978
+    lon: -118.60097
+    join:
+      osm: node/5644970686
+    category: viewpoint
+    hours_exempt: true
+    dwell_min: 10
+    approach_hint: Topanga Canyon Boulevard
+    verified_on: 2026-10-16
+    curation_score: 0.75
+    notes: >-
+      Desk-verified 2026-10-16 from OSM data, not visited: corpus row and Nominatim agree to 7 dp; the approach,
+      Topanga Canyon Boulevard way 402534633, is 44.0 m away, ungated at 0.6099. A neighbouring segment of the
+      same road (way 655853171, 46.2 m) scores 0.4445 - the nearest one decides.
+  - id: stone-canyon-overlook
+    name: Stone Canyon Overlook
+    hook: Up Beverly Glen to a Mulholland pull-off above the Valley, ten minutes from Westwood
+    lat: 34.13167
+    lon: -118.45012
+    join:
+      osm: node/5061361321
+    category: viewpoint
+    hours_exempt: true
+    dwell_min: 10
+    approach_hint: Mulholland Drive
+    verified_on: 2026-10-16
+    curation_score: 0.85
+    notes: >-
+      Desk-verified 2026-10-16 from OSM data, not visited: corpus row and Nominatim agree to 7 dp; the approach,
+      Mulholland Drive way 1533792498 (the named way of regionbuild/windows.py), is 12.7 m away, ungated at
+      0.6952. Chosen over Mulholland Scenic Overlook, whose nearest Mulholland Drive is the gated dirt section.
+  - id: griffith-observatory
+    name: Griffith Observatory
+    hook: Wind up through Griffith Park to the Observatory lawn, the basin and the Hollywood sign
+    lat: 34.11825
+    lon: -118.30037
+    join:
+      osm: way/422130705
+    category: museum
+    hours_exempt: false
+    dwell_min: 30
+    approach_hint: West Observatory Road
+    verified_on: 2026-10-16
+    curation_score: 0.8
+    notes: >-
+      Desk-verified 2026-10-16 from OSM data, not visited: the coordinate is the corpus row's vertex mean; the
+      Nominatim centroid of way 422130705 lies about 7 m from it. Not hours-exempt - the building keeps hours, so
+      Surprise must check them. The approach, West Observatory Road way 174533647, is 48.9 m away at 0.6860.
+  - id: calabasas-peak-trailhead
+    name: Calabasas Peak Trailhead
+    hook: Old Topanga Canyon's hairpins, then a short walk toward Calabasas Peak's tilted sandstone
+    lat: 34.12434
+    lon: -118.63515
+    join:
+      osm: node/9289043831
+    category: trailhead
+    hours_exempt: true
+    dwell_min: 20
+    approach_hint: Old Topanga Canyon Road
+    verified_on: 2026-10-16
+    curation_score: 0.8
+    notes: >-
+      Desk-verified 2026-10-16 from OSM data, not visited: corpus row and Nominatim agree to 7 dp; the approach,
+      Old Topanga Canyon Road way 1079750100, is 42.0 m away, ungated at 0.7487. The Calabasas Peak Motorway
+      itself is a fire road and is not the approach.
