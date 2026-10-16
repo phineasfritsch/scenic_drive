@@ -152,6 +152,26 @@ else
   skip "bounds" "no services/etl"
 fi
 
+# ---- 4. corpus invariants (T-0372) --------------------------------------------------------------------
+# ops/lib/sane_corpus.py decides: the corpus opens read-only at this checkout's schema_version, no term outside
+# 0..1, viewpoints >= the region's measured floor, surface coverage >= baseline. Its rows are printed as ours;
+# a line it prints that is not one of its rows, or a non-zero exit with no FAIL row, is 4 too. SANE_CORPUS names
+# one corpus and is checked under ANY scope - ops/lib/check-sane-corpus drives this block that way.
+if [[ $local_checks -eq 0 && -z "${SANE_CORPUS:-}" ]]; then
+  skip "corpus-db" "SANE_SCOPE=prod"
+else
+  cout="$("$PY" ops/lib/sane_corpus.py 2>&1)"; crc=$?; cfail=0
+  while IFS=$'\t' read -r cst crow cmsg; do
+    case "$cst" in
+      ok) ok "$crow" "$cmsg";;
+      skip) skip "$crow" "$cmsg";;
+      FAIL) fail "$crow" "$cmsg" 4; cfail=1;;
+      *) fail "corpus-db" "sane_corpus.py printed an unparsed line: $cst $crow $cmsg" 4; cfail=1;;
+    esac
+  done <<< "$cout"
+  if [[ $crc -ne 0 && $cfail -eq 0 ]]; then fail "corpus-db" "sane_corpus.py exited $crc with no FAIL row" 4; fi
+fi
+
 # ---- 10. other worktrees ------------------------------------------------------------------------------
 # Every check above this line asks about THIS checkout. There are 78 others, and work that never left one of
 # them is invisible to all of them: `wt/T-0030` held 662 lines of the corpus emitter with no
