@@ -1,7 +1,7 @@
 ---
 id: T-0365
 title: Loop and Trip sheets offer "Count this area" on regionUnsupported through the same WaitlistClient, once per cell per install
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T03:59:15Z
@@ -11,7 +11,7 @@ branch: task/T-0365
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0365
 depends_on: [T-0360]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -113,3 +113,4 @@ apps/ios Swift edit needs the P-SAFE-03 digest re-approval; if refused, ship the
     (PlanSheetScreen now joins through waitlistStart). No shot shows the new loop/trip offer (R6) - filed T-0373 (first filed as T-0372; renumbered after main took that id)
     (ids checked on origin/main and every origin/task/* branch, highest T-0371).
 - 2026-10-16T06:44:29Z agent/claude-opus-5 (owner): rv1-t0365 FAIL was ancestry-only (main gained PR #251 T-0361). Merged origin/main as 1466563f; one conflict in ops/lib/check-safety-disclaimer-pinned resolved by provenance (LoopPreviewCard: main's 25119b5f; LoopScreen: this branch's 849c08f1; each equals the merged file). On 1466563f: A1 swift test over the 7 suites "Test run with 32 tests in 7 suites passed"; check-safety-disclaimer rc=0; check-mutate-population "floor of 165 holds" rc=0; check-telemetry-emit-sites "ok - 59 lines approved; 13 of 14 cases emitted once, 1 pending by task" rc=0; check-pins-yaml rc=0; check-mutate-anchors rc=0; queue-check "QUEUE OK (364 tasks)" rc=0; ios-compile run 38862203922 success on 1466563f.
+- 2026-10-16T06:54:30Z agent/rv2-t0365 (reviewer, round 2, merge/ancestry only): PASS. rv1-t0365 passed every code check; this round re-checks the merge 1466563f (parents 1e3ef989, 6681d944; merge-base aa1b1b22) on a detached worktree at origin/task/T-0365 = 0d9e3815. `git show --remerge-diff 1466563f` touches only ops/lib/check-safety-disclaimer-pinned: LoopPreviewCard row = main's 25119b5f (base b1b0bc8c, branch unchanged), LoopScreen row = branch's 849c08f1 (base f7751da3, main unchanged); `sed "s/\r$//" FILE | sha256sum` of the merged files gives 25119b5fefa84eba73db934abcf02a523c3340c07612c3a5e8d3193c3b2d2557 and 849c08f186fed96d62c20382b5957b404b2800c0c9886e25164d309e383ef1e6, equal to the pins at 1466563f and HEAD; pinned rows 102 (branch) / 108 (main) / 108 (merge), none dropped from either side. `git diff-tree --cc` also lists check-safety-disclaimer-linked-digests.txt: its remerge-diff is empty (clean auto-merge, hunks from one side each), rows 359 / 363 / 363, none dropped. Bare on 0d9e3815: check-safety-disclaimer exit=0 ("LAST all 109 app .swift, then 326 root + pbxproj file(s) (-linked)"); check-mutate-population "P-PROC-06: every added module is covered or allowlisted; the floor of 165 holds" exit=0; check-telemetry-emit-sites "P-PRIV-05 emit sites: ok - 59 lines approved; 13 of 14 cases emitted once, 1 pending by task" exit=0; check-pins-yaml "PINS-YAML ok pins=50 fields=403" exit=0; queue-check "QUEUE OK (364 tasks)" exit=0. CI: ios-compile run 38862203922 conclusion success, headSha 1466563f; `gh pr checks 252` core pass 6m46s, pins-source-only pass 2m42s (run 38862947687, headSha 0d9e3815, success). Last, after a fresh fetch: origin/main = 6681d944, `git merge-base --is-ancestor origin/main origin/task/T-0365` exit=0, no main drift since the merge. queue/claimed/ -> queue/done/.
