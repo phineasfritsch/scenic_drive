@@ -111,3 +111,20 @@ pin's assertion, not the branch. Harness, two rounds.
       own scratch paths (.build/pins-race-a, .build/pins-race-b): run1 exit=0 PASS, run2 exit=0 PASS (6 tests each)
     So R2 is settled on this box: two builds on one scratch path collide; on two scratch paths of one package they do not.
     The failure is RED (fails closed), as R1 ruled; the open direction stays the by-construction argument of R1.
+- 2026-10-16T17:28:42Z THE ACCEPTANCE BLOCK, WHOLE, by agent/claude-opus-5. PR #269 opened at a3e659c6.
+  * A6 on a3e659c6 (base = main 55c4b140), every gate bare: `bash ops/check-pins --source-only --verbose` ->
+    `ok P-SAFE-05`, `ok P-OPS-10`, `ok P-NAV-01`, `ok P-SAFE-09`, `PINS ok=23 skipped=28 pending=1 expired=0 failed=0
+    tier=linux source-only` exit=0 (70 min on this box: check-sane-prod and check-sane-corpus run ops/sane per case;
+    a first run was stopped by me during the sane-prod table to merge main - main had not moved). CI on a3e659c6:
+    pins-source-only pass 5m24s, core pass 12m29s.
+  * main moved twice (T-0230 -> 2fadae27, T-0241 -> 4d7357ce); neither touched PINS.yaml, ops/lib/pins.py,
+    run-named-tests.py or named-tests.json. On 2fadae27: P-SAFE-05's assertion under `bash -o pipefail -c` exit=0;
+    `run-named-tests.py P-NAV-01` -> `NAMED P-NAV-01 passed=44/44` on .build/pins-named-tests; A4 refusal exit=1;
+    check-line-cap `682 Swift files ... none over 300 lines` 0; check-safety-disclaimer 0; check-mutate-only
+    `MUTATE-ONLY OK: 226 of 226` 0; check-mutate-population 0.
+  * On 4d7357ce (the head pushed), bare: A2 `SWIFT-SCRATCH pins=52 swift_words=1 refused=0` exit=0; A3 `SWIFT-SCRATCH
+    prove-red rows=30 wrong=0` exit=0; `PINS-YAML ok pins=52 fields=418` 0; `P-OPS-01: 235 files, 23 required present,
+    all modes correct` 0; `QUEUE OK (369 tasks)` 0; `P-PROC-06: ... the floor of 169 holds` 0.
+  * Measured files: ops/lib/check-swift-scratch.py 223 lines, ops/lib/run-named-tests.py 204 lines (`wc -l`).
+  * Recorded, not done: ops/test:23 `swift test --parallel` on the default .build (outside touches; it is the runner a
+    human or CI starts alone, not a pin) - a candidate follow-up if the owner wants the rule there too.
