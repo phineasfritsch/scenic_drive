@@ -163,3 +163,38 @@ def test_ignored_highways_keeps_motorway_and_trunk():
         f"config.yml drops {offenders} at import: motorway and trunk must reach the graph and be "
         f"penalized there (scenic_score 0), never hard-excluded. ignored_highways reads {named}."
     )
+
+
+ENCODED_VALUES = re.compile(r"^\s*graph\.encoded_values:\s*(.+?)\s*$", re.MULTILINE)
+IDENTIFIER = re.compile(r"\b[a-z][a-z0-9_]*\b")
+LITERALS = {"true", "false"}
+# T-0381: the five gates the profile learned, each an encoded value GraphHopper must be told to build.
+T0381_GATE_VALUES = {"track_type", "smoothness", "gate_locked_barrier", "gate_ford", "gate_service_way"}
+
+
+def _configured():
+    found = ENCODED_VALUES.findall(CONFIG.read_text(encoding="utf-8"))
+    assert len(found) == 1, f"{CONFIG.name} must carry graph.encoded_values exactly once, found {found}"
+    return {name.strip() for name in found[0].split(",")}
+
+
+def _read_by(path):
+    model = json.loads(path.read_text(encoding="utf-8"))
+    names = set()
+    for block in ("speed", "priority"):
+        for rule in model.get(block, []):
+            for key, value in rule.items():
+                names |= set(IDENTIFIER.findall(str(value))) - LITERALS
+    return names
+
+
+def test_every_encoded_value_the_base_profile_reads_is_configured():
+    """GraphHopper refuses to load a profile naming an encoded value the import did not build (T-0381)."""
+    missing = sorted(_read_by(BASE) - _configured())
+    assert not missing, f"{BASE.name} reads {missing}, which config.yml graph.encoded_values does not build"
+
+
+def test_the_t0381_gates_are_read_and_built():
+    assert T0381_GATE_VALUES <= _read_by(BASE), sorted(T0381_GATE_VALUES - _read_by(BASE))
+    assert T0381_GATE_VALUES <= _configured(), sorted(T0381_GATE_VALUES - _configured())
+    assert "road_environment" not in _read_by(BASE) | _configured()

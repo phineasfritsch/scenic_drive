@@ -4,6 +4,9 @@ import com.graphhopper.routing.ev.DefaultImportRegistry;
 import com.graphhopper.routing.ev.ImportRegistry;
 import com.graphhopper.routing.ev.ImportUnit;
 import com.graphhopper.routing.ev.IntEncodedValueImpl;
+import com.graphhopper.routing.ev.SimpleBooleanEncodedValue;
+import com.graphhopper.reader.ReaderWay;
+import java.util.function.Predicate;
 
 /**
  * The one registration point GraphHopper gives a third-party encoded value: graph.encoded_values names
@@ -16,6 +19,11 @@ public final class ScenicScoreImportRegistry implements ImportRegistry {
 
     @Override
     public ImportUnit createImportUnit(String name) {
+        Predicate<ReaderWay> gateFact = GateFacts.forKey(name);
+        if (gateFact != null) {
+            return ImportUnit.create(name, props -> new SimpleBooleanEncodedValue(name),
+                    (lookup, props) -> new GateFactParser(lookup.getBooleanEncodedValue(name), gateFact));
+        }
         if (!ScenicScoreParser.KEY.equals(name)) return graphHopperDefaults.createImportUnit(name);
         return ImportUnit.create(ScenicScoreParser.KEY,
                 props -> new IntEncodedValueImpl(ScenicScoreParser.KEY, ScenicScoreParser.BITS, false),

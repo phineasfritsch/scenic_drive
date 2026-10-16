@@ -325,11 +325,7 @@
     "surface": "asphalt",
     "tracktype": "grade3"
    },
-   "verdict": "GATED",
-   "divergent": {
-    "profile": "NOT_GATED",
-    "tracked_by": "T-0188 ported this Gates.verdict branch into assemble.gate_reason; the profile gap stays: car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
-   }
+   "verdict": "GATED"
   },
   {
    "class": "barrier=gate+locked=yes",
@@ -341,11 +337,7 @@
     "barrier": "gate",
     "locked": "yes"
    },
-   "verdict": "GATED",
-   "divergent": {
-    "profile": "NOT_GATED",
-    "tracked_by": "T-0188 ported this Gates.verdict branch into assemble.gate_reason; the profile gap stays: car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
-   }
+   "verdict": "GATED"
   },
   {
    "class": "ford=yes",
@@ -356,11 +348,7 @@
     "surface": "asphalt",
     "ford": "yes"
    },
-   "verdict": "GATED",
-   "divergent": {
-    "profile": "NOT_GATED",
-    "tracked_by": "T-0188 ported this Gates.verdict branch into assemble.gate_reason; the profile gap stays: car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
-   }
+   "verdict": "GATED"
   },
   {
    "class": "service=driveway",
@@ -373,11 +361,7 @@
     "tiger:cfcc": "A41",
     "tiger:county": "Ventura, CA"
    },
-   "verdict": "GATED",
-   "divergent": {
-    "profile": "NOT_GATED",
-    "tracked_by": "T-0188 ported this Gates.verdict branch into assemble.gate_reason; the profile gap stays: car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
-   }
+   "verdict": "GATED"
   },
   {
    "class": "service=parking_aisle",
@@ -388,11 +372,7 @@
     "service": "parking_aisle",
     "source": "usgs_imagery_2007"
    },
-   "verdict": "GATED",
-   "divergent": {
-    "profile": "NOT_GATED",
-    "tracked_by": "T-0188 ported this Gates.verdict branch into assemble.gate_reason; the profile gap stays: car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
-   }
+   "verdict": "GATED"
   },
   {
    "class": "no surface on primary",

@@ -6,10 +6,12 @@ a mutant that the fixture's rows happen not to reach is still seen.
 from __future__ import annotations
 
 import json
+import pathlib
 
 import pytest
 
 from etl import profilegate as pg
+from tests import gate_near_miss as gnm
 
 ENCODINGS = [
     ({"highway": "motorway"}, {"road_class": "MOTORWAY", "road_access": "YES", "surface": "MISSING"}),
@@ -42,7 +44,27 @@ ENCODINGS = [
 
 @pytest.mark.parametrize("tags,want", ENCODINGS, ids=[str(i) for i in range(len(ENCODINGS))])
 def test_encoding_is_graphhoppers(tags, want):
-    assert pg.encode(tags) == {**want, "car_access": True}
+    assert pg.encode(tags) == {**NO_GATE_FACTS, **want, "car_access": True}
+
+
+NO_GATE_FACTS = {"track_type": "MISSING", "smoothness": "MISSING", "gate_locked_barrier": False, "gate_ford": False,
+                 "gate_service_way": False}
+# T-0381 R7: the table GateEncodingTest runs GraphHopper's own parsers and our GateFactParser over.
+ENCODING_TABLE = (pathlib.Path(__file__).resolve().parents[2] / "routing" / "plugins" / "scenic-score-parser" / "src"
+                  / "test" / "resources" / "gate_encoding.json")
+TABLE_ROWS = json.loads(ENCODING_TABLE.read_text(encoding="utf-8"))["rows"]
+
+
+@pytest.mark.parametrize("row", TABLE_ROWS, ids=[json.dumps(r["tags"], sort_keys=True) for r in TABLE_ROWS])
+def test_encoding_matches_the_plugin_table(row):
+    got = pg.encode(row["tags"])
+    assert {key: got[key] for key in NO_GATE_FACTS} == row["encoded"]
+    assert sorted(row["encoded"]) == sorted(NO_GATE_FACTS)
+
+
+def test_the_plugin_table_is_whole():
+    assert ENCODING_TABLE.is_file() and len(TABLE_ROWS) == 1395
+    assert TABLE_ROWS == gnm.table(gnm.hand_rows(ENCODING_TABLE))
 
 
 def test_road_access_order_is_graphhoppers_enum():
@@ -78,6 +100,26 @@ REFUSED = ["road_class = TRACK", "road_class == TRACK ||", "(road_class == TRACK
 def test_an_unreadable_expression_refuses(expression):
     with pytest.raises(ValueError):
         pg.fires(expression, VALUES)
+
+
+# T-0381 R8: GraphHopper refuses a constant outside the enum and a comparison on a boolean at load.
+OUTSIDE = ["track_type == GRADE_3", "track_type != grade3", "smoothness == ROUGH", "road_class == FREEWAY",
+           "surface == EARTH", "road_access == PERMIT", "gate_ford == TRUE", "gate_ford != false",
+           "gate_service_way == YES", "car_access == true", "road_class == road_class", "track_type == ("]
+
+
+@pytest.mark.parametrize("expression", OUTSIDE, ids=[repr(e) for e in OUTSIDE])
+def test_a_comparison_outside_the_values_refuses(expression):
+    with pytest.raises(ValueError):
+        pg.fires(expression, pg.encode({}))
+
+
+def test_every_enum_value_is_comparable():
+    for name, domain in pg.DOMAINS.items():
+        for constant in domain:
+            assert pg.fires("%s == %s || %s != %s" % (name, constant, name, constant), pg.encode({})) is True
+    assert pg.DOMAINS["track_type"] == frozenset(pg.TRACK_TYPES)
+    assert pg.DOMAINS["smoothness"] == frozenset(pg.SMOOTHNESS)
 
 
 def _profile(tmp_path, rules):
@@ -157,3 +199,67 @@ def test_the_shipped_profile_gates_exactly_its_clauses():
     assert pg.gated({"highway": "residential", "surface": "asphalt"}) is False
     assert pg.gated({"highway": "track", "surface": "asphalt"}) is True
     assert pg.gated({"highway": "motorway"}) is False
+    assert pg.gated({"highway": "trunk", "surface": "asphalt", "smoothness": "good", "tracktype": "grade1"}) is False
+
+
+GATED_BY_T0381 = [({"highway": "tertiary", "tracktype": t}, True) for t in ("grade3", "grade4", "grade5")] + [
+    ({"highway": "tertiary", "tracktype": t}, False) for t in ("grade1", "grade2", "grade6")] + [
+    ({"highway": "residential", "smoothness": s}, True)
+    for s in ("bad", "very_bad", "horrible", "very_horrible", "impassable")] + [
+    ({"highway": "residential", "smoothness": s}, False)
+    for s in ("excellent", "good", "intermediate", "rough", "")] + [
+    ({"highway": "tertiary", "barrier": "gate", "locked": "yes"}, True),
+    ({"highway": "tertiary", "barrier": "gate", "locked": "no"}, False),
+    ({"highway": "tertiary", "barrier": "bollard", "locked": "yes"}, False),
+    ({"highway": "unclassified", "ford": "yes"}, True), ({"highway": "unclassified", "ford": "no"}, False),
+    ({"highway": "service", "service": "driveway"}, True), ({"highway": "service", "service": "parking_aisle"}, True),
+    ({"highway": "service", "service": "drive-through"}, True),
+    ({"highway": "service", "service": "emergency_access"}, True),
+    ({"highway": "service", "service": "alley"}, False), ({"highway": "service"}, False),
+    ({"highway": "motorway", "service": "driveway"}, False),
+]
+
+
+@pytest.mark.parametrize("tags,want", GATED_BY_T0381, ids=[json.dumps(t, sort_keys=True) for t, _ in GATED_BY_T0381])
+def test_the_shipped_profile_gates_the_t0381_clauses(tags, want):
+    """Each new clause over the SHIPPED file: its positive evidence gates, its near misses do not."""
+    assert pg.gated(tags) is want
+
+
+# rv2 B1: the near-miss CLASS, generated from every gating literal parsed from GateFacts.java and the shipped json.
+LITERALS = gnm.literals()
+FAMILIES = set(gnm.FIXED_FAMILIES)
+
+
+def test_the_corpus_has_every_family_for_every_literal():
+    assert {key for key, _, _ in LITERALS} == set(gnm.EXACT_KEYS) | set(gnm.ENUM_KEYS)
+    by_key = {key: {lit for k, lit, _ in LITERALS if k == key} for key in gnm.EXACT_KEYS + tuple(gnm.ENUM_KEYS)}
+    assert by_key["barrier"] == pg.REFUSABLE_BARRIERS and by_key["service"] == pg.REFUSED_SERVICE_VALUES
+    assert by_key["locked"] == by_key["ford"] == {pg.YES} and by_key["highway"] == {pg.SERVICE_HIGHWAY}
+    assert {t.upper() for t in by_key["tracktype"]} == {"GRADE3", "GRADE4", "GRADE5"}
+    assert {s.upper() for s in by_key["smoothness"]} == {"BAD", "VERY_BAD", "HORRIBLE", "VERY_HORRIBLE", "IMPASSABLE"}
+    for key, literal, context in LITERALS:
+        pairs = gnm.near_misses(literal)
+        names = [family for family, _ in pairs]
+        want = FAMILIES | {"delete@%d" % i for i in range(len(literal))} | {
+            "insert-%s@%d" % (name, i) for name in gnm.INSERTED.values() for i in range(len(literal) + 1)}
+        assert set(names) == want and len(names) == len(want), literal
+        assert set(gnm.INSERTED) == {" ", "\t", ";", "_", "-", "x", "|", ","}
+        assert [v for f, v in pairs if v == literal] == [literal] and dict(pairs)["identity"] == literal
+        assert key not in context
+        for row in (r for r in gnm.corpus() if r["literal"] == "%s=%s" % (key, literal)):
+            value = row["tags"][key]
+            exact = value == literal
+            assert row["gated"] is (exact if key in gnm.EXACT_KEYS else value.upper() == literal.upper()), row
+
+
+@pytest.mark.parametrize("key,literal", [(k, lit) for k, lit, _ in LITERALS], ids=["%s=%s" % (k, lit) for k, lit, _
+                                                                                   in LITERALS])
+def test_the_shipped_profile_gates_no_near_miss(key, literal):
+    """Every generated variant of one gating literal, through pg.gated over the SHIPPED profile and pg.encode."""
+    rows = [r for r in gnm.corpus() if r["literal"] == "%s=%s" % (key, literal)]
+    wrong = [(r["family"], r["tags"][key], r["gated"]) for r in rows if pg.gated(r["tags"]) is not r["gated"]]
+    assert wrong == []
+    encoded = [(r["family"], r["tags"][key]) for r in rows
+               if {k: pg.encode(r["tags"])[k] for k in NO_GATE_FACTS} != r["encoded"]]
+    assert encoded == [] and len(rows) == len(gnm.near_misses(literal)) > 40
