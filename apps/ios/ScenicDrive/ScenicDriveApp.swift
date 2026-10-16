@@ -42,6 +42,7 @@ struct ScenicDriveApp: App {
         WindowGroup {
             if let drive, let host = DriveHost(preview: drive, sender: DriveRehearsal.rerouter ?? LivePlanner.rerouter(for: drive), content: { display in DriveScreen(preview: drive, display: display, onEnd: { self.drive = nil }) }) {
                 host.environment(\.postDriveAnswers, LivePostDriveAnswers())
+                    .environment(\.driveMoments, LiveMoments())
             } else {
                 home
             }
@@ -64,5 +65,9 @@ struct ScenicDriveApp: App {
                                     onDownload: { corpus.start() }, onLater: { isShowingCorpusDownload = false })
             }
             .environment(\.surpriseLedger, LiveSurpriseLedger.make())
+            .environment(\.surpriseMoments, LiveMoments())
+            .environment(\.homeMoments, LiveMoments())
+            .environment(\.planMoments, LiveMoments())
+            .environment(\.paywallShown, { LiveMoments.paywallShown() })
     }
 }

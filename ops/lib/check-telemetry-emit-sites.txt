@@ -9,6 +9,25 @@ emit	planRequested	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry
 emit	planResult	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.planResult(kind))
 emit	surpriseShown	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.surpriseShown)
 emit	postDriveAnswer	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.postDriveAnswer(prettier: prettier))
+emit	previewShown	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.previewShown)
+emit	handoffTapped	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.handoffTapped(app))
+emit	driveStarted	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.driveStarted)
+emit	driveCompleted	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.driveCompleted(CompletionPercent(fraction: fraction), deviations: deviations))
+emit	driveAbandoned	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.driveAbandoned(CompletionPercent(fraction: fraction)))
+emit	surpriseNotThis	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.surpriseNotThis(reason))
+emit	surpriseTakeMeThere	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.surpriseTakeMeThere)
+emit	corpusActivated	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.corpusActivated(version: version))
+emit	paywall	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        record(TelemetryEvent.paywall(step))
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveCorpus.swift	                LiveTelemetry.corpusActivated(version: version)
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	import Telemetry
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	            LiveTelemetry.previewShown()
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	            LiveTelemetry.handoffTapped(.appleMaps)
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	            LiveTelemetry.surpriseTakeMeThere()
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	            LiveTelemetry.surpriseNotThis(wire)
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	            LiveTelemetry.driveStarted()
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	                LiveTelemetry.driveCompleted(fraction: fraction, deviations: count)
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	                LiveTelemetry.driveAbandoned(fraction: fraction)
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	        LiveTelemetry.paywall(.shown)
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	            current = TelemetryClient(base: base, device: id, transport: URLSessionTelemetryTransport())
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	        let current: TelemetryClient
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	    func record(_ event: TelemetryEvent) async {
@@ -38,13 +57,4 @@ site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryTripPlanner.swift	
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryTripPlanner.swift	import Telemetry
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryTripPlanner.swift	struct TelemetryTripPlanner: TripPlanning {
 site	apps/ios/ScenicDrive/ScenicDriveApp.swift	                SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, deleteAccount: { await LiveAccountDeletion.run() }, onDone: { isShowingSettings = false })
-pending	previewShown	T-0361
-pending	handoffTapped	T-0361
-pending	driveStarted	T-0361
-pending	driveCompleted	T-0361
-pending	driveAbandoned	T-0361
-pending	surpriseNotThis	T-0361
-pending	surpriseTakeMeThere	T-0361
-pending	surpriseArrived	T-0361
-pending	corpusActivated	T-0361
-pending	paywall	T-0361
+pending	surpriseArrived	T-0369

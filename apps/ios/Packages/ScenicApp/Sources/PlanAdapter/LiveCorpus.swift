@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import PlaceStore
 import ScenicAPIClient
+import ScenicKit
 
 /// The app's corpus download (T-0305 R1-R6), in PlanAdapter because it is the only apps/ios importer of
 /// ScenicAPIClient (T-0294 R1) and the shell imports no root module.
@@ -49,6 +50,11 @@ public final class LiveCorpus {
             let launched = LaunchCorpus.choose(updater: CorpusUpdater(directory: directory, drives: DriveSessionLock()),
                                              fallback: LaunchCorpus.bundledFallback(in: .main))
             hasDownload = launched.corpus == CorpusSlots(directory: directory).active
+            if launched.activation == .activated, let corpus = launched.corpus,
+               let stamp = try? PlaceStore(path: corpus.path).meta().corpusVersion,
+               let version = CorpusVersionNumber.value(of: stamp) {
+                LiveTelemetry.corpusActivated(version: version)
+            }
         }
         return LiveCorpus(directory: directory, manifestURL: manifestURL, wifiOnlyKey: wifiOnlyKey,
                           offersDownload: manifestURL != nil && directory != nil && !hasDownload)

@@ -17,6 +17,7 @@ public struct SurpriseCard: View {
     @State private var ledgerPlaces: [SurpriseLedgerPlace]?
     @State private var ledgerRead = false
     @Environment(\.surpriseLedger) private var ledger
+    @Environment(\.surpriseMoments) private var moments
     @State private var now = Date()
 
     public init(failure: String?, onOpenInMaps: @escaping @MainActor (Coordinate) -> Void) {
@@ -188,6 +189,7 @@ public struct SurpriseCard: View {
                                         roundTripMinutes: pick.reason.roundTripMinutes,
                                         date: SurpriseDeck.context(at: now).date, reason: reason)
         state = state.declining(feedback)
+        moments?.report(.surpriseDeclined(reason))
     }
 
     static func symbol(_ placeClass: SurprisePlaceClass) -> String {

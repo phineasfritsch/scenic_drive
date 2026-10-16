@@ -12,6 +12,7 @@ SC = f"{ENT}/StoreConstants.swift"
 LG = f"{ENT}/LegalAttributionScreen.swift"
 LS = f"{ENT}/LaunchScreen.swift"
 CD = f"{ENT}/CorpusDownloadSheet.swift"
+PK = f"{ENT}/PaywallShownKey.swift"
 HOME = "apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift"
 SHELL = "apps/ios/ScenicDrive/ScenicDriveApp.swift"
 
@@ -70,7 +71,7 @@ APP_WIDE = {
 ENTITLEMENTS = {
     "import ": [(f, "import " + m) for f, mods in ((PW, "DesignSystem StoreKit SwiftUI"), (ST, "DesignSystem StoreKit SwiftUI"),
                                                    (LG, "DesignSystem SwiftUI"), (SC, "SwiftUI"), (LS, "SwiftUI"),
-                                                   (CD, "DesignSystem SwiftUI"))
+                                                   (CD, "DesignSystem SwiftUI"), (PK, "SwiftUI"))
                 for m in mods.split()],
     "accessibilityIdentifier": [(f, f'.accessibilityIdentifier("{i}")') for f, ids in (
         (PW, "paywall.store paywall.terms paywall.privacy"),
@@ -106,10 +107,11 @@ SEQUENCES = [
 FROZEN = {
     LS: "57f6af62de6787d5c129bee12dbf45bc6fefd70292806c3415b0376c8e075d71",
     LG: "b72965b1635d4d8b109a0f966e6cfe8fd1f1fe9d7bdf4bd9bac2148f081e30a6",
-    PW: "333b33ed55630cb3ec5f0bf57c17b44bfdb334d1d33ea2b2d5057ab830579ba9",
+    PW: "03d478bfc333eb4e44c9afaea5264256254b31a51218ccdd7f0e09b175e5cd22",
     ST: "4e0dc5e818226503049008ef37f8f46cb6552f2a099f657cda8ff1830c717b0e",
     SC: "6da6ddadc509df44f9a9dadec770e0c3a84738af14715eeb6cee9c221bf63706",
     CD: "7e63f62eb351c5b45c5bed74cf5a63beff43e9b697747c01973e40eefe060906",
+    PK: "a1668fe703ec4ca53a281288368101bdf47168c9ab0fe4afdfc1a536669f465d",
 }
 
 # The in-app ODbL notice: LICENSE-DATA's section under this heading, one Swift string element per line, exactly.

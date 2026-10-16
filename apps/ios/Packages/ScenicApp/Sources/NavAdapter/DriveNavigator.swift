@@ -53,6 +53,10 @@ public final class DriveNavigator: ObservableObject {
         connectivity.onChange = { [weak self] online in self?.reachability(online) }
     }
 
+    /// T-0361 R6: the drive's session and whether it arrived, for the end moment DriveHost reports.
+    public var session: DriveSession { controller.session }
+    public var hasArrived: Bool { voice.hasArrived }
+
     /// Starts guidance on the planned line and the reachability reports.
     public func start() throws {
         let session = controller.session

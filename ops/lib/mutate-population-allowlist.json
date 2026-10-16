@@ -4,6 +4,8 @@
     "Sources/PlaceStore/CorpusLaunch.swift": "a two-field value LaunchCorpus.choose returns (T-0305); no code - the choice is LaunchCorpus.swift's, which corpusfetch.py mutates",
     "Sources/ScenicAPIClient/CorpusFetchError.swift": "a four-case error enum (T-0305); no code - which case is thrown and what it deletes is URLSessionCorpusFetcher's and CorpusDownloadDelegate's, which corpusfetch.py mutates",
     "Sources/ScenicKit/PlanSheet/PlanField.swift": "a two-case enum naming which search field is open (T-0294); no code",
+    "Sources/ScenicKit/Moments/AppMoment.swift": "the closed enum of the moments features report (T-0361 R1): six cases, two carrying a reason or (Bool, Double, Int) built elsewhere; no code, no arithmetic",
+    "Sources/ScenicKit/Moments/AppMomentReporting.swift": "a one-method protocol, the sink a feature's moments go to (T-0361 R1); no code",
     "Sources/ScenicKit/PostDrive/PostDriveAnswer.swift": "the post-drive question's closed three-case answer set (T-0358 R5): a title and an optional Bool per case, no arithmetic; both tables are held whole by PostDriveQuestionTests.answerSet()",
     "Sources/ScenicKit/PostDrive/PostDriveAnswering.swift": "a one-method protocol, the sink a post-drive answer goes to (T-0358 R7); no code",
     "Sources/ScenicKit/PostDrive/PostDriveMoment.swift": "a two-case enum naming when the question may be asked (T-0358 R2/R3); no code",
