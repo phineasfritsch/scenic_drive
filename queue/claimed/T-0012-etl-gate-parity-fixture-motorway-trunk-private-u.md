@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-17T10:26:10Z
 worktree: .worktrees/T-0012
 branch: task/T-0012
 exclusive: [services/routing/profiles/car_scenic_base.json]
-touches: [services/etl/, services/routing/profiles/, Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/GateParityFixtureTests.swift, pins/PINS.yaml, ops/lib/named-tests.json, ops/lib/run-named-tests.py, ops/lib/mutate_population_table.py, ops/mutate/profilegate.py, queue/]
+touches: [services/etl/, services/routing/profiles/, Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/GateParityFixtureTests.swift, services/routing/tests/test_profiles_static.py, pins/PINS.yaml, ops/lib/named-tests.json, ops/lib/run-named-tests.py, ops/lib/mutate_population_table.py, ops/mutate/profilegate.py, queue/]
 pins_affected: [P-PROD-01]
 reviewer: null
 depends_on: [T-0024]

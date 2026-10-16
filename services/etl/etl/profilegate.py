@@ -25,6 +25,12 @@ THE EVALUATOR is the subset of GraphHopper's custom-model language the base prof
 `!`, `&&`, `||`, parentheses, and `name == CONST` / `name != CONST`. Any other token, any unknown encoded
 value, any rule key other than `if` + `multiply_by`, any `multiply_by` that is not a number refuses with
 ValueError - an expression this module cannot read is never read as "does not fire".
+
+THE WHOLE MODEL IS READ (rv1 B1). GraphHopper never routes an edge whose priority OR speed is 0, so `gated` reads
+both blocks: a firing `speed` rule with `limit_to` 0 or `multiply_by` 0 is an exclusion exactly as a priority 0
+is. A speed rule is `if` + one of `limit_to` / `multiply_by`; its value is a number or an encoded speed in
+SPEED_NAMES (read as never 0 - car_access is held true). `distance_influence` must be a number >= 0 (it adds a
+per-km cost and never excludes). Any other top-level key, rule shape or speed value refuses with ValueError.
 """
 from __future__ import annotations
 
@@ -49,6 +55,9 @@ SURFACES = frozenset({
 })
 LINK_SUFFIX = "_link"
 RULE_KEYS = frozenset({"if", "multiply_by"})
+MODEL_KEYS = frozenset({"speed", "priority", "distance_influence"})
+SPEED_RULE_KEYS = (frozenset({"if", "limit_to"}), frozenset({"if", "multiply_by"}))
+SPEED_NAMES = frozenset({"car_average_speed"})
 
 _TOKEN = re.compile(r"\s*(\|\||&&|==|!=|!|\(|\)|[A-Za-z_][A-Za-z0-9_]*)")
 
@@ -169,9 +178,48 @@ def fires(expression: str, values: dict) -> bool:
     return _Parser(expression, values).parse()
 
 
+def _number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0
+
+
+def model(profile: pathlib.Path = PROFILE) -> dict:
+    """The shipped custom model, refused when it carries a key or a distance_influence this module cannot read."""
+    data = json.loads(profile.read_text(encoding="utf-8"))
+    unread = sorted(set(data) - MODEL_KEYS)
+    if unread:
+        raise ValueError("profile %s carries %s, which is not read here" % (profile.name, unread))
+    influence = data.get("distance_influence", 0)
+    if not _number(influence):
+        raise ValueError("profile %s: distance_influence %r is not a number >= 0" % (profile.name, influence))
+    return data
+
+
+def _speed_value(rule: dict):
+    raw = rule["limit_to"] if "limit_to" in rule else rule["multiply_by"]
+    if raw in SPEED_NAMES:
+        return None
+    value = float(raw)
+    if value < 0:
+        raise ValueError("speed rule %r: a negative speed is not read here" % (rule,))
+    return value
+
+
+def speed_excludes(tags: dict, profile: pathlib.Path = PROFILE) -> bool:
+    """True when a firing `speed` rule sets this way's speed to 0 (limit_to 0 or multiply_by 0)."""
+    values = encode(tags)
+    excluded = False
+    for rule in model(profile).get("speed", []):
+        if frozenset(rule) not in SPEED_RULE_KEYS:
+            raise ValueError("speed rule %r: only `if` + `limit_to` or `multiply_by` is read here" % (rule,))
+        value = _speed_value(rule)
+        if fires(rule["if"], values) and value == 0.0:
+            excluded = True
+    return excluded
+
+
 def priority(tags: dict, profile: pathlib.Path = PROFILE) -> float:
     """The product of every firing `priority` rule's `multiply_by`, for one way's tags, over the shipped file."""
-    rules = json.loads(profile.read_text(encoding="utf-8"))["priority"]
+    rules = model(profile).get("priority", [])
     values = encode(tags)
     product = 1.0
     for rule in rules:
@@ -184,5 +232,5 @@ def priority(tags: dict, profile: pathlib.Path = PROFILE) -> float:
 
 
 def gated(tags: dict, profile: pathlib.Path = PROFILE) -> bool:
-    """True when the shipped profile gives this way priority 0 - GraphHopper will never route over it."""
-    return priority(tags, profile) == 0.0
+    """True when the shipped profile gives this way priority 0 or speed 0 - GraphHopper will never route over it."""
+    return priority(tags, profile) == 0.0 or speed_excludes(tags, profile)

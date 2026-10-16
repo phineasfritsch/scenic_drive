@@ -47,6 +47,9 @@ CONFIG = ROUTING / "config.yml"
 
 THRESHOLD = re.compile(r"^scenic_score\s*>=\s*(\d+)$")
 HARD_GATE = re.compile(r"\b(MOTORWAY|TRUNK)\b")
+MODEL_KEYS = {"speed", "priority", "distance_influence"}
+SPEED_VALUE_KEYS = ("limit_to", "multiply_by")
+SPEED_NAMES = {"car_average_speed"}
 IGNORED_HIGHWAYS = re.compile(r"^\s*import\.osm\.ignored_highways\s*:(.*)$", re.MULTILINE)
 
 
@@ -115,10 +118,31 @@ def test_band_multipliers_never_grow_with_lambda():
             )
 
 
+def _positive_speed(value):
+    if value in SPEED_NAMES:
+        return True
+    try:
+        return float(value) > 0
+    except (TypeError, ValueError):
+        return False
+
+
 def test_no_profile_hard_excludes_motorway_or_trunk():
     """CLAUDE.md: motorway/trunk carry scenic_score 0 and are PENALIZED, never hard-excluded (freeway
-    shoulders, scenic middle). Hard gates are safety only: unpaved, private/no access, track."""
+    shoulders, scenic middle). Hard gates are safety only: unpaved, private/no access, track. GraphHopper
+    never routes an edge of speed 0 either, so the WHOLE model is read (T-0012 rv1 B1): no key this test
+    cannot read, and every speed rule's value a positive number or an encoded speed - the gates live in
+    priority, never in speed."""
     for path in (BASE, REQUEST):
+        model = json.loads(path.read_text(encoding="utf-8"))
+        unread = sorted(set(model) - MODEL_KEYS)
+        assert not unread, f"{path.name} carries {unread}: a key this test cannot read could exclude a road"
+        for rule in model.get("speed", []):
+            values = [rule[key] for key in SPEED_VALUE_KEYS if key in rule]
+            assert len(values) == 1 and _positive_speed(values[0]), (
+                f"{path.name} speed rule {rule!r} can set a speed of 0 (or is unreadable): a zero speed is "
+                f"a hard exclusion, and motorway and trunk are penalized, never hard-excluded"
+            )
         for rule in _priority(path):
             condition = _condition(rule)
             assert not HARD_GATE.search(condition), (

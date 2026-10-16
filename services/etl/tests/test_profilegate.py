@@ -106,6 +106,48 @@ def test_a_rule_this_module_cannot_read_refuses(tmp_path, rule):
         pg.priority({"highway": "track"}, _profile(tmp_path, [rule]))
 
 
+def _model(tmp_path, data):
+    path = tmp_path / "m.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return path
+
+
+AVERAGE = {"if": "true", "limit_to": "car_average_speed"}
+SPEED_ZERO = {"limit_to": {"if": "road_class == MOTORWAY || road_class == TRUNK", "limit_to": "0"},
+              "multiply_by": {"if": "road_class == MOTORWAY || road_class == TRUNK", "multiply_by": 0}}
+
+
+@pytest.mark.parametrize("key", sorted(SPEED_ZERO))
+def test_a_firing_speed_of_zero_is_an_exclusion(tmp_path, key):
+    """rv1 B1: GraphHopper never routes an edge of speed 0, so a speed-block zero is a gate like a priority 0."""
+    path = _model(tmp_path, {"speed": [AVERAGE, SPEED_ZERO[key]], "priority": [], "distance_influence": 30})
+    assert pg.gated({"highway": "trunk"}, path) is True
+    assert pg.gated({"highway": "motorway_link"}, path) is True
+    assert pg.gated({"highway": "residential"}, path) is False
+    slow = _model(tmp_path, {"speed": [AVERAGE, {"if": "road_class == MOTORWAY", "limit_to": "50"}]})
+    assert pg.gated({"highway": "motorway"}, slow) is False
+
+
+UNREAD_MODELS = {
+    "areas": {"areas": {}, "priority": []},
+    "distance_influence_text": {"distance_influence": "30"},
+    "distance_influence_negative": {"distance_influence": -1},
+    "distance_influence_bool": {"distance_influence": True},
+    "speed_else_if": {"speed": [AVERAGE, {"else_if": "true", "limit_to": "0"}]},
+    "speed_two_values": {"speed": [{"if": "true", "limit_to": "0", "multiply_by": "1"}]},
+    "speed_extra_key": {"speed": [{"if": "true", "limit_to": "car_average_speed", "note": "x"}]},
+    "speed_no_value": {"speed": [{"if": "true"}]},
+    "speed_unknown_name": {"speed": [{"if": "true", "limit_to": "max_speed"}]},
+    "speed_negative": {"speed": [{"if": "true", "limit_to": "-1"}]},
+}
+
+
+@pytest.mark.parametrize("name", sorted(UNREAD_MODELS))
+def test_a_model_this_module_cannot_read_refuses(tmp_path, name):
+    with pytest.raises((ValueError, KeyError, TypeError)):
+        pg.gated({"highway": "residential"}, _model(tmp_path, UNREAD_MODELS[name]))
+
+
 def test_the_shipped_profile_gates_exactly_its_clauses():
     """Over the shipped file: one tag set per clause is gated, and the same way without it is not."""
     assert pg.gated({"highway": "residential"}) is False
