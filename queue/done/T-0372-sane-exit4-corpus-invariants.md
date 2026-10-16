@@ -1,7 +1,7 @@
 ---
 id: T-0372
 title: ops/sane exit 4 checks the corpus invariants it can see without the graph - no motorway/trunk/private/unpaved way scores above 0, no NULL scores, viewpoints >= the measured floor, surface coverage per class >= baseline - over a corpus.sqlite, local fixture first
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T04:52:58Z
@@ -11,7 +11,7 @@ branch: task/T-0372
 exclusive: []
 touches: [ops/sane, ops/lib/, ops/mutate/sane_corpus.py, services/etl/tests/, pins/PINS.yaml, queue/claimed/T-0372-sane-exit4-corpus-invariants.md, queue/backlog/T-0374-surface-baselines-full-la.md]
 pins_affected: [P-OPS-08, P-PROD-04]
-reviewer: null
+reviewer: agent/rv3-t0372
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
@@ -166,3 +166,4 @@ name; a clean fixture green), exit 4 ordering unchanged (check-sane-exit-order),
     ops/mutate/sane_corpus.py 157, sane_corpus.py 175, ops/sane 212, sane_corpus_cases.py 141, T-0374 file 33.
   - CORRECTION before push: P-OPS-09's round-2 sentence first said 61 rows; the table printed 59/59 - corrected to 59.
 - 2026-10-16T07:06:15Z agent/claude-opus-5 (owner): rv2-t0372 FAIL was ancestry-only (main gained PR #251 T-0361 and PR #252 T-0365; none of this task's files). Merged origin/main as a7d6dbfa, no conflicts. On the merged head, bare: check-sane-corpus "SANE-CORPUS ok 59/59 cases passed" rc=0; check-sane-exit-order "documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=23" rc=0; check-mutate-population "floor of 165 holds" rc=0; check-pins-yaml "pins=51 fields=411" rc=0; check-exec-bits "230 files ... all modes correct" rc=0; queue-check "QUEUE OK (365 tasks)" rc=0. rv2-t0372's M1, M2 and R1 stand red by name from 3c9ac17c.
+- 2026-10-16T07:17:05Z agent/rv3-t0372 (reviewer, round 3, ancestry only): PASS. Fresh `git fetch origin` in the main checkout; detached worktree .worktrees/rv3-t0372 at origin/task/T-0372 58f90aca. `git diff --name-only origin/main...origin/task/T-0372` lists only this task's files: ops/lib/check-sane-corpus, ops/lib/check_sane_corpus.py, ops/lib/mutate_population_table.py, ops/lib/sane_corpus.py, ops/lib/sane_corpus_cases.py, ops/mutate/sane_corpus.py, ops/sane, pins/PINS.yaml, queue/backlog/T-0374-surface-baselines-full-la.md, queue/claimed/T-0372-sane-exit4-corpus-invariants.md. Bare in that worktree: check-sane-corpus "SANE-CORPUS ok 59/59 cases passed (sane=ops/sane)" rc=0; check-sane-exit-order "SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=23" rc=0; check-mutate-population "P-PROC-06: every added module is covered or allowlisted; the floor of 165 holds" rc=0; check-pins-yaml "PINS-YAML ok pins=51 fields=411" rc=0; queue-check "QUEUE OK (365 tasks)" rc=0. `gh pr checks 253` on head 58f90aca: core pass 8m39s, pins-source-only pass 3m43s. LAST, after a fresh fetch: origin/main be5e64e9, `git merge-base --is-ancestor origin/main origin/task/T-0372` exit 0, no drift. rv2-t0372's code findings (M1, M2, R1) were closed in round 2; this round re-checked ancestry and gates only. Signed off; queue/claimed/ -> queue/done/.
