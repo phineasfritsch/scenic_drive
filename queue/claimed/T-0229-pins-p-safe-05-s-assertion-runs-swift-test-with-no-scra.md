@@ -28,3 +28,59 @@ pin's assertion, not the branch. Harness, two rounds.
 ## Log
 - 2026-09-19T21:20:32Z filed by agent/claude-fable-5-1 (orchestrator, from T-0182's Log: P-SAFE-05 seen failing OPEN under a parallel swift test). Not started; cheap; after the LA chain.
 - 2026-10-16T15:39:28Z claimed by agent/claude-opus-5; lease until 2026-10-17T15:39:28Z
+- 2026-10-16T15:45:59Z MEASUREMENT, before any code, by agent/claude-opus-5 (worktree .worktrees/T-0229, base 55c4b140).
+  * Population, direct: `yaml.safe_load(pins/PINS.yaml)` is a list of 51 pins; every pin has `assertion`. Assertions
+    whose text holds a bare-word `swift` command: ONE - P-SAFE-05
+    (`... && swift test --filter SolarFixtureTests 2>&1 | grep -E 'Test run with ...' >/dev/null`). The only other
+    assertion containing the letters `swift` is P-DATA-02, and there only as the file name `Package.swift`.
+  * Population, transitive (scripts an assertion names, grepped for a swift build/test call): ops/lib/run-named-tests.py
+    is the ONE builder. Its `swift_results` runs `swift test --scratch-path $SCENIC_SWIFT_SCRATCH (default .build)`,
+    i.e. the shared default unless an operator overrides it. 11 pins reach it through a `swift` entry in
+    ops/lib/named-tests.json: P-SAFE-04 P-PRIV-04 P-PRIV-05 P-PROD-02 P-PROD-05 P-STORE-02 P-SAFE-08 P-NAV-01 P-SAFE-09
+    P-SAFE-07 P-PROD-01 (two of them, P-NAV-01 and P-SAFE-09, anchor source, so they run in the --source-only gate).
+    The other regex hits are not builders: check-failure-naming, check-pipe-consumers, check-secret-scan.py,
+    check-schema-version.py and check-named-table.py mention swift in prose or mutate a JSON table; check-mutate-only.py
+    (P-PROC-06) launches ops/mutate drivers, and every `swift build`/`swift test` in ops/mutate/*.py passes
+    `--scratch-path SCRATCH` (grep quoted 13 drivers, 26 calls, none without). ops/check-pins itself is
+    `exec python ops/lib/pins.py`, which runs assertions under `bash -o pipefail -c` and builds nothing.
+    ops/test:23 runs `swift test --parallel` on the default .build - outside this task's touches (ops/lib/, PINS.yaml)
+    and the one-command test runner, not a pin; recorded, not changed.
+  RULINGS
+  * R1 (Brief vs T-0182's Log): the Brief calls the sighting "failing OPEN"; T-0182:317-326 shows the pin went RED (the
+    gate failed, then passed serially) - a false red, i.e. it failed closed. The fail-open direction is still real by
+    construction: a pin whose `swift test` shares .build with another build can run a test binary someone else built
+    (a hand-made mutant, a different checkout state). Fixed either way; the race demo below records what happens.
+  * R2 (Brief vs T-0182's Log): T-0182's other build used `--scratch-path .build/T0182`, NOT the default .build, so
+    "shares the default .build" is not what the Brief's own evidence shows; T-0182 says "SwiftPM cannot have two builds
+    in one package at once". Whether a separate scratch path cures that is measured below (two parallel runs sharing
+    .build, then two on their own scratch paths), not assumed.
+  * R3 (acceptance `.build/pins-<id>` vs run-named-tests): P-SAFE-05 takes `--scratch-path .build/pins-p-safe-05`
+    (its own id, lowercased). run-named-tests.py serves 11 pins one after another inside one check-pins run; one cold
+    root-package build per pin would add 10 cold builds to CI's core job for no isolation gain (pins run serially),
+    so its default becomes ONE runner-owned path `.build/pins-named-tests`, never the shared .build.
+    SCENIC_SWIFT_SCRATCH stays (queue/done logs of T-0261..T-0377 use it) but a value that resolves to the shared
+    .build is REFUSED by name before swift starts.
+  * R4 (where the guard runs): new pin P-OPS-10 (free on main and on T-0230/T-0241/T-0376's PINS.yaml, measured),
+    anchor source, runs_on [linux, mac], assertion `python ops/lib/check-swift-scratch.py`. Whitelist shape: every
+    word starting `swift` (case-insensitive, not preceded by a letter, digit, `_`, `.`, `/` or `-`, so `Package.swift`
+    and `Tests/X.swift` are file names, but `swift-build`, `swiftc`, `SWIFT` are not excused) in any assertion read
+    by ops/lib/pins.py's own `load` must sit at a command position and read exactly
+    `swift (test|build) --scratch-path .build/pins-<own id lowercased>`. Everything else is refused, by pin id.
+    The runner half binds to the shipping symbol: the guard imports run-named-tests.py, replaces only its subprocess
+    and `which`, calls `swift_results` and holds the argv it would run.
+  * R5 (ops/mutate drivers): already all on their own SCRATCH (measured above); not a pin assertion; no change.
+  ACCEPTANCE (this task's, written before code)
+  A1 `grep -nE '(^|[^A-Za-z0-9_./-])[Ss][Ww][Ii][Ff][Tt]' ` over the assertions (via the guard's --list) enumerates
+     the population: P-SAFE-05 only, carrying `--scratch-path .build/pins-p-safe-05`.
+  A2 `python ops/lib/check-swift-scratch.py` on the base tree is RED naming P-SAFE-05 and run-named-tests' `.build`;
+     on the branch GREEN.
+  A3 `python ops/lib/check-swift-scratch.py --prove-red` - every row RED by name: missing flag; flag in an echo; flag
+     in a comment; flag on a different command in the same assertion; a second swift call missing it; another pin's
+     scratch; `.build` spelled out; `swift run`; echo of a flagged command; `swift-build`; `SWIFT test`; quoted
+     `bash -c "swift ..."`; runner mutants (flag pair dropped, default reverted to .build, env override `.build`
+     accepted); control rows (flagged single call, two flagged calls, `Package.swift` file name) GREEN.
+  A4 `SCENIC_SWIFT_SCRATCH=.build python ops/lib/run-named-tests.py P-NAV-01` refuses by name before swift runs;
+     `python ops/lib/run-named-tests.py P-NAV-01` and the P-SAFE-05 assertion pass on their own scratch paths.
+  A5 the race demo (two parallel `swift test --filter SolarFixtureTests`, shared .build, then own scratch paths) quoted.
+  A6 bare: bash ops/check-pins --source-only; check-pins-yaml.py; check-exec-bits; check-line-cap; check-mutate-population.py;
+     check-mutate-only.py; check-safety-disclaimer; queue-check.
