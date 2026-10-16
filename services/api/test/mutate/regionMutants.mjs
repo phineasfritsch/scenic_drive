@@ -25,7 +25,7 @@ import { onlyIds } from "./onlyIds.mjs";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-region");
 
-export const MIN_MUTATIONS = 68;
+export const MIN_MUTATIONS = 67;
 export const SUBJECTS = ["src/servedRegion.ts", "src/plan.ts", "src/loop.ts", "src/trip.ts", "src/isochrone.ts",
   "src/waitlist.ts", "src/index.ts", "migrations/0006_waitlist.sql", "migrations/0007_waitlist_seen.sql"];
 const TESTS = ["test/regionGate.test.ts", "test/regionGateOrder.test.ts", "test/waitlist.test.ts", "test/waitlistDedupe.test.ts", "test/migrationColumns.test.ts", "test/planWire.test.ts",
@@ -133,11 +133,9 @@ export const MUTATIONS = [
   m("identity-header-only", W,
     "(await identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => deviceIdentity(req))).userId",
     "deviceIdentity(req).userId"),
-  // rv1 B1: the legacy identity source (x-scenic-device under IDENTITY_HEADERS "1", no Bearer) and a malformed Bearer
-  // falling through to it.
+  // rv1 B1: the legacy identity source (x-scenic-device under IDENTITY_HEADERS "1", no Bearer). Its sibling
+  // malformed-bearer-falls-to-header is EQUIVALENT since T-0322 B1 (T-0363).
   m("legacy-identity-constant", W, "async () => deviceIdentity(req)", "async () => ({ userId: \"unidentified\", tier: \"anon\" as const })"),
-  m("malformed-bearer-falls-to-header", W, "identifyCaller(req.headers.get(AUTHORIZATION_HEADER),",
-    "identifyCaller(/^Bearer [A-Za-z0-9_.-]+$/.test(req.headers.get(AUTHORIZATION_HEADER) ?? \"\") ? req.headers.get(AUTHORIZATION_HEADER) : null,"),
   m("seen-device-column", "migrations/0007_waitlist_seen.sql", "  day TEXT", "  device_id TEXT,\n  day TEXT"),
   m("seen-cell-column", "migrations/0007_waitlist_seen.sql", "  day TEXT", "  cell TEXT,\n  day TEXT"),
 ];
@@ -155,6 +153,15 @@ export const EQUIVALENT = [
       + "catch answers the same 503 waitlist_unavailable: the answer is identical for every input (measured: MISSED in "
       + "the first population run, 2026-10-07). The guard stays for the type narrowing; write-failure-answers-200 "
       + "holds the catch that makes it redundant." },
+  { id: "malformed-bearer-falls-to-header", file: "src/waitlist.ts", find: "identifyCaller(req.headers.get(AUTHORIZATION_HEADER),",
+    replace: "identifyCaller(/^Bearer [A-Za-z0-9_.-]+$/.test(req.headers.get(AUTHORIZATION_HEADER) ?? \"\") ? req.headers.get(AUTHORIZATION_HEADER) : null,",
+    witness: "the mutant's regex is sessionIdentity's BEARER without the capture group - the same language - so it "
+      + "replaces with null exactly the authorizations BEARER.exec rejects. Since T-0322 B1 (25ef1f31, 2026-10-08) "
+      + "identifySession answers such an authorization exactly as null on every arm: no secret -> legacy() either way; "
+      + "flag \"1\" -> legacy() either way; flag closed -> SESSION_REJECTED, which identifyCaller (the only caller here, "
+      + "its .userId the only field read) maps to UNIDENTIFIED_SESSION/anon - what null yields on that arm. verifySession "
+      + "is never reached for either. waitlistDedupe.test.ts's C+malformed step holds that equality as the spec. "
+      + "Measured: MISSED in the whole region run of 2026-10-16 (T-0363), the only MISSED of eight populations." },
 ];
 
 export function floorRefusal(mutations = MUTATIONS, subjects = SUBJECTS) {
