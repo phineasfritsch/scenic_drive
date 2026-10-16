@@ -36,7 +36,7 @@ struct RouteAutopsyBoundaryTests {
         let typed = try AutopsyArguments.parse(["34.0669,-118.4399", "34.0356,-118.6894", "25",
                                                 "--recorded", dir.path]).plan
         return try ScenicPlanner(source: RecordedRouteSource(directory: dir), maxEvaluations: typed.maxEvaluations)
-            .plan(from: typed.origin, to: typed.destination, budget: typed.budget)
+            .checkedRoute(from: typed.origin, to: typed.destination, budget: typed.budget)
     }
 
     static func routeScoreLine(_ edges: [ScoredEdge], unscored: Double) -> String {

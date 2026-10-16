@@ -40,6 +40,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 # test green, so the entry is withdrawn and the module is a subject here (T-0182 R8).
 SUBJECT_MODULES = (
     "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+    "Sources/ScenicKit/Plan/PlanNothingPretty.swift",
     "Sources/ScenicKit/Plan/PlanTable.swift",
     "Sources/ScenicKit/Plan/PlanWaypoints.swift",
     "Sources/ScenicKit/Plan/RouteDifference.swift",
@@ -48,6 +49,7 @@ SUBJECT_MODULES = (
     "Sources/ScenicKit/Plan/ScenicPlanner.swift",
     "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
     "Sources/ScenicPlanCLI/PlanArguments.swift",
+    "Sources/ScenicKit/Scoring/RouteScore.swift",
 )
 
 TEST_FILES = (
@@ -59,13 +61,17 @@ TEST_FILES = (
     "Tests/HandoffTests/ScenicPlanGoldenTests.swift",
     "Tests/ScenicPlanCLITests/PlanCLIBudgetTests.swift",
     "Tests/ScenicPlanCLITests/PlanCLIRequestBodyTests.swift",
+    "Tests/ScenicKitTests/ScenicPlannerHonestFailureTests.swift",
+    "Tests/ScenicPlanCLITests/PlanCLILARecordingTests.swift",
+    "Tests/ScenicKitTests/PlanNothingPrettyBoundsTests.swift",
 )
 
 SUITES = ("ScenicPlannerMetaTests|LambdaCustomModelParityTests|ScenicPlanGoldenTests"
-          "|PlanCLIBudgetTests|PlanCLIRequestBodyTests|LambdaCustomModelRatRunTests|PlanCeilingOverLATests")
+          "|PlanCLIBudgetTests|PlanCLIRequestBodyTests|LambdaCustomModelRatRunTests|PlanCeilingOverLATests"
+          "|ScenicPlannerHonestFailureTests|PlanCLILARecordingTests|PlanNothingPrettyBoundsTests")
 SCRATCH = os.environ.get("SCENIC_MUTATE_SCRATCH", ".build-mutate-plan")
 
-MIN_MUTATIONS = 31
+MIN_MUTATIONS = 47
 
 # name, module, old, new
 MUTATIONS = [
@@ -151,6 +157,50 @@ MUTATIONS = [
     ("report/fixed-drops-the-fraction", "Sources/ScenicKit/Plan/ScenicPlan.swift",
      "let scaled = (value * Double(scale)).rounded()",
      "let scaled = (value * Double(scale)).rounded(.down)"),
+    # T-0230: the honest failure (plan Problem A step 3) and couldNotUseBudget (plan:214), through ScenicPlanner.plan.
+    ("honest/gate-never-fires", "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+     "if let score = scored, !score.isHonestFailure { return plan }", "if true { return plan }"),
+    ("honest/unscored-route-passes", "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+     "if let score = scored, !score.isHonestFailure { return plan }", "if scored.map({ !$0.isHonestFailure }) ?? true { return plan }"),
+    ("honest/floor-inclusive", "Sources/ScenicKit/Scoring/RouteScore.swift",
+     "public var isHonestFailure: Bool { value < Self.honestFailureThreshold }",
+     "public var isHonestFailure: Bool { value <= Self.honestFailureThreshold }"),
+    ("honest/floor-raised", "Sources/ScenicKit/Scoring/RouteScore.swift",
+     "public static let honestFailureThreshold = 0.45", "public static let honestFailureThreshold = 0.46"),
+    ("honest/floor-lowered", "Sources/ScenicKit/Scoring/RouteScore.swift",
+     "public static let honestFailureThreshold = 0.45", "public static let honestFailureThreshold = 0.44"),
+    ("honest/back-roads-offered-when-dull", "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+     "guard let score = scored, !score.isHonestFailure else {", "guard let score = scored else {"),
+    ("honest/back-roads-always-re-requested", "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+     "if let known = measured[Self.key(lambda)] {", "if let known = Optional<RoutePath>.none {"),
+    ("honest/back-roads-refusal-fails-the-answer", "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+     "case .noRecordedResponse, .routerRefused: return .unmeasured(failure.description)",
+     "case .noRecordedResponse: return .unmeasured(failure.description)"),
+    ("honest/more-time-is-plus-30", "Sources/ScenicKit/Plan/PlanNothingPretty.swift",
+     "public static let moreTimeOffer: TimeInterval = 40 * 60", "public static let moreTimeOffer: TimeInterval = 30 * 60"),
+    # T-0230 rv1 B1: the back-roads offer's own floor, at nextDown(0.45), exactly 0.45 and nextUp(0.45).
+    ("honest/back-roads-floor-strict", "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+     "guard let score = scored, !score.isHonestFailure else {",
+     "guard let score = scored, score.value > RouteScore.honestFailureThreshold else {"),
+    ("honest/back-roads-floor-nextdown", "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+     "guard let score = scored, !score.isHonestFailure else {",
+     "guard let score = scored, score.value >= RouteScore.honestFailureThreshold.nextDown else {"),
+    # T-0230 rv1 B2: PlanNothingPretty.minutes at 0, 59, 60, 61 and 90 seconds.
+    ("honest/minutes-drops-whole-check", "Sources/ScenicKit/Plan/PlanNothingPretty.swift",
+     "guard seconds.isFinite, seconds >= 0, seconds.truncatingRemainder(dividingBy: 60) == 0 else {",
+     "guard seconds.isFinite, seconds >= 0 else {"),
+    ("honest/minutes-zero-not-whole", "Sources/ScenicKit/Plan/PlanNothingPretty.swift",
+     "guard seconds.isFinite, seconds >= 0, seconds.truncatingRemainder(dividingBy: 60) == 0 else {",
+     "guard seconds.isFinite, seconds > 0, seconds.truncatingRemainder(dividingBy: 60) == 0 else {"),
+    ("honest/minutes-singular-below-two", "Sources/ScenicKit/Plan/PlanNothingPretty.swift",
+     "return whole == 1 ? \"1 minute\" : \"\\(whole) minutes\"",
+     "return whole <= 1 ? \"1 minute\" : \"\\(whole) minutes\""),
+    ("budget-state/inclusive-at-half", "Sources/ScenicKit/Plan/ScenicPlan.swift",
+     "budget > 0 && outcome.duration < fastestDuration + LambdaSearch.minBudgetUse * budget",
+     "budget > 0 && outcome.duration <= fastestDuration + LambdaSearch.minBudgetUse * budget"),
+    ("budget-state/whole-budget-instead-of-half", "Sources/ScenicKit/Plan/ScenicPlan.swift",
+     "budget > 0 && outcome.duration < fastestDuration + LambdaSearch.minBudgetUse * budget",
+     "budget > 0 && outcome.duration < fastestDuration + budget"),
 ]
 
 FAIL_LINE = re.compile(r"recorded an issue|Test run with .*failed")
