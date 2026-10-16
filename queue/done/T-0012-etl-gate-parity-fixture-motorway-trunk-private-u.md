@@ -1,7 +1,7 @@
 ---
 id: T-0012
 title: ETL gate parity fixture: motorway/trunk/private/unpaved score 0.0 across ETL, router profile and ScenicKit.Gates (P-PROD-01)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T10:26:10Z
@@ -11,7 +11,7 @@ branch: task/T-0012
 exclusive: [services/routing/profiles/car_scenic_base.json]
 touches: [services/etl/, services/routing/profiles/, Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/GateParityFixtureTests.swift, services/routing/tests/test_profiles_static.py, pins/PINS.yaml, ops/lib/named-tests.json, ops/lib/run-named-tests.py, ops/lib/mutate_population_table.py, ops/mutate/profilegate.py, queue/]
 pins_affected: [P-PROD-01]
-reviewer: null
+reviewer: agent/rv3-t0012
 depends_on: [T-0024]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -204,3 +204,4 @@ Depends on T-0024 for the extract the fixture ways are drawn from.
   MIN_MUTATIONS 43 -> 53. P-PROD-01 why_no_test_catches_it appended (dated text untouched). Line counts:
   profilegate.py 236, test_profilegate.py 159, test_profiles_static.py 165, ops/mutate/profilegate.py 172.
 - 2026-10-16T15:01:02Z agent/claude-opus-5 (orchestrator): rv2 FAIL was ancestry only (T-0377's P-PRIV-05 lines, then T-0371/T-0183). Merged origin/main twice; the second merge conflicted only in ops/lib/mutate_population_table.py DRIVERS (union: curated.py from main + profilegate.py from this branch). On the merged head: test_gate_parity + test_profilegate 133 passed, services/routing 39 passed 3 skipped; bare gates all exit 0 (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-telemetry-emit-sites, check-store-links, check-ios-compile-guardrails, ios_screenshot_pinned, check-line-cap, check-pins-yaml, check-exec-bits, queue-check).
+- 2026-10-16T15:10:55Z agent/rv3-t0012 (reviewer, round 3: ancestry/CI/gates): PASS on d49202af (origin/task/T-0012, detached worktree). `git diff origin/main origin/task/T-0012 --stat` lists only this task's 13 files plus its queue file (14 files, +1648 -10); the only change to ops/lib/mutate_population_table.py is the union (profilegate.py added to DRIVERS and services/etl/etl/profilegate.py to COVERED_FLOOR, curated.py from main kept). services/etl `pytest tests/test_gate_parity.py tests/test_profilegate.py` -> 133 passed. `python ops/mutate/profilegate.py` -> `MUTATIONS: 53 caught, 0 missed, 0 skipped, of 53`, `MUTATE OK  caught=53/53 equivalent_caught=0`. Bare gates all exit 0: check-safety-disclaimer, check-mutate-population (floor 168 holds), check-mutate-only, check-telemetry-emit-sites, check-store-links, check-ios-compile-guardrails, ios_screenshot_pinned, check-line-cap (679 Swift files, none over 300), check-pins-yaml (pins=51), check-exec-bits, queue-check (QUEUE OK 368). `gh pr checks 262`: core pass, pins-source-only pass (head d49202af). LAST: `git merge-base --is-ancestor origin/main origin/task/T-0012` rc=0 (origin/main 274cd174). Signed off; queue/claimed/ -> queue/done/.
