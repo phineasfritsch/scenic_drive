@@ -1,7 +1,7 @@
 ---
 id: T-0377
 title: Bind P-PRIV-05's named-tests.json entry to a check-named-table.py digest and count
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T10:29:45Z
@@ -11,7 +11,7 @@ branch: task/T-0377
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-PRIV-05]
-reviewer: null
+reviewer: agent/rv1-t0377
 depends_on: [T-0375, T-0318]
 verify: [ops/check-pins]
 acceptance: []
@@ -122,3 +122,5 @@ in the assertion). Do the same for P-PRIV-05:
      source-only` [rc=0]. PASS.
 - 2026-10-16 filed by agent/claude-opus-5 from T-0375 R2 / stillOpen 2, after T-0318 merged.
 - 2026-10-16T10:29:45Z claimed by agent/claude-opus-5; lease until 2026-10-17T10:29:45Z
+
+- 2026-10-16T12:49:35Z agent/rv1-t0377 (reviewer, not the owner): review PASS of PR #263 at e2b852b2 (origin/main fbeb99b8 an ancestor). Rulings R1-R5 checked against the measured entry. PINS.yaml: every pin other than P-PRIV-05 equal under yaml.safe_load to origin/main; in P-PRIV-05 only `assertion` and `why_no_test_catches_it` changed, and the new why text is the old one verbatim plus one appended sentence dated T-0377 (2026-10-16), so no dated record was edited. named-tests.json unchanged (sha256 a578ae8e...7695). Shipped assertion read with yaml.safe_load and run with bash -o pipefail -c: `NAMED-TABLE P-PRIV-05 ok - 76 distinct names, sha256 4c879f4d82fe`; --prove-red passed (the chain reached run-named-tests.py). `run-named-tests.py P-PRIV-05` gave `NAMED P-PRIV-05 passed=75/76`, and the only non-pass was PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail() MISSING (GRDB-gated on Windows, R2). Reviewer mutants of the P-PRIV-05 entry, run through the shipped string, with the table restored byte-identical after each: RA, the first vitest file key renamed .test.ts -> .spec.ts with names kept: rc=1, `REFUSED digest 59107459... != approved 4c879f4d...`, `NAMED-TABLE P-PRIV-05 FAILED`. RB, one vitest name moved to another file (count and distinct names unchanged): rc=1, `REFUSED digest 4fa3697c... != approved 4c879f4d...`, `NAMED-TABLE P-PRIV-05 FAILED`. Both CAUGHT before run-named-tests ran. Gates: check-pins-yaml `PINS-YAML ok pins=51 fields=411` rc=0; check-exec-bits and queue-check bare rc=0; `gh pr checks 263`: core pass (8m58s), pins-source-only pass (2m28s) on head e2b852b2. Local `ops/check-pins --source-only` printed nothing and hit a 560 s timeout twice on this loaded box, in both worktrees, so the source-only result rests on CI's pins-source-only job at the same head.
