@@ -71,3 +71,4 @@ driver to find its own files, shown red with that mutant then green.
   empty.
 - 2026-10-16T01:51:37Z A2 closures whole (no --only), from services/api, alone: `population mutations=133 (floor 133) equivalent=1 subjects=14 tests=7` / `baseline green tests=738` / `RESULT caught=133 missed=0 trap=0 of 133` exit 0; MISSED/TRAP: none
 - 2026-10-16T02:20:00Z A2 config whole (no --only), from services/api, alone: `population mutations=84 (floor 84) equivalent=1 subjects=2 tests=10` / `baseline green tests=48` / `RESULT caught=84 missed=0 trap=0 of 84` exit 0; MISSED/TRAP: none
+- 2026-10-16T02:44:35Z A2 crossing whole (no --only), from services/api, alone: `population mutations=59 (floor 59) equivalent=5 subjects=9 tests=6` / `baseline green tests=274` / `RESULT caught=59 missed=0 trap=0 of 59` exit 0; MISSED/TRAP: none
