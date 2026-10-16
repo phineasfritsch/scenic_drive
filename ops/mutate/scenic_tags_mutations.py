@@ -9,17 +9,13 @@ SKIP and FAILS - a stale anchor is a harness that has gone quietly blind. **Anch
 comment** (CLAUDE.md): comments get stripped and a mutation anchored on one dies without a sound.
 
 T-0204 R5 adds seven: the unit score, which had no contract at all until the oracle grew one.
-T-0207 adds `assemble.py` as a THIRD subject and nine mutations, floor 35 -> 44. R1 puts the class ceiling
-there - the number that decides what `tagwriter` then writes for a residential, living_street or service
-way - and R2 makes the integer and the unit one number in `tags_for_row`. A module that computes a number
-ships a population, and the number the tags carry is now computed in two files, so both are subjects.
-
-T-0207 R3 adds four, floor 44 -> 48: the ceiling CONDITIONED ON AN INPUT. The pre-review pass ran two unwritten
-and both SURVIVED (`and value < 0.75`, `and record.byway_status is None`), so the class ships whole, one mutation
-per input `scored_row` reads, rather than one spelling at a time (PR #101's precedent).
-T-0188 ports `Gates.verdict`'s other five rules into `assemble.gate_reason`: twenty-three mutations, floor
-48 -> 71, over test_gate_port.py and test_gate_parity.py (both added to EMPTIED). rv1 B1/B2 add two, 71 -> 73:
-a ford or a lock compared to more than Gates.swift's one "yes" literal (the value-space table kills the class).
+T-0207 adds `assemble.py` as a THIRD subject and nine mutations, floor 35 -> 44: the class ceiling (R1) and the
+integer and unit as one number in `tags_for_row` (R2) - the number the tags carry is computed in two files.
+T-0207 R3 adds four, 44 -> 48: the ceiling CONDITIONED ON AN INPUT - two unwritten mutants SURVIVED (`and value <
+0.75`, `and record.byway_status is None`), so the class ships whole, one per input `scored_row` reads (PR #101).
+T-0188 ports `Gates.verdict`'s other five rules into `assemble.gate_reason`: 48 -> 71 over test_gate_port.py and
+test_gate_parity.py (both EMPTIED). rv1 B1/B2 add two, 71 -> 73 (a ford or lock compared to more than "yes");
+rv2 B3 two, 73 -> 75 (a casefolded or stripped ford value; the literal-derived variant rows kill the class).
 """
 from __future__ import annotations
 
@@ -263,6 +259,10 @@ MUTATIONS = [
     ("refuse ford=no", ASSEMBLE, FORD_IF, '    if tags.get("ford") is not None:'),
     ("refuse every ford but no - stepping_stones and boat drive in ScenicKit (rv1 B1)", ASSEMBLE, FORD_IF,
      '    if tags.get("ford") not in (None, "no"):'),
+    ("casefold the ford value - ford=Yes and =YES drive in ScenicKit (rv2 B3)", ASSEMBLE, FORD_IF,
+     '    if (tags.get("ford") or "").lower() == YES:'),
+    ("strip the ford value - ford=' yes' and ='yes ' drive in ScenicKit (rv2 B3)", ASSEMBLE, FORD_IF,
+     '    if (tags.get("ford") or "").strip() == YES:'),
     ("read locked=true and =1 as locked (rv1 B2)", ASSEMBLE, BARRIER_IF,
      BARRIER_IF.replace("== YES", 'in (YES, "true", "1")')),
     ("spell yes as true, so no locked gate and no ford is refused", ASSEMBLE, 'YES = "yes"', 'YES = "true"'),
@@ -297,4 +297,4 @@ EQUIVALENT = [
 # promoted into MUTATIONS. Empty is a claim, not an omission.
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 73
+MIN_MUTATIONS = 75

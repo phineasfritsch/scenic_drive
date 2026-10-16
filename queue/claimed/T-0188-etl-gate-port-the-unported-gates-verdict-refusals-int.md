@@ -161,3 +161,30 @@ router's own and are not this task.
   check-exec-bits (`all modes correct`); queue-check (`QUEUE OK (369 tasks)`). scenic_tags_mutations.py
   `wc -l` 300. Mutants re-run: only the two touched (B1, B2), by hand as quoted above - both caught; the full
   73-mutant driver was not re-run (faster-verification rule).
+- 2026-10-16T18:45:58Z rv2 B3 (agent/rv2-t-0188 on 77c649eb): `if (tags.get("ford") or "").lower() == YES:`
+  survived the whole ETL suite. Ruling: Gates.swift:169 is `tags["ford"] == "yes"` and ConsideredTags does
+  not normalise, so ScenicKit routes ford=Yes/YES/" yes"; the ETL must too. The hole is the CLASS - VALUE_SPACE
+  held no case or padding spelling of any parsed literal - so it covers all five conjuncts (ford, locked,
+  motor_vehicle, highway==track, highway==service). Fix: test_gate_port.py `literal_variants(literal)` derives
+  `{literal.upper(), literal.capitalize(), " "+literal, literal+" ", "\t"+literal+"\n"}` from EACH parsed
+  literal into `equality_rows` (expected refused iff value == literal exactly); the meta test asserts five
+  variants, none the literal, all rows, each `.strip().lower()` back to the literal. gate_parity.json gains
+  synthetic row `ford=Yes` (highway=tertiary, surface=asphalt) as a NEAR_MISS PAVED class: 32 -> 33 rows in
+  test_gate_parity.py and GateParityFixtureTests.swift, whose near-miss test now filters three rows.
+  scenic_tags_mutations.py gains the casefold and strip mutants, MIN_MUTATIONS 73 -> 75 (docstring condensed,
+  `wc -l` 300). test_gate_port.py `wc -l` 240, test_gate_parity.py 159, GateParityFixtureTests.swift 102.
+  RED on the rv2 head's tests (both mutants by hand, __pycache__ purged, 1.1 s sleep, whole suite
+  `python -m pytest`, driver .build/t-0188-drv/two_mutants.py):
+    `casefold the ford value: MISSED  [2002 passed in 82.62s (0:01:22)]`
+    `strip the ford value: MISSED  [2002 passed in 75.43s (0:01:15)]`
+  GREEN on the fixed tests (same driver over tests/test_gate_port.py tests/test_gate_parity.py):
+    `casefold the ford value: CAUGHT  [3 failed, 109 passed in 0.89s]` -
+      `tests/test_gate_parity.py::test_etl_and_profile_agree_on_every_gate`,
+      `tests/test_gate_parity.py::test_etl_gives_the_fixture_verdict[ford=Yes]`,
+      `tests/test_gate_port.py::test_each_equality_conjunct_refuses_its_swift_literal_and_no_other_value[ford==yes]`
+    `strip the ford value: CAUGHT  [1 failed, 111 passed in 1.51s]` -
+      `tests/test_gate_port.py::test_each_equality_conjunct_refuses_its_swift_literal_and_no_other_value[ford==yes]`
+  Pristine: test_gate_port.py + test_gate_parity.py `112 passed in 0.70s`; `swift test --filter
+  GateParityFixtureTests` -> `Test run with 3 tests in 1 suite passed` (ford=Yes row PAVED through
+  Gates.decide in everyRowGetsTheFixtureVerdict and fordAndLockOtherThanYesAreNotGated). Only the two new
+  mutants were re-run (faster-verification rule); the 75-mutant driver was not.

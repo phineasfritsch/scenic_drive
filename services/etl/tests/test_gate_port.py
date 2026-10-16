@@ -196,9 +196,16 @@ def swift_equalities() -> list:
     return found
 
 
+def literal_variants(literal: str) -> set:
+    """rv2 B3: spellings DERIVED from the parsed literal that Swift's exact `==` routes - case (a casefold
+    compare refuses them), padding (a strip refuses them) and a tab/newline pad only a bare strip() removes."""
+    return {literal.upper(), literal.capitalize(), " " + literal, literal + " ", "\t" + literal + "\n"}
+
+
 def equality_rows(literal: str) -> list:
-    """`(value, refused)` over the value space and the literal: refused iff the value IS the literal."""
-    return [(value, refused_under(value, literal)) for value in sorted(set(VALUE_SPACE) | {literal})]
+    """`(value, refused)` over the value space, the literal and its variants: refused iff the value IS the literal."""
+    values = set(VALUE_SPACE) | {literal} | literal_variants(literal)
+    return [(value, refused_under(value, literal)) for value in sorted(values)]
 
 
 def refused_under(value: str, literal: str) -> bool:
@@ -217,6 +224,9 @@ def test_no_equality_row_ignores_the_parsed_literal():
     for _, literal, _ in swift_equalities():
         rows = dict(equality_rows(literal))
         assert sum(rows.values()) == 1 and len(rows) > len(VALUE_SPACE) // 2, (literal, rows)
+        variants = literal_variants(literal)
+        assert len(variants) == 5 and literal not in variants and variants <= set(rows), (literal, variants)
+        assert all(v.strip().lower() == literal for v in variants), (literal, variants)
         for value, refused in rows.items():
             other = value if value != literal else literal + PROBE
             assert refused_under(value, other) != refused, (literal, value)

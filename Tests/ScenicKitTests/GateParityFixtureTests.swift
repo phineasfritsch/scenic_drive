@@ -65,7 +65,7 @@ struct GateParityFixtureTests {
     @Test("every row of the parity fixture gets its verdict from Gates.decide and SegmentScore")
     func everyRowGetsTheFixtureVerdict() throws {
         let rows = try Self.rows()
-        #expect(rows.count == 32)
+        #expect(rows.count == 33)
         for row in rows {
             let got = Self.scenicKitVerdict(row.tags)
             let etl = row.divergent?["etl"] ?? row.verdict
@@ -91,8 +91,10 @@ struct GateParityFixtureTests {
 
     @Test("a ford or a lock spelled other than yes is not gated by ScenicKit")
     func fordAndLockOtherThanYesAreNotGated() throws {
-        let rows = try Self.rows().filter { ["ford=stepping_stones", "barrier=gate+locked=true"].contains($0.name) }
-        #expect(rows.count == 2)
+        let rows = try Self.rows().filter {
+            ["ford=stepping_stones", "barrier=gate+locked=true", "ford=Yes"].contains($0.name)
+        }
+        #expect(rows.count == 3)
         for row in rows {
             #expect(Gates.decide(row.tags).isAllowed, "ScenicKit gates \(row.name); Gates.verdict compares to \"yes\"")
         }
