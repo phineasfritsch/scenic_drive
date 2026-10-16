@@ -91,3 +91,16 @@ green. PINS.yaml stays strict (check-pins-yaml.py).
   `NAMED P-PRIV-05 passed=77/78` with the only RED the GRDB-gated UserStorePrivacyTests MISSING (R3; exit 1 here
   for that reason alone, as T-0377 recorded). `--prove-red ... 78` -> `PROVE-RED OK: 8 of 8 rows red by name,
   controls green`.
+- 2026-10-16T22:20:00Z PRE-REVIEW (A1-A6) at 067a753f. `git fetch origin` (main checkout): origin/main unmoved,
+  `merge-base --is-ancestor origin/main HEAD` exit 0, so the merge is a no-op. A1: of named-tests.json's ten entries
+  only P-PRIV-05 changed (canonical JSON vs origin/main); its vitest half equal; swift tests = origin's + the one row
+  last; the filter = origin's with exactly the R1 replacement. A2/A6 (.build/t0383_pin_diff.py over yaml.safe_load of
+  both): changed pins ['P-PRIV-05'], fields changed ['why_no_test_catches_it', 'assertion'], assertion == origin's
+  with the two approvals swapped (2 occurrences of the new `sha 78`), why == origin's + one T-0383 suffix. A3-A5 as
+  quoted above (no source file differs from the runs: the test file is HEAD's blob 9069a893). Bare gates:
+  check-pins-yaml 0 (`PINS-YAML ok pins=52 fields=418`), check-safety-disclaimer 0 and check-map-attribution 0 (both
+  first exit 1 on my untracked root message file `.git-msg-t0383` - P-SAFE-03 `root top: added .git-msg-t0383` - moved
+  to .build/, then 0), check-mutate-population 0, check-mutate-only 0, check-telemetry-emit-sites 0, check-store-links
+  0, check-ios-compile-guardrails 0, ios_screenshot_pinned 0. check-pins --source-only, check-exec-bits,
+  check-line-cap and queue-check were still running on the loaded box at push time; their statuses are reported with
+  the PR, not claimed here.
