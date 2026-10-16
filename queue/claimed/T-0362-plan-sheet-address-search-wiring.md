@@ -95,3 +95,27 @@ A6 `swift test --filter PlaceSearchSubmitTests`: typing -> 0 calls, submit -> ex
 A7 privacy: `swift test --filter PlanClientSearchedPlaceTests`: the /plan body for a searched place EQUALS the
    recomputed bytes and holds exactly one coordinate at <= 2 dp (also for its reroute).
 A8 ios-compile + ios-screenshot success; the plan-sheet search shot looked at. A9 the bare gates in the Brief green.
+
+## Log (work)
+- 2026-10-16T02:21:38Z agent/claude-opus-5. RED FIRST, Worker: `npx vitest run test/searchPlace.test.ts` before any
+  src change: "Tests 11 failed | 18 passed (29)" (the 18 are refusal rows that were already 404 on main - fail-safe rows
+  kept as such); after searchPlaces.ts + search.ts + plan.ts + planSweep.ts: "Tests 29 passed (29)". Whole Worker suite:
+  "Test Files 95 passed (95) / Tests 2637 passed (2637)" (requestReadSites re-approved for the two plan.ts identify
+  lines). Swift suites were written beside the code, so they were shown red by mutant, each by name (Brief: "tests RED
+  first by name"): M1 SearchClient drops the account token -> "a purchase and no session: the account token rides
+  beside the device"; M2 reader accepts any Int64 spelling -> "the Worker's id spellings are read as that Int64...";
+  M3 bias prefers the destination -> "the bias is the start, else the destination, else none"; M4 copy offers a row
+  with no place -> "every SearchOutcome case has its own exact answer..."; all four exit 1, restored. Green:
+  `swift test --filter "ScenicAPIClientTests|ScenicKitTests"` -> "Test run with 636 tests in 127 suites passed".
+  Worker mutants re-anchored (region/siwa/tier drivers anchored on the moved plan.ts/planSweep.ts lines):
+  `--only` runs: plan-gate-below-resolve, plan-gate-below-closures CAUGHT (caught=2 of 2), sweep-key-shape-prefix-only
+  CAUGHT (1 of 1), plan-identify-unawaited CAUGHT (1 of 1).
+  RULED deviations from the acceptance text: A2 runs through handlePlan (the handler ROUTES['/plan'] runs, planPrivacy's
+  precedent) with the production kvSearchPlaces, plus a planDepsFromEnv row; A3 lives in searchPlace.test.ts (the
+  sweepPlans entry point), not accountDeletePlans.test.ts, so T-0363's test edits do not collide. R10 (found by
+  ios-compile run 38837219921, RoadTripScreen missing arguments): the loop and trip screens pass no address search -
+  /trip resolves corpus ids only, a searched id there would 404; a follow-up, not this task. A8: ios-screenshot has no
+  search shot (its screen list lives in .github/workflows, outside touches); the plan-sheet shots are looked at instead.
+  P-PROC-06: six non-numeric modules allowlisted with reasons (ClientPlaceSearch, PlaceSearchCopy, NoPlaceSearch,
+  PlaceSearchAnswer, PlaceSearchSubmit, PlaceSearching). `npm run typecheck` stops in this worktree at TS2688 (the
+  installed @cloudflare/workers-types has no 2023-07-01 entry point) before reading any source; not compared on main.
