@@ -43,6 +43,8 @@ public struct PlanSheetScreen: View {
     @State private var loop = LoopSheet(disclaimerAccepted: false)
     private let loopPlanner: any LoopPlanning
     private let loopLink: (Coordinate, [Coordinate]) -> URL?
+    /// T-0373 R3: a DEBUG rehearsal's address-search answer, shown on the search list; nil in every release build.
+    private var rehearsedSearch: PlaceSearchAnswer?
 
     public init(planner: any RoutePlanning & WaitlistJoining & PlaceSearching, tripPlanner: any TripPlanning,
                 dayLinks: @escaping ([Coordinate]) -> [URL], loopPlanner: any LoopPlanning,
@@ -65,8 +67,11 @@ public struct PlanSheetScreen: View {
             _showingLoop = State(initialValue: rehearsal.tab == .loop)
             _showingTrip = State(initialValue: rehearsal.tab == .trip)
             _showingSaved = State(initialValue: rehearsal.tab == .saved)
-            _showingWaitlist = State(initialValue: rehearsal.waitlist != nil)
-            _waitlistAnswer = State(initialValue: rehearsal.waitlist)
+            // T-0373 R2: the plan tab's waitlist answer only; the loop and trip screens seed their own.
+            _showingWaitlist = State(initialValue: rehearsal.tab == .plan && rehearsal.waitlist != nil)
+            _waitlistAnswer = State(initialValue: rehearsal.tab == .plan ? rehearsal.waitlist : nil)
+            _query = State(initialValue: rehearsal.searchQuery)
+            rehearsedSearch = rehearsal.searchAnswer
         }
     }
 
@@ -141,7 +146,8 @@ public struct PlanSheetScreen: View {
             form
         case .searching(let field, _):
             PlanPlaceList(field: field, query: $query, search: PlaceSearchSubmit(searcher: planner), start: sheet.start,
-                          destination: sheet.destination, onPick: { sheet.choose($0) }, onCancel: { sheet.endSearch() })
+                          destination: sheet.destination, rehearsed: rehearsedSearch, onPick: { sheet.choose($0) },
+                          onCancel: { sheet.endSearch() })
         case .planning:
             ProgressView("Finding a calmer way there")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

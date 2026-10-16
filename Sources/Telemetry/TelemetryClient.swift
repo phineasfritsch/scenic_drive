@@ -4,19 +4,23 @@ import Foundation
 /// payload can be sent (P-PRIV-05), and it is fail-quiet (R3): `record` never throws, at most `capacity` events wait
 /// behind a post in flight (one more is dropped), each post carries everything waiting, and whatever a post's
 /// outcome - a thrown error or any status - that batch is gone: no retry, nothing kept on the device.
+///
+/// The x-scenic-device id comes from `device`, called as EACH post is built (T-0367 R2): after a confirmed account
+/// deletion erases the install id, no later post - not even a batch already waiting behind one in flight - carries
+/// the deleted id (P-PRIV-04 R3).
 public actor TelemetryClient {
     /// The Worker's MAX_TELEMETRY_EVENTS_PER_REQUEST: a batch is never one the Worker refuses for its size.
     public static let capacity = 20
 
     private let url: URL
-    private let headers: [String: String]
+    private let device: @Sendable () -> UUID
     private let transport: any TelemetryTransport
     private var waiting: [TelemetryEvent] = []
     private var isSending = false
 
-    public init(base: URL, device: UUID, transport: any TelemetryTransport) {
+    public init(base: URL, device: @escaping @Sendable () -> UUID, transport: any TelemetryTransport) {
         url = base.appendingPathComponent("telemetry")
-        headers = ["content-type": "application/json", "x-scenic-device": device.uuidString.lowercased()]
+        self.device = device
         self.transport = transport
     }
 
@@ -31,8 +35,12 @@ public actor TelemetryClient {
             let batch = waiting
             waiting = []
             guard let body = try? TelemetryRequestBody.encode(batch) else { continue }
-            _ = try? await transport.send(TelemetryRequest(url: url, method: "POST", headers: headers, body: body))
+            _ = try? await transport.send(TelemetryRequest(url: url, method: "POST", headers: headers(), body: body))
         }
         isSending = false
+    }
+
+    private func headers() -> [String: String] {
+        ["content-type": "application/json", "x-scenic-device": device().uuidString.lowercased()]
     }
 }

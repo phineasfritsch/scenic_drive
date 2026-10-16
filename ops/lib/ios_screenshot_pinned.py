@@ -66,7 +66,7 @@ alive() {
 }
 for LOOK in ${{ matrix.look }}; do
   SIZE=()
-  LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty waitlist offered loop trip saved paused update loopPaused tripPaused legal"
+  LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty waitlist offered loop trip saved paused update loopPaused tripPaused loopRegion tripRegion loopWaitlist tripWaitlist searchResults searchNotice legal"
   if [ "$LOOK" = ax5 ]; then
     SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)
     LIST="preview nothingPretty offered loop trip saved"
@@ -82,7 +82,7 @@ for LOOK in ${{ matrix.look }}; do
       settings|paywall|surprise|legal) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
       onboarding) DETENT=collapsed ROW=default SCREEN=home NAME=onboarding-$LOOK DONE=() ;;
       disclaimer) DETENT=collapsed ROW=default SCREEN=disclaimer NAME=disclaimer-$LOOK DONE=() ;;
-      preview|nothingPretty|waitlist|offered|loop|trip|saved|paused|update|loopPaused|tripPaused) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=plan-$SHOT-$LOOK WAIT=$PLAN_SETTLE ;;
+      preview|nothingPretty|waitlist|offered|loop|trip|saved|paused|update|loopPaused|tripPaused|loopRegion|tripRegion|loopWaitlist|tripWaitlist|searchResults|searchNotice) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=plan-$SHOT-$LOOK WAIT=$PLAN_SETTLE ;;
       drive) DETENT=collapsed ROW=default SCREEN=drive NAME=drive-$LOOK
         xcrun simctl privacy "$UDID" grant location "$BUNDLE"
         xcrun simctl location "$UDID" start --speed=15 34.0905,-118.6370 34.0880,-118.6250 34.0855,-118.6150 34.0830,-118.6050 ;;
@@ -175,7 +175,10 @@ ALIVE = '              alive "$PID" "${WAIT}s after the $LOOK $SHOT launch"\n'
 PLAN_SETTLE = "          PLAN_SETTLE=6\n"
 PLAN_ARM = "NAME=plan-$SHOT-$LOOK WAIT=$PLAN_SETTLE ;;"
 SHOTS_LIST = ('            LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer'
-              ' preview nothingPretty offered loop trip saved paused update loopPaused tripPaused legal"\n')
+              ' preview nothingPretty waitlist offered loop trip saved paused update loopPaused tripPaused loopRegion'
+              ' tripRegion loopWaitlist tripWaitlist searchResults searchNotice legal"\n')
+T0373_SHOTS = " loopRegion tripRegion loopWaitlist tripWaitlist searchResults searchNotice"
+T0373_ARM = "|loopRegion|tripRegion|loopWaitlist|tripWaitlist|searchResults|searchNotice) DETENT=collapsed"
 LOOKS = "          for LOOK in ${{ matrix.look }}; do\n"
 AX5_SIZE = "              SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)\n"
 AX5_LIST = '              LIST="preview nothingPretty offered loop trip saved"\n'
@@ -224,7 +227,11 @@ MUTATIONS = [
      LAUNCH.replace(' "${DONE[@]}"', "")),
     ("T-0324: the drive shot dropped", SHOTS_LIST, SHOTS_LIST.replace(" drive onboarding", " onboarding")),
     ("T-0336: the plan-sheet shots dropped", SHOTS_LIST,
-     SHOTS_LIST.replace(" preview nothingPretty offered loop trip saved", "")),
+     SHOTS_LIST.replace(" preview nothingPretty waitlist offered loop trip saved", "")),
+    ("T-0373: the loop/trip region, waitlist and address-search shots dropped from the LIST", SHOTS_LIST,
+     SHOTS_LIST.replace(T0373_SHOTS, "")),
+    ("T-0373: the same shots dropped from the plan-sheet arm (they would shoot the home)", T0373_ARM,
+     ") DETENT=collapsed"),
     ("T-0346: the AX5 pass dropped (no plan card seen at the largest text size)", MATRIX,
      MATRIX.replace(", ax5]", "]")),
     ("T-0346: the AX5 pass launched at the default text size", LAUNCH, LAUNCH.replace(' "${SIZE[@]}"', "")),
@@ -235,7 +242,7 @@ MUTATIONS = [
     ("T-0346: the AX5 pass shoots every home screen too (the 30-minute cap)", AX5_LIST,
      SHOTS_LIST.replace("            ", "              ")),
     ("T-0336: the plan-offered shot dropped (T-0334's offer card unseen)", SHOTS_LIST,
-     SHOTS_LIST.replace(" nothingPretty offered", " nothingPretty")),
+     SHOTS_LIST.replace(" nothingPretty waitlist offered", " nothingPretty waitlist")),
     ("T-0336: the onboarding and legal shots dropped", SHOTS_LIST,
      SHOTS_LIST.replace(" onboarding disclaimer", "").replace(' legal"', '"')),
     ("T-0271: the settings and paywall shots dropped", SHOTS_LIST,
