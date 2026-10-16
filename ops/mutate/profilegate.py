@@ -41,6 +41,10 @@ ACCESS = '"road_access == PRIVATE || road_access == NO || road_access == DESTINA
 UNKNOWN_IDENT = "        if tok not in self.values:\n            raise ValueError("
 UNREADABLE = '        if match is None:\n            raise ValueError("unreadable expression %r at %d" % (expression, at))'
 SURFACE_NAMES = ("GRAVEL", "DIRT", "GROUND", "SAND", "UNPAVED", "COMPACTED")
+SPEED_RULE = '{ "if": "true", "limit_to": "car_average_speed" }'
+SPEED_EXCLUSION = '{ "if": "road_class == MOTORWAY || road_class == TRUNK", "%s": "0" }'
+INFLUENCE = '"distance_influence": 30'
+GATED_BY = "    return priority(tags, profile) == 0.0 or speed_excludes(tags, profile)"
 
 MUTATIONS = [
     ("a _link class kept whole", SUBJECT, "        value = value[: -len(LINK_SUFFIX)]", "        value = value"),
@@ -93,6 +97,21 @@ MUTATIONS = [
      '    { "if": "road_class == MOTORWAY", "multiply_by": "0" },\n    { "if": "road_class == TRACK"'),
     ("profile: trunk hard-excluded", PROFILE, '    { "if": "road_class == TRACK"',
      '    { "if": "road_class == TRUNK", "multiply_by": "0" },\n    { "if": "road_class == TRACK"'),
+    ("profile: motorway and trunk speed limited to 0", PROFILE, SPEED_RULE,
+     SPEED_RULE + ",\n    " + SPEED_EXCLUSION % "limit_to"),
+    ("profile: motorway and trunk speed multiplied by 0", PROFILE, SPEED_RULE,
+     SPEED_RULE + ",\n    " + SPEED_EXCLUSION % "multiply_by"),
+    ("profile: a top-level key the evaluator cannot read", PROFILE, INFLUENCE, INFLUENCE + ',\n  "areas": {}'),
+    ("the speed block not read", SUBJECT, GATED_BY, "    return priority(tags, profile) == 0.0"),
+    ("a firing speed of 0 not an exclusion", SUBJECT, "        if fires(rule[\"if\"], values) and value == 0.0:",
+     "        if fires(rule[\"if\"], values) and value < 0.0:"),
+    ("every speed rule read as firing", SUBJECT, "        if fires(rule[\"if\"], values) and value == 0.0:",
+     "        if value == 0.0:"),
+    ("any speed rule shape read", SUBJECT, "        if frozenset(rule) not in SPEED_RULE_KEYS:", "        if False:"),
+    ("any identifier read as a nonzero speed", SUBJECT, "    if raw in SPEED_NAMES:",
+     "    if isinstance(raw, str) and raw.isidentifier():"),
+    ("an unread top-level key accepted", SUBJECT, "    if unread:", "    if False:"),
+    ("a non-number distance_influence accepted", SUBJECT, "    if not _number(influence):", "    if False:"),
 ] + [("profile: %s let through" % s, PROFILE, "surface == %s || " % s, "") for s in SURFACE_NAMES]
 
 EQUIVALENT = [
@@ -102,7 +121,7 @@ EQUIVALENT = [
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 43
+MIN_MUTATIONS = 53
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
