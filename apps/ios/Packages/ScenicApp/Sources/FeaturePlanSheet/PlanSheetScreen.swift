@@ -19,6 +19,9 @@ public struct PlanSheetScreen: View {
     @State private var showingWaitlist = false
     @State private var waitlistAnswer: WaitlistAnswer?
     private let onClose: () -> Void
+    /// T-0368 R1, R4: the kept /config answer's feature_surprise, read after this appearance's degrade refresh.
+    private let surpriseGate: @MainActor () -> SurpriseGate
+    @State private var surprise = SurpriseGate.on
     /// The door to the drive (T-0324 R4): the shell takes the previewed plan and shows the drive in place of the home.
     private let onDrive: (PlanPreview) -> Void
 
@@ -43,7 +46,8 @@ public struct PlanSheetScreen: View {
 
     public init(planner: any RoutePlanning & WaitlistJoining & PlaceSearching, tripPlanner: any TripPlanning,
                 dayLinks: @escaping ([Coordinate]) -> [URL], loopPlanner: any LoopPlanning,
-                loopLink: @escaping (Coordinate, [Coordinate]) -> URL?, onDrive: @escaping (PlanPreview) -> Void,
+                loopLink: @escaping (Coordinate, [Coordinate]) -> URL?,
+                surpriseGate: @escaping @MainActor () -> SurpriseGate, onDrive: @escaping (PlanPreview) -> Void,
                 onClose: @escaping () -> Void) {
         self.planner = planner
         self.tripPlanner = tripPlanner
@@ -51,6 +55,7 @@ public struct PlanSheetScreen: View {
         self.loopPlanner = loopPlanner
         self.loopLink = loopLink
         self.onClose = onClose
+        self.surpriseGate = surpriseGate
         self.onDrive = onDrive
         // T-0336: a DEBUG `-screen` rehearsal opens on its fixed state; nil in every release build.
         if let rehearsal = PlanRehearsal.atLaunch {
@@ -109,6 +114,7 @@ public struct PlanSheetScreen: View {
             // T-0357 R7: the planner's /config degrade, once per appearance; a DEBUG rehearsal keeps its own.
             guard PlanRehearsal.atLaunch == nil else { return }
             sheet.setDegrade(await planner.degrade())
+            surprise = surpriseGate()
         }
         .onChange(of: safetyNoteRead) { _, accepted in
             sheet.setDisclaimerAccepted(accepted)
@@ -147,7 +153,7 @@ public struct PlanSheetScreen: View {
             if showingWaitlist {
                 WaitlistCard(answer: waitlistAnswer, onChangeStart: { searchFor(.start) })
             } else {
-                PlanFailureCard(copy: PlanFailureCopy.of(failure), onAction: act)
+                PlanFailureCard(copy: PlanFailureCopy.of(failure, surprise: surprise), onAction: act)
             }
         case .offered(_, let offer):
             // T-0334: each offer is ONE fresh plan through the gate, run down the same planner path.

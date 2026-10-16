@@ -9,13 +9,16 @@ public struct PlanFailureCopy: Equatable, Sendable {
         self.action = action
     }
 
-    /// The row for `failure`. An exhaustive switch: a new case does not compile until it has its row.
-    public static func of(_ failure: PlanSheetFailure) -> PlanFailureCopy {
+    /// The row for `failure` under `surprise` (T-0368 R4): while /config's feature_surprise is off, the three rows that
+    /// offered Surprise Me close the sheet instead and their lines stop naming it. An exhaustive switch: a new case
+    /// does not compile until it has its row.
+    public static func of(_ failure: PlanSheetFailure, surprise: SurpriseGate) -> PlanFailureCopy {
         switch failure {
         case .quotaExhausted:
             return PlanFailureCopy(line: "That's all of today's planned drives. More open up when the daily count resets.",
-                                   action: .surpriseMe)
+                                   action: surprise == .on ? .surpriseMe : .close)
         case .planningPaused:
+            guard surprise == .on else { return PlanFailureCopy(line: ConfigDegrade.pausedQuietLine, action: .close) }
             return PlanFailureCopy(line: "Planning is paused right now. Surprise Me still works.", action: .surpriseMe)
         case .routingOffline:
             return PlanFailureCopy(line: "The route planner can't be reached right now. Try again in a little while.",
@@ -26,6 +29,7 @@ public struct PlanFailureCopy: Equatable, Sendable {
             return PlanFailureCopy(line: "Drives can't be planned from that start yet. We can count this area toward "
                                        + "where we go next.", action: .joinWaitlist)
         case .attestUnsupported:
+            guard surprise == .on else { return PlanFailureCopy(line: "This phone can't plan drives yet.", action: .close) }
             return PlanFailureCopy(line: "This phone can't plan drives yet. Surprise Me still works.", action: .surpriseMe)
         case .offlineDuringDrive:
             return PlanFailureCopy(line: "You're offline. Keep to the road you're on; the route comes back with signal.",

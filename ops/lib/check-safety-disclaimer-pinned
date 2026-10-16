@@ -59,8 +59,9 @@ PINNED_FEATURE=(
   'HomeSheetDetent.swift 8f6a8eeaec6829a1b415408db5ea34d787d657919fc0f363189eb34c0e39e63e'
   'LoopLinks.swift 524197fc520aec7559c5e586bb8555f4c6d3fe89a244d3a4ba4132aa58815843'
   'SafetyDisclaimer.swift 1a78c11097e52a57abb3a8e4b836b16deb0f1a2a34e25f0d2aa22f7e07d53ead'
-  'ScenicHomeScreen.swift 750e71f3aa1945f664efe3a0e15e40bb90f76749aea4325e33d25f6c0d201d31'
+  'ScenicHomeScreen.swift ba0d28ffb1c564acf4f67707896e68699b31212c72649a6323f5c9f4f210af85'
   'SkylineHandoff.swift 43fa2c19ce81f0cb217cfd98f5da383465ac1bb87ae5d5ac4d97017f74eff70c'
+  'SurpriseGateSlot.swift 3678228eae092d122ba9061d8480b8d798c357a2f46f3719c2257871f894a895'
   'SurpriseSlot.swift 2306572ab23e70b3050f3e6b41f3e91587b79fb8693eab0f8b4b896e234c124b'
   'SurpriseToggle.swift 97d90de6d95a6d7f1e1f0b8cb99df6e46ac250d890fdbb182da4a956b3e4770a'
   'TripDayLinks.swift cc961d2922aceec20add2fb38d595824b295d1644593991f3036fd6d36bfd87c'
@@ -99,7 +100,7 @@ PINNED_SHELL_ENTRIES=(
   'f ScenicDriveApp.swift' 'f Tiles/.gitignore'
 )
 PINNED_SHELL_TILE='^f Tiles/[A-Za-z0-9_-][A-Za-z0-9._-]*\.pmtiles(\.json)?$'
-PINNED_SHELL_DIGEST='760fe0f9beffd091a624bcd7e10b4095138b4e56fe07afddc64ec7d7d90172c4'
+PINNED_SHELL_DIGEST='b6981fdbcaec4c56338e6adbbc9614b1db22e2fbbdced6180e1325225353e5ad'
 
 # pinned_shell DIR: the shell's entries against the whitelist, its index for links, ScenicDriveApp.swift's digest.
 pinned_shell() {
@@ -257,7 +258,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsal.swift f3fe13c3172c7127b04ad6130e694d148137c212db885182fe577525e2a588eb'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift 377ae8f998b0b2f1091c0af22e523991b294341f0170d609cd95fe5306a9b963'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRouteShape.swift 080f53442d11034a4bed4c5dbda1daef4903104c6a0d8346326d80737be2fd43'
-  'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift 05a6bd217cf2a6fd00c9d557ef01300a030c0f974787f2f8d67a5a8ebb6ec5ff'
+  'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift bf983ee1e5e3683af2a8098b67d0e4d41464270863a8f8662d386bb0a7430727'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/RoadTripScreen.swift e6764bc4927e0bce92d5315b179bce57c0fdba68c3fbcc223bdc3f290d694c47'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/SavedDriveShelf.swift 82a2353dcc57db12623abf2157abd9b0ac07778ef2127ab60739ba14a6e2ba81'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/SavedDrivesList.swift c10b91c5e593dd2a0d41010fa103761dc5bc9003ce442c45cdff4d10a7d13ccb'
@@ -280,8 +281,9 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/FeatureScenicHome/LoopLinks.swift 524197fc520aec7559c5e586bb8555f4c6d3fe89a244d3a4ba4132aa58815843'
   'Packages/ScenicApp/Sources/FeatureScenicHome/OnboardingRehearsal.swift 4ac76e5e2a335b545ed2d1567b1e51ac7ea76a3481c2ab286dac356083eae40a'
   'Packages/ScenicApp/Sources/FeatureScenicHome/SafetyDisclaimer.swift 1a78c11097e52a57abb3a8e4b836b16deb0f1a2a34e25f0d2aa22f7e07d53ead'
-  'Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift 750e71f3aa1945f664efe3a0e15e40bb90f76749aea4325e33d25f6c0d201d31'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift ba0d28ffb1c564acf4f67707896e68699b31212c72649a6323f5c9f4f210af85'
   'Packages/ScenicApp/Sources/FeatureScenicHome/SkylineHandoff.swift 43fa2c19ce81f0cb217cfd98f5da383465ac1bb87ae5d5ac4d97017f74eff70c'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/SurpriseGateSlot.swift 3678228eae092d122ba9061d8480b8d798c357a2f46f3719c2257871f894a895'
   'Packages/ScenicApp/Sources/FeatureScenicHome/SurpriseSlot.swift 2306572ab23e70b3050f3e6b41f3e91587b79fb8693eab0f8b4b896e234c124b'
   'Packages/ScenicApp/Sources/FeatureScenicHome/SurpriseToggle.swift 97d90de6d95a6d7f1e1f0b8cb99df6e46ac250d890fdbb182da4a956b3e4770a'
   'Packages/ScenicApp/Sources/FeatureScenicHome/TripDayLinks.swift cc961d2922aceec20add2fb38d595824b295d1644593991f3036fd6d36bfd87c'
@@ -318,7 +320,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/PlanAdapter/LiveAccountDeletion.swift e4a5809ca530df8b68e8afd60116d26e7add5015a5331ee8ac850b3c5bc63afc'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveCorpus.swift 7ff48a28282b5101019eab59649e6a991e5f4b380eb906f2f77ce969221c3649'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveLoopPlanner.swift c72fecee18a0995229d9f0f28cdfffaffef142abfeb9075aeb5ec0ce2fc57625'
-  'Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift 65522e5d79d632525aa2f0d994e7d72025c42b4c734d1918147c584f197ea9a4'
+  'Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift 7593ccda83473afccc77d1a47dab4585923ad276c99014a24485858d7ad0b2d3'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveSession.swift 48a4f76a5182054a408277b9859b727dfd0418ead23062fdc6dc24ffcc184374'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift 75275ff4d61578039a335cfe7cd0da84c0af6dce19b15a3d2f490d36cd31a17b'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift 10ac1d6186f5739c744f066eec1b6e0f6eeaa92b5d4e577d3ca6f4fd013db941'

@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-17T06:29:51Z
 worktree: .worktrees/T-0368
 branch: task/T-0368
 exclusive: []
-touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/ScenicAPIClient/ConfigCache.swift, Tests/ScenicAPIClientTests/ConfigCacheTests.swift, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/, ops/mutate/, queue/]
+touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/ScenicAPIClient/ConfigCache.swift, Tests/ScenicAPIClientTests/ConfigCacheTests.swift, Tests/ScenicAPIClientTests/NothingPrettyReaderTests.swift, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/, ops/mutate/, queue/]
 pins_affected: []
 reviewer: null
 depends_on: [T-0364]

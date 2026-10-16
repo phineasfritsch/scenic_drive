@@ -24,6 +24,9 @@ import SwiftUI
 /// the shell hands DriveHost its reroute sender - the rehearsal's in a DEBUG drive shot, else PlanAdapter's.
 ///
 /// T-0356 R7: the shell hands Settings PlanAdapter's LiveAccountDeletion - the one module seeing both.
+///
+/// T-0368 R1, R6: the shell reads feature_surprise once from the kept /config answer (no request) for the home, again
+/// when the plan sheet closes, and hands the plan sheet the same reader.
 @main
 struct ScenicDriveApp: App {
     @State private var isShowingSettings = LaunchScreen.atLaunch != .home
@@ -31,6 +34,7 @@ struct ScenicDriveApp: App {
     @State private var corpus: LiveCorpus
     @State private var isShowingCorpusDownload: Bool
     @State private var drive = DriveRehearsal.atLaunch
+    @State private var surpriseGate = LivePlanner.surpriseGate()
 
     init() {
         let corpus = LiveCorpus.launch(wifiOnlyKey: SettingsScreen.corpusWifiOnlyKey)
@@ -50,14 +54,14 @@ struct ScenicDriveApp: App {
     }
 
     private var home: some View {
-        ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })
+        ScenicHomeScreen(onSettings: { isShowingSettings = true }, surpriseGate: surpriseGate, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })
             .sheet(isPresented: $isShowingSettings) {
                 SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, deleteAccount: { await LiveAccountDeletion.run() }, onDone: { isShowingSettings = false })
             }
             .overlay(alignment: .topLeading) {
                 PlanDriveButton(action: { isPlanning = true })
-                    .sheet(isPresented: $isPlanning) {
-                        PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, onDrive: { isPlanning = false; drive = $0 }, onClose: { isPlanning = false })
+                    .sheet(isPresented: $isPlanning, onDismiss: { surpriseGate = LivePlanner.surpriseGate() }) {
+                        PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, surpriseGate: { LivePlanner.surpriseGate() }, onDrive: { isPlanning = false; drive = $0 }, onClose: { isPlanning = false })
                     }
             }
             .sheet(isPresented: $isShowingCorpusDownload) {

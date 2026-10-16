@@ -74,7 +74,9 @@ final class NothingPrettyReaderTests: XCTestCase {
     func testTheSheetShowsTheHonestFailure() {
         let offer = NothingPrettyOffer(budgetMinutes: 25, moreTimeMinutes: 65, backRoadsEtaSeconds: nil)
         XCTAssertEqual(PlanError.nothingPretty(offer).failure, .nothingPretty)
-        XCTAssertEqual(PlanFailureCopy.of(.nothingPretty), PlanFailureCopy(
-            line: "Not much pretty within reach of this drive. More time might find some.", action: .chooseAnotherPlace))
+        for gate in SurpriseGate.allCases {
+            XCTAssertEqual(PlanFailureCopy.of(.nothingPretty, surprise: gate), PlanFailureCopy(
+                line: "Not much pretty within reach of this drive. More time might find some.", action: .chooseAnotherPlace))
+        }
     }
 }
