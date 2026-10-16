@@ -9,9 +9,11 @@ public enum LiveTripPlanner {
     public static func make() -> any TripPlanning {
         guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return UnreachableTripPlanner() }
-        return TelemetryTripPlanner(inner: ClientTripPlanner(client: TripClient(base: base, transport: URLSessionPlanTransport(),
+        let client = ClientTripPlanner(client: TripClient(base: base, transport: URLSessionPlanTransport(),
                                                     installID: StoredInstallID(),
                                                     accountToken: StoreKitAccountToken(),
-                                                    session: LiveSession.store)))
+                                                    session: LiveSession.store))
+        // T-0364 R3: the /config cache and our build, so the form hears a pause, an update or its flag first.
+        return TelemetryTripPlanner(inner: ConfiguredTripPlanner(planner: client, cache: LivePlanner.cache(base), appBuild: LivePlanner.appBuild))
     }
 }

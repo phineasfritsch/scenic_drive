@@ -12,6 +12,8 @@ public struct TripSheet: Equatable, Sendable {
     public private(set) var days: Int
     public private(set) var extraBudgetPercent: Int
     public private(set) var disclaimerAccepted: Bool
+    /// T-0364 R3: /config's degrade for this screen, set by the view from its planner; no ticket unless clear.
+    public private(set) var degrade: ConfigDegrade = .clear
     private var issued = 0
 
     public init(disclaimerAccepted: Bool, days: Int = 2, extraBudgetPercent: Int = 40) {
@@ -22,6 +24,11 @@ public struct TripSheet: Equatable, Sendable {
 
     public mutating func setDisclaimerAccepted(_ accepted: Bool) {
         disclaimerAccepted = accepted
+    }
+
+    /// The planner's /config degrade for this screen (T-0364 R3), read by the view.
+    public mutating func setDegrade(_ degrade: ConfigDegrade) {
+        self.degrade = degrade
     }
 
     public mutating func search(_ query: String, for field: PlanField) {
@@ -62,7 +69,7 @@ public struct TripSheet: Equatable, Sendable {
     }
 
     public mutating func startPlanning() -> TripTicket? {
-        guard disclaimerAccepted, let start, let destination else { return nil }
+        guard disclaimerAccepted, degrade == .clear, let start, let destination else { return nil }
         switch state {
         case .chosen, .itinerary, .failed: break
         case .idle, .searching, .planning: return nil

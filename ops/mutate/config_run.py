@@ -20,7 +20,8 @@ from config_mutations import ROOT
 # CONFIG_MUTATE_SCRATCH overrides it where a worktree path is too long for the index store.
 SCRATCH = os.environ.get("CONFIG_MUTATE_SCRATCH", ".build/mutate-config")
 # The suites every `killers` entry names, by their type names.
-FILTER = "ConfigClientTests|ConfigCacheTests|ConfiguredPlannerTests|ConfigDegradeTests"
+FILTER = ("ConfigClientTests|ConfigCacheTests|ConfiguredPlannerTests|ConfigDegradeTests|ConfigFlagTests|"
+          "ConfiguredSheetPlannerTests|ConfigNoticeTests")
 # `Test "<display name>" recorded an issue`. ASCII only: the failure glyph mis-decodes on this console.
 FAIL_LINE = re.compile(r'Test\s+(?:"([^"]*)"|([A-Za-z_]\w*\(\)))\s+recorded an issue')
 
@@ -58,13 +59,13 @@ def not_at_head(paths) -> list:
 
 
 def build() -> int:
-    p = subprocess.run(["swift", "build", "--build-tests", "--scratch-path", SCRATCH],
+    p = subprocess.run(["swift", "build", "--build-tests", "--jobs", "4", "--scratch-path", SCRATCH],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode
 
 
 def test() -> tuple:
-    p = subprocess.run(["swift", "test", "--scratch-path", SCRATCH, "--filter", FILTER],
+    p = subprocess.run(["swift", "test", "--jobs", "4", "--scratch-path", SCRATCH, "--filter", FILTER],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode, (p.stdout + p.stderr)
 

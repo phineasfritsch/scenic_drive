@@ -33,11 +33,20 @@ public enum LivePlanner {
     static func planner() -> any RoutePlanning {
         guard let text = UserDefaults.standard.string(forKey: baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return UnreachablePlanner() }
-        let cache = ConfigCache(client: ConfigClient(base: base, transport: URLSessionPlanTransport()),
-                                storage: DefaultsConfigStorage())
-        let build = AppBuild.parse(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
+        let cache = Self.cache(base)
+        let build = Self.appBuild
         return TelemetryRoutePlanner(inner: ConfiguredPlanner(planner: ClientPlanner(client: client(base)), cache: cache,
                                                               appBuild: build))
+    }
+
+    /// The /config cache every live planner degrades through (T-0357 R4; T-0364 R3: plan, loop and trip alike).
+    static func cache(_ base: URL) -> ConfigCache {
+        ConfigCache(client: ConfigClient(base: base, transport: URLSessionPlanTransport()), storage: DefaultsConfigStorage())
+    }
+
+    /// Our build, as /config's min_app_build is compared against it (T-0357 R5).
+    static var appBuild: Int? {
+        AppBuild.parse(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
     }
 
     /// The drive's reroute sender (T-0328 R2): PlanRerouter on the same client, continuing `preview`'s plan; the sender

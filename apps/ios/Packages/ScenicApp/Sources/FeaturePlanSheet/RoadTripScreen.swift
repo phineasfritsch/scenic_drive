@@ -66,7 +66,13 @@ struct RoadTripScreen: View {
                         in: TripSheet.extraPercentRange, step: 10)
             }
             Section {
-                if trip.disclaimerAccepted {
+                if let notice = trip.degrade.notice(on: .trip) {
+                    // T-0364 R3: a pause, an update or road trips switched off, heard from /config before the tap.
+                    Text(notice)
+                        .foregroundStyle(DesignTokens.fg)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("trip.degrade")
+                } else if trip.disclaimerAccepted {
                     Button("Plan the road trip", action: planTrip)
                         .disabled(trip.start == nil || trip.destination == nil)
                         .accessibilityIdentifier("trip.go")
@@ -76,6 +82,11 @@ struct RoadTripScreen: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+        }
+        .task {
+            // T-0364 R3: this screen's /config degrade, each time its form shows; a DEBUG rehearsal keeps its own.
+            guard PlanRehearsal.atLaunch == nil else { return }
+            trip.setDegrade(await planner.degrade())
         }
     }
 
