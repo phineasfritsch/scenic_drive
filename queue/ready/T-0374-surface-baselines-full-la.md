@@ -1,7 +1,7 @@
 ---
 id: T-0374
 title: Re-measure surfacecoverage.BASELINES over the FULL LA corpus - the canyon-window baselines put motorway and motorway_link red on full LA
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
