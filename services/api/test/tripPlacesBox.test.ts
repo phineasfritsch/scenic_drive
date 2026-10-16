@@ -210,6 +210,19 @@ describe("placesBox over the shared fixtures and at every clamp (T-0318 R3)", ()
     ["east exactly 180 is kept", [{ lat: 0, lon: 180 - deg(2 * Math.asin(Math.sin(PAD_M / EARTH_M / 2) / Math.cos(rad(0.2)))) - 0.05 }], { east: 180 }],
     ["east one grid step past 180 is the whole range", [{ lat: 0, lon: 180 - deg(2 * Math.asin(Math.sin(PAD_M / EARTH_M / 2) / Math.cos(rad(0.2)))) + 0.05 }], { west: -180, east: 180 }],
   ];
+  /** The pad's exact edge per side: the last vertex whose padded extreme stays on a grid line, and the next double. */
+  const flip = (f: (x: number) => boolean, lo: number, hi: number): [number, number] => {
+    for (;;) { const mid = (lo + hi) / 2; if (mid === lo || mid === hi) return [lo, hi]; if (f(mid)) hi = mid; else lo = mid; }
+  };
+  const lat = (x: number) => [{ lat: x, lon: -118 }], lon = (x: number) => [{ lat: 35, lon: x }];
+  const [s0, s1] = flip((x) => oracle(lat(x)).south >= 34, 34, 34.5);
+  const [n0, n1] = flip((x) => oracle(lat(x)).north > 36, 35.5, 36);
+  const [w0, w1] = flip((x) => oracle(lon(x)).west >= -118, -118, -117.5);
+  const [e0, e1] = flip((x) => oracle(lon(x)).east > -118, -118.5, -118);
+  rows.push(["south: the pad lands exactly on 34.0", lat(s1), { south: 34 }], ["south: the next double out is 33.9", lat(s0), { south: 33.9 }],
+    ["north: the pad lands exactly on 36.0", lat(n0), { north: 36 }], ["north: the next double out is 36.1", lat(n1), { north: 36.1 }],
+    ["west: the pad lands exactly on -118.0", lon(w1), { west: -118 }], ["west: the next double out is -118.1", lon(w0), { west: -118.1 }],
+    ["east: the pad lands exactly on -118.0", lon(e0), { east: -118 }], ["east: the next double out is -117.9", lon(e1), { east: -117.9 }]);
   for (const [name, points, literal] of rows) {
     it(`placesBox: ${name} (whole box)`, async () => {
       const got = (await box())(points);

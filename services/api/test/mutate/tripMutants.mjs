@@ -25,12 +25,12 @@ import { onlyIds } from "./onlyIds.mjs";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
 
-export const MIN_MUTATIONS = 103;
+export const MIN_MUTATIONS = 129;
 export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts", "src/tripPlaces.ts",
-  "migrations/0009_trip_places.sql"];
+  "migrations/0009_trip_places.sql", "src/tripPlacesBox.ts", "migrations/0010_trip_places_lat.sql"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
   "test/killSwitchRoutes.test.ts", "test/tripPlaces.test.ts", "test/tripHonest.test.ts",
-  "test/tripLoopHazards.test.ts"];
+  "test/tripLoopHazards.test.ts", "test/tripPlacesBox.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -123,10 +123,10 @@ export const MUTATIONS = [
   m("places-failure-claims-searched", "tripPlanner.ts", "places === null ? { kind: \"not_searched\" } : ", ""),
   m("places-lodging-as-no-lodging", "tripPlanner.ts", "o === \"no_lodging\" ? { kind: \"no_lodging\" }", "true ? { kind: \"no_lodging\" }"),
   m("places-lodging-meters-dropped", "tripPlanner.ts", "name: o.lodging.name, meters: o.lodging.meters }", "name: o.lodging.name, meters: 0 }"),
-  m("places-not-read", "trip.ts", "places = await deps.tripPlaces();", "places = [];"),
-  m("places-failure-rethrown", "trip.ts", "  } catch {\n    places = null;\n  }", "  } catch (e) {\n    throw e;\n  }"),
+  m("places-not-read", "trip.ts", "return await deps.tripPlaces(placesBox(vertices));", "return [];"),
+  m("places-failure-rethrown", "trip.ts", "    } catch {\n      return null;\n    }", "    } catch (e) {\n      throw e;\n    }"),
   m("places-deps-empty", "trip.ts", "tripPlaces: d1TripPlaces(env.DB)", "tripPlaces: async () => []"),
-  m("places-query-lodging-only", "tripPlaces.ts", "lon FROM trip_places\";", "lon FROM trip_places WHERE kind = 'lodging'\";"),
+  m("places-query-lodging-only", "tripPlaces.ts", "lon FROM trip_places WHERE lat", "lon FROM trip_places WHERE kind = 'lodging' AND lat"),
   m("places-lat-lon-swapped", "tripPlaces.ts", "coordinate: { lat: r.lat, lon: r.lon }", "coordinate: { lat: r.lon, lon: r.lat }"),
   m("places-score-ignored", "tripPlaces.ts", "score: r.score,", "score: 0,"),
   { id: "table-no-lat-low", file: "migrations/0009_trip_places.sql", find: "CHECK (lat >= -90 AND ", replace: "CHECK (" },
@@ -137,15 +137,42 @@ export const MUTATIONS = [
   { id: "table-any-score", file: "migrations/0009_trip_places.sql", find: " CHECK (typeof(score) = 'integer')", replace: "" },
   { id: "table-empty-name", file: "migrations/0009_trip_places.sql", find: " AND length(name) >= 1", replace: "" },
   { id: "table-extra-column", file: "migrations/0009_trip_places.sql", find: "  lon REAL NOT NULL", replace: "  device TEXT,\n  lon REAL NOT NULL" },
-  m("places-query-bound", "tripPlaces.ts", "db.prepare(TRIP_PLACES_QUERY).all", "db.prepare(TRIP_PLACES_QUERY).bind().all"),
+  m("places-query-whole-table", "tripPlaces.ts", ".bind(box.south, box.north, box.west, box.east)", ".bind(-90, 90, -180, 180)"),
   m("places-read-before-kill", "trip.ts", "  const paused = await killSwitch(env);\n",
-    "  await deps?.tripPlaces().catch(() => null);\n  const paused = await killSwitch(env);\n"),
+    "  await deps?.tripPlaces({ south: -90, north: 90, west: -180, east: 180 }).catch(() => null);\n  const paused = await killSwitch(env);\n"),
   // T-0316 review round 1 (B1, B2, B3, R-c).
   m("split-corridor-exclusive", "roadTrip.ts", "if (bestMeters <= CORRIDOR_METERS)", "if (bestMeters < CORRIDOR_METERS)"),
   m("split-overnight-tie-late-name", "roadTrip.ts", "best.meters === meters && best.name < lodging.name",
     "best.meters === meters && best.name > lodging.name"),
   { id: "table-name-any-type", file: "migrations/0009_trip_places.sql", find: "CHECK (typeof(name) = 'text' AND ", replace: "CHECK (" },
   m("split-lodging-from-any-kind", "roadTrip.ts", "const lodgings = places.filter((p) => p.kind === \"lodging\");", "const lodgings = places;"),
+  // T-0318: the read after the reservation, bounded to the route's box (R1-R5).
+  m("places-read-before-reservation", "trip.ts", "  const upstream: UpstreamDeps = {", "  await placesNear([request.origin, destination]);\n  const upstream: UpstreamDeps = {"),
+  m("query-lat-low-exclusive", "tripPlaces.ts", "WHERE lat >= ?1", "WHERE lat > ?1"),
+  m("query-lat-high-exclusive", "tripPlaces.ts", "lat <= ?2", "lat < ?2"),
+  m("query-lon-low-exclusive", "tripPlaces.ts", "lon >= ?3", "lon > ?3"),
+  m("query-lon-high-exclusive", "tripPlaces.ts", "lon <= ?4", "lon < ?4"),
+  m("query-binds-lat-lon-swapped", "tripPlaces.ts", ".bind(box.south, box.north, box.west, box.east)", ".bind(box.west, box.east, box.south, box.north)"),
+  m("box-pad-15000", "tripPlacesBox.ts", "PLACES_PAD_METERS = 16_000;", "PLACES_PAD_METERS = 15_000;"),
+  m("box-pad-zero", "tripPlacesBox.ts", "PLACES_PAD_METERS = 16_000;", "PLACES_PAD_METERS = 0;"),
+  m("box-grid-100", "tripPlacesBox.ts", "PLACES_GRID_PER_DEGREE = 10;", "PLACES_GRID_PER_DEGREE = 100;"),
+  m("box-south-up", "tripPlacesBox.ts", "Math.max(-90, down(", "Math.max(-90, up("),
+  m("box-north-down", "tripPlacesBox.ts", "Math.min(90, up(", "Math.min(90, down("),
+  m("box-west-up", "tripPlacesBox.ts", "const west = down(", "const west = up("),
+  m("box-east-down", "tripPlacesBox.ts", "const east = up(", "const east = down("),
+  m("box-south-unclamped", "tripPlacesBox.ts", "Math.max(-90, down(minLat - degrees(pad)))", "down(minLat - degrees(pad))"),
+  m("box-north-unclamped", "tripPlacesBox.ts", "Math.min(90, up(maxLat + degrees(pad)))", "up(maxLat + degrees(pad))"),
+  m("box-band-min-lat", "tripPlacesBox.ts", "Math.max(-south, north)", "Math.min(-south, north)"),
+  m("box-band-signed", "tripPlacesBox.ts", "Math.max(-south, north)", "Math.max(south, north)"),
+  m("box-polar-fallback-dropped", "tripPlacesBox.ts", "  if (!(ratio < 1)) return { south, north, west: -180, east: 180 };\n", ""),
+  m("box-antimeridian-west-inclusive", "tripPlacesBox.ts", "if (west < -180 ||", "if (west <= -180 ||"),
+  m("box-antimeridian-east-inclusive", "tripPlacesBox.ts", "|| east > 180)", "|| east >= 180)"),
+  m("box-antimeridian-dropped", "tripPlacesBox.ts", "  if (west < -180 || east > 180) return { south, north, west: -180, east: 180 };\n", ""),
+  m("box-lon-pad-as-lat", "tripPlacesBox.ts", "const lonPad = degrees(2 * Math.asin(ratio));", "const lonPad = degrees(pad);"),
+  m("box-first-vertex-only", "tripPlacesBox.ts", "for (const v of vertices) {", "for (const v of vertices.slice(0, 1)) {"),
+  m("box-min-lat-as-max", "tripPlacesBox.ts", "minLat = Math.min(minLat, v.lat);", "minLat = Math.max(minLat, v.lat);"),
+  { id: "index-dropped", file: "migrations/0010_trip_places_lat.sql", find: "CREATE INDEX IF NOT EXISTS trip_places_lat ON trip_places (lat);", replace: "SELECT 1;" },
+  { id: "index-on-lon", file: "migrations/0010_trip_places_lat.sql", find: "ON trip_places (lat);", replace: "ON trip_places (lon);" },
 ];
 
 export const EQUIVALENT = [

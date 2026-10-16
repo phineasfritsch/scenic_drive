@@ -7,8 +7,9 @@
  * splitter's edges (roadTrip.ts, fed milliseconds and whole metres). The ceiling is held per day and for the trip:
  * the splitter refuses a route over fastest + budget, each day's ceiling is its share of that, and a full leg over
  * its day's ceiling refuses the whole trip.
- * The places are the server's own trip_places rows (T-0316); null when the read failed, and then every night is
- * "not_searched" and places_searched false - a search that did not happen is never reported as "no_lodging".
+ * The places are the server's own trip_places rows (T-0316), read per split for the path's vertices (T-0318 R1, after
+ * the reservation); null when the read failed, and then every night is "not_searched" and places_searched false - a
+ * search that did not happen is never reported as "no_lodging".
  */
 import type { ClosuresFor, PathGuard } from "./closuresNearest";
 import { buildCustomModel, formatMultiplier, rejectCustomModel } from "./customModel";
@@ -141,7 +142,7 @@ function dayCeilingMs(ceilingMs: number, dayMs: number, totalMs: number): number
 
 export async function planTrip(call: GuardedFetch, routerBase: string, origin: LatLon, destination: LatLon,
   days: number, extraBudgetPct: number, full: boolean, closuresFor: ClosuresFor, returned: PathGuard,
-  places: RoadTripPlace[] | null): Promise<TripResult> {
+  placesNear: (vertices: LatLon[]) => Promise<RoadTripPlace[] | null>): Promise<TripResult> {
   let used = 0;
   const counted: GuardedFetch = (url, init) => {
     used += 1;
@@ -154,7 +155,7 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
   const ceilingMs = fastestMs + budgetMs;
   // T-0340 rv2: the search and the closure re-request decide the ONE path that ships. The measured paths stay inside
   // this scope; route coordinates, edges, vertices, pointOf and hazards below all read `shipped` (and its own split).
-  const { outcome, shipped, edges, split } = await (async () => {
+  const { outcome, shipped, edges, split, places } = await (async () => {
     const measured = new Map<string, RoutePath>();
     const outcome = await searchLambda(fastestMs / 1000, budgetMs / 1000, async (lambda) => {
       const path = await route(counted, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(lambda, closures));
@@ -164,12 +165,13 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
     const measuredChosen = measured.get(formatMultiplier(outcome.lambda));
     if (!measuredChosen) throw new TripFailure("no_recorded_lambda", `no route was measured at lambda ${outcome.lambda}`);
 
-    const splitOf = (path: RoutePath) => {
+    const splitOf = async (path: RoutePath) => {
       const pathEdges = edgesOf(path);
-      return { path, edges: pathEdges, split: planRoadTrip(pathEdges, places ?? [], fastestMs,
+      const places = await placesNear([pathEdges[0]!.start, ...pathEdges.map((e) => e.end)]);
+      return { path, edges: pathEdges, places, split: planRoadTrip(pathEdges, places ?? [], fastestMs,
         { days, maxDriveSeconds: MAX_DRIVE_MS_PER_DAY, maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct) };
     };
-    const first = splitOf(measuredChosen);
+    const first = await splitOf(measuredChosen);
     if ("over_budget" in first.split) {
       throw new TripFailure("ceiling_breached",
         `the route takes ${first.split.over_budget.route_s} ms against a ceiling of ${first.split.over_budget.ceiling_s} ms`);
@@ -178,10 +180,10 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
     // T-0286 C3-C5: the chosen route against every stored closure; the full view reserves `days` legs inside the cap.
     const shown = await returned(first, (s) => s.path.coordinates, origin, destination,
       used + 1 + (full ? days : 0) <= TRIP_UPSTREAM_COST ? async (swapped) => {
-        const again = splitOf(await route(counted, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(outcome.lambda, swapped)));
+        const again = await splitOf(await route(counted, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(outcome.lambda, swapped)));
         return "plan" in again.split ? again : null;
       } : null);
-    return { outcome, shipped: shown.path, edges: shown.edges, split: shown.split };
+    return { outcome, shipped: shown.path, edges: shown.edges, split: shown.split, places: shown.places };
   })();
   if (!("plan" in split)) throw new TripFailure("too_few_days", `the route needs more than ${days} days`);
   // T-0335 R2: the route that would ship, scored before any day leg is requested; dull or unscorable is refused.
