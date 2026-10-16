@@ -1,0 +1,98 @@
+{
+  "living_street": {
+    "known": 58,
+    "total": 195,
+    "unknown": 137,
+    "unpaved": 0
+  },
+  "motorway": {
+    "known": 3217,
+    "total": 7486,
+    "unknown": 4269,
+    "unpaved": 0
+  },
+  "motorway_link": {
+    "known": 1887,
+    "total": 9908,
+    "unknown": 8021,
+    "unpaved": 0
+  },
+  "primary": {
+    "known": 26952,
+    "total": 43815,
+    "unknown": 16858,
+    "unpaved": 5
+  },
+  "primary_link": {
+    "known": 986,
+    "total": 1720,
+    "unknown": 733,
+    "unpaved": 1
+  },
+  "residential": {
+    "known": 21832,
+    "total": 99715,
+    "unknown": 77759,
+    "unpaved": 124
+  },
+  "road": {
+    "known": 1,
+    "total": 3,
+    "unknown": 2,
+    "unpaved": 0
+  },
+  "secondary": {
+    "known": 24224,
+    "total": 42237,
+    "unknown": 18013,
+    "unpaved": 0
+  },
+  "secondary_link": {
+    "known": 532,
+    "total": 961,
+    "unknown": 429,
+    "unpaved": 0
+  },
+  "service": {
+    "known": 27188,
+    "total": 312645,
+    "unknown": 284512,
+    "unpaved": 945
+  },
+  "tertiary": {
+    "known": 14113,
+    "total": 25380,
+    "unknown": 11267,
+    "unpaved": 0
+  },
+  "tertiary_link": {
+    "known": 225,
+    "total": 418,
+    "unknown": 193,
+    "unpaved": 0
+  },
+  "track": {
+    "known": 359,
+    "total": 8148,
+    "unknown": 6545,
+    "unpaved": 1244
+  },
+  "trunk": {
+    "known": 1380,
+    "total": 1939,
+    "unknown": 559,
+    "unpaved": 0
+  },
+  "trunk_link": {
+    "known": 132,
+    "total": 178,
+    "unknown": 46,
+    "unpaved": 0
+  },
+  "unclassified": {
+    "known": 1761,
+    "total": 5460,
+    "unknown": 3670,
+    "unpaved": 29
+  }
+}

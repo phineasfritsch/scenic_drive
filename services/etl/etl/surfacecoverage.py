@@ -23,8 +23,12 @@ ONE COMPUTATION (ruling R1). `coverage` is invoked once, by `corpus.build`, and 
 meta under META_KEY. `refusals` below RE-READS that table; it never recounts a way. A check that recomputed
 the quantity it checks is a check that agrees with itself.
 
-THE BASELINES ARE MEASURED, NOT INVENTED (ruling R3). They are the LA canyon window's real per-class
-fractions (11,740 ways, quoted in T-0205's Log) times 0.75, truncated to three decimals. The margin is
+THE BASELINES ARE MEASURED, NOT INVENTED (ruling R3). They are the FULL LA region's real per-class
+fractions (T-0275's corpus, 560,208 ways, quoted in T-0374's Log) times 0.75, truncated to three decimals,
+for every class with at least MIN_CLASS_WAYS ways. T-0205 first measured them on the canyon window (11,740
+ways); T-0374 found a window is not its region (motorway 0.79 in the window, 0.43 region-wide) and that a
+window-derived floor both fails an honest full build and sits far under the region elsewhere, so the window
+is now refused like any other population the baselines were not measured on. The margin is
 deliberate: the defect this watches - the tag lost in the pipeline, an extract rebuilt against the retired
 `paved` key, a class relabelled - sends a fraction to ~0, an order of magnitude under any literal here, while
 ordinary OSM editing between two rebuilds of one region moves it by a point or two. MIN_CLASS_WAYS is the
@@ -62,19 +66,24 @@ UNPAVED = "unpaved"
 TOTAL = "total"
 BUCKETS = (KNOWN, UNKNOWN, UNPAVED, TOTAL)
 
-# T-0205's measurement of the LA canyon window x 0.75, truncated to three decimals. A class is refused on
+# T-0374's measurement of the FULL LA region x 0.75, truncated to three decimals. A class is refused on
 # only if it is HERE and has at least MIN_CLASS_WAYS ways in the table being checked.
 BASELINES = {
-    "motorway": 0.593,
-    "motorway_link": 0.318,
-    "primary": 0.377,
-    "residential": 0.091,
-    "secondary": 0.287,
-    "service": 0.029,
-    "tertiary": 0.219,
-    "track": 0.013,
-    "trunk": 0.245,
-    "unclassified": 0.103,
+    "living_street": 0.223,
+    "motorway": 0.322,
+    "motorway_link": 0.142,
+    "primary": 0.461,
+    "primary_link": 0.429,
+    "residential": 0.164,
+    "secondary": 0.430,
+    "secondary_link": 0.415,
+    "service": 0.065,
+    "tertiary": 0.417,
+    "tertiary_link": 0.403,
+    "track": 0.033,
+    "trunk": 0.533,
+    "trunk_link": 0.556,
+    "unclassified": 0.241,
 }
 MIN_CLASS_WAYS = 25
 # R3's margin, named so the test that recomputes BASELINES from the measurement reads the RULE from here

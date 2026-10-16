@@ -20,6 +20,8 @@ from etl import corpus, schema, surfacecoverage
 FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures"
 EXTRACT = FIXTURES / "corpus_extract.json"
 LA_WINDOW = FIXTURES / "surface_coverage_la_window.json"
+# T-0374: the FULL LA region (T-0275, 560208 ways), the measurement BASELINES are derived from (ruling R1).
+LA_FULL = FIXTURES / "surface_coverage_la_full.json"
 BELOW_BASELINE = FIXTURES / "surface_coverage_below_baseline.json"
 BUILT_AT = "2026-01-01T00:00:00Z"
 
@@ -85,9 +87,20 @@ def test_the_check_refuses_residential_below_its_baseline_by_name(tmp_path, caps
     assert "below the baseline" in err
 
 
-def test_the_check_is_green_over_the_measured_la_window(capsys):
-    assert surfacecoverage.main(["--table", str(LA_WINDOW)]) == 0
+def test_the_check_is_green_over_the_measured_full_la_region(capsys):
+    assert surfacecoverage.main(["--table", str(LA_FULL)]) == 0
     assert "refused=0" in capsys.readouterr().out
+
+
+def test_the_check_refuses_the_canyon_window_because_a_window_is_not_its_region(capsys):
+    """T-0374 R4: the window's own numbers were the old baselines; under the full region's it is refused,
+    every refused class named - seven below their floor, five too small to judge - and nothing else."""
+    assert surfacecoverage.main(["--table", str(LA_WINDOW)]) == 1
+    refused = [line[len("SURFACE REFUSED "):] for line in capsys.readouterr().err.splitlines()
+               if line.startswith("SURFACE REFUSED ")]
+    names = [r.split(" ")[1] if r.startswith("class ") else r.split(":")[0] for r in refused]
+    assert names == ["living_street", "primary_link", "secondary_link", "tertiary_link", "trunk_link",
+                     "residential", "secondary", "service", "tertiary", "track", "trunk", "unclassified"]
 
 
 def test_the_check_prints_the_fraction_as_a_number_for_every_class(capsys):
@@ -98,10 +111,10 @@ def test_the_check_prints_the_fraction_as_a_number_for_every_class(capsys):
     assert "known_frac=0.1222" in out
 
 
-def test_every_baseline_is_met_by_the_window_it_was_measured_from():
+def test_every_baseline_is_met_by_the_region_it_was_measured_from():
     """A baseline raised above the real population, or lowered to nothing, is caught here rather than by a
     build that refuses everything or by one that can no longer refuse anything."""
-    table = surfacecoverage.from_table_file(LA_WINDOW)
+    table = surfacecoverage.from_table_file(LA_FULL)
     for cls, baseline in sorted(surfacecoverage.BASELINES.items()):
         assert baseline > 0.0, cls
         assert surfacecoverage.known_fraction(table[cls]) >= baseline, cls
@@ -124,7 +137,7 @@ def test_baselines_are_exactly_the_measurement_times_the_ruled_margin():
     """Ruling S2. `"motorway": 0.593` -> `0.001` used to pass every test in this file: nothing bound the
     literals to the population they are supposed to be 75% of. Here the RULE (the margin, the floor, the
     truncation) comes from the module and every NUMBER comes from the committed measurement."""
-    table = surfacecoverage.from_table_file(LA_WINDOW)
+    table = surfacecoverage.from_table_file(LA_FULL)
     expected = {}
     for cls, row in table.items():
         if row["total"] >= surfacecoverage.MIN_CLASS_WAYS:
@@ -146,7 +159,7 @@ def test_the_check_refuses_a_table_where_nothing_was_judged(capsys):
 
 
 def test_a_large_class_with_no_baseline_is_reported_by_name(capsys):
-    table = surfacecoverage.from_table_file(LA_WINDOW)
+    table = surfacecoverage.from_table_file(LA_FULL)
     table["busway"] = {"known": 40, "unknown": 10, "unpaved": 0, "total": 50}
     assert surfacecoverage.main(["--table", _write(table, capsys)]) == 0
     assert "SURFACE UNKNOWN CLASS busway" in capsys.readouterr().err
@@ -154,13 +167,13 @@ def test_a_large_class_with_no_baseline_is_reported_by_name(capsys):
 
 def test_a_class_exactly_at_its_baseline_passes():
     """Ruling S4: the baseline is a floor, and a floor is an allowed value."""
-    row = {"known": 91, "unknown": 909, "unpaved": 0, "total": 1000}
+    row = {"known": 164, "unknown": 836, "unpaved": 0, "total": 1000}
     assert surfacecoverage.known_fraction(row) == surfacecoverage.BASELINES["residential"]
     assert surfacecoverage.refusals({"residential": row}) == []
 
 
 def test_a_class_one_way_below_its_baseline_is_refused():
-    row = {"known": 90, "unknown": 910, "unpaved": 0, "total": 1000}
+    row = {"known": 163, "unknown": 837, "unpaved": 0, "total": 1000}
     assert [r.split(":")[0] for r in surfacecoverage.refusals({"residential": row})] == ["residential"]
 
 
@@ -172,7 +185,7 @@ def test_a_class_at_the_minimum_count_is_refused(capsys):
 
 def test_a_class_with_no_baseline_is_never_refused_however_bare():
     assert surfacecoverage.refusals(
-        {"living_street": {"known": 0, "unknown": 400, "unpaved": 0, "total": 400}}) == []
+        {"road": {"known": 0, "unknown": 400, "unpaved": 0, "total": 400}}) == []
 
 
 def test_the_encoded_value_is_stable_so_two_builds_agree_byte_for_byte():
@@ -204,12 +217,14 @@ def test_a_corpus_without_the_key_is_a_refusal_not_an_empty_verdict(tmp_path):
 
 
 # --- the --corpus form, over a corpus corpus.build really built (ruling S1) ------------------------------
-# Ten (cls, highway) pairs: exactly the classes BASELINES names, which is what the whitelist requires of any
+# Fifteen (cls, highway) pairs: exactly the classes BASELINES names, which is what the whitelist requires of any
 # table the check gives a verdict on. 25 ways each, the MIN_CLASS_WAYS floor.
 BASELINED_CLASSES = (("motorway", "motorway"), ("motorway", "motorway_link"), ("primary", "primary"),
                      ("residential", "residential"), ("secondary", "secondary"), ("service", "service"),
                      ("tertiary", "tertiary"), ("track", "track"), ("trunk", "trunk"),
-                     ("unclassified", "unclassified"))
+                     ("unclassified", "unclassified"), ("trunk", "trunk_link"), ("primary", "primary_link"),
+                     ("secondary", "secondary_link"), ("tertiary", "tertiary_link"),
+                     ("living_street", "living_street"))
 ETL_DIR = FIXTURES.parent.parent
 
 
