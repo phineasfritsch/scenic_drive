@@ -1,7 +1,7 @@
 ---
 id: T-0358
 title: After a drive the app asks "Prettier than your usual way?" once and records post_drive_answer - the funnel's answer stage
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-15T22:21:25Z
@@ -11,7 +11,7 @@ branch: task/T-0358
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t0358
 depends_on: [T-0355]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -141,3 +141,4 @@ re-approval; if refused, ship the Linux slice and say so.
      drive-light.png looked at: the moving (minimal) surface - map, credit, one large End drive - and no question.
      No prompt shot (R10: the screen LIST is outside touches).
 - 2026-10-16T00:47:35Z agent/claude-opus-5 (owner): rv1-t0358 FAIL was ancestry-only (main gained PR #244 T-0357 config, then PR #247 T-0354). Merged origin/main as e1286282 (one conflict in ops/lib/check-safety-disclaimer-pinned, resolved as a union: WaitlistRoutePlanner takes main's digest 481433dd, ScenicDriveApp.swift keeps this branch's 8aaa166d = merged bytes = PINNED_SHELL_DIGEST, the three PostDrive rows kept) and again with the ops-only T-0354 merge. On the merged head: swift test "Test run with 839 tests in 169 suites passed"; check-safety-disclaimer rc=0; check-mutate-population "floor of 165 holds" rc=0; check-telemetry-emit-sites "ok - 40 lines approved; 4 of 14 cases emitted once, 10 pending by task" rc=0; check-drive-display "23 approved" rc=0; check-pins-yaml rc=0; ios_screenshot_pinned rc=0; check-mutate-only rc=0; queue-check rc=0.
+- 2026-10-16T00:59:18Z agent/rv2-t0358 (reviewer, round 2, merge/ancestry only): PASS. Fresh worktree at origin/task/T-0358 = 475ae0a2. `git show --remerge-diff e1286282`: the only file differing from both parents is ops/lib/check-safety-disclaimer-pinned (1 insertion, 6 deletions vs the conflict); union kept - WaitlistRoutePlanner 481433dd (main's), ScenicDriveApp.swift 8aaa166d, PostDriveAnswersKey/PostDriveCard/LivePostDriveAnswers rows. Recomputed `sed "s/\r$//" FILE | sha256sum`: WaitlistRoutePlanner.swift 481433ddfb5c5a2dc19b4e93ea72d2de48e20c5cb71b9b31c35bcb224b87ee39, ScenicDriveApp.swift 8aaa166d828ddd036cd6027c0a88c6b0c4b2b25a7651ee91fb95f6787dd79ef2 = PINNED_SHELL_DIGEST. R7: every RoutePlanning conformer implements `func degrade` (ClientPlanner, ConfiguredPlanner, RetimingPlanner, TelemetryRoutePlanner, UnreachablePlanner, WaitlistRoutePlanner; test conformers ConfigDegradeTests.Fixed, CorridorLearnerTests.Fixed, OnboardingPlanGateTests.CountingPlanner); no `extension RoutePlanning` default. Gates bare in the worktree: check-safety-disclaimer EXIT=0; check-mutate-population "P-PROC-06: every added module is covered or allowlisted; the floor of 165 holds" EXIT=0; check-telemetry-emit-sites "P-PRIV-05 emit sites: ok - 40 lines approved; 4 of 14 cases emitted once, 10 pending by task" EXIT=0; check-drive-display "P-SAFE-09 (screen): 23 approved whole lines ..." EXIT=0; check-pins-yaml "PINS-YAML ok pins=50 fields=403" EXIT=0; queue-check "QUEUE OK (357 tasks)" EXIT=0. CI: ios-compile run 38831521696 {"conclusion":"success","headSha":"475ae0a2..."}; gh pr checks 246: core pass 6m51s, pins-source-only pass 4m18s (run 38831525736, headSha 475ae0a2). After a fresh fetch `git merge-base --is-ancestor origin/main origin/task/T-0358` exit 0 (origin/main bf789086, no drift).
