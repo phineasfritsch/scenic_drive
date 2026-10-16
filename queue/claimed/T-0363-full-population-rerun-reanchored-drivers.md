@@ -14,7 +14,12 @@ pins_affected: [P-PROC-06]
 reviewer: null
 depends_on: [T-0352]
 verify: [ops/check-pins]
-acceptance: []
+acceptance:
+  - "A1 MEASURE (quoted in the Log before code): the eight drivers' populations on the branch base - MUTATIONS, EQUIVALENT and MIN_MUTATIONS each, imported from the driver's own exports"
+  - "A2 Each of closures, config, crossing, isochrone, quota, region, tier, vehicle run WHOLE (no --only), alone on the box, from services/api: `baseline green tests=N` and its `RESULT caught=k missed=m trap=t of n` line quoted into the Log as it lands (a red baseline under load re-run alone and said so)"
+  - "A3 Every MISSED or TRAP entry of A2 is closed: either a test under services/api/test/ that catches it by name (`--only=<id>` MISSED before the test, CAUGHT after, both RESULT lines quoted) or the entry moved to its driver's EQUIVALENT table with a witness field naming why no test can tell it apart (never prose in this file); the driver's floor arms still pass (`--prove-floor` exit 0)"
+  - "A4 ops/lib/check-mutate-anchors.py gains a cwd arm: every whitelisted driver is run from the REPO ROOT with `--only=<its first MUTATIONS id>` and must print its `population mutations=` line (printed only after the driver has read every anchored file through its own path resolution and checked src/ clean), the process tree killed there before any baseline or mutant; a driver that does not reach the line is named and the check exits 1. Seen RED with a cwd-relative API (`process.cwd()`) applied to one driver, naming that driver, then GREEN; the tree's git status is identical before and after"
+  - "A5 Final head (after merging origin/main last): every test file touched passes under vitest; bare check-mutate-population, check-mutate-only, check-mutate-anchors, check-pins-yaml, `bash ops/lib/check-exec-bits`, `bash ops/queue-check` each exit 0; every touched file <= 300 lines (wc -l quoted)"
 ---
 ## Brief
 
@@ -35,3 +40,21 @@ driver to find its own files, shown red with that mutant then green.
   recordable.
 - 2026-10-10T05:52:32Z renumbered T-0362 -> T-0363 by agent/claude-opus-5 (orchestrator): task/T-0359 filed T-0362 (plan-sheet address search wiring) concurrently.
 - 2026-10-16T00:43:20Z claimed by agent/claude-opus-5; lease until 2026-10-17T00:43:20Z
+- 2026-10-16T00:46:26Z A1 MEASURE on bf789086 (node import of each driver's MUTATIONS / EQUIVALENT / MIN_MUTATIONS):
+  closures 133/1/133, config 84/1/84, crossing 59/5/59, isochrone 67/1/67, quota 58/1/58, region 68/2/68, tier
+  26/1/26, vehicle 32/1/32 - 527 MUTATIONS and 13 EQUIVALENT in all (every table sits exactly at its floor).
+- 2026-10-16T00:46:26Z RULINGS before code.
+  R1 population: the Brief's "about 470 entries" is stale; the measured population is 527 mutations (A1) and A2/A3
+  range over those 527.
+  R2 cwd arm placement: check-mutate-anchors.py, not check-mutate-only.py - it already whitelists the 17 drivers and
+  imports their tables, so `--only=<first id>` comes from the driver's own export. check-mutate-only's probes already
+  run from the repo root, but every one is refused by onlyIds before any file is read, so they cannot see a
+  cwd-relative path. The arm covers all 17 drivers, not only the eight (the Brief says one per driver).
+  R3 cwd arm depth: it stops at the `population mutations=` line. Every driver prints it after the STALE pass (which
+  reads every anchored src file via join(API, file)) and after `git status -- src` with cwd API, and before the
+  baseline; killing the tree there means the gate never runs vitest and never mutates. What it does NOT see: the
+  vitest child's cwd and TESTS paths (spawned with cwd API) - those are exercised only by a run that reaches the
+  baseline, i.e. A2. Recorded, not closed here.
+  R4 floors: an entry ruled EQUIVALENT leaves MUTATIONS below its literal MIN_MUTATIONS; the floor is then lowered by
+  exactly the number moved, in the same commit, and the move is named in the Log.
+  R5 environment: drivers run one at a time, nothing else of mine on the box; a red baseline is re-run alone first.
