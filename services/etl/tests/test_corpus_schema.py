@@ -40,6 +40,8 @@ DDL_SHA256_BY_VERSION = {
     #             remove_diacritics 2). Its sqlite-written shadows (_config/_data/_docsize/_idx) are excluded
     #             like rtree's.
     3: "c096339712dcb8c0e3dea8816fef2765116aa31a3323e69bab2ade7bb9280e4c",
+    # 4 (T-0379): statement 19, the landmarks table (WITHOUT ROWID, PRIMARY KEY (osm_type, osm_id)).
+    4: "fb59906f89531bca932dfa404616bc0ce8604e0d78fc3b02a478f5a98a9c7426",
 }
 
 # FNV-1a 64 over way_id big-endian 8 bytes || bucket big-endian 4 bytes, masked to 63 bits.

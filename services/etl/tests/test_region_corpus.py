@@ -34,9 +34,10 @@ BUILT_AT = "2026-10-06T00:00:00Z"
 MULHOLLAND = 1533792498
 SEAM_REFUSED = 3
 TABLES = ("osm_features", "segments", "segments_rtree", "places", "places_rtree", "meta", "term_defs",
-          "id_collisions", "curated", "terms_osm", "terms_raster")
+          "id_collisions", "curated", "terms_osm", "terms_raster", "landmarks")
 # Measured on this fixture (T-0275 Log): 21 distinct ways of 24 rows, 37 segments, the 39 places placeallow keeps.
-ROW_COUNTS = {"osm_features": 21, "segments": 37, "segments_rtree": 37, "places": 39, "places_rtree": 39}
+ROW_COUNTS = {"osm_features": 21, "segments": 37, "segments_rtree": 37, "places": 39, "places_rtree": 39,
+              "landmarks": 7}
 
 
 def store(root: pathlib.Path, *, places: bool = True, tiles=TILES) -> tuple:
@@ -76,7 +77,7 @@ def expected_corpus(tmp: pathlib.Path) -> pathlib.Path:
     source = tmp / "expected-extract.json"
     source.write_text(json.dumps(extract), encoding="utf-8")
     out = tmp / "expected.sqlite"
-    corpus.build(str(source), str(out), BUILT_AT, region=REGION)
+    corpus.build(str(source), str(out), BUILT_AT, region=REGION, landmarks_osm=str(PLACES))
     return out
 
 

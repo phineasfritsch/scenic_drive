@@ -51,7 +51,7 @@ from .terms import (  # noqa: F401
     TERM_NAMES,
 )
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 # Deliberately NOT moved with SCHEMA_VERSION. The plan's OTA row makes them answer different questions -
 # `schema_version == PlaceStore.schemaVersion && min_app_build <= build` - the first "can this reader parse
 # this file", the second "is this app build allowed this file". No app build reads a corpus yet, so 1
@@ -189,6 +189,19 @@ DDL = (
     #     place_id; CorpusWriter.write_places fills it with the named rows (rule 5: no trigger does).
     "CREATE VIRTUAL TABLE places_fts USING fts5(name, content='places', content_rowid='place_id', "
     "tokenize='unicode61 remove_diacritics 2')",
+    # 19  T-0379: viewpoints and peaks (etl/landmarks.py), never a score input. Rule 7: ele in decimetres and
+    #     the 5-dp point as integers; nearest_way_id is an osm_features way within landmarks.NEAR_M, or NULL.
+    """CREATE TABLE landmarks (
+  osm_type       TEXT    NOT NULL CHECK (osm_type IN ('n','w')),
+  osm_id         INTEGER NOT NULL CHECK (osm_id > 0),
+  kind           TEXT    NOT NULL CHECK (kind IN ('viewpoint','peak')),
+  name           TEXT,
+  ele_dm         INTEGER,
+  lat_e5         INTEGER NOT NULL CHECK (lat_e5 BETWEEN  -9000000 AND  9000000),
+  lon_e5         INTEGER NOT NULL CHECK (lon_e5 BETWEEN -18000000 AND 18000000),
+  nearest_way_id INTEGER,
+  PRIMARY KEY (osm_type, osm_id)
+) WITHOUT ROWID""",
 )
 
 # Derived from the DDL text, so a virtual table added without a licence entry cannot hide behind a shadow
@@ -203,7 +216,7 @@ SHADOW_TABLES = frozenset(f"{v}_{s}" for v, m in VIRTUAL_MODULES.items() for s i
 # 8.2's split, as data. ODbL obligations attach to an identifiable SET OF TABLES rather than smearing across
 # the artifact; corpusverify proves the two halves can be dropped independently.
 ODBL_TABLES = ("osm_features", "segments", "segments_rtree", "terms_osm", "places", "places_rtree",
-               "places_fts")
+               "places_fts", "landmarks")
 OWN_TABLES = ("terms_raster", "curated", "segment_alias", "id_collisions")
 BOTH_TABLES = ("meta", "term_defs")
 TABLE_LICENSES = {t: ODBL_LICENSE for t in ODBL_TABLES}

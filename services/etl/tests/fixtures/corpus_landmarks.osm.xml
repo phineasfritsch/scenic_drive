@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="T-0379 hand-written">
+  <node id="101" lat="34.001" lon="-118.55">
+    <tag k="ele" v="851"/>
+    <tag k="name" v="Saddle Test Peak"/>
+    <tag k="natural" v="peak"/>
+  </node>
+  <node id="102" lat="33.99731" lon="-118.55">
+    <tag k="ele" v="2800 ft"/>
+    <tag k="natural" v="peak"/>
+  </node>
+  <node id="103" lat="33.99729" lon="-118.55">
+    <tag k="name" v="Far Point"/>
+    <tag k="tourism" v="viewpoint"/>
+  </node>
+  <node id="104" lat="34.01995" lon="-118.695">
+    <tag k="name" v="Cell Edge Lat"/>
+    <tag k="tourism" v="viewpoint"/>
+  </node>
+  <node id="105" lat="34.055" lon="-118.79995">
+    <tag k="name" v="Cell Edge Lon"/>
+    <tag k="tourism" v="viewpoint"/>
+  </node>
+  <node id="106" lat="34.0" lon="-118.56">
+    <tag k="access" v="private"/>
+    <tag k="name" v="Private View"/>
+    <tag k="tourism" v="viewpoint"/>
+  </node>
+  <node id="107" lat="34.085" lon="-118.75">
+    <tag k="name" v="Long Way Peak"/>
+    <tag k="natural" v="peak"/>
+  </node>
+  <node id="301" lat="34.03" lon="-118.65"/>
+  <node id="302" lat="34.03" lon="-118.6499"/>
+  <node id="303" lat="34.0301" lon="-118.64995"/>
+  <way id="201">
+    <nd ref="301"/>
+    <nd ref="302"/>
+    <nd ref="303"/>
+    <nd ref="301"/>
+    <tag k="name" v="Ring View"/>
+    <tag k="tourism" v="viewpoint"/>
+  </way>
+</osm>

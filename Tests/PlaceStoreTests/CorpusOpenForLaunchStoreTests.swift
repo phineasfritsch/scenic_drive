@@ -11,7 +11,8 @@ struct CorpusOpenForLaunchStoreTests {
         let rows: [(String, String?, CorpusActivation)] = [
             ("a shipping build", nil, .activated),
             ("build_complete 0", "UPDATE meta SET value = '0' WHERE key = 'build_complete'", .rejected),
-            ("schema_version bumped", "UPDATE meta SET value = '4' WHERE key = 'schema_version'", .rejected),
+            ("schema_version bumped",
+             "UPDATE meta SET value = '\(PlaceStore.schemaVersion + 1)' WHERE key = 'schema_version'", .rejected),
         ]
         for (name, sql, outcome) in rows {
             let old = try Data(contentsOf: CorpusFixture.build())
