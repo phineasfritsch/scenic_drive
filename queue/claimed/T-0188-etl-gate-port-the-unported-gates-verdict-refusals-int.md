@@ -105,3 +105,19 @@ router's own and are not this task.
   test_the_reason_names_are_gate_reasons_cases; `RED[the ETL gains a rule] exit=1` FAILED
   test_the_etl_has_exactly_the_swift_rule_count; restored -> `34 passed`.
   A4 on the ported tree: `ways=11740 old_gated=7317 new_gated=7317`, `newly gated total=0`.
+- 2026-10-16T16:33:04Z ACCEPTANCE RE-RUN on f536aac6 (git fetch origin + merge origin/main: already up to date,
+  so the tested tree is the pushed one):
+  A1/A2 green as quoted above (`120 passed` over the four gate files; test_gate_port alone `34 passed`).
+  A3 `python ops/mutate/scenic_tags.py` -> `MUTATIONS: 71 caught, 0 missed, 0 skipped, of 71`,
+     `EQUIVALENT: 0 caught, 3 missed`, `MUTATE OK  caught=71/71 equivalent_caught=0`, exit=0; every T-0188 entry
+     caught by test_gate_port.py (near-miss rows killed the locked/ford/any-highway loosenings). The
+     re-anchored driver: `python ops/mutate/extractadapter.py` -> `MUTATE OK  caught=27/27 equivalent_caught=0`.
+  A4 `old_gated=7317 new_gated=7317`, `newly gated total=0`.
+  A5 `cd services/etl && python -m pytest tests -rs -p no:cacheprovider -o addopts=` -> `1906 passed in 110.03s`,
+     no skip line.
+  A6 `swift test --filter GateParityFixtureTests` -> `Test run with 2 tests in 1 suite passed`.
+  A7 bare, each exit=0: check-safety-disclaimer; check-mutate-population (`the floor of 168 holds`);
+     check-mutate-only (`NAME-PAIRS OK`); check-line-cap (`none over 300 lines`); check-pins-yaml (`pins=51`);
+     check-exec-bits (`all modes correct`); queue-check (`QUEUE OK (368 tasks)`).
+  STILL OPEN: the routing profile half of the five divergent rows (no track_type/barrier/ford/service encoded
+  value in config.yml) - typed in the fixture, not this task's scope, not yet filed.
