@@ -1,7 +1,7 @@
 ---
 id: T-0229
 title: pins - P-SAFE-05's assertion runs `swift test --filter SolarFixtureTests` with NO --scratch-path: racy against any other swift build on the box (seen failing OPEN once on 2026-09-19); every pin that builds Swift takes its own scratch path
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T15:39:28Z
@@ -11,7 +11,7 @@ branch: task/T-0229
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/]
 pins_affected: [P-SAFE-05]
-reviewer: null
+reviewer: agent/rv2-t-0229
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -162,3 +162,30 @@ pin's assertion, not the branch. Harness, two rounds.
       bare guard -> SWIFT-SCRATCH pins=52 swift_words=1 refused=0 exit=0; `--list` -> P-SAFE-05 only.
   * P-OPS-10 why_no_test_catches_it: row count 30 -> 43 and the path classes named. Measured: ops/lib/check-swift-scratch.py
     238 lines (`wc -l`).
+
+### 2026-10-16T18:13:15Z - review round 2 (agent/rv2-t-0229): PASS - PR #269 signed off
+
+Reviewed head 2cc427cb in a detached worktree (.worktrees/rv2-t-0229). Round 2 of 2 of a harness PR.
+
+* rv1 B1 reproduced by name (P-SAFE-05's `swift test --scratch-path .build/pins-p-safe-05 --filter SolarFixtureTests`
+  rewritten in PINS.yaml, guard run bare, PINS.yaml restored byte-equal; old guard = 62a5584c's check-swift-scratch.py):
+      old MISSED exit=0 [/usr/bin/swift test]            SWIFT-SCRATCH pins=52 swift_words=0 refused=0
+      new CAUGHT exit=1 [/usr/bin/swift test]            SWIFT-SCRATCH pins=52 swift_words=1 refused=1  RED P-SAFE-05
+      old MISSED exit=0 [$TOOLCHAIN/usr/bin/swift build] SWIFT-SCRATCH pins=52 swift_words=0 refused=0
+      new CAUGHT exit=1 [$TOOLCHAIN/usr/bin/swift build] SWIFT-SCRATCH pins=52 swift_words=1 refused=1  RED P-SAFE-05
+      old MISSED exit=0 [~/.swiftly/bin/swift test]      SWIFT-SCRATCH pins=52 swift_words=0 refused=0
+      new CAUGHT exit=1 [~/.swiftly/bin/swift test]      SWIFT-SCRATCH pins=52 swift_words=1 refused=1  RED P-SAFE-05
+* Own mutants of the path class, both CAUGHT on the new guard: `C:\t\bin\swift test --filter ...` (backslash path)
+  exit=1 refused=1; `--scratch-path .build/pins-p-safe-05 --scratch-path=.build` exit=1 (second flag overrides it).
+* Real tree: SWIFT-SCRATCH pins=52 swift_words=1 refused=0 exit 0; --prove-red rows=43 wrong=0 exit 0.
+* Bare gates, all exit 0: check-safety-disclaimer, check-mutate-population, check-mutate-only, check-line-cap
+  (682 files, none over 300), check-pins-yaml (pins=52 fields=418), check-exec-bits (235 files), queue-check (369 tasks).
+  check-swift-scratch.py 238 lines, run-named-tests.py 204 lines.
+* `gh pr checks 269`: pins-source-only pass; core pending at review time.
+* `git merge-base --is-ancestor origin/main origin/task/T-0229` exit 0 (origin/main 2c4d73e2).
+* RECORDED GAP (round 2 of 2, not a P-SAFE-* pin failing open, so filed as its own task rather than bought here):
+  the later-override scan stops at SEGMENT_END, which splits on a `|` inside a quoted --filter alternation, so
+  `swift test --scratch-path .build/pins-p-safe-05 --filter 'SolarFixtureTests|SolarX' --build-path .build`
+  in P-SAFE-05's assertion gives SWIFT-SCRATCH pins=52 swift_words=1 refused=0, exit 0 (GREEN) on both the old and
+  new guard - P-OPS-10 fails open on that shape. Fix by class: the rest-of-command scan must be quote-aware (or
+  refuse any --scratch-path/--build-path token after the approved one up to the next unquoted separator).
