@@ -9,6 +9,9 @@ The names live in ops/lib/named-tests.json under the pin id:
 
 Vitest (services/api): `npx vitest run <files> --reporter=json --outputFile=<tmp>`; a test is named
 `<file> :: <describe> > ... > <it>` from the report's ancestorTitles + title.
+Pytest (services/etl, T-0012): `<this interpreter> -m pytest <files> --junitxml=<tmp>` from services/etl; a test
+is named `<file> :: <name>` - the file relative to services/etl, the name the junit testcase carries (a
+parametrized test is `test_x[id]`). Spec: {"pytest": {"tests/test_a.py": ["test_x[id]", ...]}}.
 Swift (root package): `swift test --scratch-path $SCENIC_SWIFT_SCRATCH (default .build) --filter <filter>
 --xunit-output <tmp>/x.xml`; a test is named `<classname>/<name>` from x-swift-testing.xml and x.xml - for Swift
 Testing that is Module.Suite/function(), the identifier, never the display string.
@@ -30,6 +33,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 TABLE = ROOT / "ops" / "lib" / "named-tests.json"
 API = ROOT / "services" / "api"
+ETL = ROOT / "services" / "etl"
 PASSED = "passed"
 
 
@@ -73,6 +77,29 @@ def junit_status(case):
         if child.tag == "skipped":
             return "skipped"
     return PASSED
+
+
+def pytest_results(files):
+    """{file :: name: [status, ...]} from one pytest junit report over these files, run from services/etl."""
+    probe = subprocess.run([sys.executable, "-c", "import pytest"], capture_output=True)
+    if probe.returncode != 0:
+        raise Refusal(f"{sys.executable} cannot import pytest - the ETL tests cannot run here")
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "pytest.xml"
+        cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=", *files,
+               f"--junitxml={out}"]
+        p = subprocess.run(cmd, cwd=ETL, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if not out.is_file():
+            raise Refusal(f"pytest wrote no junit report (exit {p.returncode}): {(p.stdout + p.stderr)[-600:]}")
+        try:
+            root = ET.parse(out).getroot()
+        except ET.ParseError as e:
+            raise Refusal(f"pytest junit report is unparsable: {e}")
+    results = {}
+    for case in root.iter("testcase"):
+        rel = str(case.get("classname") or "").replace(".", "/") + ".py"
+        results.setdefault(f"{rel} :: {case.get('name')}", []).append(junit_status(case))
+    return results
 
 
 def swift_results(filt):
@@ -124,7 +151,7 @@ def run_pin(pin):
     spec = table.get(pin)
     if not isinstance(spec, dict) or not spec:
         raise Refusal(f"{pin} has no entry in {TABLE.name}")
-    unknown = set(spec) - {"vitest", "swift"}
+    unknown = set(spec) - {"vitest", "swift", "pytest"}
     if unknown:
         raise Refusal(f"{pin}: unknown runner(s) {sorted(unknown)}")
     rows = []
@@ -134,6 +161,12 @@ def run_pin(pin):
         if not required:
             raise Refusal(f"{pin}: vitest names no test")
         rows += verdicts(required, vitest_results(list(vit)))
+    py = spec.get("pytest") or {}
+    if py:
+        required = [f"{f} :: {n}" for f, names in py.items() for n in names]
+        if not required:
+            raise Refusal(f"{pin}: pytest names no test")
+        rows += verdicts(required, pytest_results(list(py)))
     sw = spec.get("swift") or {}
     if sw:
         if not sw.get("filter") or not sw.get("tests"):

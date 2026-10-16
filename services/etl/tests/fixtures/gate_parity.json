@@ -1,0 +1,482 @@
+{
+ "licence": "ODbL 1.0 - (c) OpenStreetMap contributors",
+ "producer": "T-0012: real ways of T-0206's LA canyon window (services/etl/work/la/window-doc.json, bbox -118.95,33.98,-118.55,34.15, 11740 ways), the lowest way id of each class whose tags fire no gate but the class's own; a class with no such way is a synthetic tag set and says so",
+ "consumers": [
+  "services/etl/tests/test_gate_parity.py (assemble.scored_row and etl.profilegate over car_scenic_base.json)",
+  "Tests/ScenicKitTests/GateParityFixtureTests.swift (Gates.decide and SegmentScore)"
+ ],
+ "verdicts": {
+  "GATED": "refused for safety",
+  "ZERO_NOT_GATED": "scores exactly 0.0 and is NOT gated",
+  "PAVED": "no penalty, no flag",
+  "UNKNOWN_X08": "x0.8 and surface_unknown flagged"
+ },
+ "rows": [
+  {
+   "class": "motorway",
+   "way_id": 55468514,
+   "source": "la canyon window, 48 isolated ways of this class",
+   "tags": {
+    "NHS": "STRAHNET",
+    "bicycle": "no",
+    "hgv": "designated",
+    "hgv:national_network": "yes",
+    "highway": "motorway",
+    "lanes": "4",
+    "maxheight": "15'6\"",
+    "maxspeed": "65 mph",
+    "maxspeed:hgv": "55 mph",
+    "maxspeed:towing": "55 mph",
+    "name": "Ventura Freeway",
+    "name_1": "El Camino Real",
+    "name_2": "Ventura Freeway",
+    "oneway": "yes",
+    "ref": "US 101",
+    "sidewalk:both": "no",
+    "source:hgv:national_network": "Title 23: Highways Part 658 http://ecfr.gpoaccess.gov/cgi/t/text/text-idx?c=ecfr&rgn=div5&view=text&node=23:1.0.1.7.33&idno=23",
+    "surface": "asphalt",
+    "tiger:cfcc": "A15",
+    "tiger:county": "Los Angeles, CA",
+    "tiger:name_base": "United States Highway 101",
+    "tiger:name_base_1": "El Camino Real",
+    "tiger:name_base_2": "Ventura",
+    "tiger:name_type_2": "Fwy"
+   },
+   "verdict": "ZERO_NOT_GATED"
+  },
+  {
+   "class": "motorway_link",
+   "way_id": 13255431,
+   "source": "la canyon window, 73 isolated ways of this class",
+   "tags": {
+    "bicycle": "no",
+    "destination": "Lindero Canyon Road",
+    "highway": "motorway_link",
+    "junction:ref": "39",
+    "lanes": "1",
+    "lit": "yes",
+    "oneway": "yes",
+    "sidewalk:both": "no",
+    "surface": "asphalt",
+    "tiger:cfcc": "A63",
+    "tiger:county": "Los Angeles, CA"
+   },
+   "verdict": "ZERO_NOT_GATED"
+  },
+  {
+   "class": "trunk",
+   "way_id": 10733813,
+   "source": "la canyon window, 251 isolated ways of this class",
+   "tags": {
+    "bicycle": "yes",
+    "hgv": "designated",
+    "hgv:state_network": "yes",
+    "highway": "trunk",
+    "lanes": "5",
+    "lanes:backward": "2",
+    "lanes:both_ways": "1",
+    "lanes:forward": "2",
+    "loc_name": "PCH",
+    "maxspeed": "55 mph",
+    "name": "Pacific Coast Highway",
+    "ref": "CA 1",
+    "source:hgv:state_network": "Caltrans http://www.dot.ca.gov/hq/traffops/trucks/truckmap/",
+    "source:maxspeed": "survey;image",
+    "source_ref": "AM909_DSCS7203",
+    "source_ref:maxspeed": "AM909_DSCS7207",
+    "surface": "asphalt",
+    "tiger:cfcc": "A35",
+    "tiger:name_base": "State Route 1",
+    "tiger:name_base_1": "Pacific Coast",
+    "tiger:name_type_1": "Hwy",
+    "turn:lanes:both_ways": "left"
+   },
+   "verdict": "ZERO_NOT_GATED"
+  },
+  {
+   "class": "trunk_link",
+   "way_id": 13275363,
+   "source": "la canyon window, 13 isolated ways of this class",
+   "tags": {
+    "highway": "trunk_link",
+    "lanes": "1",
+    "oneway": "yes",
+    "source": "usgs_imagery_2006",
+    "tiger:cfcc": "A63",
+    "tiger:county": "Los Angeles, CA"
+   },
+   "verdict": "ZERO_NOT_GATED"
+  },
+  {
+   "class": "surface=gravel",
+   "way_id": 120390155,
+   "source": "la canyon window, 4 isolated ways of this class",
+   "tags": {
+    "highway": "service",
+    "surface": "gravel"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "surface=dirt",
+   "way_id": 10720117,
+   "source": "la canyon window, 12 isolated ways of this class",
+   "tags": {
+    "highway": "service",
+    "surface": "dirt",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Ventura, CA",
+    "tiger:reviewed": "no",
+    "tiger:separated": "no",
+    "tiger:source": "tiger_import_dch_v0.6_20070809",
+    "tiger:tlid": "110050348:110121452",
+    "tiger:upload_uuid": "bulk_upload.pl-7f3e6160-db61-48f6-8313-8097e4d32dcb"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "surface=ground",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways)",
+   "tags": {
+    "highway": "unclassified",
+    "surface": "ground"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "surface=sand",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways)",
+   "tags": {
+    "highway": "unclassified",
+    "surface": "sand"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "surface=unpaved",
+   "way_id": 10715138,
+   "source": "la canyon window, 16 isolated ways of this class",
+   "tags": {
+    "highway": "service",
+    "surface": "unpaved",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Ventura, CA",
+    "tiger:reviewed": "no"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "surface=compacted",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways)",
+   "tags": {
+    "highway": "unclassified",
+    "surface": "compacted"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "surface=fine_gravel",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways)",
+   "tags": {
+    "highway": "unclassified",
+    "surface": "fine_gravel"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "highway=track",
+   "way_id": 10715427,
+   "source": "la canyon window, 427 isolated ways of this class",
+   "tags": {
+    "highway": "track",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Ventura, CA",
+    "tiger:reviewed": "no"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "highway=track+tracktype=grade3",
+   "way_id": 75399069,
+   "source": "la canyon window, 9 isolated ways of this class",
+   "tags": {
+    "bicycle": "no",
+    "highway": "track",
+    "horse": "yes",
+    "name": "Nicholas Ridge Motorway",
+    "source": "usgs_imagery_2006",
+    "tracktype": "grade3"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "highway=track+tracktype=grade4",
+   "way_id": 10718814,
+   "source": "la canyon window, 3 isolated ways of this class",
+   "tags": {
+    "highway": "track",
+    "source": "usgs_imagery_2007",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Ventura, CA",
+    "tiger:separated": "no",
+    "tiger:source": "tiger_import_dch_v0.6_20070809",
+    "tiger:tlid": "110045253",
+    "tiger:upload_uuid": "bulk_upload.pl-7f3e6160-db61-48f6-8313-8097e4d32dcb",
+    "tracktype": "grade4"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "highway=track+tracktype=grade5",
+   "way_id": 791536996,
+   "source": "la canyon window, 3 isolated ways of this class",
+   "tags": {
+    "highway": "track",
+    "source": "usgs_imagery_2006;survey;image",
+    "source_ref": "AM909_DSCS6601",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Los Angeles, CA",
+    "tracktype": "grade5"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "access=private",
+   "way_id": 10715430,
+   "source": "la canyon window, 1550 isolated ways of this class",
+   "tags": {
+    "access": "private",
+    "highway": "service",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Ventura, CA",
+    "tiger:reviewed": "no"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "access=no",
+   "way_id": 13335925,
+   "source": "la canyon window, 26 isolated ways of this class",
+   "tags": {
+    "access": "no",
+    "highway": "unclassified",
+    "lanes": "2",
+    "name": "Lucero Place",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Los Angeles, CA",
+    "tiger:name_base": "Lucero",
+    "tiger:name_type": "Pl",
+    "tiger:reviewed": "no"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "access=permit",
+   "way_id": 799554704,
+   "source": "la canyon window, 1 isolated ways of this class",
+   "tags": {
+    "access": "permit",
+    "highway": "service"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "access=destination",
+   "way_id": 23014646,
+   "source": "la canyon window, 17 isolated ways of this class",
+   "tags": {
+    "access": "destination",
+    "foot": "no",
+    "highway": "service",
+    "name": "The Getty Villa Drive",
+    "surface": "sett"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "motor_vehicle=no",
+   "way_id": 13349086,
+   "source": "la canyon window, 8 isolated ways of this class",
+   "tags": {
+    "bicycle": "no",
+    "highway": "service",
+    "hiking": "yes",
+    "horse": "no",
+    "motor_vehicle": "no",
+    "name": "Tuna Canyon Trail (Big Rock Motorway)",
+    "surface": "paved",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Los Angeles, CA",
+    "tiger:name_base": "Big Rock",
+    "tiger:name_type": "Dr"
+   },
+   "verdict": "GATED"
+  },
+  {
+   "class": "tracktype=grade3 on tertiary",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways)",
+   "tags": {
+    "highway": "tertiary",
+    "surface": "asphalt",
+    "tracktype": "grade3"
+   },
+   "verdict": "GATED",
+   "divergent": {
+    "etl": "PAVED",
+    "profile": "NOT_GATED",
+    "tracked_by": "T-0188 ports this Gates.verdict branch into assemble.gate_reason; car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
+   }
+  },
+  {
+   "class": "barrier=gate+locked=yes",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways)",
+   "tags": {
+    "highway": "tertiary",
+    "surface": "asphalt",
+    "barrier": "gate",
+    "locked": "yes"
+   },
+   "verdict": "GATED",
+   "divergent": {
+    "etl": "PAVED",
+    "profile": "NOT_GATED",
+    "tracked_by": "T-0188 ports this Gates.verdict branch into assemble.gate_reason; car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
+   }
+  },
+  {
+   "class": "ford=yes",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways)",
+   "tags": {
+    "highway": "unclassified",
+    "surface": "asphalt",
+    "ford": "yes"
+   },
+   "verdict": "GATED",
+   "divergent": {
+    "etl": "PAVED",
+    "profile": "NOT_GATED",
+    "tracked_by": "T-0188 ports this Gates.verdict branch into assemble.gate_reason; car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
+   }
+  },
+  {
+   "class": "service=driveway",
+   "way_id": 10726416,
+   "source": "la canyon window, 606 isolated ways of this class",
+   "tags": {
+    "highway": "service",
+    "service": "driveway",
+    "source": "usgs_imagery_2007",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Ventura, CA"
+   },
+   "verdict": "GATED",
+   "divergent": {
+    "etl": "ZERO_NOT_GATED",
+    "profile": "NOT_GATED",
+    "tracked_by": "T-0188 ports this Gates.verdict branch into assemble.gate_reason; car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
+   }
+  },
+  {
+   "class": "service=parking_aisle",
+   "way_id": 13309646,
+   "source": "la canyon window, 997 isolated ways of this class",
+   "tags": {
+    "highway": "service",
+    "service": "parking_aisle",
+    "source": "usgs_imagery_2007"
+   },
+   "verdict": "GATED",
+   "divergent": {
+    "etl": "ZERO_NOT_GATED",
+    "profile": "NOT_GATED",
+    "tracked_by": "T-0188 ports this Gates.verdict branch into assemble.gate_reason; car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
+   }
+  },
+  {
+   "class": "no surface on primary",
+   "way_id": 13383324,
+   "source": "la canyon window, 90 isolated ways of this class",
+   "tags": {
+    "highway": "primary",
+    "maxspeed": "55 mph",
+    "name": "Kanan Road",
+    "ref": "CR N9",
+    "source:maxspeed": "sign",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Los Angeles, CA",
+    "tiger:name_base": "Kanan",
+    "tiger:name_base_1": "County Highway N9",
+    "tiger:name_type": "Rd"
+   },
+   "verdict": "PAVED"
+  },
+  {
+   "class": "no surface on secondary",
+   "way_id": 10736500,
+   "source": "la canyon window, 171 isolated ways of this class",
+   "tags": {
+    "highway": "secondary",
+    "lanes": "2",
+    "maxspeed": "45 mph",
+    "name": "Agoura Road",
+    "oneway": "yes",
+    "tiger:cfcc": "A45",
+    "tiger:county": "Ventura, CA",
+    "tiger:name_base": "Agoura",
+    "tiger:name_type": "Rd"
+   },
+   "verdict": "PAVED"
+  },
+  {
+   "class": "no surface on tertiary",
+   "way_id": 10732446,
+   "source": "la canyon window, 264 isolated ways of this class",
+   "tags": {
+    "highway": "tertiary",
+    "maxspeed": "45 mph",
+    "name": "Triunfo Canyon Road",
+    "oneway": "yes",
+    "tiger:cfcc": "A45",
+    "tiger:county": "Ventura, CA",
+    "tiger:name_base": "Triunfo Canyon",
+    "tiger:name_type": "Rd"
+   },
+   "verdict": "PAVED"
+  },
+  {
+   "class": "no surface on unclassified",
+   "way_id": 10741508,
+   "source": "la canyon window, 64 isolated ways of this class",
+   "tags": {
+    "highway": "unclassified",
+    "name": "Cotharin Road",
+    "source": "usgs_imagery_2007",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Ventura, CA",
+    "tiger:name_base": "Cotharin",
+    "tiger:name_type": "Rd"
+   },
+   "verdict": "UNKNOWN_X08"
+  },
+  {
+   "class": "no surface on residential",
+   "way_id": 10719275,
+   "source": "la canyon window, 1606 isolated ways of this class",
+   "tags": {
+    "highway": "residential",
+    "name": "Pixton Street",
+    "tiger:cfcc": "A41",
+    "tiger:county": "Ventura, CA",
+    "tiger:reviewed": "no"
+   },
+   "verdict": "UNKNOWN_X08"
+  }
+ ]
+}
