@@ -1,7 +1,7 @@
 ---
 id: T-0368
 title: The home's Surprise Me chip acts on /config's feature_surprise - hidden or its typed line when false, and the plan sheet's post-tap Surprise action follows it
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
