@@ -9,9 +9,11 @@ public enum LiveLoopPlanner {
     public static func make() -> any LoopPlanning {
         guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return UnreachableLoopPlanner() }
-        return TelemetryLoopPlanner(inner: ClientLoopPlanner(client: LoopClient(base: base, transport: URLSessionPlanTransport(),
+        let client = ClientLoopPlanner(client: LoopClient(base: base, transport: URLSessionPlanTransport(),
                                                     installID: StoredInstallID(),
                                                     accountToken: StoreKitAccountToken(),
-                                                    session: LiveSession.store)))
+                                                    session: LiveSession.store))
+        // T-0364 R3: the /config cache and our build, so the form hears a pause, an update or its flag first.
+        return TelemetryLoopPlanner(inner: ConfiguredLoopPlanner(planner: client, cache: LivePlanner.cache(base), appBuild: LivePlanner.appBuild))
     }
 }

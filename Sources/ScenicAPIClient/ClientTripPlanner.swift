@@ -10,6 +10,9 @@ public struct ClientTripPlanner: TripPlanning {
         self.client = client
     }
 
+    /// T-0364 R3: the bare client reads no /config, so it never degrades; the Configured planner is the one that does.
+    public func degrade() async -> ConfigDegrade { .clear }
+
     public func plan(_ ticket: TripTicket) async -> TripOutcome {
         do {
             let response = try await client.trip(from: ticket.origin, to: ticket.place, days: ticket.days,

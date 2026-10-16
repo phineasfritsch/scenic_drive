@@ -65,7 +65,8 @@ struct ConfigCacheTests {
             let storage = MemoryConfigStorage(bytes)
             let answer = await Self.cache(storage, PlanHTTPReply(status: 200, body: ConfigWireBody.of(Self.fresh))).refresh()
             #expect(answer == Self.fresh, "\(name)")
-            #expect(storage.load() == Data(#"{"min_app_build":9,"planning_paused":true}"#.utf8), "\(name)")
+            #expect(storage.load() == Data((#"{"feature_loop":true,"feature_surprise":true,"feature_trip":true,"#
+                                           + #""min_app_build":9,"planning_paused":true}"#).utf8), "\(name)")
             #expect(storage.saves == 1, "\(name)")
             let later = await Self.cache(storage, nil).refresh()
             #expect(later == Self.fresh, "\(name): the kept answer is read back")

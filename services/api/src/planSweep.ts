@@ -10,6 +10,7 @@
  * KV is eventually consistent (R8): a key written elsewhere moments before may be unlisted and lives to its TTL.
  */
 import { PLAN_TOKEN, planKeyPrefix } from "./planToken";
+import { isSearchPlaceId } from "./searchPlaces";
 
 /** 900 KV operations (lists + deletes), under the Workers limit of 1000 per invocation (T-0326 R7). */
 export const PLAN_SWEEP_MAX_OPS = 900;
@@ -26,6 +27,9 @@ export interface PlanSweepKv {
   list(options: { prefix: string; cursor?: string }): Promise<PlanSweepPage>;
   delete(key: string): Promise<void>;
 }
+
+/** A plan token (T-0326 R1) or a searched place id (T-0362 R4): the whole key shape after the prefix. */
+const isSweptKey = (rest: string): boolean => PLAN_TOKEN.test(rest) || isSearchPlaceId(rest);
 
 /** Deletes every plan of every device in `devices`; true iff nothing was left undone. */
 export async function sweepPlans(kv: PlanSweepKv, devices: string[]): Promise<boolean> {
@@ -45,7 +49,7 @@ export async function sweepPlans(kv: PlanSweepKv, devices: string[]): Promise<bo
         break;
       }
       const mine = page.keys.map((k) => k.name)
-        .filter((name) => name.startsWith(prefix) && PLAN_TOKEN.test(name.slice(prefix.length)));
+        .filter((name) => name.startsWith(prefix) && isSweptKey(name.slice(prefix.length)));
       const now = mine.slice(0, PLAN_SWEEP_MAX_OPS - ops);
       ops += now.length;
       const settled = await Promise.allSettled(now.map((name) => kv.delete(name)));

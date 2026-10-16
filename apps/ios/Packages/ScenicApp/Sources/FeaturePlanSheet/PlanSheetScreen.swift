@@ -13,7 +13,8 @@ import SwiftUI
 /// Presented full height, as Settings is, with no detent: a partial sheet over the map would cover its credit
 /// (P-ATTR-01).
 public struct PlanSheetScreen: View {
-    private let planner: any RoutePlanning & WaitlistJoining
+    /// T-0362 R9: the same value is the sheet's address search, so the shell's one LivePlanner.make() builds it too.
+    private let planner: any RoutePlanning & WaitlistJoining & PlaceSearching
     /// T-0360: the waitlist card replaces the failure card from the tap; nil answer while the request is out.
     @State private var showingWaitlist = false
     @State private var waitlistAnswer: WaitlistAnswer?
@@ -40,7 +41,7 @@ public struct PlanSheetScreen: View {
     private let loopPlanner: any LoopPlanning
     private let loopLink: (Coordinate, [Coordinate]) -> URL?
 
-    public init(planner: any RoutePlanning & WaitlistJoining, tripPlanner: any TripPlanning,
+    public init(planner: any RoutePlanning & WaitlistJoining & PlaceSearching, tripPlanner: any TripPlanning,
                 dayLinks: @escaping ([Coordinate]) -> [URL], loopPlanner: any LoopPlanning,
                 loopLink: @escaping (Coordinate, [Coordinate]) -> URL?, onDrive: @escaping (PlanPreview) -> Void,
                 onClose: @escaping () -> Void) {
@@ -133,7 +134,8 @@ public struct PlanSheetScreen: View {
         case .idle, .chosen:
             form
         case .searching(let field, _):
-            PlanPlaceList(field: field, query: $query, onPick: { sheet.choose($0) }, onCancel: { sheet.endSearch() })
+            PlanPlaceList(field: field, query: $query, search: PlaceSearchSubmit(searcher: planner), start: sheet.start,
+                          destination: sheet.destination, onPick: { sheet.choose($0) }, onCancel: { sheet.endSearch() })
         case .planning:
             ProgressView("Finding a calmer way there")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -172,7 +174,7 @@ public struct PlanSheetScreen: View {
                         in: 0...PlanSheet.maxBudgetMinutes, step: 15)
             }
             Section {
-                if let notice = sheet.degrade.notice {
+                if let notice = sheet.degrade.notice(on: .plan) {
                     // T-0357 R6: a pause or an update heard from /config, said before the tap; the gate issues nothing.
                     Text(notice)
                         .foregroundStyle(DesignTokens.fg)

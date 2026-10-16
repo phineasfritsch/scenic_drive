@@ -22,7 +22,8 @@ struct ConfigDegradeTests {
         for (paused, build, row) in Self.table {
             #expect(row.count == Self.mins.count)
             for (min, letter) in zip(Self.mins, row) {
-                let degrade = ConfigDegrade.of(RemoteConfig(minAppBuild: min, planningPaused: paused), appBuild: build)
+                let degrade = ConfigDegrade.of(RemoteConfig(minAppBuild: min, planningPaused: paused), appBuild: build,
+                                               on: .plan)
                 #expect(degrade == Self.letters[letter], "paused \(paused) min \(min) build \(String(describing: build))")
                 seen += 1
             }
@@ -46,11 +47,11 @@ struct ConfigDegradeTests {
 
     @Test("Each degrade's notice is its row: the typed planningPaused copy, the update line, none")
     func notices() {
-        #expect(ConfigDegrade.allCases == [.clear, .planningPaused, .updateRequired])
-        #expect(ConfigDegrade.clear.notice == nil)
-        #expect(ConfigDegrade.planningPaused.notice == PlanFailureCopy.of(.planningPaused).line)
-        #expect(ConfigDegrade.planningPaused.notice == "Planning is paused right now. Surprise Me still works.")
-        #expect(ConfigDegrade.updateRequired.notice
+        // T-0364 R4 supersedes T-0357 R6's by-reference pause line on the plan screen; ConfigNoticeTests holds the table.
+        #expect(ConfigDegrade.clear.notice(on: .plan) == nil)
+        #expect(ConfigDegrade.planningPaused.notice(on: .plan)
+                == "Planning is paused right now. Surprise Me on the home screen still works.")
+        #expect(ConfigDegrade.updateRequired.notice(on: .plan)
                 == "This version can't plan drives anymore. Update Scenic Drive from the App Store to keep planning.")
     }
 

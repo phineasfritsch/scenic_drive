@@ -61,7 +61,13 @@ struct LoopScreen: View {
                 Text("You come back to where you started. One loop a day is free.")
             }
             Section {
-                if loop.disclaimerAccepted {
+                if let notice = loop.degrade.notice(on: .loop) {
+                    // T-0364 R3: a pause, an update or loops switched off, heard from /config before the tap.
+                    Text(notice)
+                        .foregroundStyle(DesignTokens.fg)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("loop.degrade")
+                } else if loop.disclaimerAccepted {
                     Button("Find a loop", action: planLoop)
                         .disabled(loop.start == nil)
                         .accessibilityIdentifier("loop.go")
@@ -71,6 +77,11 @@ struct LoopScreen: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+        }
+        .task {
+            // T-0364 R3: this screen's /config degrade, each time its form shows; a DEBUG rehearsal keeps its own.
+            guard PlanRehearsal.atLaunch == nil else { return }
+            loop.setDegrade(await planner.degrade())
         }
     }
 

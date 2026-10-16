@@ -14,6 +14,8 @@ import SwiftUI
 /// fresh-route note when the Worker answered a new plan (T-0330 R3) and the conditions line are added.
 public struct DriveScreen: View {
     @Environment(\.colorScheme) private var colorScheme
+    /// T-0358 R7: where a post-drive answer goes - the shell's, from PlanAdapter; unset, nowhere.
+    @Environment(\.postDriveAnswers) private var answers
 
     /// The basemap ACTUALLY on screen, named once so the tiles and the credit cannot drift apart (P-ATTR-01).
     @State private var style = MapStyle.maplibreDemoTiles
@@ -22,6 +24,10 @@ public struct DriveScreen: View {
     @State private var route: MapRoute?
     @State private var bannerBottom: CGFloat = 0
     @State private var creditBandTop: CGFloat = 0
+    /// T-0358 R4: the question has been shown for this drive (one screen per drive); it is never shown again.
+    @State private var asked = false
+    /// T-0358 R2: the question is on screen in place of the controls.
+    @State private var isAsking = false
 
     private let preview: PlanPreview
     private let display: DriveDisplay
@@ -54,7 +60,14 @@ public struct DriveScreen: View {
 
                 VStack(spacing: 0) {
                     AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))
-                    controls
+                    if isAsking {
+                        PostDriveCard(onAnswer: answer)
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(DesignTokens.surface)
+                    } else {
+                        controls
+                    }
                 }
                 .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { creditBandTop = $0 }
             }
@@ -63,6 +76,7 @@ public struct DriveScreen: View {
         .task { resolveMap() }
         .onChange(of: colorScheme) { resolveMap() }
         .onChange(of: display.line) { resolveMap() }
+        .onChange(of: display.showsDetails) { if isAsking, !display.showsDetails { answer(.dismissed) } }
     }
 
     /// The full surface's status, as a sentence under the status bar. Nothing on the minimal surface.
@@ -114,7 +128,7 @@ public struct DriveScreen: View {
 
     /// The one action. While moving it is the one large target, and it carries the reroute or rejoin caption.
     private var endButton: some View {
-        Button(action: onEnd) {
+        Button(action: endTapped) {
             VStack(spacing: 2) {
                 Label(display.actionTitle, systemImage: "xmark.circle.fill")
                     .font(.title3)
@@ -131,6 +145,25 @@ public struct DriveScreen: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("drive.end")
+    }
+
+    /// T-0358 R2: End drive asks the post-drive question once when PostDriveQuestion says so (arrived, stopped, not
+    /// asked); otherwise the drive ends.
+    private func endTapped() {
+        if PostDriveQuestion.asks(after: display, alreadyAsked: asked) {
+            asked = true
+            isAsking = true
+        } else {
+            onEnd()
+        }
+    }
+
+    /// T-0358 R5/R6: the tapped answer goes to PostDriveQuestion.send (a skip sends nothing), and the drive ends.
+    /// Moving while the question shows is a skip (R2).
+    private func answer(_ answer: PostDriveAnswer) {
+        isAsking = false
+        PostDriveQuestion.send(answer, to: answers)
+        onEnd()
     }
 
     /// The LA basemap when the archive is on the phone, the demo tiles when it is not, and the line the drive is on.

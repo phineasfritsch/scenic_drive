@@ -31,7 +31,10 @@ shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_er
 SUBJECT_MODULES = ("Sources/ScenicAPIClient/ConfigClient.swift", "Sources/ScenicAPIClient/ConfigReader.swift",
                    "Sources/ScenicAPIClient/ConfigWire.swift", "Sources/ScenicAPIClient/ConfigCache.swift",
                    "Sources/ScenicAPIClient/ConfiguredPlanner.swift", "Sources/ScenicKit/Config/RemoteConfig.swift",
-                   "Sources/ScenicKit/Config/ConfigDegrade.swift", "Sources/ScenicKit/Config/AppBuild.swift")
+                   "Sources/ScenicKit/Config/ConfigDegrade.swift", "Sources/ScenicKit/Config/AppBuild.swift",
+                   "Sources/ScenicKit/Config/ConfigScreen.swift",
+                   "Sources/ScenicAPIClient/ConfiguredLoopPlanner.swift",
+                   "Sources/ScenicAPIClient/ConfiguredTripPlanner.swift")
 
 from config_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)

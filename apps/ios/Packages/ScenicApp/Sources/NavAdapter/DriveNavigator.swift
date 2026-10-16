@@ -121,8 +121,8 @@ public final class DriveNavigator: ObservableObject {
     private func publish() {
         mode = controller.session.mode
         surface = controller.session.surface
-        display = DriveDisplay(session: controller.session)
         for text in voice.utterances(after: controller.session) { speak(text) }
+        display = DriveDisplay(session: controller.session, arrived: voice.hasArrived)
     }
 
     /// One line ScenicKit's DriveVoice chose, spoken unchanged through Ferrostar's own observer (T-0329 R1).
