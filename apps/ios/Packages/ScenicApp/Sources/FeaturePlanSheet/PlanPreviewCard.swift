@@ -13,6 +13,7 @@ struct PlanPreviewCard: View {
     let onChangePlace: () -> Void
     /// Starts the drive on this preview (T-0324 R4).
     let onDrive: () -> Void
+    @Environment(\.planMoments) private var moments
 
     var body: some View {
         ScrollView {
@@ -70,6 +71,7 @@ struct PlanPreviewCard: View {
             AttributionFooter(text: PlanPreview.attribution)
                 .background(.bar)
         }
+        .onAppear { moments?.report(.planPreviewOnScreen) }
     }
 
     @ViewBuilder private var hazardStrip: some View {

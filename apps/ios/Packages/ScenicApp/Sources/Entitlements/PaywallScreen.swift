@@ -13,6 +13,8 @@ import SwiftUI
 /// Calm, in the DesignSystem tokens: `fg` and `fgMuted` text on `bg`, the scenic green on the one symbol, and no
 /// `primary` text anywhere (DesignTokens' note). Text styles only, so every line grows with Dynamic Type.
 public struct PaywallScreen: View {
+    @Environment(\.paywallShown) private var shown
+
     public init() {}
 
     public var body: some View {
@@ -35,6 +37,7 @@ public struct PaywallScreen: View {
         .navigationTitle("Scenic Drive Pro")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("paywall.store")
+        .onAppear { shown?() }
     }
 
     /// The header the store view draws above its plans: one symbol, the name, the promise.

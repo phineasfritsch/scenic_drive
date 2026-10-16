@@ -19,7 +19,8 @@ from drive_mutations import ROOT
 SCRATCH = ".build/mutate-drive"
 # The suites every `killers` entry names, by their type names.
 FILTER = ("DriveSessionTests|DriveRerouteTests|DriveMotionGateTests|DriveControllerTests|DriveLegTests|DriveDisplayTests"
-          "|DriveReplanTests|DriveTokenTakeTests|DriveVoiceTests|DriveContinuedTests|DriveContinuedReplanTests")
+          "|DriveReplanTests|DriveTokenTakeTests|DriveVoiceTests|DriveContinuedTests|DriveContinuedReplanTests"
+          "|DriveProgressTests|DriveMomentLatchTests|CorpusVersionNumberTests")
 # `Test "<display name>" recorded an issue`. ASCII only: the failure glyph mis-decodes on this console.
 FAIL_LINE = re.compile(r'Test\s+(?:"([^"]*)"|([A-Za-z_]\w*\(\)))\s+recorded an issue')
 

@@ -10,6 +10,7 @@ struct TripItineraryCard: View {
     let destination: String
     let dayLinks: ([Coordinate]) -> [URL]
     let onChange: () -> Void
+    @Environment(\.planMoments) private var moments
 
     var body: some View {
         List {
@@ -63,6 +64,7 @@ struct TripItineraryCard: View {
             PlanCardExit("Change the trip", action: onChange)
                 .accessibilityIdentifier("trip.change")
         }
+        .onAppear { moments?.report(.planPreviewOnScreen) }
     }
 
     static func label(day: Int, part: Int, of parts: Int) -> String {
