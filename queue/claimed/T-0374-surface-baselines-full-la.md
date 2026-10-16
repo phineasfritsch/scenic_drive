@@ -1,13 +1,13 @@
 ---
 id: T-0374
 title: Re-measure surfacecoverage.BASELINES over the FULL LA corpus - the canyon-window baselines put motorway and motorway_link red on full LA
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T07:25:12Z
+lease_expires_at: 2026-10-17T07:25:12Z
+worktree: .worktrees/T-0374
+branch: task/T-0374
 exclusive: []
 touches: [services/etl/etl/surfacecoverage.py, services/etl/tests/, ops/lib/, ops/mutate/, pins/PINS.yaml, queue/]
 pins_affected: [P-OPS-09]
@@ -31,3 +31,6 @@ table), next to the canyon window's. RULE whether BASELINES become per-region (l
 table re-derived from the full region, and the 0.75 margin. Then: the new literals, the surfacecoverage tests and
 its mutation population re-run, check-sane-corpus (its rows place classes on BASELINES, so they follow), and the full
 LA corpus through sane_corpus.py green on corpus-surface. Do NOT touch prod/R2.
+
+## Log
+- 2026-10-16T07:25:12Z claimed by agent/claude-opus-5; lease until 2026-10-17T07:25:12Z
