@@ -1,7 +1,7 @@
 ---
 id: T-0188
 title: ETL gate port - the unported Gates.verdict refusals (tracktype, smoothness, locked barrier, ford=yes, service values) into assemble.gate_reason with fixture rows and the enumeration pinned against Gates.swift
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T15:39:20Z
@@ -11,7 +11,7 @@ branch: task/T-0188
 exclusive: []
 touches: [services/etl/etl/assemble.py, services/etl/tests/, ops/mutate/scenic_tags_mutations.py, ops/mutate/extractadapter.py, Tests/ScenicKitTests/GateParityFixtureTests.swift, queue/]
 pins_affected: [P-PROD-01]
-reviewer: null
+reviewer: agent/rv3-t0188
 depends_on: [T-0146]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -194,3 +194,16 @@ router's own and are not this task.
   Gates bare, each exit=0: check-safety-disclaimer; check-mutate-population (`the floor of 169 holds`);
   check-mutate-only (`NAME-PAIRS OK`); check-line-cap (`682 Swift files tracked ... none over 300 lines`);
   check-pins-yaml (`pins=52`); check-exec-bits (`all modes correct`); queue-check (`QUEUE OK (370 tasks)`).
+- 2026-10-16T19:23:16Z agent/rv3-t0188 (REVIEWER round 3, not the owner): PASS on head cd10166a.
+  rv2 B3 casefold mutant reproduced over the full ETL suite (python -B -m pytest, __pycache__ purged and 1.1 s
+  python sleep around each run): RED by name, 3 failed, 2001 passed - test_gate_parity.py
+  test_etl_gives_the_fixture_verdict[ford=Yes], test_etl_and_profile_agree_on_every_gate, test_gate_port.py
+  test_each_equality_conjunct_refuses_its_swift_literal_and_no_other_value[ford==yes].
+  Own mutant of the same class (prefix widening, ford compare -> (tags.get("ford") or "").startswith("y")):
+  RED, 1 failed, 2003 passed - [ford==yes]. assemble.py restored, git status clean after.
+  Unmutated: test_gate_port.py + test_gate_parity.py 112 passed; swift test --filter GateParityFixtureTests
+  3 tests passed (near-miss test filters ford=Yes, rows.count == 33). scenic_tags_mutations.py 300 lines,
+  MIN_MUTATIONS = 75 with the casefold and strip mutants. Gates bare, each rc=0: check-safety-disclaimer,
+  check-mutate-population (floor of 169 holds), check-mutate-only, check-line-cap (none over 300),
+  check-pins-yaml (pins=52), check-exec-bits, queue-check (QUEUE OK (370 tasks)). gh pr checks 268: core
+  pass, pins-source-only pass. git merge-base --is-ancestor origin/main (04952011) origin/task/T-0188: rc=0.
