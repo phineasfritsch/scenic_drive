@@ -148,3 +148,20 @@ name; a clean fixture green), exit 4 ordering unchanged (check-sane-exit-order),
     whole table once (it is the gate).
   - FILED (recordable): surfacecoverage.BASELINES re-measure over the FULL LA corpus, as its own task (id = next free
     after main and every open task/* branch).
+- 2026-10-16T06:05:00Z ROUND 2 RESULTS (agent/claude-opus-5):
+  - New rows green on the pristine subjects: `SANE-CORPUS ok 4/4 cases passed` (--only d-store-two-second-red,
+    d-store-two-first-red, l-local-store-red, l-local-store-clean).
+  - SEEN RED by the new row names (ops/mutate/sane_corpus.py --only 20,21,22,26,27,28,29, faster-verification):
+    `MUTATE killed #27 ops/lib/sane_corpus.py: 'rows = [r for path in paths[:1] for r in check(path)]' by
+    d-store-two-second-red` (B1/M2); `MUTATE killed #28 ... paths[1:] ... by d-store-two-first-red`; `MUTATE killed
+    #29 ops/sane: 'if [[ -z "${SANE_CORPUS:-}" ]]' by l-local-store-red, l-local-store-clean` (B2/M1); neighbours #20,
+    #21, #22, #26 still killed; `MUTATE ok 7/7 killed (floor 29, population 29)`. Population 26 -> 29, MIN_MUTATIONS 29.
+  - T-0374 filed in queue/backlog/ (ids checked on origin/main, every open PR head and every origin/task/* branch:
+    highest T-0373; `T-0374 free` gated); its path added to this task's touches:.
+  - Gates on the merged head (git fetch origin in the main checkout; origin/main aa1b1b22; merge `Already up to date`,
+    HEAD 24fdb982), run bare: `SANE-CORPUS ok 59/59 cases passed (sane=ops/sane)` (46 s-, 8 d-, 3 p-, 2 l-);
+    `SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=23`; `P-PROC-06: every added module is
+    covered or allowlisted; the floor of 165 holds`; `PINS-YAML ok pins=51 fields=411`; `P-OPS-01: 230 files, 23
+    required present, all modes correct`; `QUEUE OK (361 tasks)`. wc -l: check_sane_corpus.py 260,
+    ops/mutate/sane_corpus.py 157, sane_corpus.py 175, ops/sane 212, sane_corpus_cases.py 141, T-0374 file 33.
+  - CORRECTION before push: P-OPS-09's round-2 sentence first said 61 rows; the table printed 59/59 - corrected to 59.
