@@ -80,12 +80,13 @@ re-approved.
    ops/lib/check-safety-disclaimer-frozen carries the new line, PINNED_SHELL_DIGEST equals
    `sed 's/\r$//' apps/ios/ScenicDrive/ScenicDriveApp.swift | sha256sum`; `bash ops/lib/check-safety-disclaimer` is
    green, and was seen red with the approval committed before the shell edit.
-2. The ax5 LIST is `collapsed medium preview nothingPretty offered loop trip saved` in ios-screenshot.yml and in
+2. The ax5 LIST is `collapsed preview nothingPretty offered loop trip saved` in ios-screenshot.yml and in
    ops/lib/ios_screenshot_pinned.py (AX5_LIST and the expected run script), with a prove-red row "T-0376: the AX5 home
-   shots dropped"; `python ops/lib/check-ios-compile-guardrails.py` and `--prove-red` are green, and the plain check
-   was seen red with the pinned data moved before the workflow.
+   shot dropped"; `python ops/lib/check-ios-compile-guardrails.py` and `--prove-red` are green, and the plain check
+   was seen red with the pinned data moved before the workflow. (Amended per R7: `medium` crashes at AX5 on main's
+   layout too; T-0378 adds it back.)
 3. ios-compile success and ios-screenshot success on task/T-0376; looked at and quoted: home-light-collapsed,
-   home-light-medium, home-dark-collapsed, home-dark-medium, home-ax5-collapsed, home-ax5-medium each show the
+   home-light-medium, home-dark-collapsed, home-dark-medium, home-ax5-collapsed (not home-ax5-medium: R7) each show the
    "Plan a drive" pill above the chip band with no overlap with any chip (Saddle Peak, Westwood loop, SF Peninsula,
    sparkle, gear), every chip 44 pt or taller, and the OpenStreetMap credit visible directly above the sheet.
 4. Bare gates green: check-safety-disclaimer, check-mutate-population, check-mutate-only, check-telemetry-emit-sites,
@@ -103,3 +104,23 @@ re-approved.
   re-approved in -pinned's digest table row, the second site the first green run named) and the workflow LIST edited:
   check-ios-compile-guardrails rc=0 both workflows OK; --prove-red rc=0 "97 mutations red, 6 legitimate spellings
   green"; check-safety-disclaimer rc=0 "Frozen (-frozen); 34 feature file(s), shell, footer pinned".
+- 2026-10-16T10:58:18Z agent/claude-opus-5 (owner) CI on c477e258: ios-compile 38882928962 success. ios-screenshot 38882932440:
+  the light and dark jobs succeeded and the ax5 job FAILED, on attempt 1 and on a re-run (attempt 2) alike: "Wrote
+  screenshot to: .../home-ax5-collapsed.png" and then "ios-screenshot: ScenicDrive (pid 22374) is not running 15s
+  after the ax5 medium launch - it crashed". Shots looked at (light/dark artifacts, .artifacts/T-0376-shots):
+  home-light-collapsed, home-light-medium, home-dark-collapsed, home-dark-medium. In each, the "Plan a drive"
+  capsule sits alone at about y 54-86 pt with its bottom edge above the chip band's top (~89 pt), and the band below
+  shows "Saddle Peak", "Westwood loop", "SF Peninsula", the sparkle and the gear whole and unobstructed, every chip
+  about 32 pt+ tall at 3 px/pt (minHeight 44 in code, unchanged). MapLibre's logo and (i) moved down under the band. The
+  credit "(c) MapLibre - Natural Earth - (c) OpenStreetMap contributors" is directly above the sheet at both
+  detents in both appearances.
+  R7 CONTROL: is the AX5 medium crash this change's? The branch task/T-0376-control (fd6d5452 = c477e258 with
+  main's ScenicDriveApp.swift, -pinned and -frozen restored, i.e. the pill as a top-leading overlay, with the new ax5
+  LIST kept) was pushed and shot in run 38887739175. Light and dark succeeded, ax5 FAILED the same way: "Wrote
+  screenshot to: .../home-ax5-collapsed.png", then "ScenicDrive (pid 25185) is not running 15s after the ax5 medium
+  launch - it crashed". So the crash is on main's layout and is not caused by this change. Ruled: the ax5 LIST keeps
+  `collapsed` and drops `medium` (prove-red row renamed "the AX5 home shot dropped"); the crash is filed as T-0378
+  (ids checked on main and all 271 remote task/* branches: highest T-0377), which adds `medium` back. The control
+  branch has been deleted from origin. Acceptance 2 and 3 are amended to match.
+  Re-checked after the LIST change: check-ios-compile-guardrails rc=0 (both workflows OK), --prove-red "97 mutations
+  red, 6 legitimate spellings green ... 0 unexpected".

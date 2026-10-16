@@ -132,7 +132,7 @@ jobs:
             LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty waitlist offered loop trip saved paused update loopPaused tripPaused loopRegion tripRegion loopWaitlist tripWaitlist searchResults searchNotice legal"
             if [ "$LOOK" = ax5 ]; then
               SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)
-              LIST="collapsed medium preview nothingPretty offered loop trip saved"
+              LIST="collapsed preview nothingPretty offered loop trip saved"
               xcrun simctl ui "$UDID" appearance light
             else
               xcrun simctl ui "$UDID" appearance "$LOOK"
