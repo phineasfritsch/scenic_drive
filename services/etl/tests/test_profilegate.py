@@ -244,7 +244,7 @@ def test_the_corpus_has_every_family_for_every_literal():
         want = FAMILIES | {"delete@%d" % i for i in range(len(literal))} | {
             "insert-%s@%d" % (name, i) for name in gnm.INSERTED.values() for i in range(len(literal) + 1)}
         assert set(names) == want and len(names) == len(want), literal
-        assert set(gnm.INSERTED) == {" ", "	", ";", "_", "-", "x", "|", ","}
+        assert set(gnm.INSERTED) == {" ", "\t", ";", "_", "-", "x", "|", ","}
         assert [v for f, v in pairs if v == literal] == [literal] and dict(pairs)["identity"] == literal
         assert key not in context
         for row in (r for r in gnm.corpus() if r["literal"] == "%s=%s" % (key, literal)):
