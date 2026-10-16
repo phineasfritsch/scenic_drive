@@ -96,3 +96,10 @@ the profile only on task/T-0381 until then.
   is outside this task's touches (Sources/ needs the digest re-approval and a Swift run) - NOT changed here; it is
   the follow-up, recorded in the PR's stillOpen.
 - 2026-10-16T23:23:06Z FULL SUITE: `npx vitest run` -> `Tests 1 failed | 2678 passed (2679)`: requestReadSites.test.ts (the T-0272 whitelist of src lines naming the request) refused my new doc comment on FORBIDDEN_ENCODED_VALUES because it spelled the profile's file name ending `.json`; reworded to "the shipped base routing profile" (customModel.ts `wc -l` re-measured 299); requestReadSites + customModelGateValues -> `Tests 18 passed (18)`. Bare gates on 20db931e: check-safety-disclaimer exit 0, check-mutate-population `P-PROC-06 ... 0 added by this branch` exit 0, check-mutate-only `MUTATE-ONLY OK: 234 of 234` exit 0, check-pins-yaml `PINS-YAML ok pins=52 fields=418`, check-exec-bits `P-OPS-01: 238 files ... all modes correct`, queue-check `QUEUE OK (373 tasks)`.
+- 2026-10-16T23:36:35Z FINAL ACCEPTANCE on 9ca313ff (git fetch origin in the main checkout; origin/main 2c0daea5 already an ancestor,
+  merge a no-op). A1/A2: customModelGateValues + customModel + customModelGate + customModelMinorClause +
+  planPrivacy + planRecorded + closuresRoutes + requestReadSites -> Test Files 8 passed (8), Tests 668 passed (668).
+  A3: RED/green quoted above (7 failed | 4 passed on the old constant; NAMED 19/26). A4: run-named-tests.py
+  P-SAFE-01 -> NAMED P-SAFE-01 passed=26/26. A5: gates quoted above on 20db931e (only a comment changed since);
+  check-line-cap printed NOTHING in 10 min on the loaded box and was killed (timeout exit 124) - relying on CI
+  core for it; measured by hand: customModel.ts 299 lines, customModelGateValues.test.ts 150 lines.
