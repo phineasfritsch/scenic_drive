@@ -13,6 +13,8 @@ struct PlanPlaceList: View {
     var search: PlaceSearchSubmit?
     var start: PlanPlace?
     var destination: PlanPlace?
+    /// T-0373 R3: a DEBUG rehearsal's answer, shown from the first frame; nil from every production call site.
+    var rehearsed: PlaceSearchAnswer? = nil
     let onPick: (PlanPlace) -> Void
     let onCancel: () -> Void
     @State private var answer: PlaceSearchAnswer?
@@ -37,6 +39,7 @@ struct PlanPlaceList: View {
             }
             addresses
         }
+        .onAppear { if answer == nil, let rehearsed { answer = rehearsed } }
         .onChange(of: query) { answer = nil }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
