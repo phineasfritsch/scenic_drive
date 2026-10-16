@@ -73,7 +73,7 @@ export const MUTATIONS = [
   m("plan-crosses-unreported", "plan.ts", "picker.dropped(), picker.crosses())", "picker.dropped())"),
   m("loop-unchecked", "loop.ts", "seed, picker.pick, picker.returned),", "seed, picker.pick, async (v) => v),"),
   m("loop-crosses-unreported", "loop.ts", "picker.dropped(), picker.crosses())", "picker.dropped())"),
-  m("trip-unchecked", "trip.ts", "who.tier === \"paid\", picker.pick, picker.returned, places)", "who.tier === \"paid\", picker.pick, async (v) => v, places)"),
+  m("trip-unchecked", "trip.ts", "who.tier === \"paid\", picker.pick, picker.returned, placesNear)", "who.tier === \"paid\", picker.pick, async (v) => v, placesNear)"),
   m("trip-crosses-unreported", "trip.ts", "picker.dropped(), picker.crosses())", "picker.dropped())"),
   m("plan-re-ceiling-unchecked", "scenicPlanner.ts", "return durationSeconds(again) <= ceiling && ", "return "),
   m("plan-re-overlap-unchecked", "scenicPlanner.ts", " && overlap(wayIds(again), wayIds(fastest)) < MAXIMUM_OVERLAP ? again", " ? again"),

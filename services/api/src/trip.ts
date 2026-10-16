@@ -6,8 +6,9 @@
  *   3. The destination place id -> its coordinate, or 404. Not an upstream call.
  *   4. guardedPlan with TRIP_UPSTREAM_COST under kind "trip": the quota is read and RESERVED before the first
  *      router request, and the `call` it hands out refuses a 13th (P-COST-04).
- * The trip_places read (T-0316 R4) follows the closures snapshot; a read that throws plans with places null - every
- * night "not_searched" - never "no_lodging". Free and anon get the PREVIEW, paid the FULL itinerary with one leg a day (R5, the plan's feature table). Deps
+ * The trip_places read (T-0316 R4) runs inside guardedPlan, AFTER the reservation (T-0318 R1): planTrip asks for the
+ * places near the path it splits, bounded to that path's box (tripPlacesBox.ts); a read that throws plans with places
+ * null - every night "not_searched" - never "no_lodging". Free and anon get the PREVIEW, paid the FULL itinerary with one leg a day (R5, the plan's feature table). Deps
  * are injected so the tests count real fetch invocations; ROUTES["/trip"] builds them from env exactly as /plan does.
  */
 import { closurePicker } from "./closuresNearest";
@@ -22,6 +23,7 @@ import { RouteError } from "./routePath";
 import { parseTripRequest } from "./tripRequest";
 import { inServedRegion } from "./servedRegion";
 import { d1TripPlaces } from "./tripPlaces";
+import { placesBox, type PlacesBox } from "./tripPlacesBox";
 import { MAX_DRIVE_MS_PER_DAY, MAX_METERS_PER_DAY, planTrip, TRIP_UPSTREAM_COST, TripFailure } from "./tripPlanner";
 import { guardedPlan, PlanBudgetExceeded, UpstreamPaused, type UpstreamDeps } from "./upstream";
 
@@ -29,7 +31,7 @@ export { MAX_EXTRA_BUDGET_PCT, MAX_TRIP_DAYS, MIN_TRIP_DAYS } from "./tripReques
 export { MAX_DRIVE_MS_PER_DAY, MAX_METERS_PER_DAY, TRIP_UPSTREAM_COST } from "./tripPlanner";
 
 /** A trip needs what a plan needs - the quota, the router and the D1 place resolver - and its candidate places. */
-export type TripDeps = PlanDeps & { tripPlaces: () => Promise<RoadTripPlace[]> };
+export type TripDeps = PlanDeps & { tripPlaces: (box: PlacesBox) => Promise<RoadTripPlace[]> };
 
 const json = (body: unknown, status: number) =>
   new Response(JSON.stringify(body), {
@@ -95,17 +97,18 @@ export async function handleTrip(req: Request, env: PlanEnv, deps: TripDeps | nu
   if (who.rejected === true) return json({ error: "session_rejected" }, 401);
   const snapshot = await deps.closures();
   const picker = closurePicker(snapshot.closures);
-  let places: RoadTripPlace[] | null;
-  try {
-    places = await deps.tripPlaces();
-  } catch {
-    places = null;
-  }
+  const placesNear = async (vertices: LatLon[]): Promise<RoadTripPlace[] | null> => {
+    try {
+      return await deps.tripPlaces(placesBox(vertices));
+    } catch {
+      return null;
+    }
+  };
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   try {
     const trip = await guardedPlan(upstream, { ...who, kind: "trip" }, (call) =>
       planTrip(call, deps.routerBase, request.origin, destination, request.days, request.extraBudgetPct,
-        who.tier === "paid", picker.pick, picker.returned, places), TRIP_UPSTREAM_COST);
+        who.tier === "paid", picker.pick, picker.returned, placesNear), TRIP_UPSTREAM_COST);
     return json(withClosuresHazard(trip, snapshot, picker.dropped(), picker.crosses()), 200);
   } catch (error) {
     return failure(error, request.days, request.extraBudgetPct);
