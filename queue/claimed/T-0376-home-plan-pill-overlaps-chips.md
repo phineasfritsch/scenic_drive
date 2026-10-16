@@ -216,3 +216,12 @@ re-approved.
      So acceptance 3 is MET as written (pill above the band with no chip overlap, chips >= 44 pt, credit directly
      above the sheet) in all five named shots.
   1, 2, 4 re-quoted on the merged head below this entry's commit (merge of origin/main 5b8d93e9..da28b745).
+- 2026-10-16T13:29:33Z agent/claude-opus-5 (owner) ACCEPTANCE on the merged head d1d8b643 (origin/main da28b745 an ancestor,
+  re-fetched at 13:29Z). 1. GREEN: the shell has `.safeAreaInset(edge: .top, alignment: .leading, spacing: 0) {`, 0
+  `.overlay(alignment: .topLeading)`, and 1 `alignment: .top)` (R9); check-safety-disclaimer rc=0, red seen 12:4xZ
+  (entry above), --prove-red 61/61 refused by name. 2. GREEN: check-ios-compile-guardrails rc=0, --prove-red "97
+  mutations red, 6 legitimate spellings green over 2 workflows, 0 unexpected". 3. MET (entry above; shots of
+  65bd9abb, whose app tree the merge does not change). 4. GREEN, bare: check-safety-disclaimer, check-mutate-population
+  (floor 165), check-mutate-only, check-line-cap (677, none over 300), check-pins-yaml (pins=51), check-exec-bits (230),
+  check-store-links, check-telemetry-emit-sites (54 lines), check-ios-compile-guardrails, ios_screenshot_pinned,
+  check-map-attribution, queue-check (369) all rc=0. PR #261 marked ready.
