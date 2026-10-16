@@ -1,7 +1,7 @@
 ---
 id: T-0181
 title: one UNPAVED_SURFACES set under services/etl/etl - surface.py owns it, assemble.py imports it, the Gates.swift anchor moves with the set
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
