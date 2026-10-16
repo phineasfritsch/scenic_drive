@@ -48,8 +48,54 @@ public struct ScenicPlanner {
     }
 
     /// Plan, or refuse. `budget` is seconds of EXTRA time over the fastest route.
+    ///
+    /// 3. **Pretty** (T-0230, plan Problem A step 3), after the two guards: the chosen route's RouteScore over
+    /// its own table. Under the floor, or with no scored road, the plan is refused as `nothingPretty` with the
+    /// two offers - never issued as a dull drive with the state in small print.
     public func plan(from origin: Coordinate, to destination: Coordinate,
                      budget: TimeInterval) throws -> ScenicPlan {
+        let (plan, measured) = try search(from: origin, to: destination, budget: budget)
+        let scored = RouteScore(edges: plan.table.scoredEdges)
+        if let score = scored, !score.isHonestFailure { return plan }
+        throw PlanFailure.nothingPretty(PlanNothingPretty(
+            budget: budget, fastestDuration: plan.fastestDuration, routeScore: scored?.value,
+            backRoads: try backRoads(from: origin, to: destination, measured: measured)))
+    }
+
+    /// The route before the scenic gate: the ceiling and actually-different guards only. `ops/route-autopsy`
+    /// runs this, because explaining a route the planner refuses as not pretty is what an autopsy is for.
+    public func checkedRoute(from origin: Coordinate, to destination: Coordinate,
+                             budget: TimeInterval) throws -> ScenicPlan {
+        try search(from: origin, to: destination, budget: budget).plan
+    }
+
+    /// The "all back roads" offer: the lambda-8 route, reused when the search measured it and requested once
+    /// when it did not. No recording / a router refusal is `unmeasured`; anything else propagates.
+    func backRoads(from origin: Coordinate, to destination: Coordinate,
+                   measured: [String: RoutePath]) throws -> PlanNothingPretty.BackRoads {
+        let lambda = PlanNothingPretty.backRoadsLambda
+        let path: RoutePath
+        if let known = measured[Self.key(lambda)] {
+            path = known
+        } else {
+            do {
+                path = try source.scenic(from: origin, to: destination, lambda: lambda)
+            } catch let failure as PlanFailure {
+                switch failure {
+                case .noRecordedResponse, .routerRefused: return .unmeasured(failure.description)
+                default: throw failure
+                }
+            }
+        }
+        let scored = RouteScore(edges: PlanTable(path: path).scoredEdges)
+        guard let score = scored, !score.isHonestFailure else {
+            return .dull(duration: path.duration, routeScore: scored?.value)
+        }
+        return .offered(duration: path.duration, routeScore: score.value)
+    }
+
+    func search(from origin: Coordinate, to destination: Coordinate,
+                budget: TimeInterval) throws -> (plan: ScenicPlan, measured: [String: RoutePath]) {
         let fastest = try source.fastest(from: origin, to: destination)
         let ceiling = fastest.duration + budget
 
@@ -80,7 +126,7 @@ public struct ScenicPlanner {
         }
 
         let table = PlanTable(path: chosen)
-        return ScenicPlan(
+        let plan = ScenicPlan(
             origin: origin,
             destination: destination,
             budget: budget,
@@ -91,6 +137,7 @@ public struct ScenicPlanner {
             waypoints: PlanWaypoints.decisionPoints(table: table, path: chosen),
             overlapWithFastest: overlap
         )
+        return (plan, measured)
     }
 
     /// A lambda's key in the measured map. `Double` is a poor dictionary key when the value is produced by

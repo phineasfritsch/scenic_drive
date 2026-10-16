@@ -1,0 +1,95 @@
+<osm version="0.6" generator="generate_t1_landmarks.py">
+  <node id="358790405" lat="34.0447306" lon="-118.5734161">
+    <tag k="ele" v="79" />
+    <tag k="gnis:feature_id" v="247260" />
+    <tag k="name" v="Parker Mesa" />
+    <tag k="natural" v="peak" />
+    <tag k="wikidata" v="Q49059949" />
+  </node>
+  <node id="358796553" lat="34.112035" lon="-118.6525754">
+    <tag k="ele" v="657" />
+    <tag k="gnis:feature_id" v="256035" />
+    <tag k="name" v="Calabasas Peak" />
+    <tag k="natural" v="peak" />
+    <tag k="wikidata" v="Q35732480" />
+  </node>
+  <node id="358796572" lat="34.0780264" lon="-118.6550579">
+    <tag k="ele" v="851" />
+    <tag k="gnis:feature_id" v="256074" />
+    <tag k="name" v="Saddle Peak" />
+    <tag k="natural" v="peak" />
+    <tag k="wikidata" v="Q7397711" />
+  </node>
+  <node id="366083452" lat="34.059133" lon="-118.573939">
+    <tag k="name" v="Parker Mesa Overlook" />
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="597546371" lat="34.0917576" lon="-118.6236322">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="887980774" lat="34.0409965" lon="-118.6125001">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="5220474301" lat="34.0328044" lon="-118.7069586">
+    <tag k="name" v="Malibu Bluffs Peak" />
+    <tag k="natural" v="peak" />
+  </node>
+  <node id="5645100420" lat="34.07394" lon="-118.6977201">
+    <tag k="name" v="David M. Brown Overlook" />
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="7030910718" lat="34.033904" lon="-118.6832135">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="7339969014" lat="34.0372757" lon="-118.6080671">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="9557066056" lat="34.044354" lon="-118.6707171">
+    <tag k="ele" v="194.5" />
+    <tag k="natural" v="peak" />
+  </node>
+  <node id="9557066058" lat="34.0619327" lon="-118.6661159">
+    <tag k="ele" v="584.6" />
+    <tag k="natural" v="peak" />
+  </node>
+  <node id="9976130200" lat="34.0702661" lon="-118.6957032">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="10270293386" lat="34.1090927" lon="-118.6402312">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="11219282379" lat="34.0779921" lon="-118.655082">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="11227542554" lat="34.0402444" lon="-118.5807897">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="11688502229" lat="34.0326887" lon="-118.7052447">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="11688502230" lat="34.0326714" lon="-118.7043152">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="12073323496" lat="34.0694677" lon="-118.6914966">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="12073326042" lat="34.0682168" lon="-118.6722799">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="12073338732" lat="34.0671391" lon="-118.6838292">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="12073348077" lat="34.0687285" lon="-118.6635718">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="12073348088" lat="34.0693218" lon="-118.6605733">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="12073372395" lat="34.0813302" lon="-118.6454996">
+    <tag k="name" v="Stunt Road Viewpoint" />
+    <tag k="tourism" v="viewpoint" />
+  </node>
+  <node id="12073372396" lat="34.0811053" lon="-118.644799">
+    <tag k="tourism" v="viewpoint" />
+  </node>
+</osm>
