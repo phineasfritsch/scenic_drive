@@ -163,3 +163,18 @@ LA corpus through sane_corpus.py green on corpus-surface. Do NOT touch prod/R2.
 - 2026-10-16T07:37:13Z A5. `bash ops/lib/check-sane-corpus` -> `SANE-CORPUS ok       59/59 cases passed
   (sane=ops/sane)` rc=0. P-DATA-04's assertion, extracted from PINS.yaml by yaml.safe_load and run with bash
   (PYTHON=python) -> rc=0. `python ops/lib/check-pins-yaml.py` -> `PINS-YAML ok pins=51 fields=411`.
+- 2026-10-16T07:40:09Z FINAL, ACCEPTANCE RE-QUOTED on 86621ac9 after `git fetch origin` (main checkout) and
+  `git merge origin/main` -> `Already up to date.` (origin/main a137f16c, this branch's base). services/etl and
+  ops/mutate are byte-identical to d164c4f3 (the later commits touch only pins/PINS.yaml and this file), so:
+  A1 `24 passed` (Windows python 6.03s; pinned image 2.69s). A2 red 7/24 on the window literals, then 24/24 (above).
+  A3 `MUTATE OK  caught=25/25 equivalent_caught=0`; `VACUITY PROVED` (0 caught, 25 missed). A4 full LA rc=0
+  corpus-surface `16 classes, none below its baseline`; canyon window rc=4 naming the twelve. A5 check-sane-corpus
+  `59/59 cases passed`; P-DATA-04 assertion rc=0. A6 on 86621ac9: check-sane-corpus rc=0 `59/59`;
+  check-sane-exit-order rc=0 `documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=23`;
+  check-mutate-population rc=0 `every added module is covered or allowlisted; the floor of 165 holds`;
+  check-pins-yaml rc=0 `pins=51 fields=411`; queue-check rc=0 `QUEUE OK (365 tasks)`. A7 `wc -l`: 240
+  services/etl/etl/surfacecoverage.py, 284 services/etl/tests/test_surfacecoverage.py, 248
+  ops/mutate/surfacecoverage.py.
+  OPEN (not this task): a second region's corpus is judged against LA's table until it has its own measured set
+  (R1) - file when one is built; a box whose $SCENIC_REGION_WORK/la-corpus.sqlite is the canyon window now sees
+  ops/sane exit 4 by design (R4).
