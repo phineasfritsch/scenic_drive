@@ -1,13 +1,13 @@
 ---
 id: T-0371
 title: surprise_not_this has no wire reason for the card's fourth button, Wrong time - it sends nothing today
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T12:56:50Z
+lease_expires_at: 2026-10-17T12:56:50Z
+worktree: .worktrees/T-0371
+branch: task/T-0371
 exclusive: []
 touches: [Sources/Telemetry/, Tests/TelemetryTests/, services/api/, apps/ios/Packages/ScenicApp/Sources/PlanAdapter/, ops/lib/]
 pins_affected: [P-PRIV-05]
@@ -25,3 +25,4 @@ stays unreported, and record it.
 
 ## Log
 - 2026-10-16T02:32:24Z filed by agent/claude-opus-5 (T-0361 owner) from T-0361 R5.
+- 2026-10-16T12:56:50Z claimed by agent/claude-opus-5; lease until 2026-10-17T12:56:50Z
