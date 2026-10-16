@@ -88,3 +88,28 @@ degrade as a table over every flag, P-SAFE-03 digests, and the config.py populat
   - R7 screenshots: two new rehearsals loopPaused/tripPaused; the screenshot LIST lives in
     .github/workflows/ios-screenshot.yml and its pin ops/lib/ios_screenshot_pinned.py, so touches widen to the
     workflow (and queue/, as T-0357's did).
+- 2026-10-16T01:06:47Z RED first (A8): on the pre-code tree (c46adbde + the new tests only) swift test --filter
+  ConfigFlagTests|ConfiguredSheetPlannerTests|ConfigNoticeTests failed to COMPILE on the missing symbols: "type
+  'ConfigDegrade' has no member 'featureOff'/'pausedSurpriseOff'", "value of type 'any LoopPlanning'/'any TripPlanning'
+  has no member 'degrade'", "value of type 'RemoteConfig' has no member 'featureLoop'/'featureTrip'/'featureSurprise'",
+  "cannot find type 'ConfiguredLoopPlanner'/'ConfiguredTripPlanner'/'ConfigScreen' in scope", "extra arguments at
+  positions #3, #4, #5 in call". GREEN on fd178c43: --filter "Config|Loop|Trip|PlanSheet" "Test run with 127 tests in
+  37 suites passed"; ConfigFlagTests, ConfiguredSheetPlannerTests, ConfigNoticeTests, ConfigDegradeTests,
+  ConfigCacheTests, ConfigClientTests, ConfiguredPlannerTests each "passed". T-0357 tests moved with the rulings:
+  ConfigDegradeTests' notice row (R4 supersedes T-0357 R6), ConfigCacheTests' kept-bytes literal (R2, five keys).
+- 2026-10-16T01:06:47Z MUTANTS (A9): config_mutations.py widened 44 -> 84 entries (45-84: the flags' decode, keys, kept encoding,
+  defaults, ConfigScreen, the per-screen degrade and notices, the loop/trip gates, ConfiguredLoopPlanner,
+  ConfiguredTripPlanner, the bare clients), MIN_MUTATIONS 84, MIN_TEST_FILES 7; entries 13, 15, 21, 27-31 re-anchored on
+  the new text. config_run.py builds with --jobs 4. Run --only 13,15,21,27-31,45-84 on 87c2e1a9: "MUTATE FAILED
+  caught=46/48" - 60 and 61 WRONG KILLER (the per-field oracle builds its expectation through the same RemoteConfig
+  init, so a stored-flag mutant moves both sides; red were the cache test, the variant meta-test and the degrade
+  table). Killers corrected; --only 60,61: "MUTATE OK caught=2/2". --prove-floor: "FLOOR PROOF OK: 7 of 7 arms
+  refused and the control did not".
+- 2026-10-16T01:06:47Z APPLE (A10): digests re-approved (11 Sources rows + 3 new in -linked-digests.txt, 11 apps/ios rows in -pinned);
+  telemetry emit-site rows for LiveLoopPlanner/LiveTripPlanner moved to the ConfiguredLoop/TripPlanner lines
+  (check-telemetry-emit-sites: "ok - 38 lines approved"). ios-compile run 38828783518 success; ios-screenshot run
+  38828787876 success. Looked at plan-loopPaused-light (the loop form, Topanga, 60 min, "Planning is resting for a
+  moment. Try again in a little while." in place of Find a loop), plan-tripPaused-dark (Griffith Observatory -> Leo
+  Carrillo, 2 days, 40%, the same line in place of Plan the road trip) and plan-paused-light ("Planning is paused right
+  now. Surprise Me on the home screen still works." in place of Plan).
+- 2026-10-16T01:06:47Z FOLLOW-UP: T-0367 filed (R6, the home Surprise chip on feature_surprise; ids checked: highest T-0366).
