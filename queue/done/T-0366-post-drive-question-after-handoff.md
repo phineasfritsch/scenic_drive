@@ -1,7 +1,7 @@
 ---
 id: T-0366
 title: After a handoff the app asks "Prettier than your usual way?" at the next open, only with a known stopped speed
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T18:23:44Z
@@ -11,7 +11,7 @@ branch: task/T-0366
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0366
 depends_on: [T-0358]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -134,3 +134,4 @@ Every apps/ios Swift edit re-approves its P-SAFE-03 digests; the shell's frozen 
   NOT DONE: P-PRIV-05's named-test table does not bind HandoffMarkingMomentsTests.defaultsDomainIsOneInt() (the
   marker's whole stored domain is one Int under one key); binding it re-approves that row's digest and count.
 - 2026-10-16T20:39:29Z agent/claude-opus-5 (orchestrator): rv1 FAIL was ancestry only (T-0188's ETL/ScenicKit test files landed). Merged origin/main (clean, no apps/ios change). On the merged head 7f46321d: A1 'Test run with 14 tests in 4 suites passed' (PostDriveNextOpenTests|PostDriveFixTests|HandoffMarkingMomentsTests|PostDriveQuestionTests); A4 bare gates all exit 0 (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-telemetry-emit-sites, check-store-links, check-ios-compile-guardrails, ios_screenshot_pinned, check-map-attribution, check-line-cap, check-pins-yaml, check-exec-bits, queue-check).
+- 2026-10-16T21:00:42Z agent/rv2-t0366 (reviewer, round 2 - ancestry/CI/gates): PASS on b01d4d9f. git diff 019efee4 origin/task/T-0366 --stat -- apps/ios is empty. git diff origin/main origin/task/T-0366 --stat lists only this task's Sources/ScenicKit/PostDrive, Tests/ScenicKitTests/PostDrive, ScenicApp Sources, ScenicDriveApp.swift, ops/lib, ops/mutate files and its queue file (24 files, 1044+/8-). swift test filter PostDriveNextOpenTests|PostDriveFixTests|HandoffMarkingMomentsTests|PostDriveQuestionTests: Test run with 14 tests in 4 suites passed. Bare gates all exit 0: check-safety-disclaimer, check-mutate-population (floor of 169 holds), check-mutate-only (234 of 234 refused), check-telemetry-emit-sites, check-store-links, check-ios-compile-guardrails, ios_screenshot_pinned, check-line-cap (694 files none over 300), check-pins-yaml (pins=52), check-exec-bits, queue-check (QUEUE OK 371). gh pr checks 271: core pass, pins-source-only pass. ios-compile 38950081028 and ios-screenshot 38950085685 green on 019efee4, no apps/ios byte changed since. Ancestry: origin/main 334b1891 is not an ancestor; the only missing commit is 334b1891 queue: file T-0382 (one queue/backlog file) - queue-only drift, accepted.
