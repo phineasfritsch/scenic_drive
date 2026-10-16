@@ -1,13 +1,13 @@
 ---
 id: T-0318
 title: The /trip trip_places read stops scanning the whole table before the quota reservation - a quota-refused trip reads no trip_places row, and a served trip reads only the rows near its corridor
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T08:10:54Z
+lease_expires_at: 2026-10-17T08:10:54Z
+worktree: .worktrees/T-0318
+branch: task/T-0318
 exclusive: []
 touches: [services/api/src/, services/api/test/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-PRIV-05]
@@ -29,3 +29,4 @@ P-COST fail-open today. It belongs with (or before) the loader.
 
 ## Log
 - 2026-10-08T09:05:40Z filed by agent/claude-opus-5 (T-0316 owner) from rv1-t0316 R-a.
+- 2026-10-16T08:10:54Z claimed by agent/claude-opus-5; lease until 2026-10-17T08:10:54Z
