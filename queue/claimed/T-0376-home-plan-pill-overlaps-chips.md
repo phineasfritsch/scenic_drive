@@ -188,3 +188,31 @@ re-approved.
   the approval itself; the digest moves with it (PINNED_SHELL_DIGEST and the -pinned table row, 9bd481bf). A
   prove-red row "T-0376 the home's overflow centred again" (sed drops `, alignment: .top`) is added to
   ops/lib/check-safety-disclaimer-mutations, so touches widen by that one file. T-0378's medium crash is not taken.
+- 2026-10-16T13:07:04Z agent/claude-opus-5 (owner) R9 RED then GREEN, and ACCEPTANCE re-run.
+  RED: approvals moved first (FROZEN_APP_SHELL's line to `.frame(width: proxy.size.width, height: proxy.size.height,
+  alignment: .top)`, PINNED_SHELL_DIGEST and the -pinned row to 9bd481bf57063d28795383727db5c7874d69261286062567cc1b8ccc7631ae92,
+  computed from an edited copy) with the shell unchanged: `bash ops/lib/check-safety-disclaimer` rc=1 "P-SAFE-03: a
+  frozen render block changed: the app shell ScenicDriveApp line 29 of 50 ... approved `.frame(width:
+  proxy.size.width, height: proxy.size.height, alignment: .top)`, found `.frame(width: proxy.size.width, height:
+  proxy.size.height)`". GREEN: shell edited (`sed 's/\r$//' | sha256sum` = 9bd481bf...ae92): rc=0 "Frozen (-frozen);
+  34 feature file(s), shell, footer pinned". `--prove-red`: "prove-red: 61/61 mutations refused by name", row
+  "T-0376 the home's overflow centred again 1 yes".
+  3. ios-compile 38903147609 success, ios-screenshot 38903152649 success (all three passes) on 65bd9abb; shots in
+     .artifacts/t0376-r2-shots, looked at (402x874 pt, 2.29 display px/pt):
+     home-ax5-collapsed: the "Plan a drive" capsule at y ~70-131 pt, directly under the status bar, alone; the chip
+     band starts BELOW it at y ~138 pt and runs to ~439 pt - Saddle Peak, Westwood loop, SF Peninsula (letters still
+     wrapping, T-0378), the sparkle and the gear all on screen, none under the pill, each chip ~290 pt tall (>= 44).
+     The credit box is at y ~441-762 pt, "(c) MapLibre - Natural Earth - (c) OpenStreetMap contributors" whole, and the
+     sheet's top edge is directly under it at ~771 pt (grabber and "Saddle Peak -" visible). As R10 predicted, the
+     overflow now leaves at the bottom: the rest of the collapsed sheet is below the screen edge, including the
+     "Conditions change. Verify locally." line. That line was not on screen in rv1's AX5 shot either (its sheet showed
+     the title drawn over the menu chips and ended at the screen edge), so AX5 never showed it; the overflow that hides it is
+     T-0378's (whole AX5 overflow). Open gap, stated: at AX5 collapsed less of the sheet shows (~103 pt vs ~243 pt).
+     home-light-collapsed, home-light-medium, home-dark-collapsed, home-dark-medium: pixel-for-pixel the same layout
+     as run 38893775590 (the frame fits, the alignment is inert): pill at y ~70-113 pt alone, chip band ~118-173 pt
+     with Saddle Peak, Westwood loop, SF Peninsula, sparkle and gear whole and unobstructed, chips ~43 pt drawn (44 in
+     code); credit "(c) OpenStreetMap contributors" directly above the sheet at both detents in both appearances;
+     "Conditions change. Verify locally." visible in the sheet in all four.
+     So acceptance 3 is MET as written (pill above the band with no chip overlap, chips >= 44 pt, credit directly
+     above the sheet) in all five named shots.
+  1, 2, 4 re-quoted on the merged head below this entry's commit (merge of origin/main 5b8d93e9..da28b745).
