@@ -77,3 +77,12 @@ driver to find its own files, shown red with that mutant then green.
 - 2026-10-16T03:31:11Z A2 region whole (no --only), from services/api, alone: `population mutations=68 (floor 68) equivalent=2 subjects=9 tests=8` / `baseline green tests=44` / `RESULT caught=67 missed=1 trap=0 of 68` exit 1; MISSED/TRAP: MISSED malformed-bearer-falls-to-header
 - 2026-10-16T03:39:28Z A2 tier whole (no --only), from services/api, alone: `population mutations=26 (floor 26) equivalent=1 subjects=7 tests=5` / `baseline green tests=187` / `RESULT caught=26 missed=0 trap=0 of 26` exit 0; MISSED/TRAP: none
 - 2026-10-16T03:43:17Z A2 vehicle whole (no --only), from services/api, alone: `population mutations=32 (floor 32) equivalent=1 subjects=4 tests=2` / `baseline green tests=5` / `RESULT caught=32 missed=0 trap=0 of 32` exit 0; MISSED/TRAP: none
+- 2026-10-16T03:47:12Z A2 summary: 8 drivers run whole, 527 mutations, 526 CAUGHT, 1 MISSED (region
+  malformed-bearer-falls-to-header), 0 TRAP; no baseline went red, so no re-run for load was needed.
+- 2026-10-16T03:47:12Z A3 region malformed-bearer-falls-to-header: RULED EQUIVALENT - moved from MUTATIONS to regionMutants.mjs's
+  EQUIVALENT table with its witness field (the mutant's regex is BEARER's language; since T-0322 B1, 25ef1f31,
+  identifySession answers a non-matching authorization as null on every arm and identifyCaller maps SESSION_REJECTED
+  to the unidentified bucket, so waitlist's userId is identical for every input). It went MISSED when T-0322 B1 made
+  its fault the spec, i.e. while the driver could not run. Per R4 MIN_MUTATIONS 68 -> 67 in the same commit.
+  `node test/mutate/regionMutants.mjs --prove-floor`: empty table / one short (66 below 67) / servedRegion
+  unmutated / a new subject with none each REFUSED, `prove-floor real population: quiet`, rc=0.
