@@ -10,18 +10,19 @@ import Testing
     static let telemetryURL = "https://api.example.test/telemetry"
 
     /// The request recomputed from the committed data point, independently of the client's own body type.
-    static func expected(_ events: [TelemetryEvent]) throws -> TelemetryRequest {
+    static func expected(_ events: [TelemetryEvent],
+                         wire: String = "6f9619ff-8b86-d011-b42d-00c04fc964ff") throws -> TelemetryRequest {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let body = try encoder.encode(["events": events.map(\.dataPoint)])
         return TelemetryRequest(url: URL(string: telemetryURL)!, method: "POST",
                                 headers: ["content-type": "application/json",
-                                          "x-scenic-device": "6f9619ff-8b86-d011-b42d-00c04fc964ff"],
+                                          "x-scenic-device": wire],
                                 body: body)
     }
 
     static func client(_ transport: ScriptedTelemetryTransport, base: URL = base) -> TelemetryClient {
-        TelemetryClient(base: base, device: device, transport: transport)
+        TelemetryClient(base: base, device: { device }, transport: transport)
     }
 
     @Test func everyEventPostsExactlyItsRequest() async throws {
