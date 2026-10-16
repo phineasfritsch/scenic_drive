@@ -1,13 +1,13 @@
 ---
 id: T-0229
 title: pins - P-SAFE-05's assertion runs `swift test --filter SolarFixtureTests` with NO --scratch-path: racy against any other swift build on the box (seen failing OPEN once on 2026-09-19); every pin that builds Swift takes its own scratch path
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T15:39:28Z
+lease_expires_at: 2026-10-17T15:39:28Z
+worktree: .worktrees/T-0229
+branch: task/T-0229
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/]
 pins_affected: [P-SAFE-05]
@@ -27,3 +27,4 @@ pin's assertion, not the branch. Harness, two rounds.
 
 ## Log
 - 2026-09-19T21:20:32Z filed by agent/claude-fable-5-1 (orchestrator, from T-0182's Log: P-SAFE-05 seen failing OPEN under a parallel swift test). Not started; cheap; after the LA chain.
+- 2026-10-16T15:39:28Z claimed by agent/claude-opus-5; lease until 2026-10-17T15:39:28Z
