@@ -73,6 +73,15 @@ import Testing
         }
     }
 
+    /// T-0371: the whole closed decline list, written out here in the card's order of ruling - each of the four
+    /// buttons (Wrong time included) is one label on the wire, and no fifth or free-form reason exists.
+    @Test("every surprise_not_this reason encodes to its whole data point, the four labels and no other")
+    func everySurpriseReasonEncodesExactly() {
+        let labels = ["too_far", "been_there", "not_my_thing", "wrong_time"]
+        #expect(SurpriseNotThisReason.allCases.map { TelemetryEvent.surpriseNotThis($0).dataPoint }
+            == labels.map { Self.point("surprise_not_this", $0) })
+    }
+
     @Test("the data point serializes to exactly writeDataPoint's three keys")
     func dataPointJSON() throws {
         let encoder = JSONEncoder()

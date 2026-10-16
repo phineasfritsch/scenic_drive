@@ -45,7 +45,7 @@ const LABELS: Record<string, string[]> = {
   plan_result: ["routed", "no_alternative", "quota_exceeded", "failed"],
   handoff_tapped: ["apple_maps", "google_maps", "waze"],
   post_drive_answer: ["prettier", "not_prettier"],
-  surprise_not_this: ["too_far", "been_there", "not_my_thing"],
+  surprise_not_this: ["too_far", "been_there", "not_my_thing", "wrong_time"],
 };
 const UNUSED_SLOTS: [string, 0 | 1][] = [
   ...Object.keys(BASE).filter((n) => !["plan_requested", "drive_completed", "drive_abandoned", "corpus_activated"].includes(n))
@@ -119,6 +119,7 @@ const REFUSED: [string, unknown][] = [
   ["a handoff app outside the enum", one(p("handoff_tapped", "here_maps"))],
   ["a post-drive answer outside the enum", one(p("post_drive_answer", "maybe"))],
   ["a surprise reason outside the enum", one(p("surprise_not_this", "other"))],
+  ["the card's case spelling wrongTime, not the wire label (T-0371)", one(p("surprise_not_this", "wrongTime"))],
   ["a paywall step as a label", one(p("paywall_shown", "shown"))],
   // the cell
   ["a cell on an event that carries none", one(p("drive_started", "", CELL))],

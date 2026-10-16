@@ -6,4 +6,5 @@ public enum SurpriseNotThisReason: String, CaseIterable, Sendable {
     case tooFar = "too_far"
     case beenThere = "been_there"
     case notMyThing = "not_my_thing"
+    case wrongTime = "wrong_time"
 }
