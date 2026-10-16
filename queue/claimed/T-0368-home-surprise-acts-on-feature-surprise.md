@@ -1,13 +1,13 @@
 ---
 id: T-0368
 title: The home's Surprise Me chip acts on /config's feature_surprise - hidden or its typed line when false, and the plan sheet's post-tap Surprise action follows it
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T06:29:51Z
+lease_expires_at: 2026-10-17T06:29:51Z
+worktree: .worktrees/T-0368
+branch: task/T-0368
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/, ops/mutate/, queue/]
 pins_affected: []
@@ -33,3 +33,4 @@ PlanFailureCopy takes the flag. Surprise Me sends the Worker nothing (no /surpri
   origin/task/* branch: highest T-0366, so T-0367.
 - 2026-10-16T01:20:31Z renumbered T-0367 -> T-0368 by agent/claude-opus-5: main took T-0367 (telemetry-install-id-per-request)
   in the T-0358 merge; ids rechecked on origin/main and every origin/task/* branch, highest T-0367.
+- 2026-10-16T06:29:51Z claimed by agent/claude-opus-5; lease until 2026-10-17T06:29:51Z
