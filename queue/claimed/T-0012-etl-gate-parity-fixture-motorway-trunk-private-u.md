@@ -165,3 +165,20 @@ Depends on T-0024 for the extract the fixture ways are drawn from.
   GateParityFixtureTests 2/2; `run-named-tests.py P-PROD-01` -> `NAMED P-PROD-01 passed=118/118` (before the
   two refusal rows were added; re-run at the final commit below).
 - 2026-10-16T11:01:35Z acquired lock(s) services/routing/profiles/car_scenic_base.json for agent/claude-opus-5
+- 2026-10-16T11:54:29Z ACCEPTANCE re-run on the merged head 6b75ca2a (origin/main fbeb99b8 merged; still its tip at 2026-10-16T11:54:29Z):
+  1. pytest test_gate_parity.py + test_profilegate.py: 65 + 56 passed; fixture 30 rows, 23 real, 7 synthetic,
+     5 divergent (R1's set).
+  2. swift GateParityFixtureTests 2/2 passed (run inside 3).
+  3. `run-named-tests.py P-PROD-01` -> `NAMED P-PROD-01 passed=123/123` (121 pytest + 2 swift).
+  4. RED three ways: quoted above (a) profile, (b) ETL, (c) ScenicKit, each naming its layer.
+  5. `python ops/mutate/profilegate.py` -> `MUTATE OK  caught=43/43 equivalent_caught=0` (first run 42/43:
+     `an unknown encoded value reads false` MISSED; three refusal rows added, re-run caught by
+     `test_an_unreadable_expression_refuses['!max_speed']`); `--prove-vacuity` -> `VACUITY PROVED` (0/43 caught).
+  6. P-PROD-01 has no pending:; CI on PR #262 core `PINS ok=49 skipped=0 pending=2 expired=0 failed=0 tier=linux`
+     (pending 3 -> 2), pins-source-only `PINS ok=22 skipped=28 pending=1 expired=0 failed=0 tier=linux source-only`.
+  7. Gates, bare, on the merged head: check-safety-disclaimer 0, check-mutate-population.py 0 (`floor of 166
+     holds`), check-mutate-only.py 0, check-line-cap 0, check-pins-yaml.py 0 (`pins=51`), check-exec-bits 0,
+     queue-check `QUEUE OK (368 tasks)`. Local `ops/check-pins --source-only` did not finish within 40 min on
+     this box (swift contention); CI's pins-source-only job on the same head passed (quoted in 6).
+  Line counts: profilegate.py 188, test_gate_parity.py 156, test_profilegate.py 117, GateParityFixtureTests.swift
+  91, ops/mutate/profilegate.py 153, run-named-tests.py 199.
