@@ -9,6 +9,7 @@ import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import placesSql from "../migrations/0001_places.sql?raw";
 import tripPlacesSql from "../migrations/0009_trip_places.sql?raw";
+import latIndexSql from "../migrations/0010_trip_places_lat.sql?raw";
 import worker, { type Env } from "../src/index";
 import { fakeQuotaNamespace, type FakeQuota } from "./doFake";
 import { BIG_SUR, expectedTrip, NOW, ROAD, SCENIC_EDGE_MS, TRIP_BODY, tripRouter } from "./tripHarness";
@@ -149,6 +150,7 @@ beforeEach(async () => {
   router = tripRouter();
   vi.stubGlobal("fetch", router.fetchImpl);
   await env.DB.prepare(tripPlacesSql).run();
+  await env.DB.prepare(latIndexSql).run();
   await load([]);
 });
 
@@ -229,11 +231,13 @@ describe("worker.fetch /trip names overnight towns and corridor stops from trip_
 });
 
 describe("the places read takes nothing from the request (T-0316 R3, P-PRIV-05)", () => {
-  it("a trip's D1 statements are the destination lookup and one unbound trip_places read; router bodies carry no place", async () => {
+  it("a trip's D1 statements are the destination lookup and one trip_places read bound to four box numbers (T-0318 R2); router bodies carry no place", async () => {
     await load([...LODGING.several.rows, ...CORRIDOR.five.rows]);
     expect((await send()).status).toBe(200);
-    expect(reads).toEqual([{ sql: "SELECT lat, lon FROM places WHERE id = ?1", binds: [BIG_SUR.id] },
-      { sql: "SELECT name, kind, score, lat, lon FROM trip_places", binds: null }]);
+    expect(reads.map((r) => ({ sql: r.sql, binds: r.binds?.map((b) => typeof b) ?? null }))).toEqual([
+      { sql: "SELECT lat, lon FROM places WHERE id = ?1", binds: ["string"] },
+      { sql: "SELECT name, kind, score, lat, lon FROM trip_places WHERE lat >= ?1 AND lat <= ?2 AND lon >= ?3 AND lon <= ?4",
+        binds: ["number", "number", "number", "number"] }]);
     expect(router.sent.every((s) => Object.keys(s.body).sort().join() ===
       (s.body.profile === "car_fast" ? "ch.disable,details,instructions,points,points_encoded,profile"
         : "ch.disable,custom_model,details,instructions,points,points_encoded,profile"))).toBe(true);
