@@ -28,16 +28,11 @@ site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	         
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	                LiveTelemetry.driveCompleted(fraction: fraction, deviations: count)
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	                LiveTelemetry.driveAbandoned(fraction: fraction)
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	        LiveTelemetry.paywall(.shown)
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	            current = TelemetryClient(base: base, device: id, transport: URLSessionTelemetryTransport())
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	        let current: TelemetryClient
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	    func record(_ event: TelemetryEvent) async {
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	    private var client: TelemetryClient?
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	actor InstallBoundTelemetry {
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/InstallBoundTelemetry.swift	import Telemetry
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LivePostDriveAnswers.swift	        LiveTelemetry.postDriveAnswer(prettier: prettier)
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        return InstallBoundTelemetry(base: base)
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    private static let client: InstallBoundTelemetry? = build()
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    static func build() -> InstallBoundTelemetry? {
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	                               transport: URLSessionTelemetryTransport())
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	        return TelemetryClient(base: base, device: { StoredInstallID().installID() },
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    private static let client: TelemetryClient? = build()
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    static func build() -> TelemetryClient? {
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    private static func record(_ event: TelemetryEvent) {
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	import Telemetry
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	public enum LiveTelemetry {

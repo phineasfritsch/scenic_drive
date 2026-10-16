@@ -13,7 +13,7 @@ import Testing
     @Test func shippingTransportPostsTheWholeRequestNotAGet() async throws {
         for row in TelemetryEventEncodingTests.rows {
             let session = StubTelemetryURLProtocol.session(answering: 405)
-            let client = TelemetryClient(base: TelemetryClientTests.base, device: TelemetryClientTests.device,
+            let client = TelemetryClient(base: TelemetryClientTests.base, device: { TelemetryClientTests.device },
                                          transport: URLSessionTelemetryTransport(session: session))
             await client.record(row.event)
             #expect(StubTelemetryURLProtocol.seen() == [try TelemetryClientTests.expected([row.event])],
