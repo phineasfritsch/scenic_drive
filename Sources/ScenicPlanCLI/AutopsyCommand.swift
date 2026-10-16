@@ -24,8 +24,8 @@ public enum AutopsyCommand {
 
         let tracer = TracingRouteSource(source)
         let planner = ScenicPlanner(source: tracer, maxEvaluations: arguments.plan.maxEvaluations)
-        let plan = try planner.plan(from: arguments.plan.origin, to: arguments.plan.destination,
-                                    budget: arguments.plan.budget)
+        let plan = try planner.checkedRoute(from: arguments.plan.origin, to: arguments.plan.destination,
+                                            budget: arguments.plan.budget)
 
         if let directory = arguments.fixture {
             return try AutopsyFixture.write(arguments, plan: plan, steps: tracer.steps, into: directory)
