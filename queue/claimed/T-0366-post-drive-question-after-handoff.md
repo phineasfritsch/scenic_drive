@@ -118,3 +118,18 @@ Every apps/ios Swift edit re-approves its P-SAFE-03 digests; the shell's frozen 
   A5 on 019efee4: ios-compile run 38950081028 success; ios-screenshot run 38950085685 success. LOOKED at
      home-light-collapsed, home-dark-collapsed, home-ax5-collapsed: grabber, then the title, the menu chips, the
      conditions line and Open in Apple Maps, exactly the home as before - no card, no extra gap above the title.
+- 2026-10-16T19:33:06Z ACCEPTANCE RE-RUN at the final pre-review commit (agent/claude-opus-5), after `git fetch
+  origin` + `git merge origin/main` (Already up to date):
+  A1 `Test run with 14 tests in 4 suites passed`, exit=0; the whole ScenicKitTests filter `Test run with 507 tests
+     in 98 suites passed`, exit=0.
+  A2 as quoted above (RED by name before the types existed).
+  A3 MUTATE OK caught=33/33 equivalent_caught=0; FLOOR PROOF OK 7 of 7 (subjects unchanged since that run).
+  A4 every bare gate exit 0: check-safety-disclaimer, check-mutate-population.py (`every added module is covered or
+     allowlisted; the floor of 169 holds` - it first refused HandoffMarkerStoring.swift and OpenFixReading.swift by
+     name, two code-free protocols now in mutate-population-allowlist.json with reasons), check-mutate-only.py,
+     check-telemetry-emit-sites.py, check-store-links.py, check-ios-compile-guardrails.py, ios_screenshot_pinned.py,
+     check-map-attribution, check-line-cap (ScenicHomeScreen.swift 300 lines), check-pins-yaml.py, check-exec-bits,
+     queue-check.
+  A5 as quoted above, on 019efee4; every apps/ios byte since is unchanged (later commits touch ops/ and queue/ only).
+  NOT DONE: P-PRIV-05's named-test table does not bind HandoffMarkingMomentsTests.defaultsDomainIsOneInt() (the
+  marker's whole stored domain is one Int under one key); binding it re-approves that row's digest and count.
