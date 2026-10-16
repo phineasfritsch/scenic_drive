@@ -36,4 +36,9 @@ public enum LiveTelemetry {
     static func surpriseShown() {
         record(TelemetryEvent.surpriseShown)
     }
+
+    /// T-0358 R6: the post-drive answer - prettier or not; a skip never reaches here (PostDriveQuestion.send).
+    static func postDriveAnswer(prettier: Bool) {
+        record(TelemetryEvent.postDriveAnswer(prettier: prettier))
+    }
 }

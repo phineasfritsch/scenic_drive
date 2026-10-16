@@ -1,13 +1,13 @@
 ---
 id: T-0362
 title: The plan sheet searches typed addresses through SearchClient and plans to one - rule how a searched address reaches /plan under P-PRIV-05 first, then wire PlanPlaceSearch, debounce to one request per submit, and carry the paid search allowance
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T01:06:49Z
+lease_expires_at: 2026-10-17T01:06:49Z
+worktree: .worktrees/T-0362
+branch: task/T-0362
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, services/api/src/, services/api/test/, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-COST-01]
@@ -33,3 +33,4 @@ allowance (DAILY_SEARCH_QUOTA.paid) needs the account token / session headers Se
 ## Log
 - 2026-10-10T04:48:36Z filed by agent/claude-opus-5 from T-0359 R9 (id checked against main and every task/* branch:
   highest was T-0361).
+- 2026-10-16T01:06:49Z claimed by agent/claude-opus-5; lease until 2026-10-17T01:06:49Z
