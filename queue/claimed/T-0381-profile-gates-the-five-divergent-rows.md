@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-17T19:37:33Z
 worktree: .worktrees/T-0381
 branch: task/T-0381
 exclusive: [routing-profiles]
-touches: [services/routing/config.yml, services/routing/profiles/, services/routing/tests/, services/routing/plugins/scenic-score-parser/, services/etl/etl/profilegate.py, services/etl/tests/, services/etl/tests/fixtures/gate_parity.json, ops/mutate/profilegate.py]
+touches: [services/routing/config.yml, services/routing/profiles/, services/routing/tests/, services/routing/plugins/scenic-score-parser/, services/etl/etl/profilegate.py, services/etl/tests/, services/etl/tests/fixtures/gate_parity.json, ops/mutate/profilegate.py, pins/PINS.yaml]
 pins_affected: [P-PROD-01, P-SAFE-01]
 reviewer: null
 depends_on: [T-0012, T-0188]
@@ -168,3 +168,35 @@ re-import command and the expected graph hash change in the Log.
   FOLLOW-UP FILED: T-0382 (main 334b1891) - FORBIDDEN_ENCODED_VALUES gains track_type, smoothness, gate_*; ids
   checked on origin/main and every origin/task/* branch first. NOT DONE HERE: gate_parity.json carries no padded
   row (it also runs Swift Gates and assemble.gate_reason; T-0181 touches it in parallel).
+- 2026-10-16T21:55:37Z rv2 FAIL (agent/rv2-t-0381) B1 closed by a GENERATED corpus, not a third spelling family.
+  RULINGS: (1) the orchestrator's oracle "gated iff value == L exactly" holds for the GateFacts literals (Java
+  .equals / Set.contains, untrimmed, case-sensitive); for tracktype and smoothness it is value.upper() == L.upper(),
+  because GraphHopper 11's TrackType.find / Smoothness.find is valueOf(Helper.toUpperCase(name)) - Grade3, GRADE3
+  and gRADE3 ARE the enum (Java confirms below), so their profile gate is right. (2) The literals are parsed, never
+  typed: barrier/locked/ford/highway/service from GateFacts.java's String and Set.of constants, tracktype/smoothness
+  from the shipped profile's zero-priority track_type/smoothness clauses, lower-cased. 16 literals over 7 keys,
+  highway=service included (context service=drive-through). (3) The rv1 padded derivation in GATED_BY_T0381 is
+  replaced by the corpus (its rows are a subset). RED at ca48616b (four mutants, floor 80 -> 84, no rows): `python
+  ops/mutate/profilegate.py --only "a padded service highway trimmed" --only "a cased service highway folded" --only
+  "a service list split on semicolons" --only "a cased barrier folded"` -> `MISSED a padded service highway trimmed
+  (exit 0)`, `MISSED a cased service highway folded (exit 0)`, `MISSED a service list split on semicolons (exit 0)`,
+  `MISSED a cased barrier folded (exit 0)`, `MUTATE FAILED caught=0/4`. FIX at bcde5481 (+da3408fa tab escape):
+  services/etl/tests/gate_near_miss.py generates per literal L, upper, title, swapcase, every single deletion, each
+  of space/tab/;/_/-/x/|/, inserted at every position, L;L, L;paved, paved;L, Lx, xL, L[:-1], LL and "" ->
+  `gate_encoding.json: 1395 rows (44 hand, 1351 generated; corpus 1463 before de-duplication)`; GateEncodingTest
+  and test_the_plugin_table_is_whole count 1395 and the test holds the file to the generator's output;
+  test_the_corpus_has_every_family_for_every_literal checks every family for every literal, the literal sets
+  against profilegate's, no variant equal to L but the identity, and the oracle above;
+  test_the_shipped_profile_gates_no_near_miss runs all 1463 through pg.gated over the shipped json and pg.encode.
+  GREEN: same command plus the rv1 four -> `caught a padded service highway trimmed <- tests/test_profilegate.py::
+  test_encoding_matches_the_plugin_table[{"highway": ...`, `caught a cased service highway folded <- ...`, `caught a
+  service list split on semicolons <- ...`, `caught a cased barrier folded <- ...`, `MUTATE OK caught=8/8`;
+  `--prove-vacuity` on the four -> `VACUITY PROVED`. Touched tests: test_profilegate.py + test_gate_parity.py ->
+  `1593 passed`. JAVA: `wsl docker build -t scenic-routing:t0381 services/routing` -> `Tests run: 2, Failures: 0
+  ... in com.scenicdrive.routing.GateEncodingTest`, `Tests run: 32, Failures: 0`, `BUILD SUCCESS` over the 1395
+  rows. Java twin RED: GateFacts SERVICE_WAY `tag(way, "highway")` -> `tag(way, "highway").trim()` ->
+  `GateEncodingTest.everyRowEncodesExactlyItsTable:86 {"service":"drive-through","highway":" service"} ==>
+  expected: <{... gate_service_way=false ...}> but was: <{... gate_service_way=true ...}>`, `BUILD FAILURE`; restored
+  (git diff empty). P-PROD-01 why_no_test_catches_it gains a dated T-0381 sentence (pins/PINS.yaml added to
+  touches). NOT DONE HERE: gate_parity.json and Swift Gates.swift are not run over the corpus (the parity fixture
+  is T-0181's in parallel; ScenicKit is outside this task's touches).
