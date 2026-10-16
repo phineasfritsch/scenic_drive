@@ -9,11 +9,18 @@ struct LoopScreen: View {
     @Binding var loop: LoopSheet
     let planner: any LoopPlanning
     let mapsURL: (Coordinate, [Coordinate]) -> URL?
+    /// T-0365 R4: the plan sheet's own joiner - one WaitlistClient, one memory, so an area counts once per install.
+    let waitlist: any WaitlistJoining
     @State private var query = ""
+    /// T-0365: the waitlist card replaces the failure from the tap; nil answer while the request is out.
+    @State private var showingWaitlist = false
+    @State private var waitlistAnswer: WaitlistAnswer?
 
-    init(loop: Binding<LoopSheet>, planner: any LoopPlanning, mapsURL: @escaping (Coordinate, [Coordinate]) -> URL?) {
+    init(loop: Binding<LoopSheet>, planner: any LoopPlanning, waitlist: any WaitlistJoining,
+         mapsURL: @escaping (Coordinate, [Coordinate]) -> URL?) {
         _loop = loop
         self.planner = planner
+        self.waitlist = waitlist
         self.mapsURL = mapsURL
     }
 
@@ -30,16 +37,42 @@ struct LoopScreen: View {
             LoopPreviewCard(preview: preview, minutes: ticket.minutes, start: loop.start?.name ?? "",
                             link: mapsURL(ticket.start, preview.waypoints), onChange: { loop.edit() })
         case .failed(_, let failure):
-            VStack(alignment: .leading, spacing: 12) {
-                Text(failure.line)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("loop.failure")
-                Button("Try again", action: planLoop)
-                Button("Change the loop") { loop.edit() }
+            if showingWaitlist {
+                WaitlistCard(answer: waitlistAnswer, onChangeStart: changeStart)
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(failure.line)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("loop.failure")
+                    if let action = failure.waitlistAction {
+                        Button(action.title, action: joinWaitlist)
+                            .accessibilityIdentifier("loop.failure.waitlist")
+                    }
+                    Button("Try again", action: planLoop)
+                    Button("Change the loop") { loop.edit() }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .padding()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+    }
+
+    /// T-0365 R3, R4: the sheet's waitlistStart only, at most one request, the answer shown in place of the failure.
+    private func joinWaitlist() {
+        guard !showingWaitlist, let start = loop.waitlistStart else { return }
+        showingWaitlist = true
+        waitlistAnswer = nil
+        let waitlist = self.waitlist
+        Task { @MainActor in
+            waitlistAnswer = await waitlist.joinWaitlist(near: start)
+        }
+    }
+
+    private func changeStart() {
+        showingWaitlist = false
+        waitlistAnswer = nil
+        query = ""
+        loop.search("")
     }
 
     private var form: some View {
@@ -87,6 +120,8 @@ struct LoopScreen: View {
 
     private func planLoop() {
         guard let ticket = loop.startPlanning() else { return }
+        showingWaitlist = false
+        waitlistAnswer = nil
         let planner = self.planner
         Task { @MainActor in
             let outcome = await planner.plan(ticket)

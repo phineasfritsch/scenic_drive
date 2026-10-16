@@ -63,6 +63,8 @@ WIRE_GATE = "P-SAFE-03: no loop request is made before the disclaimer is accepte
 PREVIEW = "a clean loop reaches the sheet as exactly its preview, with the device's retrace fraction"
 RETRACED = "a loop the device finds retraced is not shown: noCleanLoop"
 FAILURES = "a spent day and a refused loop reach the sheet as their failures"
+WAIT_COPY = "every loop failure's line and waitlist action, whole"
+WAIT_START = "the waitlist start is the failed ticket's 2-dp start only on regionUnsupported"
 URL = "one URL from the start back to the start through the pins, in order"
 TEN = "ten pins are refused, never cut to nine"
 BOUND = "the device's retrace limit is 0.15 inclusive at every bound"
@@ -217,6 +219,18 @@ MUTATIONS = [
      "case .nothingPretty: return .unexpectedResponse", [MAPPING, DULL_SHEET, DULL_LINE]),
     ("65 the dull loop's line reworded", FAILURE, '"No loop from here was pretty enough to show today.',
      '"No loop from here was pretty enough to show.', [DULL_LINE]),
+    # T-0365: the waitlist offer on regionUnsupported and the one start it may hand the waitlist.
+    ("66 regionUnsupported offers no waitlist", FAILURE, "        case .regionUnsupported: return .joinWaitlist\n",
+     "        case .regionUnsupported: return nil\n", [WAIT_COPY, WAIT_START]),
+    ("67 a second failure offers the waitlist", FAILURE, "        case .regionUnsupported: return .joinWaitlist\n",
+     "        case .regionUnsupported, .noRoute: return .joinWaitlist\n", [WAIT_COPY, WAIT_START]),
+    ("68 the waitlist start ungated by the failure", SHEET,
+     "guard case .failed(let ticket, let failure) = state, failure.waitlistAction == .joinWaitlist else",
+     "guard case .failed(let ticket, _) = state else", [WAIT_START]),
+    ("69 the waitlist start is the place, not the 2-dp ticket", SHEET, "        return ticket.start\n",
+     "        return start?.coordinate ?? ticket.start\n", [WAIT_START]),
+    ("70 the loop region line loses its waitlist sentence", FAILURE, '"Loops start inside the area we cover for now. We can count this area toward where we go next."',
+     '"Loops start inside the area we cover for now."', [WAIT_COPY]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -226,6 +240,6 @@ EQUIVALENT = [
      "the switch over LoopSheetState already names .preview and .failed; the other four are exactly what default covers"),
 ]
 
-MIN_MUTATIONS = 65
+MIN_MUTATIONS = 70
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 6
