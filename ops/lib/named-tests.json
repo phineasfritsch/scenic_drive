@@ -270,6 +270,7 @@
         "TelemetryTests.TelemetryEventEncodingTests/dataPointJSON()",
         "TelemetryTests.TelemetryEventEncodingTests/everyDataPointJSON()",
         "TelemetryTests.TelemetryEventEncodingTests/fourteenEventsEachWithARow()",
+        "TelemetryTests.TelemetryEventEncodingTests/everySurpriseReasonEncodesExactly()",
         "PlaceStoreTests.SavedDriveFieldsTests/noFieldCarriesMoreThanFiveDecimals()",
         "PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail()",
         "PlaceStoreTests.SurpriseShownRecordFieldsTests/noFieldIsACoordinate()",
