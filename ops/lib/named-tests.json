@@ -1856,13 +1856,27 @@
         "test_a_model_this_module_cannot_read_refuses[speed_two_values]",
         "test_a_model_this_module_cannot_read_refuses[speed_unknown_name]",
         "test_the_shipped_profile_gates_exactly_its_clauses"
+      ],
+      "tests/test_score_contract.py": [
+        "test_every_fixture_row_scores_within_1e_6_of_the_oracle",
+        "test_every_fixture_row_ships_the_post_ceiling_score_within_1e_6",
+        "test_the_fixture_holds_rows_on_both_sides_of_every_class_ceiling"
       ]
     },
     "swift": {
-      "filter": "ScenicKitTests\\.GateParityFixtureTests",
+      "filter": "ScenicKitTests\\.GateParityFixtureTests|ScenicKitTests\\.SegmentScoreContractTests|ScenicKitTests\\.SegmentScoreCeilingTests|ScenicKitTests\\.SegmentScoreSurfaceTests",
       "tests": [
         "ScenicKitTests.GateParityFixtureTests/everyRowGetsTheFixtureVerdict()",
-        "ScenicKitTests.GateParityFixtureTests/motorwayAndTrunkArePenalisedNotGated()"
+        "ScenicKitTests.GateParityFixtureTests/motorwayAndTrunkArePenalisedNotGated()",
+        "ScenicKitTests.SegmentScoreContractTests/everyRowMatchesTheOracle()",
+        "ScenicKitTests.SegmentScoreContractTests/everyRowShowsThePostCeilingScore()",
+        "ScenicKitTests.SegmentScoreContractTests/fixtureStraddlesEveryCeiling()",
+        "ScenicKitTests.SegmentScoreCeilingTests/tableIsTheETLTable()",
+        "ScenicKitTests.SegmentScoreCeilingTests/everyClassAndBound()",
+        "ScenicKitTests.SegmentScoreCeilingTests/refusalsStayRefused()",
+        "ScenicKitTests.SegmentScoreCeilingTests/readerFailsClosed()",
+        "ScenicKitTests.SegmentScoreSurfaceTests/formulaOnlyAtApprovedSites()",
+        "ScenicKitTests.SegmentScoreSurfaceTests/guardSeesSpellings()"
       ]
     }
   }
