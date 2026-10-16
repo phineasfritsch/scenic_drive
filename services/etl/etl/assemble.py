@@ -22,37 +22,21 @@ because their producer is on PR #94 and not on main: `sinuosity`, `tunnel_meters
 `meters_to_nearest_motorway`. Nothing in this module measures those three, and a reader should not have to
 infer it from an absence.
 
-THE CLOSED-WAY PREDICATE IS TEMPORARY AND IS ONE LINE (ruling R3). `sinuosity.way_sinuosity` returns its
-FLOOR for a closed way - the same 1.0 a straight two-node way gets - so a roundabout left in the sinuosity
-ranking population is scored as the region's straightest road, and thousands of them move every other way's
-rank (way_record.py's docstring; T-0146's 21:23:07Z note). The assembler must therefore set
-`sinuosity_declined` itself. T-0161 (PR #94) has landed on main, so the temporary copy of the predicate this
-module carried is DELETED and `CLOSED_ENDPOINT_M`, `endpoint_gap_m` and `is_closed_way` are imported from
-`.sinuosity` - one definition of the closed-way predicate in the tree, which is what
-`test_the_temporary_predicate_copy_must_be_deleted_the_day_t_0161_lands` asserts by object identity.
+THE CLOSED-WAY PREDICATE IS `sinuosity`'S (ruling R3). `way_sinuosity` returns its FLOOR for a closed way, so
+a roundabout left in the ranking population would score as the region's straightest road; the assembler sets
+`sinuosity_declined` itself, with `is_closed_way` imported from `.sinuosity` - one definition in the tree,
+which `test_the_temporary_predicate_copy_must_be_deleted_the_day_t_0161_lands` asserts by object identity.
 
 THE COLUMN IS `score` AND NOT `scenic_score` (ruling R4). `Sources/ScenicKit/Scoring/ScoredEdge.swift:15`
 reserves `scenic_score` for the `0...10` encoded value the router reads. This table carries `score.score`'s
 own 0..1 number under `score.score`'s own name; the 0..10 column is T-0168's.
 
-THE GATES ARE CLAUDE.md'S THREE, WHICH ARE FOUR BRANCHES (ruling R5, corrected for PR #102's review).
-CLAUDE.md: "Hard gates are safety only: unpaved (positive evidence), private/no access, track."
-`score.py:29-31` puts them in `ScenicKit.Gates` and out of the scorer, and nothing under
-`services/etl/etl/` gated on tags before this module. So a gate here forces `score` to `GATE_SCORE` AFTER
-the scorer has run and records `gate_reason`. THREE REASONS, FOUR RULES: "private/no access" is written in
-`Gates.verdict` as two branches that return the one `GateReason.noAccess` - `access` in `closedAccess`
-(Gates.swift:160) and `motor_vehicle = no` (Gates.swift:161) - which is what `GateReason.swift:31` names in
-a single case. This module ported only the first until PR #102's review found the second missing, and a way
-tagged `motor_vehicle=no` reached the corpus scored.
-
-`Gates.verdict` has NINE refusal branches. FOUR are ported here. The FIVE that are not - `tracktype` at
-grade3 or worse, `smoothness` worse than intermediate, a locked barrier, a ford, a refused `service` value
-- are deliberately absent: a second full gate in Python is how two answers for one road reach the corpus,
-and T-0146's scope is CLAUDE.md's three. That is a count, not an adjective: `test_assemble_wiring.py`
-counts the branches in `Gates.swift` itself and asserts four ported plus five unported against it, and it
-asserts each unported rule is still allowed here, so porting or adding one without moving the count is red.
-`test_assemble.py` pins the two sets below against the literals in `Gates.swift` and the three reason names
-against `GateReason.swift`'s cases, so they cannot drift apart in silence.
+THE GATE IS `Gates.verdict`'S NINE RULES, IN ITS ORDER (T-0146 R5 ported four; T-0188 the other five).
+`score.py:29-31` puts the gates in `ScenicKit.Gates` and out of the scorer, so a gate here forces `score` to
+`GATE_SCORE` AFTER the scorer has run and records `gate_reason`, named as `GateReason.swift`'s seven cases:
+`track` is two rules (highway=track, tracktype grade3+) and `no_access` is two (`accessrule.access_refused`).
+A corpus less strict than the device's gate is the drift P-PROD-01 forbids, so `test_gate_port.py` reads
+every set, reason, branch order and the rule COUNT out of the Swift code, red when either side gains a rule.
 
 A MOTORWAY IS NOT GATED (ruling R7). It scores 0.0 by class inside `score.score` (score.py:139) and stays
 routable - the freeway-shoulders design needs both at once. Its `gate_reason` is None, and the test says so
@@ -90,11 +74,24 @@ __all__ = ["CLOSED_ACCESS", "CLOSED_ENDPOINT_M", "MOTOR_VEHICLE_KEY", "MOTOR_VEH
 UNPAVED_SURFACES = frozenset({"gravel", "dirt", "ground", "sand", "unpaved", "compacted", "fine_gravel"})
 TRACK_HIGHWAY = "track"
 
-# The snake_case of the `GateReason` cases these three rules refuse with (GateReason.swift:23, :26, :32).
+# Gates.swift's other four sets, verbatim; `test_gate_port.py` pins each against its Swift literal.
+REFUSED_TRACKTYPES = frozenset({"grade3", "grade4", "grade5"})
+REFUSED_SMOOTHNESS = frozenset({"bad", "very_bad", "horrible", "very_horrible", "impassable"})
+REFUSABLE_BARRIERS = frozenset({"gate"})
+REFUSED_SERVICE_VALUES = frozenset({"driveway", "parking_aisle", "drive-through", "emergency_access"})
+SERVICE_HIGHWAY = "service"
+YES = "yes"
+
+# The snake_case of `GateReason`'s seven cases, in its order (parsed from GateReason.swift by the tests).
 GATE_UNPAVED_SURFACE = "unpaved_surface"
 GATE_TRACK = "track"
+GATE_TOO_ROUGH = "too_rough"
 GATE_NO_ACCESS = "no_access"
-GATE_REASONS = (GATE_UNPAVED_SURFACE, GATE_TRACK, GATE_NO_ACCESS)
+GATE_LOCKED_BARRIER = "locked_barrier"
+GATE_FORD = "ford"
+GATE_SERVICE_WAY = "service_way"
+GATE_REASONS = (GATE_UNPAVED_SURFACE, GATE_TRACK, GATE_TOO_ROUGH, GATE_NO_ACCESS, GATE_LOCKED_BARRIER,
+                GATE_FORD, GATE_SERVICE_WAY)
 # What a refused way scores. Not None: the driver is not being told the road is unknown.
 GATE_SCORE = 0.0
 
@@ -128,20 +125,29 @@ LANDCOVER_TERMS = ("canopy", "impervious", "water")
 
 
 def gate_reason(tags: dict) -> str | None:
-    """Why this way is refused for SAFETY, by name, or None. FOUR rules, in `Gates.verdict`'s order.
+    """Why this way is refused, by name, or None. `Gates.verdict`'s NINE rules, in its order.
 
-    Four rules and three reasons: the last two are the two halves of ScenicKit's `noAccess` and are now
-    `accessrule.access_refused`, the one definition the corpus's `access_ok` column asks as well (T-0217
-    R3). This function still returns the FIRST rule that fires, so nothing may derive "may the public
-    drive here" from its answer: a private dirt road answers `unpaved_surface`. Ask the predicate.
+    The two `noAccess` halves are `accessrule.access_refused`, the one definition the corpus's `access_ok`
+    column asks as well (T-0217 R3). This returns the FIRST rule that fires, so nothing may derive "may the
+    public drive here" from its answer: a private dirt road answers `unpaved_surface`. Ask the predicate.
     """
     surface = tags.get("surface")
     if surface is not None and surface in UNPAVED_SURFACES:
         return GATE_UNPAVED_SURFACE
     if tags.get("highway") == TRACK_HIGHWAY:
         return GATE_TRACK
+    if tags.get("tracktype") in REFUSED_TRACKTYPES:
+        return GATE_TRACK
+    if tags.get("smoothness") in REFUSED_SMOOTHNESS:
+        return GATE_TOO_ROUGH
     if access_refused(tags):
         return GATE_NO_ACCESS
+    if tags.get("barrier") in REFUSABLE_BARRIERS and tags.get("locked") == YES:
+        return GATE_LOCKED_BARRIER
+    if tags.get("ford") == YES:
+        return GATE_FORD
+    if tags.get("highway") == SERVICE_HIGHWAY and tags.get("service") in REFUSED_SERVICE_VALUES:
+        return GATE_SERVICE_WAY
     return None
 
 

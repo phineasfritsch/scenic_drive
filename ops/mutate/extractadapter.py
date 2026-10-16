@@ -58,12 +58,7 @@ CLOSED = 'CLOSED_ACCESS = frozenset({"private", "no", "permit", "destination"})'
 PREDICATE = ('    return (tags.get(ACCESS_KEY) in CLOSED_ACCESS\n'
              '            or tags.get(MOTOR_VEHICLE_KEY) == MOTOR_VEHICLE_REFUSED)')
 GATE_ORDER = ('    surface = tags.get("surface")\n'
-              '    if surface is not None and surface in UNPAVED_SURFACES:\n'
-              '        return GATE_UNPAVED_SURFACE\n'
-              '    if tags.get("highway") == TRACK_HIGHWAY:\n'
-              '        return GATE_TRACK\n'
-              '    if access_refused(tags):\n'
-              '        return GATE_NO_ACCESS')
+              '    if surface is not None and surface in UNPAVED_SURFACES:')
 CLS_TABLE = ("HIGHWAY_TO_CLS = {highway: cls for cls, values in WAY_CLASSES.items() "
              "for highway in values}")
 FORWARD_BRANCH = "    if value in ONEWAY_FORWARD:\n        return FORWARD"
@@ -116,14 +111,7 @@ MUTATIONS = [
      ACCESS_COLUMN, "    from .assemble import gate_reason\n"
                     "    return ACCESS_BLOCKED if access_refused(tags) or gate_reason(tags) else ACCESS_OK"),
     ("answer the access rule FIRST in gate_reason, which is what makes a derived column look right",
-     ASSEMBLE, GATE_ORDER,
-     '    if access_refused(tags):\n'
-     '        return GATE_NO_ACCESS\n'
-     '    surface = tags.get("surface")\n'
-     '    if surface is not None and surface in UNPAVED_SURFACES:\n'
-     '        return GATE_UNPAVED_SURFACE\n'
-     '    if tags.get("highway") == TRACK_HIGHWAY:\n'
-     '        return GATE_TRACK'),
+     ASSEMBLE, GATE_ORDER, '    if access_refused(tags):\n        return GATE_NO_ACCESS\n' + GATE_ORDER),
 
     # --- direction --------------------------------------------------------------------------------------
     ("read `oneway=-1` as a forward one-way, sending the router the wrong way down a real road", ADAPTER,
