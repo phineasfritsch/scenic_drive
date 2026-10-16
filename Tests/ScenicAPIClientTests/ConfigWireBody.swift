@@ -26,9 +26,25 @@ enum ConfigWireBody {
         return Data(("{" + parts.joined(separator: ",") + "}").utf8)
     }
 
-    /// A well-formed answer carrying `config`.
-    static func of(_ config: RemoteConfig, rest: String = ConfigWireBody.rest) -> Data {
-        text(min: String(config.minAppBuild), paused: String(config.planningPaused), rest: rest)
+    /// The quota and warnings the Worker sends after the flags, verbatim from the measured default answer.
+    static let tail = #""quota":{"anon":{"plan":3,"loop":1,"surprise":3,"trip":1},"free":{"plan":10,"loop":1,"surprise":3,"#
+        + #""trip":1},"paid":{"plan":200,"loop":200,"surprise":200,"trip":200}},"config_warnings":[]"#
+
+    /// T-0364: `rest` with each feature flag as raw JSON text (nil leaves the key out), in the Worker's key order.
+    static func rest(loop: String?, trip: String?, surprise: String?) -> String {
+        var parts = [#""supported_regions":["la"]"#]
+        if let loop { parts.append(#""feature_loop":"# + loop) }
+        if let trip { parts.append(#""feature_trip":"# + trip) }
+        if let surprise { parts.append(#""feature_surprise":"# + surprise) }
+        parts.append(tail)
+        return parts.joined(separator: ",")
+    }
+
+    /// A well-formed answer carrying `config`, its three flags included unless `rest` replaces everything after the two.
+    static func of(_ config: RemoteConfig, rest: String? = nil) -> Data {
+        text(min: String(config.minAppBuild), paused: String(config.planningPaused),
+             rest: rest ?? Self.rest(loop: String(config.featureLoop), trip: String(config.featureTrip),
+                                     surprise: String(config.featureSurprise)))
     }
 
     /// One fetch through the shipping client over a transport answering `reply` (nil: no reply at all), with the

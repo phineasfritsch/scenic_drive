@@ -20,7 +20,8 @@ from config_mutations import ROOT
 # CONFIG_MUTATE_SCRATCH overrides it where a worktree path is too long for the index store.
 SCRATCH = os.environ.get("CONFIG_MUTATE_SCRATCH", ".build/mutate-config")
 # The suites every `killers` entry names, by their type names.
-FILTER = "ConfigClientTests|ConfigCacheTests|ConfiguredPlannerTests|ConfigDegradeTests"
+FILTER = ("ConfigClientTests|ConfigCacheTests|ConfiguredPlannerTests|ConfigDegradeTests|ConfigFlagTests|"
+          "ConfiguredSheetPlannerTests|ConfigNoticeTests")
 # `Test "<display name>" recorded an issue`. ASCII only: the failure glyph mis-decodes on this console.
 FAIL_LINE = re.compile(r'Test\s+(?:"([^"]*)"|([A-Za-z_]\w*\(\)))\s+recorded an issue')
 

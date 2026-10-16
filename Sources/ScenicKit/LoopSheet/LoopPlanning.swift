@@ -2,4 +2,6 @@
 /// ScenicAPIClient; PlanAdapter supplies the live one.
 public protocol LoopPlanning: Sendable {
     func plan(_ ticket: LoopTicket) async -> LoopOutcome
+    /// T-0364 R3: what /config does to the loop screen, asked before the tap. No default: every conformer says.
+    func degrade() async -> ConfigDegrade
 }

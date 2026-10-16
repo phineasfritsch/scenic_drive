@@ -19,6 +19,6 @@ public struct ConfiguredPlanner: RoutePlanning {
     }
 
     public func degrade() async -> ConfigDegrade {
-        ConfigDegrade.of(await cache.refresh(), appBuild: appBuild)
+        ConfigDegrade.of(await cache.refresh(), appBuild: appBuild, on: .plan)
     }
 }

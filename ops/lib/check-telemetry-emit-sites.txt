@@ -1,6 +1,6 @@
 site	apps/ios/Packages/ScenicApp/Package.swift	                .product(name: "Telemetry", package: "ScenicDrive"),
 site	apps/ios/Packages/ScenicApp/Sources/Entitlements/SettingsScreen.swift	            .accessibilityIdentifier("settings.paywall")
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveLoopPlanner.swift	        return TelemetryLoopPlanner(inner: ClientLoopPlanner(client: LoopClient(base: base, transport: URLSessionPlanTransport(),
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveLoopPlanner.swift	        return TelemetryLoopPlanner(inner: ConfiguredLoopPlanner(planner: client, cache: LivePlanner.cache(base), appBuild: LivePlanner.appBuild))
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift	        return TelemetryRoutePlanner(inner: ConfiguredPlanner(planner: ClientPlanner(client: client(base)), cache: cache,
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift	    private static let live: (any SurpriseLedgerSource)? = TelemetrySurpriseLedger(inner: build())
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift	import Telemetry
@@ -20,7 +20,7 @@ site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    sta
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	    private static func record(_ event: TelemetryEvent) {
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	import Telemetry
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTelemetry.swift	public enum LiveTelemetry {
-site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTripPlanner.swift	        return TelemetryTripPlanner(inner: ClientTripPlanner(client: TripClient(base: base, transport: URLSessionPlanTransport(),
+site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveTripPlanner.swift	        return TelemetryTripPlanner(inner: ConfiguredTripPlanner(planner: client, cache: LivePlanner.cache(base), appBuild: LivePlanner.appBuild))
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryLoopPlanner.swift	        LiveTelemetry.planRequested(.loop, budgetMinutes: ticket.minutes, origin: ticket.start)
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryLoopPlanner.swift	        LiveTelemetry.planResult(Self.kind(outcome))
 site	apps/ios/Packages/ScenicApp/Sources/PlanAdapter/TelemetryLoopPlanner.swift	import Telemetry
