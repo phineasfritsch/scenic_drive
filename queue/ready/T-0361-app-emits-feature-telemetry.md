@@ -1,7 +1,7 @@
 ---
 id: T-0361
 title: The app emits the ten feature-side telemetry cases T-0355 left pending - a seam per feature target plus the shell, so each has its one emit site
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
