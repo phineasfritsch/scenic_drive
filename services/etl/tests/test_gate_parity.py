@@ -42,9 +42,11 @@ CORE_CLASSES = (
 # R1: ScenicKit refuses these; T-0188 ported them into the ETL and the profile has no encoded value for them.
 DIVERGENT_CLASSES = ("tracktype=grade3 on tertiary", "barrier=gate+locked=yes", "ford=yes", "service=driveway",
                      "service=parking_aisle")
+# T-0188 rv1 B1/B2: Gates.verdict compares ford and locked to "yes" ONLY, so every layer routes these.
+NEAR_MISS_CLASSES = ("ford=stepping_stones", "barrier=gate+locked=true")
 EXPECTED_VERDICT = {**{c: ZERO for c in CORE_CLASSES[:4]}, **{c: GATED for c in CORE_CLASSES[4:20]},
                     **{c: PAVED for c in CORE_CLASSES[20:23]}, **{c: X08 for c in CORE_CLASSES[23:]},
-                    **{c: GATED for c in DIVERGENT_CLASSES}}
+                    **{c: GATED for c in DIVERGENT_CLASSES}, **{c: PAVED for c in NEAR_MISS_CLASSES}}
 
 
 def record(tags: dict, surface_value) -> WayRecord:
@@ -130,9 +132,9 @@ def test_motorway_and_trunk_score_zero_and_are_routable_in_every_layer():
 
 def test_the_fixture_is_the_briefs_table():
     """Every class once, in order, with its typed verdict; real rows carry an id, synthetic rows say so."""
-    assert IDS == list(CORE_CLASSES[:22]) + list(DIVERGENT_CLASSES) + list(CORE_CLASSES[22:]) or \
-        sorted(IDS) == sorted(list(CORE_CLASSES) + list(DIVERGENT_CLASSES))
-    assert len(IDS) == len(set(IDS)) == len(CORE_CLASSES) + len(DIVERGENT_CLASSES) == 30
+    assert IDS == (list(CORE_CLASSES[:20]) + list(DIVERGENT_CLASSES) + list(CORE_CLASSES[20:])
+                   + list(NEAR_MISS_CLASSES))
+    assert len(IDS) == len(set(IDS)) == len(CORE_CLASSES) + len(DIVERGENT_CLASSES) + len(NEAR_MISS_CLASSES) == 32
     for row in ROWS:
         assert row["verdict"] == EXPECTED_VERDICT[row["class"]], row["class"]
         if row["way_id"] is None:

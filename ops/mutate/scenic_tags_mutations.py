@@ -1,29 +1,25 @@
 """The mutation POPULATION for ops/mutate/scenic_tags.py: what to break in `tagwriter` and `scenecheck`.
 
-Split out of the runner exactly as `geometry_mutations.py` is split out of `geometry.py` and
-`budget_mutations.py` out of `budget.py`: the runner is the protocol - what a verdict is and what refuses -
-and this file is the evidence it runs over. The split happened when T-0204's second round took the runner
-to the 300-line cap; the boundary is meaning, not a line number. The paths live HERE because the runner
-imports them back out, and importing them the other way would be a cycle.
+Split out of the runner as `geometry_mutations.py` is out of `geometry.py` (T-0204, at the 300-line cap): the
+runner is the protocol - what a verdict is and what refuses - and this file the evidence it runs over. The paths
+live HERE because the runner imports them back out, and importing them the other way would be a cycle.
 
 Each entry is `(name, file, old, new)`. `old` must appear VERBATIM in the pristine file or the run reports
 SKIP and FAILS - a stale anchor is a harness that has gone quietly blind. **Anchor on code, never on a
 comment** (CLAUDE.md): comments get stripped and a mutation anchored on one dies without a sound.
 
-T-0204 R5 adds the seven at the bottom of MUTATIONS: the unit score - the number this task's whole
-predicate is read on, and the number that had no contract at all until the oracle grew one.
-
+T-0204 R5 adds seven: the unit score, which had no contract at all until the oracle grew one.
 T-0207 adds `assemble.py` as a THIRD subject and nine mutations, floor 35 -> 44. R1 puts the class ceiling
 there - the number that decides what `tagwriter` then writes for a residential, living_street or service
 way - and R2 makes the integer and the unit one number in `tags_for_row`. A module that computes a number
 ships a population, and the number the tags carry is now computed in two files, so both are subjects.
 
-T-0207 R3 adds four more, floor 44 -> 48: the ceiling CONDITIONED ON AN INPUT. The pre-review mutant pass
-ran two of them unwritten and both SURVIVED - `and value < 0.75` and `and record.byway_status is None` - so
-the class is now shipped whole, one mutation per input `scored_row` can read (the score's magnitude, the
-byway status, a term, the surface), rather than one spelling at a time (PR #101's precedent).
+T-0207 R3 adds four, floor 44 -> 48: the ceiling CONDITIONED ON AN INPUT. The pre-review pass ran two unwritten
+and both SURVIVED (`and value < 0.75`, `and record.byway_status is None`), so the class ships whole, one mutation
+per input `scored_row` reads, rather than one spelling at a time (PR #101's precedent).
 T-0188 ports `Gates.verdict`'s other five rules into `assemble.gate_reason`: twenty-three mutations, floor
-48 -> 71, over test_gate_port.py and test_gate_parity.py (both added to EMPTIED).
+48 -> 71, over test_gate_port.py and test_gate_parity.py (both added to EMPTIED). rv1 B1/B2 add two, 71 -> 73:
+a ford or a lock compared to more than Gates.swift's one "yes" literal (the value-space table kills the class).
 """
 from __future__ import annotations
 
@@ -265,6 +261,10 @@ MUTATIONS = [
     ("refuse a locked bollard too", ASSEMBLE, BARRIERS, BARRIERS.replace('"gate"', '"gate", "bollard"')),
     ("drop the ford rule", ASSEMBLE, FORD_IF, "    if False:"),
     ("refuse ford=no", ASSEMBLE, FORD_IF, '    if tags.get("ford") is not None:'),
+    ("refuse every ford but no - stepping_stones and boat drive in ScenicKit (rv1 B1)", ASSEMBLE, FORD_IF,
+     '    if tags.get("ford") not in (None, "no"):'),
+    ("read locked=true and =1 as locked (rv1 B2)", ASSEMBLE, BARRIER_IF,
+     BARRIER_IF.replace("== YES", 'in (YES, "true", "1")')),
     ("spell yes as true, so no locked gate and no ford is refused", ASSEMBLE, 'YES = "yes"', 'YES = "true"'),
     ("drop the service rule", ASSEMBLE, SERVICE_IF, "    if False:"),
     ("refuse a service value on any highway", ASSEMBLE, SERVICE_IF, "    if " + SERVICE_IF.split(" and ")[1]),
@@ -297,4 +297,4 @@ EQUIVALENT = [
 # promoted into MUTATIONS. Empty is a claim, not an omission.
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 71
+MIN_MUTATIONS = 73

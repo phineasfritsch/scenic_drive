@@ -472,6 +472,29 @@
     "tiger:reviewed": "no"
    },
    "verdict": "UNKNOWN_X08"
+  },
+  {
+   "class": "ford=stepping_stones",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways; ford occurs once, =yes)",
+   "tags": {
+    "highway": "tertiary",
+    "surface": "asphalt",
+    "ford": "stepping_stones"
+   },
+   "verdict": "PAVED"
+  },
+  {
+   "class": "barrier=gate+locked=true",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways; no way carries locked)",
+   "tags": {
+    "highway": "tertiary",
+    "surface": "asphalt",
+    "barrier": "gate",
+    "locked": "true"
+   },
+   "verdict": "PAVED"
   }
  ]
 }

@@ -72,6 +72,22 @@ NEAR_MISSES = (
     {"highway": "residential", "service": "driveway"},
 )
 
+# rv1 B1/B2: every `tags["k"] == "v"` conjunct of Gates.verdict is tried over this value space - OSM values and
+# boolean spellings - plus its own parsed literal. A widened comparison (`not in (None, "no")`, `in (yes,
+# true, 1)`) refuses one of them; ScenicKit routes every one.
+VALUE_SPACE = ("yes", "no", "true", "false", "1", "0", "unknown", "stepping_stones", "boat", "permissive",
+               "private", "designated", "residential", "")
+# The way each conjunct's value is tried on, keyed by its branch's reason; every OTHER conjunct is satisfied.
+EQUALITY_WAYS = {
+    "track": lambda v: {"highway": v},
+    "noAccess": lambda v: {"highway": "residential", "motor_vehicle": v},
+    "lockedBarrier": lambda v: {"highway": "residential", "barrier": "gate", "locked": v},
+    "ford": lambda v: {"highway": "residential", "ford": v},
+    "serviceWay": lambda v: {"highway": v, "service": "driveway"},
+}
+EQUALITY = re.compile(r'tags\["(\w+)"\] == "([^"]*)"')
+PROBE = "\x00probe"
+
 
 def _code(path: pathlib.Path) -> list:
     return [line for line in path.read_text(encoding="utf-8").splitlines() if not line.lstrip().startswith("//")]
@@ -160,3 +176,55 @@ def test_the_keys_the_etl_gate_reads_are_gates_considered_tag_keys():
     read = set(re.findall(r'tags\.get\("(\w+)"\)', inspect.getsource(assemble.gate_reason)))
     read |= {accessrule.ACCESS_KEY, accessrule.MOTOR_VEHICLE_KEY}
     assert read == _swift_set("consideredTagKeys"), sorted(read ^ _swift_set("consideredTagKeys"))
+
+
+def swift_equalities() -> list:
+    """`(key, literal, reason)` of every `tags["k"] == "v"` in `Gates.verdict`, the reason being the first
+    refusal at or after it. Fails closed: any other `==` or any `!=` in the body is a spelling it cannot read."""
+    code = _code(GATES_SWIFT)
+    start = next(i for i, line in enumerate(code) if "func verdict(" in line)
+    end = next((i for i in range(start + 1, len(code)) if " func " in code[i]), len(code))
+    body = code[start + 1:end]
+    found = []
+    for i, line in enumerate(body):
+        for key, literal in EQUALITY.findall(line):
+            reason = next(m.group(1) for later in body[i:] for m in [re.search(r"return \.refused\(\.(\w+)\)", later)]
+                          if m)
+            found.append((key, literal, reason))
+    assert sum(line.count("==") for line in body) == len(found), "an == this parser cannot read"
+    assert not any("!=" in line for line in body), "a != this parser cannot read"
+    return found
+
+
+def equality_rows(literal: str) -> list:
+    """`(value, refused)` over the value space and the literal: refused iff the value IS the literal."""
+    return [(value, refused_under(value, literal)) for value in sorted(set(VALUE_SPACE) | {literal})]
+
+
+def refused_under(value: str, literal: str) -> bool:
+    return value == literal
+
+
+def test_every_swift_equality_conjunct_has_a_way():
+    found = swift_equalities()
+    assert len(found) == len(EQUALITY_WAYS) == 5, found
+    assert sorted(reason for _, _, reason in found) == sorted(EQUALITY_WAYS), found
+    for key, _, reason in found:
+        assert EQUALITY_WAYS[reason](PROBE)[key] == PROBE, (key, reason)
+
+
+def test_no_equality_row_ignores_the_parsed_literal():
+    for _, literal, _ in swift_equalities():
+        rows = dict(equality_rows(literal))
+        assert sum(rows.values()) == 1 and len(rows) > len(VALUE_SPACE) // 2, (literal, rows)
+        for value, refused in rows.items():
+            other = value if value != literal else literal + PROBE
+            assert refused_under(value, other) != refused, (literal, value)
+
+
+@pytest.mark.parametrize("key,literal,reason", swift_equalities(),
+                         ids=["%s==%s" % (k, lit) for k, lit, _ in swift_equalities()])
+def test_each_equality_conjunct_refuses_its_swift_literal_and_no_other_value(key, literal, reason):
+    for value, refused in equality_rows(literal):
+        tags = EQUALITY_WAYS[reason](value)
+        assert assemble.gate_reason(tags) == (_snake(reason) if refused else None), (key, literal, value, tags)

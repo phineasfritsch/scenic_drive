@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-17T15:39:20Z
 worktree: .worktrees/T-0188
 branch: task/T-0188
 exclusive: []
-touches: [services/etl/etl/assemble.py, services/etl/tests/, ops/mutate/scenic_tags_mutations.py, ops/mutate/extractadapter.py, queue/]
+touches: [services/etl/etl/assemble.py, services/etl/tests/, ops/mutate/scenic_tags_mutations.py, ops/mutate/extractadapter.py, Tests/ScenicKitTests/GateParityFixtureTests.swift, queue/]
 pins_affected: [P-PROD-01]
 reviewer: null
 depends_on: [T-0146]
@@ -121,3 +121,34 @@ router's own and are not this task.
      check-exec-bits (`all modes correct`); queue-check (`QUEUE OK (368 tasks)`).
   STILL OPEN: the routing profile half of the five divergent rows (no track_type/barrier/ford/service encoded
   value in config.yml) - typed in the fixture, not this task's scope, not yet filed.
+- 2026-10-16T17:56:16Z rv1 FAIL (agent/rv1-t-0188, head bc0fb172) B1/B2 - ruled before code: both findings stand.
+  Gates.swift's verdict compares ford and locked to the ONE literal "yes" (`tags["ford"] == "yes"`,
+  `tags["locked"] == "yes"`); the near-miss table held one spelling per key (ford=no, locked=no), a blacklist, so
+  `ford not in (None, "no")` and `locked in (YES, "true", "1")` survived (reviewer: 1906 passed each). Fixed by
+  CLASS in test_gate_port.py: `swift_equalities()` parses every `tags["k"] == "v"` of `Gates.verdict`'s body
+  (comment lines dropped; fails closed when the body's `==` count differs from what it read or any `!=`
+  appears) -> five conjuncts: highway==track, motor_vehicle==no, locked==yes, ford==yes, highway==service.
+  Each is tried over VALUE_SPACE (yes/no/true/false/1/0/unknown/stepping_stones/boat/permissive/private/
+  designated/residential/"") plus its literal, on a way satisfying the branch's other conjuncts; expected refused
+  with the branch's reason iff value == the PARSED literal (`refused_under(value, literal)`); meta-tests: every
+  parsed conjunct has a way that puts the value under the parsed key, and no row's expectation survives a
+  change of literal. Measured the LA canyon window (services/etl/work/la/window-doc.json, 11740 ways): ford
+  occurs once (=yes), no way carries locked or barrier; motor_vehicle no=64 private=68 yes=12 permissive=4
+  permit=1. So gate_parity.json gains two SYNTHETIC rows, ford=stepping_stones and barrier=gate+locked=true
+  (tertiary, asphalt, verdict PAVED, no divergent: the profile cannot see either key); fixture 30 -> 32 rows in
+  test_gate_parity.py and GateParityFixtureTests.swift (touches: gains that file), which gains the named test
+  "a ford or a lock spelled other than yes is not gated by ScenicKit". scenic_tags_mutations.py gains both
+  mutants, MIN_MUTATIONS 71 -> 73 (docstring condensed to hold the 300-line cap: 300).
+  RED (each mutant applied by hand to assemble.py, __pycache__ purged, 1.1 s sleep, `python -m pytest tests`):
+    B1 -> `FAILED tests/test_gate_parity.py::test_etl_gives_the_fixture_verdict[ford=stepping_stones]`,
+       `FAILED tests/test_gate_parity.py::test_etl_and_profile_agree_on_every_gate`,
+       `FAILED tests/test_gate_port.py::test_each_equality_conjunct_refuses_its_swift_literal_and_no_other_value[ford==yes]`,
+       `3 failed, 1914 passed`.
+    B2 -> `FAILED ...test_etl_gives_the_fixture_verdict[barrier=gate+locked=true]`, `FAILED
+       ...test_etl_and_profile_agree_on_every_gate`, `FAILED ...test_each_equality_conjunct_refuses_its_swift_
+       literal_and_no_other_value[locked==yes]`, `3 failed, 1914 passed`.
+    meta (refused_under made to ignore the literal: `value == "yes"`) -> `FAILED
+       tests/test_gate_port.py::test_no_equality_row_ignores_the_parsed_literal` plus the highway==track,
+       motor_vehicle==no and highway==service rows, `4 failed, 37 passed`.
+  GREEN (pristine): `python -m pytest tests` -> `1917 passed in 83.30s`; `swift test --filter
+    GateParityFixtureTests` -> `Test run with 3 tests in 1 suite passed` (new test passed by name).
