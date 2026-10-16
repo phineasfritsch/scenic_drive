@@ -1,7 +1,7 @@
 ---
 id: T-0367
 title: TelemetryClient takes an install-id provider and reads it per request, held by a Linux test, so the Apple-only InstallBoundTelemetry rebuild is no longer the only guard against sending a deleted account's id
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T06:29:40Z
@@ -11,7 +11,7 @@ branch: task/T-0367
 exclusive: []
 touches: [Sources/Telemetry/, Tests/TelemetryTests/, apps/ios/Packages/ScenicApp/Sources/PlanAdapter/, ops/lib/, ops/mutate/]
 pins_affected: [P-PRIV-04, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0367
 depends_on: [T-0356]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -117,3 +117,4 @@ permission classifier refuses an apps/ios digest re-approval, ship the Linux sli
      check-safety-disclaimer.
   5. ios-compile 38863380880 success, ios-screenshot 38863383999 success (on 43a63bc6; nothing under apps/ changed after).
 - 2026-10-16T08:44:29Z agent/claude-opus-5 (owner): rv1-t0367 FAIL was ancestry-only (main gained PR #253 T-0372, #256 T-0374, #257 T-0373). Merged origin/main as cdae75f5, no conflicts. On cdae75f5: swift test --filter TelemetryTests "Test run with 21 tests in 7 suites passed"; posttelemetry --only 17,18 "MUTATE OK caught=2/2"; bare gates rc=0: check-safety-disclaimer, check-mutate-population (floor 165), check-mutate-only, check-mutate-anchors (17 drivers), check-telemetry-emit-sites ("ok - 54 lines approved; 13 of 14 cases emitted once, 1 pending by task"), check-pins-yaml (pins=51), check-exec-bits, queue-check (365). ios-compile run 38874471124 success on cdae75f5; ios-screenshot run 38874475204 dispatched on cdae75f5; linux-core 38874477506 success. Recorded, not closed here: the app half (LiveTelemetry freezing the id) is held only by the P-SAFE-03 digest and the P-PRIV-05 emit-site whitelist; binding everyRequestStampsTheProvidersCurrentID() by name in named-tests.json needs a PINS.yaml re-approval (follow-up).
+- 2026-10-16T09:01:17Z agent/rv2-t0367 (reviewer, round 2, ancestry only): PASS on origin/task/T-0367 cd722f6c (origin/main c2499ed6). `git diff --name-only origin/main...origin/task/T-0367` = 11 files, all this PR's: Sources/Telemetry/TelemetryClient.swift, Tests/TelemetryTests/{ScriptedInstallID,TelemetryClientTests,URLSessionTelemetryTransportTests}.swift, PlanAdapter/{InstallBoundTelemetry (removed),LiveTelemetry}.swift, ops/lib/{check-safety-disclaimer-linked-digests.txt,check-safety-disclaimer-pinned,check-telemetry-emit-sites.txt}, ops/mutate/posttelemetry_mutations.py, this task file. `git diff --stat cdae75f5 origin/task/T-0367` = this task file only (1 insertion). Bare in a detached worktree at cd722f6c, all rc=0: check-safety-disclaimer ("Frozen (-frozen); 33 feature file(s), shell, footer pinned (-pinned); doors over 108 .swift (-doors); LAST all 108 app .swift, then 326 root + pbxproj file(s) (-linked)."); check-telemetry-emit-sites ("P-PRIV-05 emit sites: ok - 54 lines approved; 13 of 14 cases emitted once, 1 pending by task"); check-mutate-population ("P-PROC-06: every added module is covered or allowlisted; the floor of 165 holds", 0 added by this branch); check-pins-yaml ("PINS-YAML ok pins=51 fields=411"); queue-check ("QUEUE OK (365 tasks)"). CI on cdae75f5: ios-compile 38874471124 conclusion success; ios-screenshot 38874475204 status completed, conclusion success. `gh pr checks 254`: core pass 7m32s, pins-source-only pass 3m48s (run 38875721604). LAST, after a fresh fetch: `git merge-base --is-ancestor origin/main origin/task/T-0367` exit 0; origin/main unchanged at c2499ed6, no drift. The rv1 code PASS stands; the app-half follow-up recorded above is the owner's to file.
