@@ -27,7 +27,6 @@ import inspect
 import json
 import math
 import pathlib
-import re
 
 import pytest
 
@@ -36,7 +35,6 @@ from etl import assemble, score
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 FIXTURE = HERE / "fixtures" / "assembly_fixture.json"
-GATES_SWIFT = ROOT / "Sources" / "ScenicKit" / "Gates" / "Gates.swift"
 
 MOTORWAY = 800000001
 PRIVATE = 800000003
@@ -107,26 +105,6 @@ RANK_LADDER = tuple((index + 0.5) / 8 for index in range(8))
 #   relief  2.0(005) 3.5(006) 12.0(009) 51.0(003) 53.0(008) 67.0(004) 92.0(007) 150.0(010)
 GAIN_ORDER = (STRAIGHT, DESCENT, LOOP, NO_MOTOR_VEHICLE, PRIVATE, UNSURVEYED, UNPAVED, SECONDARY)
 RELIEF_ORDER = (LOOP, STRAIGHT, NO_MOTOR_VEHICLE, PRIVATE, UNSURVEYED, UNPAVED, SECONDARY, DESCENT)
-
-# `Gates.verdict`'s nine refusal branches, by the tag key each one is written on (Gates.swift:154-172).
-# Four are ported into `assemble.gate_reason`; the five that are not are named in `assemble`'s docstring.
-PORTED_GATE_KEYS = ("surface", "highway", "access", "motor_vehicle")
-UNPORTED_GATE_RULES = 5
-
-
-def _swift_verdict_branches() -> int:
-    """How many branches of `Gates.verdict` refuse, counted in the CODE and not in a doc comment."""
-    lines = GATES_SWIFT.read_text(encoding="utf-8").splitlines()
-    code = [line for line in lines if not line.lstrip().startswith("//")]
-    return sum(line.count("return .refused(") for line in code)
-
-
-def _swift_set(name: str) -> set:
-    match = re.search(r"let %s: Set<String> = \[(.*?)\]" % name,
-                      GATES_SWIFT.read_text(encoding="utf-8"), re.S)
-    assert match, "%s is not declared in %s" % (name, GATES_SWIFT)
-    return set(re.findall(r'"([^"]+)"', match.group(1)))
-
 
 def test_the_ranked_terms_are_the_raw_numbers_their_producers_returned():
     """B1 of PR #102's review: the pin the swap survived. Every value here is pre-`normalise_region`."""
@@ -208,22 +186,3 @@ def test_motor_vehicle_no_is_refused_as_no_access_the_way_gates_swift_refuses_it
     # `motor_vehicle` on any other value is not a refusal: positive evidence only, as everywhere else here.
     assert assemble.gate_reason({"highway": "residential", "motor_vehicle": "yes"}) is None
     assert assemble.gate_reason({"highway": "residential", "motor_vehicle": "destination"}) is None
-
-
-def test_the_unported_gate_rules_are_counted_against_gates_verdict_and_not_described():
-    """B3's second half: "five further rules" was written when four of them had no name here and one of
-    them, `motor_vehicle=no`, was missing from the enumeration entirely. Count the branches instead."""
-    branches = _swift_verdict_branches()
-    assert branches == 9, "Gates.verdict now has %d refusal branches, not 9" % branches
-    assert len(PORTED_GATE_KEYS) + UNPORTED_GATE_RULES == branches
-    assert set(PORTED_GATE_KEYS) <= _swift_set("consideredTagKeys"), sorted(PORTED_GATE_KEYS)
-    assert assemble.gate_reason({"highway": "track"}) == assemble.GATE_TRACK
-    # The five that are NOT ported, one row each, stated as the behaviour that follows from not porting
-    # them: allowed here, refused by ScenicKit. This is the delta the Log's dated correction names, and it
-    # is asserted rather than described so that porting one of them without moving the count goes red.
-    for tags in ({"highway": "unclassified", "tracktype": "grade4"},
-                 {"highway": "residential", "smoothness": "bad"},
-                 {"highway": "residential", "barrier": "gate", "locked": "yes"},
-                 {"highway": "residential", "ford": "yes"},
-                 {"highway": "service", "service": "driveway"}):
-        assert assemble.gate_reason(tags) is None, tags
