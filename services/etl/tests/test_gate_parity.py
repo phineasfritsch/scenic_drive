@@ -7,7 +7,8 @@ same file through `Gates.decide` and `SegmentScore`. Every failure names the lay
 other layers answer for that row - never a bare "mismatch".
 
 `verdict` is the product's answer and ScenicKit's. A row may carry `divergent` - what the ETL and the profile
-answer TODAY where they cannot yet agree (T-0012 ruling R1) - and only the five typed classes may.
+answer TODAY where they cannot yet agree (T-0012 ruling R1; the profile only since T-0188) - and only the
+five typed classes may.
 """
 from __future__ import annotations
 
@@ -38,12 +39,14 @@ CORE_CLASSES = (
     + ["access=" + a for a in ("private", "no", "permit", "destination")] + ["motor_vehicle=no"]
     + ["no surface on " + h for h in ("primary", "secondary", "tertiary", "unclassified", "residential")]
 )
-# R1: ScenicKit refuses these; the ETL waits on T-0188 and the profile has no encoded value for them.
+# R1: ScenicKit refuses these; T-0188 ported them into the ETL and the profile has no encoded value for them.
 DIVERGENT_CLASSES = ("tracktype=grade3 on tertiary", "barrier=gate+locked=yes", "ford=yes", "service=driveway",
                      "service=parking_aisle")
+# T-0188 rv1 B1/B2: Gates.verdict compares ford and locked to "yes" ONLY, so every layer routes these.
+NEAR_MISS_CLASSES = ("ford=stepping_stones", "barrier=gate+locked=true", "ford=Yes")
 EXPECTED_VERDICT = {**{c: ZERO for c in CORE_CLASSES[:4]}, **{c: GATED for c in CORE_CLASSES[4:20]},
                     **{c: PAVED for c in CORE_CLASSES[20:23]}, **{c: X08 for c in CORE_CLASSES[23:]},
-                    **{c: GATED for c in DIVERGENT_CLASSES}}
+                    **{c: GATED for c in DIVERGENT_CLASSES}, **{c: PAVED for c in NEAR_MISS_CLASSES}}
 
 
 def record(tags: dict, surface_value) -> WayRecord:
@@ -129,9 +132,9 @@ def test_motorway_and_trunk_score_zero_and_are_routable_in_every_layer():
 
 def test_the_fixture_is_the_briefs_table():
     """Every class once, in order, with its typed verdict; real rows carry an id, synthetic rows say so."""
-    assert IDS == list(CORE_CLASSES[:22]) + list(DIVERGENT_CLASSES) + list(CORE_CLASSES[22:]) or \
-        sorted(IDS) == sorted(list(CORE_CLASSES) + list(DIVERGENT_CLASSES))
-    assert len(IDS) == len(set(IDS)) == len(CORE_CLASSES) + len(DIVERGENT_CLASSES) == 30
+    assert IDS == (list(CORE_CLASSES[:20]) + list(DIVERGENT_CLASSES) + list(CORE_CLASSES[20:])
+                   + list(NEAR_MISS_CLASSES))
+    assert len(IDS) == len(set(IDS)) == len(CORE_CLASSES) + len(DIVERGENT_CLASSES) + len(NEAR_MISS_CLASSES) == 33
     for row in ROWS:
         assert row["verdict"] == EXPECTED_VERDICT[row["class"]], row["class"]
         if row["way_id"] is None:
@@ -147,7 +150,7 @@ def test_only_the_typed_classes_diverge():
     divergent = {r["class"]: r["divergent"] for r in ROWS if "divergent" in r}
     assert sorted(divergent) == sorted(DIVERGENT_CLASSES)
     for name, record_ in divergent.items():
-        assert record_["profile"] == NOT_GATED and record_["etl"] in VERDICTS and record_["etl"] != GATED, name
+        assert record_["profile"] == NOT_GATED and "etl" not in record_, name
         assert "T-0188" in record_["tracked_by"], name
 
 

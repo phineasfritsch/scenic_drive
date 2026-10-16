@@ -327,9 +327,8 @@
    },
    "verdict": "GATED",
    "divergent": {
-    "etl": "PAVED",
     "profile": "NOT_GATED",
-    "tracked_by": "T-0188 ports this Gates.verdict branch into assemble.gate_reason; car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
+    "tracked_by": "T-0188 ported this Gates.verdict branch into assemble.gate_reason; the profile gap stays: car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
    }
   },
   {
@@ -344,9 +343,8 @@
    },
    "verdict": "GATED",
    "divergent": {
-    "etl": "PAVED",
     "profile": "NOT_GATED",
-    "tracked_by": "T-0188 ports this Gates.verdict branch into assemble.gate_reason; car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
+    "tracked_by": "T-0188 ported this Gates.verdict branch into assemble.gate_reason; the profile gap stays: car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
    }
   },
   {
@@ -360,9 +358,8 @@
    },
    "verdict": "GATED",
    "divergent": {
-    "etl": "PAVED",
     "profile": "NOT_GATED",
-    "tracked_by": "T-0188 ports this Gates.verdict branch into assemble.gate_reason; car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
+    "tracked_by": "T-0188 ported this Gates.verdict branch into assemble.gate_reason; the profile gap stays: car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
    }
   },
   {
@@ -378,9 +375,8 @@
    },
    "verdict": "GATED",
    "divergent": {
-    "etl": "ZERO_NOT_GATED",
     "profile": "NOT_GATED",
-    "tracked_by": "T-0188 ports this Gates.verdict branch into assemble.gate_reason; car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
+    "tracked_by": "T-0188 ported this Gates.verdict branch into assemble.gate_reason; the profile gap stays: car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
    }
   },
   {
@@ -394,9 +390,8 @@
    },
    "verdict": "GATED",
    "divergent": {
-    "etl": "ZERO_NOT_GATED",
     "profile": "NOT_GATED",
-    "tracked_by": "T-0188 ports this Gates.verdict branch into assemble.gate_reason; car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
+    "tracked_by": "T-0188 ported this Gates.verdict branch into assemble.gate_reason; the profile gap stays: car_scenic_base.json cannot express it: no track_type/barrier/ford/service encoded value in config.yml"
    }
   },
   {
@@ -477,6 +472,40 @@
     "tiger:reviewed": "no"
    },
    "verdict": "UNKNOWN_X08"
+  },
+  {
+   "class": "ford=stepping_stones",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways; ford occurs once, =yes)",
+   "tags": {
+    "highway": "tertiary",
+    "surface": "asphalt",
+    "ford": "stepping_stones"
+   },
+   "verdict": "PAVED"
+  },
+  {
+   "class": "barrier=gate+locked=true",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways; no way carries locked)",
+   "tags": {
+    "highway": "tertiary",
+    "surface": "asphalt",
+    "barrier": "gate",
+    "locked": "true"
+   },
+   "verdict": "PAVED"
+  },
+  {
+   "class": "ford=Yes",
+   "way_id": null,
+   "source": "synthetic: 0 isolated ways of this class in the LA canyon window (11740 ways; ford occurs once, =yes)",
+   "tags": {
+    "highway": "tertiary",
+    "surface": "asphalt",
+    "ford": "Yes"
+   },
+   "verdict": "PAVED"
   }
  ]
 }

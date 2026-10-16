@@ -1,13 +1,13 @@
 ---
 id: T-0181
 title: one UNPAVED_SURFACES set under services/etl/etl - surface.py owns it, assemble.py imports it, the Gates.swift anchor moves with the set
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-16T19:37:00Z
+lease_expires_at: 2026-10-17T19:37:00Z
+worktree: .worktrees/T-0181
+branch: task/T-0181
 exclusive: []
 touches: [services/etl/etl/assemble.py, services/etl/etl/surface.py, services/etl/tests/]
 pins_affected: [P-PROD-01]
@@ -27,3 +27,4 @@ by merge order today; fixed here after both land, not as a round on either PR.
 
 ## Log
 - 2026-09-19T00:57:37Z filed by agent/claude-fable-5-1 from the 18:13 panel's grounded synthesis. Not started.
+- 2026-10-16T19:37:00Z claimed by agent/claude-opus-5; lease until 2026-10-17T19:37:00Z
