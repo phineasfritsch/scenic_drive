@@ -11,6 +11,7 @@ import pathlib
 import pytest
 
 from etl import profilegate as pg
+from tests import gate_near_miss as gnm
 
 ENCODINGS = [
     ({"highway": "motorway"}, {"road_class": "MOTORWAY", "road_access": "YES", "surface": "MISSING"}),
@@ -62,7 +63,8 @@ def test_encoding_matches_the_plugin_table(row):
 
 
 def test_the_plugin_table_is_whole():
-    assert ENCODING_TABLE.is_file() and len(TABLE_ROWS) == 44
+    assert ENCODING_TABLE.is_file() and len(TABLE_ROWS) == 1395
+    assert TABLE_ROWS == gnm.table(gnm.hand_rows(ENCODING_TABLE))
 
 
 def test_road_access_order_is_graphhoppers_enum():
@@ -216,12 +218,48 @@ GATED_BY_T0381 = [({"highway": "tertiary", "tracktype": t}, True) for t in ("gra
     ({"highway": "service", "service": "alley"}, False), ({"highway": "service"}, False),
     ({"highway": "motorway", "service": "driveway"}, False),
 ]
-# rv1 B1: every gating value padded is a near miss - GraphHopper 11's valueOf and GateFacts compare untrimmed.
-GATED_BY_T0381 += [({**tags, key: pad % tags[key]}, False) for tags, want in list(GATED_BY_T0381) if want
-                   for key in sorted(tags) if key != "highway" for pad in (" %s", "%s ")]
 
 
 @pytest.mark.parametrize("tags,want", GATED_BY_T0381, ids=[json.dumps(t, sort_keys=True) for t, _ in GATED_BY_T0381])
 def test_the_shipped_profile_gates_the_t0381_clauses(tags, want):
     """Each new clause over the SHIPPED file: its positive evidence gates, its near misses do not."""
     assert pg.gated(tags) is want
+
+
+# rv2 B1: the near-miss CLASS, generated from every gating literal parsed from GateFacts.java and the shipped json.
+LITERALS = gnm.literals()
+FAMILIES = set(gnm.FIXED_FAMILIES)
+
+
+def test_the_corpus_has_every_family_for_every_literal():
+    assert {key for key, _, _ in LITERALS} == set(gnm.EXACT_KEYS) | set(gnm.ENUM_KEYS)
+    by_key = {key: {lit for k, lit, _ in LITERALS if k == key} for key in gnm.EXACT_KEYS + tuple(gnm.ENUM_KEYS)}
+    assert by_key["barrier"] == pg.REFUSABLE_BARRIERS and by_key["service"] == pg.REFUSED_SERVICE_VALUES
+    assert by_key["locked"] == by_key["ford"] == {pg.YES} and by_key["highway"] == {pg.SERVICE_HIGHWAY}
+    assert {t.upper() for t in by_key["tracktype"]} == {"GRADE3", "GRADE4", "GRADE5"}
+    assert {s.upper() for s in by_key["smoothness"]} == {"BAD", "VERY_BAD", "HORRIBLE", "VERY_HORRIBLE", "IMPASSABLE"}
+    for key, literal, context in LITERALS:
+        pairs = gnm.near_misses(literal)
+        names = [family for family, _ in pairs]
+        want = FAMILIES | {"delete@%d" % i for i in range(len(literal))} | {
+            "insert-%s@%d" % (name, i) for name in gnm.INSERTED.values() for i in range(len(literal) + 1)}
+        assert set(names) == want and len(names) == len(want), literal
+        assert set(gnm.INSERTED) == {" ", "	", ";", "_", "-", "x", "|", ","}
+        assert [v for f, v in pairs if v == literal] == [literal] and dict(pairs)["identity"] == literal
+        assert key not in context
+        for row in (r for r in gnm.corpus() if r["literal"] == "%s=%s" % (key, literal)):
+            value = row["tags"][key]
+            exact = value == literal
+            assert row["gated"] is (exact if key in gnm.EXACT_KEYS else value.upper() == literal.upper()), row
+
+
+@pytest.mark.parametrize("key,literal", [(k, lit) for k, lit, _ in LITERALS], ids=["%s=%s" % (k, lit) for k, lit, _
+                                                                                   in LITERALS])
+def test_the_shipped_profile_gates_no_near_miss(key, literal):
+    """Every generated variant of one gating literal, through pg.gated over the SHIPPED profile and pg.encode."""
+    rows = [r for r in gnm.corpus() if r["literal"] == "%s=%s" % (key, literal)]
+    wrong = [(r["family"], r["tags"][key], r["gated"]) for r in rows if pg.gated(r["tags"]) is not r["gated"]]
+    assert wrong == []
+    encoded = [(r["family"], r["tags"][key]) for r in rows
+               if {k: pg.encode(r["tags"])[k] for k in NO_GATE_FACTS} != r["encoded"]]
+    assert encoded == [] and len(rows) == len(gnm.near_misses(literal)) > 40

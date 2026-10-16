@@ -86,7 +86,7 @@ class GateEncodingTest {
             assertEquals(want, encode(row.get("tags")), row.get("tags").toString());
             seen++;
         }
-        assertEquals(44, seen);
+        assertEquals(1395, seen);
     }
 
     private static String nameOf(ScenicScoreImportRegistry registry, String key) {
