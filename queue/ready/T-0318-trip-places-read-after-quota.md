@@ -1,7 +1,7 @@
 ---
 id: T-0318
 title: The /trip trip_places read stops scanning the whole table before the quota reservation - a quota-refused trip reads no trip_places row, and a served trip reads only the rows near its corridor
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
