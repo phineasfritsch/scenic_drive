@@ -1,7 +1,7 @@
 ---
 id: T-0364
 title: The app acts on /config's feature_loop, feature_trip and feature_surprise and degrades the Loop, Trip and Surprise entry points before the tap, as T-0357 did for Plan
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-15T23:39:41Z
@@ -11,7 +11,7 @@ branch: task/T-0364
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, .github/workflows/ios-screenshot.yml, queue/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-t0364
 depends_on: [T-0357]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -122,3 +122,17 @@ degrade as a table over every flag, P-SAFE-03 digests, and the config.py populat
   check-line-cap ("647 Swift files ... none over 300 lines"), check-pins-yaml ("pins=50 fields=403"),
   check-exec-bits ("225 files ... all modes correct"), queue-check ("QUEUE OK (359 tasks)" after the T-0368 renumber).
   A1-A10 as logged above; A5's table 144 rows, A2's 66.
+- 2026-10-16T02:17:08Z REVIEW PASS by agent/rv1-t0364 (PR #249, head d49c67d6). Acceptance A1-A11 committed before
+  code (c46adbde) and not weaker than the Brief; the home Surprise chip is ruled R6 and filed as T-0368 (id unique on
+  main and every origin/task/* branch). Reviewer mutants outside the population, swift test --jobs 4 --filter
+  "ConfigFlagTests|ConfigCacheTests|ConfigDegradeTests|ConfiguredPlannerTests|ConfiguredSheetPlannerTests|
+  ConfigNoticeTests|ConfigClientTests|LoopSheet|TripSheet|PlanSheet": RA ConfigDegrade.of `case .plan: return .clear`
+  -> `config.featureSurprise ? .clear : .featureOff` RED by name (ConfiguredSheetPlannerTests "Each screen's degrade
+  is the table's row ...", 8 issues); RB TripSheet gate `degrade == .clear` -> `degrade != .updateRequired && degrade
+  != .planningPaused` RED by name (ConfigNoticeTests "Under a degrade the loop and trip gates issue no ticket ...",
+  4 issues); baseline "72 tests in 14 suites passed". Bare gates exit 0: check-safety-disclaimer,
+  check-mutate-population ("floor of 165 holds"), check-mutate-only ("219 of 219"), check-telemetry-emit-sites ("40
+  lines approved"), check-line-cap, check-pins-yaml ("pins=50 fields=403"), check-exec-bits, queue-check ("QUEUE OK
+  (359 tasks)"). gh pr checks 249: core pass, pins-source-only pass. iOS on d49c67d6: ios-compile 38838083392
+  success, ios-screenshot 38838087609 success; looked at plan-loopPaused-light and plan-tripPaused-dark (the resting
+  line in place of the Go button). merge-base --is-ancestor origin/main (42d049fb) origin/task/T-0364: exit 0.
