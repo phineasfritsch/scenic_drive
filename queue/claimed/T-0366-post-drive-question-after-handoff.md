@@ -99,3 +99,22 @@ Every apps/ios Swift edit re-approves its P-SAFE-03 digests; the shell's frozen 
      check-map-attribution, check-line-cap, check-pins-yaml.py, check-exec-bits, queue-check.
   A5 ios-compile and ios-screenshot green on the pushed head; the home shots (light, dark, ax5) looked at and
      unchanged (no marker on a fresh simulator).
+- 2026-10-16T19:15:16Z RED then GREEN (agent/claude-opus-5):
+  A2 RED at the tests-only tree (the three new suites written, no ScenicKit type): the A1 command exit=1, did not
+     compile - `error: cannot find 'PostDriveFix' in scope`, `cannot find type 'OpenFixReading' in scope`,
+     `cannot find type 'HandoffMarkerStoring' in scope`, `cannot find 'HandoffMarkingMoments' in scope`,
+     `cannot find 'PostDriveNextOpen' in scope`.
+  A1 GREEN with the types: first run 13/14 - defaultsDomainIsOneInt() FAILED (on Windows Foundation the domain
+     value interpolated as "Optional(2)"; the test now compares the key set and the Int values whole, no string
+     form); then `Test run with 14 tests in 4 suites passed`, exit=0.
+  Gate seen RED by the change itself: check-safety-disclaimer exit 1 `sheetSummary line 2 of 27: approved
+  Text(DriveCopy.title(for: selectedDrive)), found PostDriveOpenSlot()`, then the shell's and ScenicHomeScreen's
+  digests and the two new FeatureScenicHome files refused by name; each re-approved in this diff (SUMMARY_BLOCK,
+  FROZEN_APP_SHELL, PINNED_HOME + app file-set rows, both shell digest rows, LiveOpenFix row, six ScenicKit rows in
+  check-safety-disclaimer-linked-digests.txt).
+  A3 `python ops/mutate/postdrive.py`: `caught by the test that names it: 33 of 33 (wrong killer 0, trapped 0,
+     compile-only 0, MISSED 0, skipped 0)`, `MUTATE OK caught=33/33 equivalent_caught=0` (E1 MISSED as required);
+     `--prove-floor`: `FLOOR PROOF OK: 7 of 7 arms refused and the control did not`. MIN_MUTATIONS = 33.
+  A5 on 019efee4: ios-compile run 38950081028 success; ios-screenshot run 38950085685 success. LOOKED at
+     home-light-collapsed, home-dark-collapsed, home-ax5-collapsed: grabber, then the title, the menu chips, the
+     conditions line and Open in Apple Maps, exactly the home as before - no card, no extra gap above the title.
