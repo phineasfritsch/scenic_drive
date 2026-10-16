@@ -1,7 +1,7 @@
 ---
 id: T-0378
 title: The home at the medium detent crashes at AX5 (accessibility XXXL) - find the cause, fix it, and add home-ax5-medium back to the ax5 screenshot pass
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
