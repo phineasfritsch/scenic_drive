@@ -1,7 +1,7 @@
 ---
 id: T-0354
 title: check-mutate-only's POSIX process-group tree kill is seen red then green on Linux CI, and PAIR_FLOOR is raised to the measured merged-head count
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-15T23:39:57Z
@@ -88,3 +88,11 @@ parent-plus-sleeping-grandchild demo. (b) PAIR_FLOOR = 192168 is the pre-merge m
   Off POSIX (this Windows box): `tree-kill-demo: needs POSIX with /proc (run it in Linux): REFUSING` EXIT 2.
   A5: check-mutate-population EXIT 0 `P-PROC-06: every added module is covered or allowlisted; the floor of 165 holds`; check-exec-bits EXIT 0 `P-OPS-01: 225 files, 23 required present, all modes correct` (tree-kill-demo.py 100644); check-pins-yaml EXIT 0 `PINS-YAML ok pins=50 fields=403`; queue-check EXIT 0 `QUEUE OK (356 tasks)` (before this move to review/). wc -l: tree-kill-demo.py 102, mutate_only_pairs.py 125, check-mutate-only.py 249 (unchanged).
 - 2026-10-16T00:16:50Z claimed -> review; reviewer agent/rv1-t0354.
+- 2026-10-16T00:33:30Z REVIEW PASS by agent/rv1-t0354 (not the owner), round 1, on 2f3f0f74 (detached worktree .worktrees/rv1-t0354; origin/main 97299cc5). Every acceptance line was committed in 8921099a before code; the A-lines are unchanged since. Re-run by the reviewer:
+  A1: bare `python ops/lib/check-mutate-only.py` EXIT 0 in 159 s: `MUTATE-ONLY OK: 219 of 219 driver runs refused with exit 64 (59 drivers, 101 range probes: 23 digit, 42 name, 36 N-(N+1))` and `NAME-PAIRS OK: 201117 pair tokens over 44 id populations ... (0 calls not refused, floor 201117 tokens)`. mutate_only_pairs.py has `PAIR_FLOOR = 201117`.
+  A2 (reviewer mutant 1, 2026-10-16T00:29:14Z): PAIR_FLOOR = 201118 with __pycache__ purged, 1.1 s waits and a byte-checked restore gave `NAME-PAIRS FAILED: 201117 pair tokens ... floor 201118 tokens` and MUTANT EXIT 2. Restored byte-identical; the bare run above is the green.
+  A3/A4 (WSL docker python:3.12-slim --init, about 2026-10-16T00:28Z): shipped `shipped run_tree: exit None after 3.0s, kill: killpg 8 SIGKILL` / `GRANDCHILD KILLED (shipped): pid 9 is gone` EXIT 0. `--mutant direct-child` and `--mutant no-session` each `exit None after 33.0s`, `(the output pipe is still held by a descendant the tree kill missed)`, `GRANDCHILD SURVIVED ... (state S)` EXIT 1 (no-session printed `killpg 8: no such group`). Off POSIX (Windows host) `tree-kill-demo: needs POSIX with /proc (run it in Linux): REFUSING` EXIT 2.
+  Reviewer mutants 2 and 3 (in memory through the demo's own MUTANTS/load path; shipped file untouched): wrong-group `os.killpg(p.pid + 7, signal.SIGKILL)` gave `killpg 8: no such group` and `GRANDCHILD SURVIVED (mutant wrong-group): pid 9 is still running (state S)` EXIT 1. no-kill (`how = kill_tree(p)` -> `how = 'skipped'`) gave `GRANDCHILD SURVIVED (mutant no-kill)` EXIT 1. All RED, none survives.
+  A5, each run bare: check-mutate-population EXIT 0 `P-PROC-06: every added module is covered or allowlisted; the floor of 165 holds`; check-exec-bits EXIT 0 `P-OPS-01: 225 files, 23 required present, all modes correct` (tree-kill-demo.py staged 100644); check-pins-yaml EXIT 0 `PINS-YAML ok pins=50 fields=403`; queue-check EXIT 0 `QUEUE OK (356 tasks)`. wc -l 102/125/249, all under 300. `gh pr checks 247`: core pass 8m35s, pins-source-only pass 3m33s. `git merge-base --is-ancestor origin/main origin/task/T-0354` EXIT 0.
+  Recordable, not blocking: the title still says "on Linux CI", but R3 ruled the WSL docker demo instead before code. No recurring check runs tree-kill-demo.py, so a later regression in kill_tree's POSIX branch would not be caught automatically. The demo's `how` string comes from the shipped text, so the direct-child mutant still prints `killpg 8 SIGKILL`; the verdict reads /proc, so this is only cosmetic.
+  review -> done.
