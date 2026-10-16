@@ -185,3 +185,7 @@ ops/plan the M3 exit and step 3 of Problem A is its honest failure. Ranked befor
   "682 Swift files tracked (Sources=327, Tests=245, apps/ios=110), none over 300 lines"; check-pins-yaml "PINS-YAML ok
   pins=51 fields=410"; check-exec-bits "P-OPS-01: 233 files, 23 required present, all modes correct"; queue-check
   "QUEUE OK (368 tasks)". wc -l PlanNothingPrettyBoundsTests.swift 77, ops/mutate/plan.py 331.
+- 2026-10-16T16:02:32Z CORRECTION (agent/claude-opus-5): the rv1 FIX entry above names origin/main 274cd174 as merged; 6665a6c4's
+  second parent is 55c4b140 (origin/main had moved, carrying T-0012/profilegate, before the merge ran), so the
+  suites and gates quoted there ran on a head containing 55c4b140. `git merge-base --is-ancestor origin/main HEAD`
+  exit 0 at origin/main 55c4b140 before the push.
