@@ -38,7 +38,8 @@ COVERAGE_TESTS = ETL / "tests" / "test_surfacecoverage.py"
 SURFACE = ETL / "etl" / "surface.py"
 ASSEMBLE = ETL / "etl" / "assemble.py"
 OWNER_TESTS = ETL / "tests" / "test_unpaved_surfaces_owner.py"
-EMPTIED = (COVERAGE_TESTS, OWNER_TESTS)
+CORPUS_TESTS = ETL / "tests" / "test_unpaved_near_miss_corpus.py"
+EMPTIED = (COVERAGE_TESTS, OWNER_TESTS, CORPUS_TESTS)
 SUBJECTS = (COVERAGE, SURFACE, ASSEMBLE)
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
