@@ -1,7 +1,7 @@
 ---
 id: T-0241
 title: OSM viewpoints and peaks feed the 'why this is pretty' line and the Surprise candidate pool - never the per-way score
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
