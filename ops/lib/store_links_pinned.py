@@ -13,6 +13,8 @@ LG = f"{ENT}/LegalAttributionScreen.swift"
 LS = f"{ENT}/LaunchScreen.swift"
 CD = f"{ENT}/CorpusDownloadSheet.swift"
 PK = f"{ENT}/PaywallShownKey.swift"
+PC = f"{ENT}/PaywallConvertedKey.swift"
+MOMENTS = "apps/ios/Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift"
 HOME = "apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift"
 SHELL = "apps/ios/ScenicDrive/ScenicDriveApp.swift"
 
@@ -22,6 +24,9 @@ TERMS_DECL = 'public static let termsOfUseURL = URL(string: "https://github.com/
 PRIVACY_DECL = 'public static let privacyPolicyURL = URL(string: "https://github.com/phineasfritsch/scenic_drive/blob/main/docs/store/privacy.md")!'
 SETTINGS_MOUNT = ("SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, "
                   "deleteAccount: { await LiveAccountDeletion.run() }, onDone: { isShowingSettings = false })")
+COMPLETION = ".onInAppPurchaseCompletion { [converted] _, result in"
+VERIFIED = "guard case .success(.success(.verified(let transaction))) = result else { return }"
+CONVERTED_MOUNT = ".environment(\\.paywallConverted, { LiveMoments.paywallConverted() })"
 DEBUG_READ = "return UserDefaults.standard.string(forKey: launchArgumentKey).flatMap(LaunchScreen.init(rawValue:)) ?? .home"
 
 # Over every *.swift under apps/ios.
@@ -47,6 +52,17 @@ APP_WIDE = {
     "AppStore.sync()": [(ST, "try await AppStore.sync()")],
     "manageSubscriptionsSheet": [(ST, ".manageSubscriptionsSheet(isPresented: $isShowingManage)")],
     "PaywallScreen(": [(ST, "PaywallScreen()")],
+    # T-0370: the store view's purchase completion is replaced in ONE place, the app finishes a transaction in ONE
+    # place, and the converted closure is declared, read, set, served and called only here.
+    "onInAppPurchaseCompletion": [(PW, COMPLETION)],
+    "finish()": [(PW, "await transaction.finish()")],
+    "paywallConverted": [
+        (PC, "public var paywallConverted: (@Sendable () -> Void)? {"),
+        (PW, "@Environment(\\.paywallConverted) private var converted"),
+        (SHELL, CONVERTED_MOUNT),
+        (MOMENTS, "public static func paywallConverted() {"),
+    ],
+    "converted?()": [(PW, "converted?()")],
     "LegalAttributionScreen(": [(ST, "LegalAttributionScreen()"), (ST, "LegalAttributionScreen()")],
     "SettingsScreen(": [(SHELL, SETTINGS_MOUNT)],
     "LaunchScreen.atLaunch": [
@@ -71,7 +87,8 @@ APP_WIDE = {
 ENTITLEMENTS = {
     "import ": [(f, "import " + m) for f, mods in ((PW, "DesignSystem StoreKit SwiftUI"), (ST, "DesignSystem StoreKit SwiftUI"),
                                                    (LG, "DesignSystem SwiftUI"), (SC, "SwiftUI"), (LS, "SwiftUI"),
-                                                   (CD, "DesignSystem SwiftUI"), (PK, "SwiftUI"))
+                                                   (CD, "DesignSystem SwiftUI"), (PK, "SwiftUI"),
+                                                   (PC, "SwiftUI"))
                 for m in mods.split()],
     "accessibilityIdentifier": [(f, f'.accessibilityIdentifier("{i}")') for f, ids in (
         (PW, "paywall.store paywall.terms paywall.privacy"),
@@ -97,6 +114,9 @@ SEQUENCES = [
                                 "}", 'Section("Offline places") {',
                                 'Toggle("Download on Wi-Fi only", isOn: $corpusWifiOnly)', ".frame(minHeight: 44)",
                                 '.accessibilityIdentifier("settings.corpusWifiOnly")', "}", "account", "about", "}"]),
+    # T-0370 R2: a verified transaction is finished BEFORE the conversion is reported; nothing else is reported.
+    ("the paywall's purchase completion", PW, [COMPLETION, VERIFIED, "await transaction.finish()", "converted?()",
+                                               "}"]),
     ("the shell's Settings sheet", SHELL, [".sheet(isPresented: $isShowingSettings) {", SETTINGS_MOUNT, "}"]),
     ("the DEBUG fence around -screen", LS, ["#if DEBUG", DEBUG_READ, "#else", "return .home", "#endif"]),
 ]
@@ -107,11 +127,12 @@ SEQUENCES = [
 FROZEN = {
     LS: "57f6af62de6787d5c129bee12dbf45bc6fefd70292806c3415b0376c8e075d71",
     LG: "b72965b1635d4d8b109a0f966e6cfe8fd1f1fe9d7bdf4bd9bac2148f081e30a6",
-    PW: "03d478bfc333eb4e44c9afaea5264256254b31a51218ccdd7f0e09b175e5cd22",
+    PW: "385f9793b2474625af9c61cac9a90d527556cc0878e5afd5cfdc2b11ab00d843",
     ST: "4e0dc5e818226503049008ef37f8f46cb6552f2a099f657cda8ff1830c717b0e",
     SC: "6da6ddadc509df44f9a9dadec770e0c3a84738af14715eeb6cee9c221bf63706",
     CD: "7e63f62eb351c5b45c5bed74cf5a63beff43e9b697747c01973e40eefe060906",
     PK: "a1668fe703ec4ca53a281288368101bdf47168c9ab0fe4afdfc1a536669f465d",
+    PC: "c047ccf9334f42f068f7e5277c553cdd2275d64835e21ce2499b6bf83d07b5c8",
 }
 
 # The in-app ODbL notice: LICENSE-DATA's section under this heading, one Swift string element per line, exactly.
@@ -181,6 +202,20 @@ MUTATIONS = [
     ("a view extension added to the module beside the screens", f"{ENT}/ViewTweaks.swift", None,
      "import SwiftUI\n\nextension View {\n    func calm() -> some View { hidden() }\n}\n",
      "the frozen Entitlements source"),
+    # T-0370: the paywall's purchase completion.
+    ("converted on any purchase result (verified guard dropped)", PW, "            " + VERIFIED + "\n", "",
+     "the paywall's purchase completion"),
+    ("converted on an unverified transaction", PW, "case .success(.success(.verified(let transaction)))",
+     "case .success(.success(.unverified(let transaction, _)))", "the paywall's purchase completion"),
+    ("the verified purchase left unfinished", PW, "            await transaction.finish()\n", "", "finish()"),
+    ("converted reported before the finish", PW, "            await transaction.finish()\n            converted?()\n",
+     "            converted?()\n            await transaction.finish()\n", "the paywall's purchase completion"),
+    ("converted also reported on appear", PW, ".onAppear { shown?() }", ".onAppear { shown?(); converted?() }",
+     "converted?()"),
+    ("the shell sets an empty converted closure", SHELL, CONVERTED_MOUNT,
+     ".environment(\\.paywallConverted, { })", "paywallConverted"),
+    ("a second finish site (a listener in PlanAdapter)", "apps/ios/Packages/ScenicApp/Sources/PlanAdapter/Probe.swift",
+     None, "import StoreKit\n\nfunc probe(_ t: Transaction) async { await t.finish() }\n", "finish()"),
     ("the shell hides the Settings it mounts", SHELL, SETTINGS_MOUNT + "\n",
      SETTINGS_MOUNT + "\n                        .hidden()\n", "the shell's Settings sheet"),
 ]
