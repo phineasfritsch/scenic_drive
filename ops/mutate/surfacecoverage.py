@@ -129,10 +129,10 @@ MUTATIONS = [
      '    if surface is not None and surface.split(";")[0] in UNPAVED_SURFACES:\n        return SURFACE_UNPAVED'),
     ("OWN4 bucket calls a semicolon multi-value tag unpaved when any of its values is", COVERAGE, UNPAVED_TAG,
      '    if any(p in UNPAVED_SURFACES for p in surface.split(";")):\n        return UNPAVED'),
-    ("PREFIX gate_reason refuses a tag that merely starts with an unpaved value", ASSEMBLE,
+    ("PREFIX gate_reason refuses a tag that is a prefix of an unpaved value (grav, fine_grave)", ASSEMBLE,
      '    surface = tags.get("surface")',
      '    surface = tags.get("surface")\n    surface = next((u for u in sorted(UNPAVED_SURFACES)\n'
-     '                    if surface and surface.startswith(u)), surface)'),
+     '                    if surface is not None and u.startswith(surface)), surface)'),
 ]
 
 # Cannot change behaviour, so anything but MISSED is a FAILURE. Each has its witness in the name.
