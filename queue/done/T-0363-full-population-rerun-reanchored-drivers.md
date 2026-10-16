@@ -1,7 +1,7 @@
 ---
 id: T-0363
 title: The eight re-anchored Worker mutation populations (closures, config, crossing, isochrone, quota, region, tier, vehicle) run whole, and every MISSED entry they show after days of not running is closed or ruled EQUIVALENT with a witness
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T00:43:20Z
@@ -11,7 +11,7 @@ branch: task/T-0363
 exclusive: []
 touches: [services/api/test/, services/api/test/mutate/, ops/lib/]
 pins_affected: [P-PROC-06]
-reviewer: null
+reviewer: agent/rv1-t0363
 depends_on: [T-0352]
 verify: [ops/check-pins]
 acceptance:
@@ -116,3 +116,17 @@ driver to find its own files, shown red with that mutant then green.
   merged head. A5: no test .ts file touched (the driver baselines above are the touched suites, all green); bare
   gates on 062bb5f5 all rc=0 (quoted above); wc -l: ops/lib/check-mutate-anchors.py 191,
   services/api/test/mutate/regionMutants.mjs 258, this file 108 before this entry - each <= 300.
+- 2026-10-16T04:41:46Z review PASS by agent/rv1-t0363 (round 1, PR #248) on b1e62d3a, detached worktree
+  .worktrees/rv1-t0363. Acceptance block unchanged since 2fe49e42 (before code fad911d1). No new test file, so no
+  MISSED-by-name re-application; the one MISSED went EQUIVALENT. Witness checked by hand against sessionIdentity.ts:
+  BEARER and the mutant regex accept the same language; a non-matching present authorization goes to legacy() with no
+  secret or with IDENTITY_HEADERS "1", and to SESSION_REJECTED -> {unidentified, anon} with the flag closed, which is
+  what null yields on each arm; only .userId is read. Applying malformed-bearer-falls-to-header by hand: waitlist +
+  waitlistDedupe `Tests 10 passed (10)` (still MISSED, as ruled). Own mutant in waitlist.ts's day bucket
+  (`.slice(0, 10)` -> `.slice(0, 13)` on handleWaitlist's day): `Tests 5 failed | 10 passed (15)`, RED. cwd arm with
+  vehicleMutants.mjs's API set to process.cwd(): `0 stale` / `CWD vehicle: ... --only=vehicle-enables-rv never
+  printed its population line - exit 1, Error: ENOENT ... rv1-t0363\src\vehicle.ts` / `16 reached`, rc=1; reverted,
+  green. Bare gates on b1e62d3a: check-mutate-population rc=0, check-mutate-only `MUTATE-ONLY OK: 219 of 219` rc=0,
+  check-pins-yaml `pins=50 fields=403` rc=0, check-exec-bits rc=0, queue-check `QUEUE OK (359 tasks)` rc=0,
+  check-mutate-anchors `1263 anchors, 0 stale` / `17 reached` rc=0, git status empty. gh pr checks: core pass,
+  pins-source-only pass. merge-base --is-ancestor origin/main (9171fa71) origin/task/T-0363 rc=0.
