@@ -114,3 +114,11 @@ degrade as a table over every flag, P-SAFE-03 digests, and the config.py populat
   now. Surprise Me on the home screen still works." in place of Plan).
 - 2026-10-16T01:06:47Z FOLLOW-UP: T-0367 filed (R6, the home Surprise chip on feature_surprise; ids checked: highest T-0366).
 - 2026-10-16T01:20:31Z FOLLOW-UP renumbered: the home Surprise chip task is T-0368 (main took T-0367 meanwhile).
+- 2026-10-16T01:20:57Z FINAL (A11), origin/main 42d049fb merged LAST (one conflict: the -pinned digest rows, union - main's LiveTelemetry,
+  this branch's LiveTripPlanner re-measured). On the merged head: swift test --filter
+  "Config|Loop|Trip|PlanSheet|PostDrive|DriveVoice" "Test run with 147 tests in 39 suites passed"; bare gates each
+  exit 0: check-safety-disclaimer (103 app .swift, 316 root + pbxproj), check-mutate-population ("floor of 165
+  holds"), check-mutate-only ("219 of 219 driver runs refused"), check-telemetry-emit-sites ("40 lines approved"),
+  check-line-cap ("647 Swift files ... none over 300 lines"), check-pins-yaml ("pins=50 fields=403"),
+  check-exec-bits ("225 files ... all modes correct"), queue-check ("QUEUE OK (359 tasks)" after the T-0368 renumber).
+  A1-A10 as logged above; A5's table 144 rows, A2's 66.
