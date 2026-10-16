@@ -1,10 +1,10 @@
 """T-0379: the landmarks table, written by the SHIPPING `etl.corpus.main` and read back whole.
 
 The fixture (fixtures/corpus_extract_landmarks.json + fixtures/corpus_landmarks.osm.xml) is hand-placed around
-five ways: a 299 m and a 301 m landmark south of way 21 (and its twin 23, the tie), a landmark either side of a
+nine ways: a 299 m and a 301 m landmark south of way 21 (and its twin 23, the tie), a landmark either side of a
 0.01-degree latitude and a longitude cell line from the way it is nearest, a landmark beside the middle of a
-two-node way that spans thirty cells, an access=private viewpoint (refused) and a closed viewpoint way. 108
-sits where lon + MARGIN_DEG/cos(lat) falls just short of a cell line, so its nearest way (258 m east) is in the
+two-node way spanning thirty cells east-west (107) and one north-south (110), an access=private viewpoint
+(refused) and a closed viewpoint way. 108 sits where lon + MARGIN_DEG/cos(lat) falls just short of a cell line, so its nearest way (258 m east) is in the
 LAST cell it reads; 109's way is 11 m south across a latitude cell line, in the FIRST cell it reads.
 """
 from __future__ import annotations
@@ -36,6 +36,7 @@ EXPECTED = [
     ("n", 107, "peak", "Long Way Peak", None, 3408500, -11875000, 26),
     ("n", 108, "viewpoint", "Lon Top Cell", None, 3407000, -11871208, 27),
     ("n", 109, "peak", "Lat Bottom Cell", 1000, 3404005, -11865000, 28),
+    ("n", 110, "peak", "Long Lat Peak", None, 3405000, -11894950, 29),
     ("w", 201, "viewpoint", "Ring View", None, 3403003, -11864995, None),
 ]
 

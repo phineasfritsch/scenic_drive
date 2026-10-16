@@ -14,6 +14,8 @@
   {"access_ok": 1, "cls": "tertiary", "highway": "tertiary", "id": 27, "name": "Lon Top Road", "oneway": 0,
    "nodes": [[34.065, -118.70928], [34.075, -118.70928]]},
   {"access_ok": 1, "cls": "tertiary", "highway": "tertiary", "id": 28, "name": "Lat Bottom Road", "oneway": 0,
-   "nodes": [[34.03995, -118.66], [34.03995, -118.64]]}
+   "nodes": [[34.03995, -118.66], [34.03995, -118.64]]},
+  {"access_ok": 1, "cls": "primary", "highway": "primary", "id": 29, "name": "Long North Road", "oneway": 0,
+   "nodes": [[33.9, -118.95], [34.2, -118.95]]}
  ]
 }

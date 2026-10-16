@@ -39,6 +39,10 @@
     <tag k="name" v="Lat Bottom Cell"/>
     <tag k="natural" v="peak"/>
   </node>
+  <node id="110" lat="34.05" lon="-118.9495">
+    <tag k="name" v="Long Lat Peak"/>
+    <tag k="natural" v="peak"/>
+  </node>
   <node id="301" lat="34.03" lon="-118.65"/>
   <node id="302" lat="34.03" lon="-118.6499"/>
   <node id="303" lat="34.0301" lon="-118.64995"/>
