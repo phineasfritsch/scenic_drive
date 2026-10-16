@@ -201,5 +201,5 @@ by merge order today; fixed here after both land, not as a round on either PR.
     literal` (1 failed, 1 passed); `lit.swapcase()` -> `lit.swapcase().swapcase()` -> `FAILED ...::test_no_
     generated_value_equals_a_literal_except_the_identity_row`; restored -> `2 passed`.
   - Touched tests (corpus, owner, surfacecoverage, assemble, surface_state, gate_port): `723 passed in 34.29s`.
-    wc -l: test_unpaved_surfaces_owner.py 218, test_unpaved_near_miss_corpus.py 92, ops/mutate/surfacecoverage.py
-    262. Java (services/routing, T-0381) is not an entry point this task owns.
+    wc -l: test_unpaved_surfaces_owner.py 218, test_unpaved_near_miss_corpus.py 96, ops/mutate/surfacecoverage.py
+    265. Java (services/routing, T-0381) is not an entry point this task owns.
