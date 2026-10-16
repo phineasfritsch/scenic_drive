@@ -43,3 +43,26 @@ parent-plus-sleeping-grandchild demo. (b) PAIR_FLOOR = 192168 is the pre-merge m
   R3 where it runs: WSL docker python:3.12-slim (no git in WSL), not a CI step. CI's Linux runner does run check-mutate-only, but no probe there reaches TIMEOUT_S, so killpg never fires in CI; a CI demo would need a workflow file outside touches. The demo is reusable by anyone on Linux/macOS and refuses (exit 2) off POSIX.
   R4 binding: the demo exec()s the SHIPPED file text (ops/lib/check-mutate-only.py) and calls its run_tree() - the function probe_once() calls in production - with only the timeout argument changed (3 s). Mutants are text replacements on that file whose anchors must each occur exactly once, so a refactor that moves an anchor makes the demo refuse rather than go vacuously green. Survival is judged from /proc/<pid>/stat (absent or Z = dead), since a reparented zombie still answers kill(pid, 0).
   R5 no change to check-mutate-only.py: (a) asks for a demonstration of the shipped POSIX branch, not a fix, and it is green as shipped; touches keeps the path in case review finds otherwise.
+- 2026-10-15T23:43:10Z (a) POSIX demo, `wsl -e docker run --rm --init -v <worktree>:/w -w /w python:3.12-slim`, ops/lib/tree-kill-demo.py on the uncommitted draft (same text as committed), shipped check-mutate-only.py of 97299cc5:
+  `Python 3.12.14`
+  `== tree-kill-demo.py `
+  `shipped run_tree: exit None after 3.0s, kill: killpg 10 SIGKILL`
+  `shipped output: child 10 started grandchild 11`
+  `GRANDCHILD KILLED (shipped): pid 11 is gone`
+  `EXIT 0`
+  `== tree-kill-demo.py --mutant direct-child`
+  `mutant direct-child run_tree: exit None after 33.0s, kill: killpg 13 SIGKILL`
+  `mutant direct-child output: (the output pipe is still held by a descendant the tree kill missed)`
+  `GRANDCHILD SURVIVED (mutant direct-child): pid 14 is still running (state S)`
+  `EXIT 1`
+  `== tree-kill-demo.py --mutant no-session`
+  `mutant no-session run_tree: exit None after 33.0s, kill: killpg 16: no such group`
+  `mutant no-session output: (the output pipe is still held by a descendant the tree kill missed)`
+  `GRANDCHILD SURVIVED (mutant no-session): pid 17 is still running (state S)`
+  `EXIT 1`
+  GREEN shipped (exit 0, 3.0 s, grandchild gone); RED on both mutants (exit 1, the grandchild still in state S and the stdout pipe still held after the 30 s drain). The direct-child mutant's kill label still reads `killpg` because only the call was mutated, not the label.
+- 2026-10-16T00:06:01Z (b) FLOOR RED on 8921099a + PAIR_FLOOR = 201118 (uncommitted, one above the measured count), bare run 23:58:25Z-00:06:01Z:
+  `MUTATE-ONLY OK: 219 of 219 driver runs refused with exit 64 (59 drivers, 101 range probes: 23 digit, 42 name, 36 N-(N+1))`
+  `NAME-PAIRS FAILED: 201117 pair tokens over 44 id populations, each refused in process by select_only in 4 modes and by onlyIds (0 calls not refused, floor 201118 tokens)`
+  `EXIT 2`
+  PAIR_FLOOR then set to the literal 201117; the green run is the A1 run on the final merged head.
