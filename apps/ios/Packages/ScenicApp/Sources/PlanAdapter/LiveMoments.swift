@@ -34,6 +34,12 @@ public struct LiveMoments: AppMomentReporting {
         LiveTelemetry.paywall(.shown)
     }
 
+    /// T-0370: a purchase from the paywall's store view was verified and finished - Entitlements'
+    /// `paywallConverted` key.
+    public static func paywallConverted() {
+        LiveTelemetry.paywall(.converted)
+    }
+
     /// R5: the card's reason on the closed wire list - total, one wire label per button (T-0371 R3: Wrong time is wrong_time).
     static func wire(_ reason: SurpriseFeedback.Reason) -> SurpriseNotThisReason {
         switch reason {

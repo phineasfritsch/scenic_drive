@@ -100,7 +100,7 @@ PINNED_SHELL_ENTRIES=(
   'f ScenicDriveApp.swift' 'f Tiles/.gitignore'
 )
 PINNED_SHELL_TILE='^f Tiles/[A-Za-z0-9_-][A-Za-z0-9._-]*\.pmtiles(\.json)?$'
-PINNED_SHELL_DIGEST='b6981fdbcaec4c56338e6adbbc9614b1db22e2fbbdced6180e1325225353e5ad'
+PINNED_SHELL_DIGEST='d377f58bc2c0ff8076fb0e146c3b77ce4397615b0f2a0d873346940a1fc683d0'
 
 # pinned_shell DIR: the shell's entries against the whitelist, its index for links, ScenicDriveApp.swift's digest.
 pinned_shell() {
@@ -243,7 +243,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/Entitlements/CorpusDownloadSheet.swift bc33c482313a9298051359b6233de2416be2c0f1f4dd0eaca822c2c9988427f4'
   'Packages/ScenicApp/Sources/Entitlements/LaunchScreen.swift 8b4e9310f204551fbd2772c2817c2c7421a5db1227bcabc34cf423e9460d80f0'
   'Packages/ScenicApp/Sources/Entitlements/LegalAttributionScreen.swift bed642cf5b89f16bcbfbaf9818019a141b6952d7fe9d8868a0e02223a9064af0'
-  'Packages/ScenicApp/Sources/Entitlements/PaywallScreen.swift e8aa63a7226d603a1eceb169fe900ce6b9066628c056dd58973be406c978d6a5'
+  'Packages/ScenicApp/Sources/Entitlements/PaywallScreen.swift 7350421446e075233a6e68485f15e15d0a739f238fc7d47d7739f62aeefaea3f'
   'Packages/ScenicApp/Sources/Entitlements/SettingsScreen.swift 04a190674331b5c6b32991b0893dbde8b0cd3556a8375e20d45103dcc7f81c8c'
   'Packages/ScenicApp/Sources/Entitlements/StoreConstants.swift aed28404d9bbd4b8b9bdeb9c1d430bc574be182686b53661cc70991365457d54'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift 25119b5fefa84eba73db934abcf02a523c3340c07612c3a5e8d3193c3b2d2557'
@@ -335,16 +335,17 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachablePlanner.swift e098b539ef40f85966854b5c37f019862d2c67dc8ae9a84098959ef956774e13'
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachableTripPlanner.swift 8c528ceb1d7d9c9d335f4c5e9054dddbc4fd16fb76153259792215d1144ad8a6'
   'Packages/ScenicApp/Sources/PlanAdapter/WaitlistRoutePlanner.swift 241dd0d2481ecfb39a5da298cf2b5ae0e9ecff7bd682a93531ed23845b6cf909'
-  'ScenicDrive/ScenicDriveApp.swift b6981fdbcaec4c56338e6adbbc9614b1db22e2fbbdced6180e1325225353e5ad'
+  'ScenicDrive/ScenicDriveApp.swift d377f58bc2c0ff8076fb0e146c3b77ce4397615b0f2a0d873346940a1fc683d0'
   'Packages/ScenicApp/Sources/FeatureScenicHome/PostDriveAnswersKey.swift 4645890d05d7e48b432975096622922ddf0499a64619eeda935402ffab4866b9'
   'Packages/ScenicApp/Sources/FeatureScenicHome/PostDriveCard.swift 99d2890873e431a966ebe20061a69375f277e391b6b40c3f997ef528107da99c'
   'Packages/ScenicApp/Sources/PlanAdapter/LivePostDriveAnswers.swift 460d0bf415cbfd00d3e2e395dd19bab19b00570690b40605703241767d2e3efc'
-  'Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift 6f66461debbc9e88afd0624b5e0c00cb6ebc12cbec8c937f4bc5b985bd71c114'
+  'Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift 993cb06c70c7cea071f7afb4732ff0c0f846248a30c1927f8465bae1a84fdabe'
   'Packages/ScenicApp/Sources/NavAdapter/DriveMomentsKey.swift f728b02477d52dd98944020093dc760e607346cde73c7b60841db1df84de793f'
   'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseMomentsKey.swift 78d8d05de30a508d19ab5574bef7d2489698b5369a0329eb84c68f50dfab33a0'
   'Packages/ScenicApp/Sources/FeatureScenicHome/HomeMomentsKey.swift 58dc16a63b5626c3979b4684add4f73db840bc320ffddbce95f69ba0d97a3542'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanMomentsKey.swift 0a13fa05794aa2d5c5d3b025d64507564b59fc240c77ee81116b91e23ad6cfab'
   'Packages/ScenicApp/Sources/Entitlements/PaywallShownKey.swift 1b2b6d355ee455f824e3d7edc36ab12038e418bc533d28b0a284d0a2e7868164'
+  'Packages/ScenicApp/Sources/Entitlements/PaywallConvertedKey.swift 0ed5bb9e6e864a6eeccde7f289f34b568a6a185d91d16b97a82689db0385f8b5'
 )
 
 # require_pinned_app_swift APP_TREE: the app tree's Swift file set against PINNED_APP_SWIFT, then every digest.
