@@ -14,7 +14,8 @@ import Testing
     static let ok = #"{"results":[]}"#
 
     static func client(_ fake: CountingPlanTransport) -> SearchClient {
-        SearchClient(base: URL(string: "https://scenic-api.test")!, transport: fake, device: device)
+        SearchClient(base: URL(string: "https://scenic-api.test")!, transport: fake,
+                     installID: FixedInstallID(device.uuidString), accountToken: nil, session: nil)
     }
 
     static func reply(_ status: Int, _ body: String) -> CountingPlanTransport {
@@ -69,18 +70,19 @@ import Testing
     }
 
     static func places(_ n: Int) -> SearchOutcome {
-        .results((0..<n).map { SearchResult(label: "Place \($0)", coordinate: at(34, Double("-118.\($0)")!)) })
+        .results((0..<n).map { SearchResult(label: "Place \($0)", coordinate: at(34, Double("-118.\($0)")!), place: nil) })
     }
 
     static let answers: [(Int, String, SearchOutcome)] = [
         (200, #"{"results":[{"label":"23500 Mulholland Highway, Calabasas, California","lat":34.12,"lon":-118.66},{"label":"Topanga","lat":34.09,"lon":-118.6,"extra":1}]}"#,
-         .results([SearchResult(label: "23500 Mulholland Highway, Calabasas, California", coordinate: at(34.12, -118.66)),
-                   SearchResult(label: "Topanga", coordinate: at(34.09, -118.6))])),
+         .results([SearchResult(label: "23500 Mulholland Highway, Calabasas, California", coordinate: at(34.12, -118.66), place: nil),
+                   SearchResult(label: "Topanga", coordinate: at(34.09, -118.6), place: nil)])),
         (200, ok, .results([])),
         (200, rows(8), places(8)),
         (200, rows(9), .unreadable),
         (200, #"{"results":[{"label":"N","lat":90,"lon":180},{"label":"S","lat":-90,"lon":-180}]}"#,
-         .results([SearchResult(label: "N", coordinate: at(90, 180)), SearchResult(label: "S", coordinate: at(-90, -180))])),
+         .results([SearchResult(label: "N", coordinate: at(90, 180), place: nil),
+                   SearchResult(label: "S", coordinate: at(-90, -180), place: nil)])),
         (200, #"{"results":[{"label":"","lat":34,"lon":-118}]}"#, .unreadable),
         (200, #"{"results":[{"label":" \n","lat":34,"lon":-118}]}"#, .unreadable),
         (200, #"{"results":[{"label":"x","lat":90.0001,"lon":-118}]}"#, .unreadable),

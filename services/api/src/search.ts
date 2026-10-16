@@ -6,14 +6,17 @@
  *   4. guardedPlan with kind "search" and SEARCH_UPSTREAM_COST: the daily search allowance and the month's call are
  *      RESERVED before the one Photon request (P-COST-01).
  * The request upstream is photonUrl's (R4) with x-scenic-search-secret and nothing else; the answer is
- * readPhotonAnswer's, fail-closed (R6).
+ * readPhotonAnswer's, fail-closed (R6). T-0362 R1, R5: each row then carries the place id searchPlaces wrote for the
+ * caller's identity - the one /plan's destination names - or none when PLANS is unbound, the write failed, or the caller
+ * is the shared unidentified identity.
  */
 import { killSwitch, type KillEnv } from "./killSwitch";
 import { routerBase, routerDepsFromEnv, type RouterEnv } from "./routerDeps";
-import { readPhotonAnswer } from "./searchAnswer";
+import { readPhotonAnswer, type SearchResult } from "./searchAnswer";
+import { kvSearchPlaces, type SearchPlaceKv, type SearchPlaces } from "./searchPlaces";
 import { parseSearchRequest, photonUrl } from "./searchRequest";
 import { guardedPlan, UpstreamPaused, type UpstreamDeps } from "./upstream";
-import type { Identity } from "./routerDeps";
+import { UNIDENTIFIED_DEVICE, type Identity } from "./routerDeps";
 
 /** Every request to our Photon carries this, valued SEARCH_SECRET; the box's Caddy refuses without it (R10). */
 export const SEARCH_SECRET_HEADER = "x-scenic-search-secret";
@@ -25,12 +28,16 @@ export interface SearchEnv extends KillEnv, RouterEnv {
   SEARCH_URL?: string;
   /** secret: `wrangler secret put SEARCH_SECRET`. */
   SEARCH_SECRET?: string;
+  /** T-0362 R1: where each result's place id is remembered; unbound, rows carry no place. */
+  PLANS?: SearchPlaceKv;
 }
 
 export interface SearchDeps {
   upstream: UpstreamDeps;
   searchBase: string;
   identify(req: Request): Promise<Identity>;
+  /** T-0362 R1: the searched places /plan resolves; null (or absent) when PLANS is unbound. */
+  places?: SearchPlaces | null;
 }
 
 const json = (body: unknown, status: number) =>
@@ -49,10 +56,11 @@ export function searchDepsFromEnv(env: SearchEnv): SearchDeps | null {
   if (router === null) return null;
   const fetchImpl = (url: string, init?: RequestInit): Promise<Response> =>
     fetch(url, { ...init, headers: { [SEARCH_SECRET_HEADER]: secret } });
-  return { upstream: { ...router.upstream, fetchImpl }, searchBase: base, identify: router.identify };
+  return { upstream: { ...router.upstream, fetchImpl }, searchBase: base, identify: router.identify,
+    places: env.PLANS ? kvSearchPlaces(env.PLANS) : null };
 }
 
-async function photon(call: (url: string, init?: RequestInit) => Promise<Response>, url: string): Promise<Response> {
+async function photon(call: (url: string, init?: RequestInit) => Promise<Response>, url: string): Promise<SearchResult[] | Response> {
   let response: Response;
   try {
     response = await call(url, { method: "GET" });
@@ -67,7 +75,18 @@ async function photon(call: (url: string, init?: RequestInit) => Promise<Respons
     return json({ error: "search_failed" }, 502);
   }
   const results = readPhotonAnswer(body);
-  return results === null ? json({ error: "search_failed" }, 502) : json({ results }, 200);
+  return results === null ? json({ error: "search_failed" }, 502) : results;
+}
+
+/** T-0362 R1, R5: each row with the id remembered for `identity`, in order; a row whose write failed has none. */
+async function placed(results: SearchResult[], places: SearchPlaces | null, identity: string) {
+  if (places === null || identity === UNIDENTIFIED_DEVICE) return results;
+  const rows: (SearchResult & { place?: string })[] = [];
+  for (const row of results) {
+    const place = await places.remember(identity, { lat: row.lat, lon: row.lon });
+    rows.push(place === null ? row : { ...row, place });
+  }
+  return rows;
 }
 
 export async function handleSearch(req: Request, env: KillEnv, deps: SearchDeps | null): Promise<Response> {
@@ -88,8 +107,10 @@ export async function handleSearch(req: Request, env: KillEnv, deps: SearchDeps 
   if (who.rejected === true) return json({ error: "session_rejected" }, 401);
   const url = photonUrl(deps.searchBase, parsed.request);
   try {
-    return await guardedPlan(deps.upstream, { userId: who.userId, tier: who.tier, kind: "search" },
+    const answer = await guardedPlan(deps.upstream, { userId: who.userId, tier: who.tier, kind: "search" },
       (call) => photon(call, url), SEARCH_UPSTREAM_COST);
+    if (answer instanceof Response) return answer;
+    return json({ results: await placed(answer, deps.places ?? null, who.userId) }, 200);
   } catch (error) {
     if (error instanceof UpstreamPaused) {
       const verdict = error.verdict;

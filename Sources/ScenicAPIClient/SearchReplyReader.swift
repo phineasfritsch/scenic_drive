@@ -13,6 +13,18 @@ enum SearchReplyReader {
             let label: String
             let lat: Double
             let lon: Double
+            /// T-0362 R1: absent is nil; present, it must be a string - null or any other type fails the decode.
+            let place: String?
+
+            enum CodingKeys: String, CodingKey { case label, lat, lon, place }
+
+            init(from decoder: any Decoder) throws {
+                let row = try decoder.container(keyedBy: CodingKeys.self)
+                label = try row.decode(String.self, forKey: .label)
+                lat = try row.decode(Double.self, forKey: .lat)
+                lon = try row.decode(Double.self, forKey: .lon)
+                place = row.contains(.place) ? try row.decode(String.self, forKey: .place) : nil
+            }
         }
 
         let results: [Row]
@@ -40,6 +52,16 @@ enum SearchReplyReader {
         }
     }
 
+    /// The deepest searched place id the Worker's isSearchPlaceId accepts: -(2^53 - 1).
+    static let deepestPlace: Int64 = -9_007_199_254_740_991
+
+    /// T-0362 R1: the Worker's spelling exactly - the decimal form of an Int64 in [deepestPlace, -1], so "-0", "-01",
+    /// "+1", padding and anything outside the range are not ids.
+    static func placeID(_ text: String) -> Int64? {
+        guard let value = Int64(text), value >= deepestPlace, value <= -1, String(value) == text else { return nil }
+        return value
+    }
+
     private static func error(_ body: Data) -> String? {
         (try? JSONDecoder().decode(Failure.self, from: body))?.error
     }
@@ -53,7 +75,13 @@ enum SearchReplyReader {
             guard !row.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   row.lat.isFinite, row.lat >= -90, row.lat <= 90,
                   row.lon.isFinite, row.lon >= -180, row.lon <= 180 else { return .unreadable }
-            rows.append(SearchResult(label: row.label, coordinate: Coordinate(latitude: row.lat, longitude: row.lon)))
+            var place: Int64?
+            if let text = row.place {
+                guard let id = placeID(text) else { return .unreadable }
+                place = id
+            }
+            rows.append(SearchResult(label: row.label, coordinate: Coordinate(latitude: row.lat, longitude: row.lon),
+                                     place: place))
         }
         return .results(rows)
     }

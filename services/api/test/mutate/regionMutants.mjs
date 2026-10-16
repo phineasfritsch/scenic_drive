@@ -40,6 +40,21 @@ const DEPS = "  if (deps === null) return json({ error: \"planning_unavailable\"
 const RESOLVE = "\n  let destination: LatLon | null;\n  try {\n    destination = await deps.resolvePlace(request.destinationPlace);\n"
   + "  } catch {\n    return json({ error: \"planning_unavailable\" }, 503);\n  }\n"
   + "  if (destination === null) return json({ error: \"unknown_place\" }, 404);\n";
+/** T-0362 R3: /plan's step 3 - a searched place id asks the identity first, then PLANS; a corpus id, D1. */
+const PLAN_RESOLVE = `
+  const searched = isSearchPlaceId(request.destinationPlace);
+  const asked = searched ? await deps.identify(req) : null;
+  if (asked?.rejected === true) return json({ error: "session_rejected" }, 401);
+  let destination: LatLon | null;
+  try {
+    const places = deps.searchPlaces ?? null;
+    destination = asked === null ? await deps.resolvePlace(request.destinationPlace)
+      : places === null ? null : await places.recall(asked.userId, request.destinationPlace);
+  } catch {
+    return json({ error: "planning_unavailable" }, 503);
+  }
+  if (destination === null) return json({ error: "unknown_place" }, 404);
+`;
 const WHO = "\n  const who = await deps.identify(req);\n";
 const REJECTED = "  if (who.rejected === true) return json({ error: \"session_rejected\" }, 401);\n";
 const SNAPSHOT = "\n  const snapshot = await deps.closures();\n";
@@ -93,11 +108,11 @@ export const MUTATIONS = [
   below("loop-gate-below-deps", "loop.ts", "start", ""),
   below("trip-gate-below-deps", "trip.ts", "origin", ""),
   below("isochrone-gate-below-deps", "isochrone.ts", "start", ""),
-  below("plan-gate-below-resolve", "plan.ts", "origin", RESOLVE),
+  below("plan-gate-below-resolve", "plan.ts", "origin", PLAN_RESOLVE),
   below("trip-gate-below-resolve", "trip.ts", "origin", RESOLVE),
   below("loop-gate-below-identify", "loop.ts", "start", WHO),
   below("trip-gate-below-identify", "trip.ts", "origin", RESOLVE + WHO),
-  below("plan-gate-below-closures", "plan.ts", "origin", RESOLVE + SNAPSHOT),
+  below("plan-gate-below-closures", "plan.ts", "origin", PLAN_RESOLVE + SNAPSHOT),
   below("loop-gate-below-closures", "loop.ts", "start", WHO + REJECTED + "  const snapshot = await deps.closures();\n"),
   below("trip-gate-below-closures", "trip.ts", "origin", RESOLVE + WHO + REJECTED + "  const snapshot = await deps.closures();\n"),
   below("isochrone-gate-below-closures", "isochrone.ts", "start", "\n  const { start, minutes } = request;\n"
