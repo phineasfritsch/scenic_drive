@@ -59,6 +59,7 @@ from .accessrule import CLOSED_ACCESS, MOTOR_VEHICLE_KEY, MOTOR_VEHICLE_REFUSED,
 from .normalise import normalise_region
 from .sinuosity import CLOSED_ENDPOINT_M, endpoint_gap_m, is_closed_way
 from .snap import length_m
+from .surface import UNPAVED_SURFACES
 from .way_record import POI_ABSENT_FLAG, SINUOSITY_DECLINED_FLAG, WayRecord
 
 # Ruling R3, after T-0161: the closed-way predicate has ONE definition in the tree, `sinuosity`'s, and this
@@ -67,11 +68,10 @@ from .way_record import POI_ABSENT_FLAG, SINUOSITY_DECLINED_FLAG, WayRecord
 # T-0217 ruling R3 does the same for the ACCESS rule: `accessrule.access_refused` is the one definition of
 # `Gates.verdict`'s two `noAccess` branches, `gate_reason` calls it, and the corpus's `access_ok` column
 # asks it directly - `assemble.CLOSED_ACCESS` IS `accessrule.CLOSED_ACCESS`, by identity.
+# T-0181 does it for the unpaved set: `assemble.UNPAVED_SURFACES` IS `surface.UNPAVED_SURFACES`, the ETL's one.
 __all__ = ["CLOSED_ACCESS", "CLOSED_ENDPOINT_M", "MOTOR_VEHICLE_KEY", "MOTOR_VEHICLE_REFUSED",
-           "access_refused", "endpoint_gap_m", "is_closed_way"]
+           "UNPAVED_SURFACES", "access_refused", "endpoint_gap_m", "is_closed_way"]
 
-# Gates.swift:80-82, verbatim. Positive evidence only: no surface tag is NOT unpaved.
-UNPAVED_SURFACES = frozenset({"gravel", "dirt", "ground", "sand", "unpaved", "compacted", "fine_gravel"})
 TRACK_HIGHWAY = "track"
 
 # Gates.swift's other four sets, verbatim; `test_gate_port.py` pins each against its Swift literal.
