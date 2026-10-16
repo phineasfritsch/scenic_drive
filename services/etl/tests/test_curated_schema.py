@@ -21,11 +21,13 @@ VALID = {
     "curation_score": 0.9, "notes": "Desk-verified from OSM data, not visited.",
 }
 BBOX = region.load("la").bbox
+PLAN_FIELDS = ("id", "name", "hook", "lat", "lon", "join", "category", "hours_exempt", "dwell_min",
+               "approach_hint", "verified_on", "curation_score", "notes")
 HEX32, HEX24 = "0123456789abcdef" * 2, "0123456789abcdef01234567"
 
 # (field, value, accepted)
 BOUNDS = [
-    ("hook", "x" * curated.HOOK_MAX, True), ("hook", "x" * (curated.HOOK_MAX + 1), False),
+    ("hook", "x" * 90, True), ("hook", "x" * (91), False),
     ("hook", "x", True), ("hook", "", False), ("hook", "   ", False), ("hook", 5, False),
     ("lat", BBOX.min_lat, True), ("lat", BBOX.max_lat, True),
     ("lat", round(BBOX.min_lat - 1e-5, 5), False), ("lat", round(BBOX.max_lat + 1e-5, 5), False),
@@ -35,13 +37,13 @@ BOUNDS = [
     ("lon", BBOX.min_lon, True), ("lon", BBOX.max_lon, True),
     ("lon", round(BBOX.min_lon - 1e-5, 5), False), ("lon", round(BBOX.max_lon + 1e-5, 5), False),
     ("lon", -118.123456, False), ("lon", -118, False), ("lon", -math.inf, False), ("lon", False, False),
-    ("curation_score", curated.SCORE_MIN, True), ("curation_score", curated.SCORE_MAX, True),
-    ("curation_score", math.nextafter(curated.SCORE_MIN, 0.0), False),
-    ("curation_score", math.nextafter(curated.SCORE_MAX, 2.0), False),
+    ("curation_score", 0.6, True), ("curation_score", 1.0, True),
+    ("curation_score", math.nextafter(0.6, 0.0), False),
+    ("curation_score", math.nextafter(1.0, 2.0), False),
     ("curation_score", 0.59999, False), ("curation_score", 1, False), ("curation_score", True, False),
     ("curation_score", math.nan, False), ("curation_score", "0.8", False), ("curation_score", None, False),
-    ("dwell_min", curated.DWELL_MIN, True), ("dwell_min", curated.DWELL_MAX, True),
-    ("dwell_min", curated.DWELL_MIN - 1, False), ("dwell_min", curated.DWELL_MAX + 1, False),
+    ("dwell_min", 5, True), ("dwell_min", 180, True),
+    ("dwell_min", 4, False), ("dwell_min", 181, False),
     ("dwell_min", 10.0, False), ("dwell_min", True, False), ("dwell_min", "10", False), ("dwell_min", None, False),
     ("hours_exempt", True, True), ("hours_exempt", False, True), ("hours_exempt", 1, False),
     ("hours_exempt", "true", False), ("hours_exempt", None, False),
@@ -100,7 +102,7 @@ def test_every_bound(tmp_path, field, value, accepted):
 
 
 def test_every_field_is_required(tmp_path):
-    for field in curated.FIELDS:
+    for field in PLAN_FIELDS:
         seed = {k: v for k, v in VALID.items() if k != field}
         err = refusal(tmp_path, one(seed))
         assert err is not None and "missing field(s) ['%s']" % field in err, field
@@ -131,7 +133,7 @@ def test_the_top_level(tmp_path, label, doc, named):
     assert err is not None and named in err, label
 
 
-FRESH = [(0, True), (curated.FRESH_DAYS, True), (curated.FRESH_DAYS + 1, False), (-1, False)]
+FRESH = [(0, True), (365, True), (366, False), (-1, False)]
 
 
 @pytest.mark.parametrize("age_days,ok", FRESH)

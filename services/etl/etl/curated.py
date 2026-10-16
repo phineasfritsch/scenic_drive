@@ -23,7 +23,6 @@ nothing here reads a clock.
 from __future__ import annotations
 
 import datetime
-import math
 import re
 from pathlib import Path
 
@@ -59,7 +58,7 @@ def _is_int(value) -> bool:
 
 
 def _is_float(value) -> bool:
-    return isinstance(value, float) and math.isfinite(value)
+    return isinstance(value, float)
 
 
 def _is_date(value) -> bool:

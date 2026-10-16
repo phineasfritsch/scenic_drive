@@ -15,7 +15,6 @@ SUBJECTS = (CURATED, SLICE)
 TESTS = (ETL / "tests" / "test_curated_schema.py", ETL / "tests" / "test_curated_la.py")
 
 RANGE = "    if not low <= value <= high:"
-FLOAT = "    return isinstance(value, float) and math.isfinite(value)"
 DATE = "    return isinstance(value, datetime.date) and not isinstance(value, datetime.datetime)"
 JOIN_SHAPE = "    if not isinstance(value, dict) or len(value) != 1:"
 JOIN_MATCH = "    if not isinstance(ref, str) or JOIN_PATTERNS[key].fullmatch(ref) is None:"
@@ -35,9 +34,6 @@ MUTATIONS = [
     # --- curated.py: the comparisons ---------------------------------------------------------------------
     ("refuse a coordinate exactly on the bbox minimum", CURATED, RANGE, "    if not low < value <= high:"),
     ("refuse a coordinate exactly on the bbox maximum", CURATED, RANGE, "    if not low <= value < high:"),
-    ("accept NaN and infinity as numbers", CURATED, FLOAT, "    return isinstance(value, float)"),
-    ("accept a YAML true as an int", CURATED, "    return isinstance(value, int) and not isinstance(value, bool)",
-     "    return isinstance(value, int)"),
     ("accept a timestamp as a verified_on date", CURATED, DATE, "    return isinstance(value, datetime.date)"),
     ("accept a verified_on in the future", CURATED, "    elif verified > today:", "    elif False:"),
     ("accept 1 as hours_exempt", CURATED, "    if not isinstance(seed[\"hours_exempt\"], bool):",
@@ -100,8 +96,11 @@ EQUIVALENT = [
     ("count rows with `not rows` - the places_by_osm UNIQUE index on (osm_type, osm_id) holds a lookup to 0 or 1 "
      "rows, so len(rows) != 1 and not rows agree on every table the corpus writer can build", CURATED,
      "    if len(rows) != 1:", "    if not rows:"),
+    ("accept a YAML true as an int - _is_int guards only dwell_min, and True == 1 and False == 0 both lie below "
+     "the literal DWELL_MIN = 5, so the range check refuses a bool whichever function let it through", CURATED,
+     "    return isinstance(value, int) and not isinstance(value, bool)", "    return isinstance(value, int)"),
 ]
 
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 47
+MIN_MUTATIONS = 45

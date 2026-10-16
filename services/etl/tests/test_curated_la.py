@@ -67,7 +67,8 @@ JOINS = [
     ("the right id under the wrong type", {"join": {"osm": "node/422130705"}}, False, False),
     ("another place's id", {"join": {"osm": "node/5061361321"}}, False, False),
     ("a renamed seed", {"name": "Griffith Park Observatory"}, False, False),
-    ("a coordinate one step off", {"lat": round(GRIFFITH["lat"] + 1e-5, 5)}, False, False),
+    ("a latitude one step off", {"lat": round(GRIFFITH["lat"] + 1e-5, 5)}, False, False),
+    ("a longitude one step off", {"lon": round(GRIFFITH["lon"] - 1e-5, 5)}, False, False),
     ("a gers join, not exempt", {"join": {"gers_id": "0" * 32}}, False, False),
     ("a gers join, exempt", {"join": {"gers_id": "0" * 32}, "hours_exempt": True}, False, True),
 ]
@@ -103,6 +104,7 @@ APPROACH = [
     ("0.4999", [way(1, 0.0001, scenic_score_unit="0.4999")], False),
     ("gated", [way(1, 0.0001, scenic_gate="unpaved_surface")], False),
     ("refused", [way(1, 0.0001, scenic_refused="1", scenic_score_unit=None)], False),
+    ("refused yet carrying a unit", [way(1, 0.0001, scenic_refused="1")], False),
     ("no unit", [way(1, 0.0001, scenic_score_unit=None)], False),
     ("unit nan", [way(1, 0.0001, scenic_score_unit="nan")], False),
     ("unit text", [way(1, 0.0001, scenic_score_unit="high")], False),
