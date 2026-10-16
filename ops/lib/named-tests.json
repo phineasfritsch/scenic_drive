@@ -245,13 +245,16 @@
         "every required key and every unnamed key at each level of /plan, /loop and /trip (T-0311 rv1 B1, P-PRIV-05) > no row ignores its key: undoing each row's edit gives the reference body the Worker accepts, and each missing key answers differently"
       ],
       "test/tripPlaces.test.ts": [
-        "the places read takes nothing from the request (T-0316 R3, P-PRIV-05) > a trip's D1 statements are the destination lookup and one unbound trip_places read; router bodies carry no place",
+        "the places read takes nothing from the request (T-0316 R3, P-PRIV-05) > a trip's D1 statements are the destination lookup and one trip_places read bound to four box numbers (T-0318 R2); router bodies carry no place",
         "the trip_places table (migrations/0009_trip_places.sql, T-0316 R1) > its columns are exactly (id, name, kind, score, lat, lon): no device, no instant (P-PRIV-05)"
       ],
       "test/searchShape.test.ts": [
         "POST /search takes the typed text and one 2-dp coordinate, and sends exactly that (T-0359 R3/R4, P-PRIV-05) > every refused bound is 400 invalid_request with zero Photon requests and no reservation",
         "POST /search takes the typed text and one 2-dp coordinate, and sends exactly that (T-0359 R3/R4, P-PRIV-05) > a body that is not JSON is 400 with zero Photon requests",
         "POST /search takes the typed text and one 2-dp coordinate, and sends exactly that (T-0359 R3/R4, P-PRIV-05) > every accepted body sends ONE GET whose URL equals the written-out template and whose only header is the search secret"
+      ],
+      "test/tripPlacesBox.test.ts": [
+        "the trip_places read follows the quota reservation and reads the route's box (T-0318) > a served trip's D1 statements are the destination lookup and ONE trip_places read bound to the route's box (P-PRIV-05)"
       ]
     },
     "swift": {
@@ -380,6 +383,9 @@
         "ROUTES['/search'] spend control (T-0359 R5, P-COST-01) > a tripped monthly counter is 503 planning_paused with zero Photon requests",
         "ROUTES['/search'] spend control (T-0359 R5, P-COST-01) > without QUOTA, a routable SEARCH_URL or SEARCH_SECRET the route is 503 search_unavailable with zero requests",
         "ROUTES['/search'] spend control (T-0359 R5, P-COST-01) > a session that does not verify is 401 session_rejected, reserving nothing and sending nothing"
+      ],
+      "test/tripPlacesBox.test.ts": [
+        "the trip_places read follows the quota reservation and reads the route's box (T-0318) > a quota-refused trip prepares no trip_places statement: its D1 statements are the destination lookup only (P-COST-01)"
       ]
     }
   },
