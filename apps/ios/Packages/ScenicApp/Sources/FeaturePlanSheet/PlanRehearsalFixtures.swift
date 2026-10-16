@@ -94,6 +94,8 @@ enum PlanRehearsalFixtures {
                                            trip: TripSheet(disclaimerAccepted: false), savedRows: savedRows)
         case "paused": return degraded(.planningPaused)
         case "update": return degraded(.updateRequired)
+        case "loopPaused": return loopDegraded(.planningPaused)
+        case "tripPaused": return tripDegraded(.planningPaused)
         default: return nil
         }
     }
@@ -108,6 +110,28 @@ enum PlanRehearsalFixtures {
         sheet.setDegrade(degrade)
         return PlanRehearsal(tab: .plan, sheet: sheet, loop: LoopSheet(disclaimerAccepted: false),
                              trip: TripSheet(disclaimerAccepted: false), savedRows: [])
+    }
+
+    /// T-0364 R3: the loop form with a start chosen and /config's degrade on it - the notice in place of Find a loop.
+    private static func loopDegraded(_ degrade: ConfigDegrade) -> PlanRehearsal {
+        var loop = LoopSheet(disclaimerAccepted: true, minutes: 60)
+        loop.search("")
+        loop.choose(topanga)
+        loop.setDegrade(degrade)
+        return PlanRehearsal(tab: .loop, sheet: PlanSheet(disclaimerAccepted: false), loop: loop,
+                             trip: TripSheet(disclaimerAccepted: false), savedRows: [])
+    }
+
+    /// T-0364 R3: the trip form with both places chosen and /config's degrade on it - the notice in place of Plan.
+    private static func tripDegraded(_ degrade: ConfigDegrade) -> PlanRehearsal {
+        var trip = TripSheet(disclaimerAccepted: true, days: 2, extraBudgetPercent: 40)
+        trip.search("", for: .start)
+        trip.choose(griffith)
+        trip.search("", for: .destination)
+        trip.choose(leoCarrillo)
+        trip.setDegrade(degrade)
+        return PlanRehearsal(tab: .trip, sheet: PlanSheet(disclaimerAccepted: false),
+                             loop: LoopSheet(disclaimerAccepted: false), trip: trip, savedRows: [])
     }
 
     private static func plan(_ outcome: PlanOutcome, budgetMinutes: Int = 30,

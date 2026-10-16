@@ -11,6 +11,9 @@ public struct ClientLoopPlanner: LoopPlanning {
         self.client = client
     }
 
+    /// T-0364 R3: the bare client reads no /config, so it never degrades; the Configured planner is the one that does.
+    public func degrade() async -> ConfigDegrade { .clear }
+
     public func plan(_ ticket: LoopTicket) async -> LoopOutcome {
         do {
             return Self.outcome(of: try await client.loop(from: ticket.start, minutes: ticket.minutes))

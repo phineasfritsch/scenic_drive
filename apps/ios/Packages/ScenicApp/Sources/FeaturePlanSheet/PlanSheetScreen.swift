@@ -172,7 +172,7 @@ public struct PlanSheetScreen: View {
                         in: 0...PlanSheet.maxBudgetMinutes, step: 15)
             }
             Section {
-                if let notice = sheet.degrade.notice {
+                if let notice = sheet.degrade.notice(on: .plan) {
                     // T-0357 R6: a pause or an update heard from /config, said before the tap; the gate issues nothing.
                     Text(notice)
                         .foregroundStyle(DesignTokens.fg)
