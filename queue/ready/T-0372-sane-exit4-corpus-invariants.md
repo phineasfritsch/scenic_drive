@@ -1,7 +1,7 @@
 ---
 id: T-0372
 title: ops/sane exit 4 checks the corpus invariants it can see without the graph - no motorway/trunk/private/unpaved way scores above 0, no NULL scores, viewpoints >= the measured floor, surface coverage per class >= baseline - over a corpus.sqlite, local fixture first
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
