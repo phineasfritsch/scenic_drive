@@ -43,7 +43,7 @@ MUTATIONS = [
      ("terms-terms_osm-above-one", "terms-terms_raster-above-one")),
     (LIB, "NOT (value >= 0.0 AND value <= 1.0)", "NOT (value >= -0.5 AND value <= 1.0)",
      ("terms-terms_osm-below-zero", "terms-terms_raster-below-zero")),
-    (LIB, "NOT (value >= 0.0 AND value <= 1.0)", "NOT (value >= -1e308 AND value <= 1e308)",
+    (LIB, "NOT (value >= 0.0 AND value <= 1.0)", "NOT (value >= 0.0 AND value <= 1.0) AND abs(value) < 1e308",
      ("terms-terms_osm-plus-inf", "terms-terms_raster-minus-inf")),
     (LIB, "    for table in TERM_TABLES:\n        try:\n            total",
      "    for table in TERM_TABLES[:1]:\n        try:\n            total", ("terms-terms_raster-above-one",)),
