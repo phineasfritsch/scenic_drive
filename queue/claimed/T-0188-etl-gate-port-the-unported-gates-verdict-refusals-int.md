@@ -152,3 +152,12 @@ router's own and are not this task.
        motor_vehicle==no and highway==service rows, `4 failed, 37 passed`.
   GREEN (pristine): `python -m pytest tests` -> `1917 passed in 83.30s`; `swift test --filter
     GateParityFixtureTests` -> `Test run with 3 tests in 1 suite passed` (new test passed by name).
+- 2026-10-16T18:11:09Z rv1 fix re-run on the merged head (84bd3cb0 + git fetch origin, merge origin/main -> 0e38b16b,
+  clean; main brought landmarks.py and ScenicKit Plan/ changes):
+  `cd services/etl && python -m pytest tests -rs` -> `2002 passed in 72.83s`, no skip line.
+  `swift test --filter GateParityFixtureTests` -> `Test run with 3 tests in 1 suite passed`.
+  Gates bare, each exit=0: check-safety-disclaimer; check-mutate-population (`the floor of 169 holds`);
+  check-mutate-only (`NAME-PAIRS OK`); check-line-cap (`none over 300 lines`); check-pins-yaml (`pins=51`);
+  check-exec-bits (`all modes correct`); queue-check (`QUEUE OK (369 tasks)`). scenic_tags_mutations.py
+  `wc -l` 300. Mutants re-run: only the two touched (B1, B2), by hand as quoted above - both caught; the full
+  73-mutant driver was not re-run (faster-verification rule).
