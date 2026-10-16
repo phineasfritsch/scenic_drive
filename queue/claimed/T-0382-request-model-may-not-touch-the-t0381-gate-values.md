@@ -75,3 +75,23 @@ the profile only on task/T-0381 until then.
   pins_affected P-PROD-01 -> P-SAFE-01 (P-PROD-01 is the ETL/profile/ScenicKit parity fixture, untouched; P-SAFE-01
   binds the Worker refusal tests by name); touches gains ops/lib/named-tests.json and pins/PINS.yaml for A4.
   P-SAFE-01 has no check-named-table digest (its assertion is run-named-tests.py alone), so none to re-approve.
+- 2026-10-16T23:17:05Z RED FIRST (A3): test/customModelGateValues.test.ts written before the constant changed, run on main's
+  `["road_access", "surface"]`: `Tests  7 failed | 4 passed (11)` - FAILED by name: `equals the identifiers of every
+  multiply_by 0 clause of car_scenic_base.json, in order, minus the builder's own` (`expected [ 'road_access',
+  'surface' ] to deeply equal [ 'car_access', 'road_access', ...(6) ]`) and the route() rows of car_access (720 rows),
+  track_type (720), smoothness (720), gate_locked_barrier (1206), gate_ford (666), gate_service_way (1044); the
+  road_access/surface rows, the corpus meta row and the handlePlan row passed. GREEN after the constant (customModel.ts
+  `wc -l` 299, unchanged): `npx vitest run` customModelGateValues, customModel, customModelGate,
+  customModelMinorClause, planPrivacy, planRecorded, closuresRoutes -> `Test Files 7 passed (7)`, `Tests 661 passed (661)`.
+- 2026-10-16T23:17:05Z A4 P-SAFE-01: eleven names added to ops/lib/named-tests.json (15 -> 26), dated sentence appended to its why.
+  RED: with the constant reverted to `["road_access", "surface"]` in the worktree, `run-named-tests.py P-SAFE-01` ->
+  `NAMED P-SAFE-01 passed=19/26`, the derivation test and the six new names' rows `RED ... FAILED`; restored ->
+  `NAMED P-SAFE-01 passed=26/26`. check-pins-yaml.py: `PINS-YAML ok pins=52 fields=418`.
+- 2026-10-16T23:17:05Z MUTANTS (unwritten, run against the new file alone, restored after each): M1 mentioned() case-sensitive
+  (`text.toLowerCase()` -> `text`): 8 failed | 3 passed, every name's route row; M2 keys never checked
+  (`mentioned(key)` -> null): 8 failed | 3 passed; M3 constant order swapped (track_type/smoothness): 1 failed, the
+  derivation test; M4 gate_ford dropped: 2 failed, the derivation test and gate_ford's route row. All killed.
+- 2026-10-16T23:17:05Z R7 (found while grepping for copies of the list): Sources/ScenicPlanCLI/GraphHopperRouteSource.swift:54
+  `forbiddenEncodedValues = ["road_access", "surface"]` is a Swift copy of this list (the plan CLI's body gate). It
+  is outside this task's touches (Sources/ needs the digest re-approval and a Swift run) - NOT changed here; it is
+  the follow-up, recorded in the PR's stillOpen.
