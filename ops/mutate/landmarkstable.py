@@ -67,6 +67,16 @@ def digest_without(*dropped: str) -> str:
     return SELECT.replace(SELECTED, ", ".join(c for c in DIGEST_COLUMNS if c not in dropped))
 
 
+def digest_reading(column: str, expression: str) -> str:
+    return SELECT.replace(SELECTED, ", ".join(expression if c == column else c for c in DIGEST_COLUMNS))
+
+
+# The digest keeps every column but loses its precision: two corpora one unit apart share a content_sha256.
+LOSSY_INTEGERS = ("ele_dm", "lat_e5", "lon_e5", "nearest_way_id")
+UNORDERED = SELECT.replace('\n     "ORDER BY osm_type, osm_id"', "")
+assert UNORDERED != SELECT
+
+
 CLI = "                       region=args.region, budget_bytes=args.budget_bytes, landmarks_osm=args.landmarks_osm)"
 
 MUTATIONS = [
@@ -106,6 +116,11 @@ MUTATIONS = [
 ] + [
     ("digest blind to %s" % column, DIGEST, SELECT, digest_without(column)) for column in DIGEST_COLUMNS
 ] + [
+    ("digest loses precision on %s" % column, DIGEST, SELECT, digest_reading(column, "%s / 10" % column))
+    for column in LOSSY_INTEGERS
+] + [
+    ("digest truncates name", DIGEST, SELECT, digest_reading("name", "substr(name, 1, 8)")),
+] + [
     ("region build passes no landmarks", STAGE, FLAG,
      '                        "--built-at", BUILT_AT, "--region", layout.region])'),
 ]
@@ -120,10 +135,14 @@ EQUIVALENT = [
      "times NEAR_M, so every fixture and served region keeps a superset; the widening only matters poleward of "
      "74 deg, where 0.01 deg of longitude falls under 300 m",
      CORPUS, WIDEN, "        widen = MARGIN_DEG"),
+    ("digest landmarks SELECT without ORDER BY: schema.py statement 19 is PRIMARY KEY (osm_type, osm_id) WITHOUT "
+     "ROWID with no secondary index, so the table is one b-tree keyed (osm_type, osm_id) and the only plan for "
+     "the unordered full scan walks it in key order - the rows reach the hash in the same sequence",
+     DIGEST, SELECT, UNORDERED),
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 39
+MIN_MUTATIONS = 44
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
