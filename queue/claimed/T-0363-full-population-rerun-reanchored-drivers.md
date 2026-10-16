@@ -58,3 +58,14 @@ driver to find its own files, shown red with that mutant then green.
   R4 floors: an entry ruled EQUIVALENT leaves MUTATIONS below its literal MIN_MUTATIONS; the floor is then lowered by
   exactly the number moved, in the same commit, and the move is named in the Log.
   R5 environment: drivers run one at a time, nothing else of mine on the box; a red baseline is re-run alone first.
+- 2026-10-16T00:59:45Z A4 cwd arm (fad911d1), demonstrated in a throwaway detached worktree of fad911d1 (.worktrees/T-0363-cwd, no
+  node_modules, so no driver there could start vitest while this worktree's A2 chain runs). GREEN:
+  `check-mutate-anchors: 17 drivers, 1263 anchors, 0 stale` / `check-mutate-anchors: cwd arm: 17 drivers run from
+  the repo root, 17 reached their population line` rc=0, git status empty. RED with tierMutants.mjs's API set to
+  `process.cwd()`: `check-mutate-anchors: 17 drivers, 1263 anchors, 0 stale` (the anchor arm cannot see it) /
+  `CWD tier: run from the repo root with --only=tier-case-sensitive never printed its population line - exit 1,
+  Error: ENOENT: no such file or directory, open '...\.worktrees\T-0363-cwd\src\accountTier.ts'` / `cwd arm: 17
+  drivers run from the repo root, 16 reached their population line` rc=1; the same mutant run from services/api
+  printed `population mutations=26 (floor 26) equivalent=1 subjects=7 tests=5 ONLY=1` (it works from there, which
+  is why only the repo-root run sees it). Mutant reverted with git checkout: GREEN again, 17 of 17, rc=0, git status
+  empty.
