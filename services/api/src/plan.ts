@@ -5,7 +5,9 @@
  *   1. KILL=1 (env, or the KV switch when bound - killSwitch.ts) -> 503 planning_paused, before the body is read. Zero upstream calls, no reservation.
  *   2. The body against the whitelist (R1/R2, P-PRIV-05) -> 400. Not an upstream call; costs no plan.
  *   2b. The origin outside the served region (servedRegion.ts, T-0293) -> 422 region_unsupported. Costs nothing.
- *   3. The destination place id -> its coordinate, or 404. Not an upstream call; costs no plan.
+ *   3. The destination place id -> its coordinate, or 404. Not an upstream call; costs no plan. T-0362 R3: a searched
+ *      place id (searchPlaces.ts) is read back from PLANS for the caller's identity, so that identity is asked first -
+ *      only for such an id - and a rejected session is 401 before PLANS is read; a corpus id keeps this order.
  *   3b. T-0319 R5: a `reroute` token is recalled from PLANS; an unusable one is simply the fresh plan below.
  *      T-0330 R2: every 200 says which - `continued` is true exactly when the body is planReroute's answer.
  *   3c. T-0332: a fresh plan whose route scores below RouteScore's 0.45 is 422 nothing_pretty with its offers
@@ -103,7 +105,6 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
   if (!inServedRegion(request.origin)) return json({ error: "region_unsupported" }, 422);
   if (deps === null) return json({ error: "planning_unavailable" }, 503);
 
-  // T-0362 R3: a searched place id is read back for the caller's identity, so that identity is asked first - only here.
   const searched = isSearchPlaceId(request.destinationPlace);
   const asked = searched ? await deps.identify(req) : null;
   if (asked?.rejected === true) return json({ error: "session_rejected" }, 401);
