@@ -110,5 +110,5 @@ apps/ios Swift edit needs the P-SAFE-03 digest re-approval; if refused, ship the
     check-line-cap (661 files, none over 300), check-pins-yaml, check-exec-bits, queue-check.
   - A6 ios-compile run 38849780191 success; ios-screenshot run 38849782561 success. Looked at plan-loop-light,
     plan-trip-dark and plan-waitlist-light: loop preview, trip itinerary and the plan waitlist card render as before
-    (PlanSheetScreen now joins through waitlistStart). No shot shows the new loop/trip offer (R6) - filed T-0372
+    (PlanSheetScreen now joins through waitlistStart). No shot shows the new loop/trip offer (R6) - filed T-0373 (first filed as T-0372; renumbered after main took that id)
     (ids checked on origin/main and every origin/task/* branch, highest T-0371).
