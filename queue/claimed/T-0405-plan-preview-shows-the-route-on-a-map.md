@@ -113,6 +113,36 @@ disclaimer. Any new or changed guard is shown red, then green.
   map surface (map chrome + credit; the card's text is uncapped), and the AX share rises from 0.24 to 0.32
   (R5 superseded on that number; FROZEN_PREVIEW_CARD_BODY re-typed; PlanPreviewMap's two digest rows and
   PlanPreviewCard's re-approved).
+- 2026-10-17T21:31:47Z head 85fae9d0: ios-compile 39070023891 SUCCESS, ios-screenshot 39070028987 SUCCESS. LOOKED:
+  - plan-preview-light: route VISIBLE (bold blue line, top ~34% of the screen under Close/Saved); FRAMED - the whole
+    line inside the map, both ends clear of the edges, above the credit band; ATTRIBUTION on the map's bottom edge,
+    two lines, "(c) MapLibre . Natural Earth . / Route data (c) OpenStreetMap contributors", fully visible; the
+    estimate tag on the ETA row; Start the drive + Save; "Conditions change. Verify locally." directly under Start.
+    The card's text starts below the map; nothing overlaps.
+  - plan-preview-dark: the same, item by item; dark card, dark credit chip, the route cased dark. No overlap.
+  - plan-preview-ax5: the map SMALLER (32%); the route VISIBLE and FRAMED above the credit (the whole line, the west
+    end clear of the left edge); ATTRIBUTION fully visible, three lines at the home cap, not cut; the card's text
+    (title, ETA, the estimate tag wrapped under the number, the why line, the hazard row) starts below the map and
+    is not covered. Start and the disclaimer are below the fold in this still - they are inside the card's
+    ScrollView with the frozen P-SAFE-03 stack (conditions directly under Start), reached by scrolling; the shot
+    does not scroll, so this still does not show them.
+  `git fetch origin` (main checkout): origin/main e91ac77e is an ancestor of the branch - nothing to merge.
+- 2026-10-17T21:31:47Z ACCEPTANCE RE-QUOTED on 85fae9d0 (code unchanged since; this commit adds Log lines only):
+  1. `bash ops/lib/check-map-attribution` -> `ATTR exit=0`; (f3) line as quoted at 20:47:17Z.
+  2. `bash ops/lib/check-safety-disclaimer` -> `SAFE exit=0` ("Not checked here: rendering (T-0180), taps, ...").
+  3. `bash ops/check-pins --source-only` was started at ~21:14Z and printed nothing in over 45 minutes on this box
+     (the hang the orchestrator foresaw), so each check the affected pins name was run bare instead: P-ATTR-01
+     `check-map-attribution` exit 0; P-SAFE-03 `check-safety-disclaimer` exit 0, `check-screen-rehearsals.py`
+     "11 approved -screen sites ..." exit 0, `check-hazard-copy-sites.py` "ok - 13 sites, every one approved, in 5
+     files" exit 0, `check-base-url-sites.py` "37 approved base URL sites ..." exit 0. P-SAFE-07 is
+     run-named-tests over ScenicKit, which this task does not touch. CI runs the full source-only pass.
+     `check-mutate-population.py` "P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds";
+     `check-mutate-only.py` "NAME-PAIRS OK: 242318 pair tokens ..."; `check-pins-yaml.py` "PINS-YAML ok pins=53
+     fields=426"; `check-exec-bits` "P-OPS-01: 253 files, 23 required present, all modes correct"; `queue-check`
+     "QUEUE OK (395 tasks)".
+  4. M1-M4 red, restored green: quoted at 20:47:17Z (run against the edited tree at 0973b9e7's code).
+  5. ios-compile 39070023891 SUCCESS, ios-screenshot 39070028987 SUCCESS; the shots as recorded above.
+  6. `wc -l`: PlanPreviewMap.swift 52, PlanPreviewCard.swift 146, PlanSheetScreen.swift 285, ScenicDriveApp.swift 89.
 
 ## Acceptance
 1. `bash ops/lib/check-map-attribution` exits 0 and prints an (f3) line naming PlanPreviewMap.swift.
