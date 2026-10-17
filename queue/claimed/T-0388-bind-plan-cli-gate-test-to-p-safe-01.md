@@ -95,3 +95,11 @@ P-SAFE-01's named-tests entry binds the Worker's refusal tests (T-0382: 26 names
   PYTHON=python): `NAMED-TABLE P-SAFE-01 ok - 29 distinct names, sha256 42351bc565d1`, `NAMED P-SAFE-01
   passed=29/29`, exit 0. A1: vs origin/main only P-SAFE-01 changed, its vitest half equal, keys [swift, vitest].
   A6: the appended sentence begins `APPENDED 2026-10-17 (T-0388): ops/plan's body gate is bound too`.
+- 2026-10-17T05:02:56Z PRE-REVIEW (A1-A6) at e14cc856. `git fetch origin` (main checkout): origin/main 1272ec4d
+  unmoved, `merge-base --is-ancestor origin/main HEAD` exit 0, `git merge origin/main` -> "Already up to date", so
+  the merged head is the tree A1-A5 ran on (no file differs: Tests/ScenicPlanCLITests is HEAD's blob 9acb10a6). A1
+  (canonical JSON vs origin/main: only P-SAFE-01, vitest equal), A2/A5 (shipped assertion: `NAMED-TABLE P-SAFE-01 ok
+  - 29 distinct names`, `NAMED P-SAFE-01 passed=29/29`, exit 0; `PROVE-RED OK: 8 of 8`), A3/A4 RED as quoted above,
+  A6 by the pin-edit script's own yaml.safe_load asserts. Bare gates exit 0: `python ops/lib/check-pins-yaml.py`
+  (`PINS-YAML ok pins=52 fields=418`), `bash ops/lib/check-exec-bits` (`244 files ... all modes correct`), `bash
+  ops/queue-check` (`QUEUE OK (379 tasks)`), `bash ops/lib/check-safety-disclaimer` (P-SAFE-03 report).
