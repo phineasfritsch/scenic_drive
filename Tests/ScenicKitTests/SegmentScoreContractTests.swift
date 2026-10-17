@@ -105,6 +105,41 @@ struct SegmentScoreContractTests {
         #expect(failures.isEmpty, "\(summary)")
     }
 
+    /// T-0218 R3/R5: the POST-ceiling half of P-PROD-01's differential. `expected` is the plan formula (pre-
+    /// ceiling); the number a surface may show is `SegmentScoreCeiling.score(for:)`, held here to
+    /// min(expected, assemble.py's ceiling for the class) - the table parsed out of the ETL, not ScenicKit's
+    /// copy - which is what `assemble.scored_row` ships to the router (test_score_contract.py's twin).
+    @Test("every fixture row's shown score is the router's post-ceiling number within 1e-6")
+    func everyRowShowsThePostCeilingScore() throws {
+        let fixture = try ScoringFixture.load()
+        let etl = try ETLCeilingTable.load()
+        var failures: [String] = []
+        for r in fixture.rows {
+            let expected = min(r.expected, etl[r.highway] ?? .infinity)
+            guard let got = SegmentScoreCeiling.score(for: try Self.terms(r)) else {
+                failures.append("\(r.id): SegmentScoreCeiling returned nil on an in-range row")
+                continue
+            }
+            if !(abs(got - expected) < Self.tolerance) {
+                failures.append("\(r.id): shows \(got), router uses \(expected) (highway=\(r.highway))")
+            }
+        }
+        for line in failures.prefix(20) { Issue.record("\(line)") }
+        #expect(failures.isEmpty, "\(failures.count) of \(fixture.rows.count) rows show a number the router does not use")
+    }
+
+    @Test("the fixture holds rows above and at-or-below every class ceiling")
+    func fixtureStraddlesEveryCeiling() throws {
+        let fixture = try ScoringFixture.load()
+        let etl = try ETLCeilingTable.load()
+        #expect(!etl.isEmpty)
+        for (h, c) in etl {
+            let rows = fixture.rows.filter { $0.highway == h }
+            #expect(rows.contains { $0.expected > c }, "\(h): no row above its ceiling \(c)")
+            if c > 0 { #expect(rows.contains { $0.expected <= c && $0.expected > 0 }, "\(h): no row under \(c)") }
+        }
+    }
+
     /// Guards the differential itself. If ScenicKit could not tell the two tiers apart, every eligible row
     /// would agree with a scorer that pays the designated bonus for both - which is the defect this contract
     /// was written to catch, and was ScenicKit's behaviour until T-0154.
