@@ -81,6 +81,27 @@ home unchanged.
     ScenicHomeScreen.swift 299, ScenicDriveApp.swift 89, HomeTypeSize.swift 7.
   - Gates on this head before merge: check-mutate-population, check-store-links, check-ios-compile-guardrails,
     check-map-attribution, check-pins-yaml, check-exec-bits all rc=0.
+- 2026-10-17T01:14:31Z ACCEPTANCE re-run (agent/claude-opus-5) on code head 9529b8fe and on the merge of origin/main
+  45285278 (35731106; main gained no apps/ or check-safety-disclaimer* change: `git diff --stat 9529b8fe HEAD --
+  apps/ ops/lib/check-safety-disclaimer*` empty, so the iOS runs on 9529b8fe stand for the merged tree).
+  - A1 RED then GREEN: quoted in the CODE entry above (RED 1 frozen, RED 2 file set, GREEN rc=0).
+  - A2 ios-compile run 38987510747 on 9529b8fe: success.
+  - A3 ios-screenshot run 38987514586 on 9529b8fe: success; legs ax5, light, dark and merge-screenshots all success.
+  - A4 home-ax5-collapsed.png LOOKED AT: the pill "Plan a drive" on one line, ~44 pt tall (px 210-341, the same rows
+    as home-light-collapsed) and ~150 pt wide (was ~63 x ~301 pt on run 38969965368); the chip band starts at px 354
+    again (was 413), chips "Saddle/Peak", "West-/wood/loop", "SF/Peninsu-/la", Surprise and Settings visible; the
+    credit "(c) MapLibre . Natural Earth . (c) OpenStreetMap contributors" directly above the sheet; title, three
+    cards, "Conditions change. Verify locally." and "Open in Apple Maps" visible; nothing overlaps.
+  - A5 home-ax5-medium.png LOOKED AT: the same pill and chip band; the map window above the credit grew by the same
+    ~20 pt; credit, three cards, conditions line, Open in Apple Maps and the road list visible; nothing overlaps.
+  - A6 home-light-collapsed and home-dark-medium LOOKED AT beside run 38969965368's: the same layout - pill ~44 pt
+    at px 210-341, chips, map, credit, sheet - only the status-bar clock differs (12:57 / 12:49 vs 9:40).
+  - A7 `grep -rn "DynamicTypeSize.xxxLarge" apps/ios`: one line, HomeTypeSize.swift:6.
+  - A8 merged head: check-safety-disclaimer, check-mutate-population, check-store-links, check-ios-compile-guardrails,
+    check-map-attribution, check-pins-yaml, check-exec-bits, queue-check all rc=0. `wc -l`: ScenicHomeScreen.swift
+    299, ScenicDriveApp.swift 89, HomeTypeSize.swift 7. check-line-cap hit `timeout 600` (rc=124) on the loaded box
+    before the merge; the same predicate (every tracked Sources/, Tests/, apps/ios .swift <= 300 lines, awk NR)
+    run directly printed no file over 300 on both heads.
 
 ## Acceptance
 - A1 RED first: the Swift edits without the re-approval commit make `bash ops/lib/check-safety-disclaimer` exit
