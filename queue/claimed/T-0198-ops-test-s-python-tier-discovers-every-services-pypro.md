@@ -106,3 +106,21 @@ pins-source-only. A regression in either directory is invisible to the one comma
     (`exclude services/routing needs the GraphHopper container`) prints `EXCLUDE services/routing needs the
     GraphHopper container` and no RUN for it. The shipped table: `RUN services/etl` / `RUN services/tiles` /
     `RUN services/routing`, rc=0.
+- 2026-10-17T07:08:22Z GREEN + FLOOR + ACCEPTANCE re-run by agent/claude-opus-5 (owner), on 2042f960 merged with
+  origin/main cf085098 (main had not moved; `git fetch origin` in the main checkout):
+  - A1/A3 green, this box, forced reds restored: `PYTEST services/etl=4109 services/tiles=82
+    services/routing=50` / `TESTS linux=7902/76 ios=skipped failed=0 skipped=4` / `OK` / rc=0 in 727 s.
+  - A1 CI core job, PR #285 run 39011319158 on 2042f960 (core pass 13m1s, pins-source-only pass 6m10s):
+    `PYTEST services/etl=4109 services/tiles=82 services/routing=50` / `TESTS linux=7945/76 ios=skipped
+    failed=0 skipped=24` (7945 = main's 7813 + 82 + 50; skipped 1 -> 24: routing's docker-routed tests skip
+    on CI and still count, as R3 ruled).
+  - A4 floor: BEFORE this box 7770/76 (RED (a) run), CI 7813/76. AFTER this box 7902, CI 7945; the lower is
+    7902, so pins/floor_linux.txt 76 -> 7902 (a raise; commit-msg needs no floor-lower line).
+  - A5 bare `bash ops/test` with the new floor: `PYTEST services/etl=4109 services/tiles=82
+    services/routing=50` / `TESTS linux=7902/7902 ios=skipped failed=0 skipped=4` / `OK` / rc=0 in 746 s.
+    Gates, each bare, rc=0: check-safety-disclaimer; check-mutate-population.py `the floor of 171 holds`;
+    check-mutate-only.py `NAME-PAIRS OK`; check-pins-yaml.py `PINS-YAML ok pins=52 fields=418`; check-exec-bits
+    `P-OPS-01: 246 files, 23 required present, all modes correct`; queue-check `QUEUE OK (379 tasks)`.
+    `timeout 600 bash ops/check-pins --source-only` returned 124 on this box (the known line-cap hang), so it
+    is NOT verified locally; CI's pins-source-only job ran it and passed on 2042f960. `wc -l`: ops/test 157,
+    ops/lib/python_suites.py 103, ops/lib/python-suites.txt 9.
