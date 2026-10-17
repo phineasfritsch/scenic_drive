@@ -73,6 +73,26 @@ services/api that wrangler bundles -> exit 3 (fail closed). Each shown red on to
     traceback included, is `version FAIL` exit 3. Changes outside every Worker input (services/etl/other.py) are
     not counted.
 
+- 2026-10-17T19:51:40Z acceptance re-quoted by agent/claude-opus-5 (code afc83309; origin/main merged as e2c135a0, the
+  merge touched no ops/sane, check_sane_prod.py or sane_* file):
+  1. `bash ops/lib/check-sane-prod` (on afc83309, 2 h on a loaded box) ->
+     `SANE-PROD ok       347/347 cases passed (77 b-/c- rows through sane_prod.tiles at a fixed clock; sane=ops/sane, ...)`,
+     all 19 v- rows `pass`: v-none/v-fixture/v-test/v-vitest/v-outside exit=0, the other 14 exit=3.
+  2. Red on main (`--sane` = `git show main:ops/sane`): `19 of 19 cases failed` on the whole-line compare; on EXIT
+     code exactly v-fixture, v-test, v-vitest (`exit 3, want 0`) and v-region (`exit 0, want 3`) - e.g.
+     `v-fixture: exit 3, want 0; version line ['version   FAIL   services/api changed since live 3f0c611 -> deploy
+     pending: services/api/test/fixtures/seed-places/places-0001.sql ']`. Correction to the acceptance's prediction:
+     v-imported-test exits 3 on main too (main counts all of services/api); its red is M3 below, and it is what
+     would catch a fix that merely excluded test/.
+  3. Mutants of sane_version.py, each red then restored (`git diff --quiet` clean after): M1 unclassified->outside
+     `v-newdir: exit 0, want 3`, `v-newfile: exit 0, want 3`; M2 test/ dropped `v-fixture: exit 3, want 0`,
+     `v-test: exit 3, want 0`; M3 imports never read `v-region: exit 0, want 3`, `v-imported-test: exit 0, want 3`;
+     M4 package-lock dropped `v-lock: ... (0 bundle, 1 unclassified, 0 not bundled)` vs want `(1 bundle, 0 ...)`.
+  4. wc -l: ops/sane 214, check_sane_prod.py 279, sane_version.py 116, sane_version_cases.py 146.
+  5. Gates bare on e2c135a0: `P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds`;
+     `NAME-PAIRS OK: 242318 pair tokens ...`; `PINS-YAML ok pins=53 fields=426`; `P-OPS-01: 255 files, 23 required
+     present, all modes correct`; `QUEUE OK (394 tasks)`; check-safety-disclaimer quoted in the PR body.
+
 ## Acceptance
 1. `bash ops/lib/check-sane-prod` -> `SANE-PROD ok N/N cases passed`, N including the v- rows, each compared on exit
    code and the WHOLE version line: v-none, v-fixture, v-test, v-vitest, v-outside -> version ok, exit 0; v-src,
