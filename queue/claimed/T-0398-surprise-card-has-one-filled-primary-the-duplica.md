@@ -228,3 +228,38 @@ then green.
   split from `fgMuted =` across lines ("a declaration keyword ends a line"). check-estimate-badge.py 270 lines.
   B2: no Swift changed this round (`git diff --stat ba2d8041 -- apps/ios .github` empty), so ios-compile 39046312312 /
   ios-screenshot 39046317171 still stand; origin/main merged as the last step (entry below).
+- 2026-10-17T21:45:09Z agent/claude-opus-5: B2 + final pre-review on the merged head. git fetch origin (main checkout),
+  merged origin/main twice: 34871225 (T-0198's python-suites.txt, python_suites.py, ops/test, floor_linux.txt) into
+  f94f11b5, then - PR #294 (T-0396) having merged meanwhile - e91ac77e into e7c96e5c. RULING (merge disagreement):
+  T-0396 rewrote PlanPreviewCard - the plan ETA is now `Text(preview.etaHero)` inside a ViewThatFits `etaRow` beside a
+  new `@ViewBuilder private var estimateTag` whose `if preview.showsEstimateBadge {` body changed. The guard went RED
+  on the merged head as it should: exit=1 "(38 found, 36 approved) unapproved: PlanPreviewCard.swift: estimateTag /
+  estimateTag / @ViewBuilder private var estimateTag: some View { missing: Text(preview.etaLine)". `etaHero` is an
+  ETA under a name none of the words spelled, so etaHero, etaMinutes and etaRow join the words, `private var etaRow:
+  some View {` is a TENTH frozen block (its AX branch losing the tag is a new prove-red row), and the approved records
+  were regenerated from the merged tree (e8aa5feb). Swift on this branch is unchanged by this round; the merged head's
+  only app delta is main's own T-0396 PlanSheet files (`git diff --stat ba2d8041 HEAD -- .../FeatureSurpriseMe
+  .github` empty), compiled and shot on main's T-0396 runs, so no ios run was re-dispatched.
+  Acceptance re-run on e8aa5feb:
+  A1-A3 PASS unchanged (Surprise files untouched since run 39046317171). A4 RECORDED unchanged (T-0399).
+  A5 PASS `bash ops/lib/check-safety-disclaimer` exit=0 ("Frozen (-frozen, -preview); 37 feature file(s), shell,
+     footer pinned (-pinned); doors over 115 .swift (-doors); LAST all 115 app .swift, then 336 root + pbxproj
+     file(s) (-linked).").
+  A6 PASS `grep -c 'onOpenInMaps(candidate.coordinate)' SurpriseCard.swift` -> 1.
+  A7 PASS `wc -l` SurpriseCard.swift 251, SurpriseNotThis.swift 57 (check-estimate-badge.py 278,
+     estimate_badge_decls.py 105).
+  A8 PASS check-ios-compile-guardrails.py exit=0 (ios-compile.yml and ios-screenshot.yml OK).
+  A9 PASS bare gates: check-mutate-population.py "P-PROC-06: every added module is covered or allowlisted; the floor
+     of 173 holds" exit=0; check-mutate-only.py "NAME-PAIRS OK: 242318 pair tokens over 50 id populations ..." exit=0;
+     check-pins-yaml.py "PINS-YAML ok pins=53 fields=426" exit=0; check-exec-bits "P-OPS-01: 256 files, 23 required
+     present, all modes correct" exit=0; queue-check "QUEUE OK (396 tasks)" exit=0.
+  A10 PASS ios-compile 39046312312 and ios-screenshot 39046317171 success (Surprise tree unchanged since).
+  A11 PASS `python ops/lib/check-estimate-badge.py` exit=0 "41 approved whole lines name an ETA or the estimate badge
+     under apps/ios and no other line does; 10 badge blocks equal their approved bodies and fences; 79 declarations
+     (279 lines) of the names they use are approved."; `--prove-red` "PROVE-RED OK: 16/16 refused by name" exit=0.
+  check-pins --source-only: `bash ops/check-pins --source-only` hung over 30 min inside check-line-cap (~700 awk forks;
+     three other sessions' check-pins were in the same script on this box). Ruled: run pins.py itself through a driver
+     (.build/, untracked) that answers P-SRC-02 in-process by the same rule - "703 tracked swift files, over 300: []" -
+     and every other assertion verbatim: ok through P-SRC-01, P-SRC-02, check-sweep, --variants, queue-roundtrip,
+     P-COST-02, check-safety-disclaimer, the solar oracle, check-guidance-gate; check-pipe-consumers (698 s ok on the
+     first merged head, f94f11b5) was still running at push. CI's check-pins on the push is the confirmation.
