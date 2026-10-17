@@ -71,8 +71,9 @@ def prove_floor() -> int:
             ("the floor raised to %d" % (MIN_MUTATIONS + 1), {"MIN_MUTATIONS": MIN_MUTATIONS + 1}),
             ("EQUIVALENT one short of the floor", {"EQUIVALENT": base["EQUIVALENT"][:MIN_EQUIVALENT - 1]}),
             ("one entry's killers emptied", {"MUTATIONS": killers_gone}),
-            ("SegmentScoreCeiling.swift unmutated, count padded back",
-             {"MUTATIONS": [m for m in MUTATIONS if m[1] != SUBJECTS[0]] + MUTATIONS[:MIN_MUTATIONS]}),
+            ("SegmentScoreCeiling.swift unmutated, every entry aimed elsewhere",
+             {"MUTATIONS": [(n, ROOT / "Sources" / "Elsewhere.swift", o, w, k)
+                           for n, _p, o, w, k in MUTATIONS]}),
             ("a test file missing", {"TESTS": base["TESTS"][:1]})]
     g = globals()
     refused = 0
