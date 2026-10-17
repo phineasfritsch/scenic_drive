@@ -4,16 +4,16 @@ The plan's property table (line 215) reads "`T(lambda)` non-decreasing over {0,1
 Problem A bisects on lambda for `T(lambda) ~ T_fast + B`; a bisection on a non-monotone function returns a
 number that means nothing, so this is checked the moment a graph exists rather than after the search is built.
 
-One fixed Vermont pair, five per-request custom models, one loaded graph. The expected values are not
-computed from anything the router says: the lambdas and the band multipliers are typed literals in
-profiles/scenic_lambda_bands.json, the assertion is an order property, and the one equality is against the
-car_fast baseline (lambda=0 must be the fastest route - that is what makes the bisection always feasible).
+One fixed Vermont pair, five per-request custom models, one loaded graph. The models are the Worker's own
+bytes: Tests/Fixtures/custom-model/lambda-<l>.json, held byte-equal to services/api/src/customModel.ts's
+buildCustomModel by services/api/test/customModelGolden.test.ts (T-0190) and copied here unchanged by
+request_models.py. The assertion is an order property, and the one equality is against the car_fast baseline
+(lambda=0 must be the fastest route - that is what makes the bisection always feasible).
 
 Prerequisites, all built by `bash services/routing/build-slice.sh` in WSL; the routed tests SKIP without them
-because docker exists only inside WSL on this box. test_band_multipliers_match_the_plan needs neither.
+because docker exists only inside WSL on this box.
 """
 
-import json
 import re
 import shutil
 import subprocess
@@ -21,7 +21,9 @@ from pathlib import Path
 
 import pytest
 
-LAMBDAS = (0, 1, 2, 4, 8)
+from request_models import ORACLE_LAMBDAS, write_models
+
+LAMBDAS = ORACLE_LAMBDAS
 
 # How much more lambda=8 must cost than lambda=0 for the penalty to count as biting. See
 # test_lambda_penalty_bites for how the number is ruled.
@@ -38,8 +40,6 @@ ROUTING = REPO_ROOT / "services" / "routing"
 WORK = ROUTING / "work"
 GRAPH = WORK / "graph-cache"
 MODELS = WORK / "models"
-TEMPLATE = ROUTING / "profiles" / "car_scenic_request.json"
-BANDS = ROUTING / "profiles" / "scenic_lambda_bands.json"
 
 ROUTE_LINE = re.compile(
     r"^ROUTE profile=(?P<profile>\S+) model=(?P<model>\S+) time_ms=(?P<time_ms>\d+) distance_m=(?P<distance_m>[0-9.]+)$"
@@ -65,38 +65,6 @@ def _wsl_path(path):
     return text
 
 
-def _write_request_models():
-    """Substitute each lambda's band multipliers into the shipped per-request model. Both files are committed
-    profiles, so the red demonstration edits data and never this test."""
-    template = TEMPLATE.read_text(encoding="utf-8")
-    bands = json.loads(BANDS.read_text(encoding="utf-8"))
-    if MODELS.exists():
-        shutil.rmtree(MODELS)
-    MODELS.mkdir(parents=True)
-    for value in LAMBDAS:
-        band = bands[str(value)]
-        model = template
-        for name in ("high", "mid", "low"):
-            model = model.replace("${" + name + "}", band[name])
-        assert "${" not in model, f"unsubstituted placeholder left in the model for lambda={value}"
-        json.loads(model)  # a malformed model must fail here, not a minute later inside the container
-        (MODELS / f"lambda-{value}.json").write_text(model, encoding="utf-8")
-
-
-def test_band_multipliers_match_the_plan():
-    """The table is the plan's three bands (:105-107), the same numbers services/api/src/customModel.ts
-    computes: high 1, mid 1/(1+0.5*lambda), low 1/(1+lambda), six decimals, trailing zeros dropped.
-    GraphHopper's expression compiler refuses '/' inside multiply_by, so the arithmetic cannot live in the
-    profile and the numbers are typed out here instead."""
-    bands = json.loads(BANDS.read_text(encoding="utf-8"))
-    assert sorted(int(key) for key in bands) == sorted(LAMBDAS)
-    for value in LAMBDAS:
-        band = bands[str(value)]
-        assert band["high"] == "1", f"lambda={value}: the scenic_score >= 7 band is never penalized"
-        assert float(band["mid"]) == pytest.approx(1 / (1 + 0.5 * value), abs=5e-7), f"mid band at lambda={value}"
-        assert float(band["low"]) == pytest.approx(1 / (1 + value), abs=5e-7), f"low band at lambda={value}"
-
-
 @pytest.fixture(scope="module")
 def routes():
     """{model name -> (time_ms, distance_m)} from one container run over the imported Vermont graph."""
@@ -104,7 +72,7 @@ def routes():
         pytest.skip(f"no graph at {GRAPH}; build it with: bash services/routing/build-slice.sh")
     if _shell(f"docker image inspect --format ok {IMAGE}", timeout=120).returncode != 0:
         pytest.skip(f"docker image {IMAGE} is not built; build it with: bash services/routing/build-slice.sh")
-    _write_request_models()
+    write_models(MODELS, LAMBDAS)
     command = (
         f"docker run --rm -e JAVA_TOOL_OPTIONS=-Xmx4g "
         f"-v {_wsl_path(GRAPH)}:/graph -v {_wsl_path(MODELS)}:/models:ro {IMAGE} "
@@ -141,6 +109,9 @@ def test_lambda_penalty_bites(routes):
     the first band's threshold to `scenic_score >= 0` and every edge lands in the never-penalized `high`
     band. This asserts the model bites: lambda=8 costs strictly more than lambda=0 by a stated margin, and at
     least one step of the five strictly rises.
+
+    UNVERIFIED since T-0190: the measurement below was taken on the old three-band template, not on the Worker's
+    nine-clause model this file now routes; it has not been re-measured (T-0190 Log, R5).
 
     The margin is ruled from the five measured durations on this fixture (5945246 -> 8491177 ms, +43%): a 5%
     floor is an order of magnitude below what the model delivers, and the router is deterministic over a

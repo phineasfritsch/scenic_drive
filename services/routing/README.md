@@ -43,6 +43,6 @@ flip, restart, the 2 newest releases kept). It refuses without `SCENIC_ROUTING_H
 | `plugins/scenic-score-parser` | Real. `scenic_score`, unsigned, 4 bits, 0..10; no tag means 0. |
 | `profiles/car_scenic_base.json` | Real. Safety gates only: private/no access, the unpaved surfaces, track. Motorway and trunk are **not** gated — they carry score 0 and are penalized by the request model. |
 | `config.yml` | Real, and read by the runner, so the profile under test is the profile that ships. No `server:` section yet: there is no HTTP surface in this slice. |
-| `profiles/car_scenic_request.json` + `scenic_lambda_bands.json` | The five plan lambdas as data. In production `services/api/src/customModel.ts` builds this body per request; GraphHopper's expression compiler refuses `/` inside `multiply_by`, which is why both carry numbers rather than `1 / (1 + λ)`. |
+| per-request models | Not a profile. `services/api/src/customModel.ts` builds the body per request; its output at the oracle lambdas is RECORDED in `Tests/Fixtures/custom-model/lambda-<l>.json`, held byte-equal to the builder by `services/api/test/customModelGolden.test.ts`, and `tests/request_models.py` routes those bytes unchanged (T-0190: the old template + band table had drifted to 3 clauses against the Worker's 9). |
 | `tools/synthetic_scenic_tags.py` | **SYNTHETIC.** `way_id % 11` on every highway way, stamped into the output PBF's header. Not a scenic index. T-0168 owns the real writer. |
 | Serving, rsync, symlink flip, LA and Bay Area graphs | Not here. Second half of T-0031, behind T-0168. |

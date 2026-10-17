@@ -28,7 +28,8 @@ from pathlib import Path
 
 import pytest
 
-from test_route_details import MODELS, _lambda_model
+from request_models import write_models
+from test_route_details import MODELS
 from test_scenic_score_readback import _shell, _wsl_path
 from tools.route_details import parse
 
@@ -78,8 +79,7 @@ def fixture_graph():
     graph = Path(tempfile.mkdtemp(prefix="graph-two-ways-", dir=str(work)))
     models = Path(tempfile.mkdtemp(prefix="models-two-ways-", dir=str(work)))
     try:
-        for value in (0, 8):
-            _lambda_model(models, value)
+        write_models(models, (0, 8))
         imported = _shell(
             f"bash {_wsl_path(ROUTING / 'import-graph.sh')} {_wsl_path(FIXTURE)} {_wsl_path(graph)} {IMAGE}"
         )

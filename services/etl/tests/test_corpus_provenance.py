@@ -29,6 +29,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[3]
 CHECKER = ROOT / "ops/lib/check-corpus-provenance.py"
 FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 EXTRACT = FIXTURES / "corpus_extract.json"
+sys.path.insert(0, str(ROOT / "ops/lib"))
+from corpus_provenance_cases import translated_extract  # noqa: E402 - the pin's own population (T-0233 R12)
 
 # Deliberately not "now": the age limb is what is under test, so the stamp is an argument here exactly as
 # `--built-at` is an argument to the builder (corpus.py: "An INPUT: no clock is read").
@@ -49,8 +51,10 @@ def run_checker(*args: str) -> subprocess.CompletedProcess:
 
 
 def built(tmp_path, name: str, *, region: str, days_ago: float) -> pathlib.Path:
+    """The committed extract is Marin; it is translated into la first, as the pin's accepted corpora are."""
     out = tmp_path / name
-    corpus.build(EXTRACT, out, stamp(days_ago), region=region)
+    la_extract = translated_extract(EXTRACT, tmp_path / f"{name}.extract.json")
+    corpus.build(la_extract, out, stamp(days_ago), region=region)
     return out
 
 
@@ -63,7 +67,9 @@ def test_the_shipping_check_exits_zero_and_names_every_verdict():
     done = run_checker()
     assert done.returncode == 0, done.stdout + done.stderr
     for label in ("a fresh region-la corpus", "stamped 40 days ago", "stamped region 'bay'",
-                  "no meta.region at all", "no meta.built_at at all", "stamped 2 days in the future"):
+                  "no meta.region at all", "no meta.built_at at all", "stamped 2 days in the future",
+                  "stamped la, content in Marin", "meta.bbox claiming la's whole box over a window",
+                  "no segments at all"):
         assert label in done.stdout, done.stdout
 
 
@@ -125,8 +131,9 @@ def test_the_prove_red_table_still_kills_every_mutant():
 
     Five defects are applied to a copy of the checker - the region comparison deleted, an absent region key
     defaulted to the expected value (T-0197 B4), the 30-day comparison flipped, an absent built_at treated as
-    fresh, and the future-skew limb deleted - and each must be refused BY NAME.
+    fresh, and the future-skew limb deleted - and each must be refused BY NAME. T-0233 adds three: the content
+    containment deleted, widened to a no-op, and meta.bbox never compared with the content.
     """
     done = run_checker("--prove-red")
     assert done.returncode == 0, done.stdout + done.stderr
-    assert "5/5 mutants refused by name" in done.stdout
+    assert "8/8 mutants refused by name" in done.stdout

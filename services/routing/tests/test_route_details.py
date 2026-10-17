@@ -9,7 +9,7 @@ The graph is imported by the image under test into a fresh temp directory (T-021
 the assertions to nothing), from the canyon window test_scenic_score_readback.py already pins by sha256, and
 the pair is T-0224's TYPED pair 34.0387,-118.5836 -> 34.0938,-118.6045.
 
-The models directory holds lambda-0 AND lambda-8 (the committed T-0213 template), so main()'s model loop routes
+The models directory holds lambda-0 AND lambda-8 (the Worker's recorded models, Tests/Fixtures/custom-model - T-0190), so main()'s model loop routes
 two files: a loop that routes one file's model under every file's label moves no ROUTE on the typed pair (all
 three are 526739 ms / 8230.4 m there, measured), so the loop is checked on a second pair of the same window whose
 lambda-8 route was measured to move (T-0209 Log, survivor pass).
@@ -27,6 +27,7 @@ from pathlib import Path
 import pytest
 
 from test_scenic_score_readback import PBF_RELATIVE, PBF_SHA256, _pbf, _sha256, _shell, _wsl_path
+from request_models import write_models
 from tools.route_details import parse
 
 IMAGE = os.environ.get("SCENIC_ROUTING_IMAGE", "scenic-routing:t0209")
@@ -47,16 +48,6 @@ ROAD_CLASSES = {
 }
 
 
-def _lambda_model(directory, value):
-    """profiles/car_scenic_request.json with one lambda's bands substituted - the committed request template."""
-    template = (ROUTING / "profiles" / "car_scenic_request.json").read_text(encoding="utf-8")
-    bands = json.loads((ROUTING / "profiles" / "scenic_lambda_bands.json").read_text(encoding="utf-8"))[str(value)]
-    for name, band in bands.items():
-        template = template.replace("${" + name + "}", band)
-    assert "${" not in template
-    (directory / f"lambda-{value}.json").write_text(template, encoding="utf-8", newline="\n")
-
-
 @pytest.fixture(scope="module")
 def window():
     """(route-details runner) over one window graph the image under test imported itself, both models loaded."""
@@ -72,8 +63,7 @@ def window():
     graph = Path(tempfile.mkdtemp(prefix="graph-details-", dir=str(work)))
     models = Path(tempfile.mkdtemp(prefix="models-details-", dir=str(work)))
     try:
-        _lambda_model(models, 0)
-        _lambda_model(models, 8)
+        write_models(models, (0, 8))
         imported = _shell(
             f"bash {_wsl_path(ROUTING / 'import-graph.sh')} {_wsl_path(pbf)} {_wsl_path(graph)} {IMAGE}"
         )
