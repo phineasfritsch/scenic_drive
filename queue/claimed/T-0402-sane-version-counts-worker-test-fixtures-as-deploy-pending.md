@@ -130,6 +130,36 @@ services/api that wrangler bundles -> exit 3 (fail closed). Each shown red on to
      242318 pair tokens ...`; `PINS-YAML ok pins=53 fields=426`; `P-OPS-01: 255 files, 23 required present, all modes
      correct`; `QUEUE OK (395 tasks)`.
 
+- 2026-10-17T23:32:22Z fix round 2 by agent/claude-opus-5 (owner) on rv1 FAIL (agent/rv1-t0402) of 8a963f2b.
+  Ruling before code: rv1 B1 and B2 are right - every fixture import spelled its extension and used `from`, so the
+  prefix branch of classify() and the `import` alternative of IMPORT were never red. Fixed by class, not per spelling:
+  SPELLINGS in sane_version_cases.py generates one v-spell-KIND row per spelling (13: static-ext, static-bare,
+  single-quote, dir-index, dynamic, dynamic-spaced, side-effect, side-effect-single, export-from, export-star,
+  type-import, multi-line, dot-slash). BASE's src/spell.ts carries every spelling, each naming its own directory under
+  services/etl/spell/ so no target is a prefix of another's; each row changes only its target (outside services/api),
+  so the row is green only if that spelling is read. Multi-line imports are covered when the specifier shares a line
+  with `from` (prettier's shape); a specifier on a later line than its keyword, and require(), are a DECLARED LIMIT,
+  now written in imports()'s docstring. rv1 M3 is right too: no row drove sane_version.py exit 2. v-cannot-tell builds
+  HEAD with plumbing (hash-object/mktree/commit-tree; no Windows worktree can hold the name) adding root path
+  b"bad-\xff.txt"; `git diff -z` prints it raw, the strict UTF-8 decode raises, sane_version.py exits 2, and the row
+  wants `version FAIL` exit 3 with the whole `cannot tell whether a deploy is pending: 'utf-8' codec can't decode byte
+  0xff in position 4: invalid start byte` line. Mutants are numbered on from the Acceptance list: rv1's M1 = M8, rv1's
+  M2 = M9, rv1's M3 = M10 (the driver .artifacts/t0402-mutants.py labels them M1-M3; gitignored, not shipped).
+  - Green: `bash ops/lib/check-sane-prod --only <all 36 v- rows>` -> `SANE-PROD ok       36/36 cases passed (0 b-/c-
+    rows through sane_prod.tiles at a fixed clock; sane=ops/sane, fake=http://127.0.0.1:63743)`.
+  - M8 `path in imported`: exit 1; `v-spell-static-ext exit=3` pass; `FAIL v-spell-static-bare: exit 0, want 3;
+    version line ['version   ok     live 9cd29e8 == Worker inputs at HEAD b9d366c (0 not-bundled path(s) changed)'],
+    want [... deploy pending: services/etl/spell/static-bare/m.ts (1 bundle, 0 unclassified, 0 not bundled)']`;
+    `FAIL v-spell-dir-index: exit 0, want 3; ... want [... services/etl/spell/dir-index/m/index.ts (1 bundle, ...)]`;
+    `2 of 3 cases failed`; restored byte-equal.
+  - M9 `(?:\bfrom)`: exit 1; `FAIL v-spell-dynamic: exit 0, want 3; ... services/etl/spell/dynamic/m.ts`; `FAIL
+    v-spell-side-effect: exit 0, want 3; ... services/etl/spell/side-effect/m.ts`; `v-spell-export-from exit=3`
+    pass; `2 of 3 cases failed`; restored byte-equal.
+  - M10 ops/sane `vrc -ne 1`: exit 1; `v-src exit=3` pass; `FAIL v-cannot-tell: exit 0, want 3; version line
+    ["version   ok     cannot tell whether a deploy is pending: 'utf-8' codec ..."], want ["version   FAIL   cannot
+    tell whether a deploy is pending: 'utf-8' codec ..."]`; `1 of 2 cases failed`; restored byte-equal.
+  - wc -l: ops/sane 214, check_sane_prod.py 279, sane_version.py 121, sane_version_cases.py 229.
+
 ## Acceptance
 1. `bash ops/lib/check-sane-prod` -> `SANE-PROD ok N/N cases passed`, N including the v- rows, each compared on exit
    code and the WHOLE version line: v-none, v-fixture, v-test, v-vitest, v-outside -> version ok, exit 0; v-src,
@@ -139,7 +169,12 @@ services/api that wrangler bundles -> exit 3 (fail closed). Each shown red on to
    v-real-tree -> exit 3, 0 unclassified; v-import-added (HEAD's src newly imports a test/ file added with it) ->
    `(2 bundle, 0 unclassified, 0 not bundled)`; v-import-dropped (HEAD drops the import, the file changes) ->
    `(1 bundle, 0 unclassified, 1 not bundled)`; v-near-miss (5 generated siblings of every list entry) ->
-   `(0 bundle, 40 unclassified, 0 not bundled)`, its typed entry lists equal to the shipped ones.
+   `(0 bundle, 40 unclassified, 0 not bundled)`, its typed entry lists equal to the shipped ones; v-spell-KIND, one
+   row per generated SPELLINGS entry (13: static with/without extension, single quotes, directory -> index.ts,
+   dynamic, spaced dynamic, side-effect in both quotes, `export {..} from`, `export * from`, `import type`, multi-line,
+   `./../`), HEAD changing only that spelling's target outside services/api -> exit 3 `(1 bundle, 0 unclassified, 0
+   not bundled)`; v-cannot-tell (HEAD adds a non-UTF-8 path, sane_version.py exits 2) -> version FAIL exit 3 with the
+   whole `cannot tell whether a deploy is pending: ...` line.
 2. Red on main: `bash ops/lib/check-sane-prod --sane <main's ops/sane> --only <v- rows>` -> v-fixture, v-test,
    v-vitest fail on `exit 3, want 0`; v-region and v-imported-test fail on `exit 0, want 3`.
 3. Mutants of ops/lib/sane_version.py, each red then restored: M1 unclassified paths ignored -> v-newdir, v-newfile
@@ -147,6 +182,9 @@ services/api that wrangler bundles -> exit 3 (fail closed). Each shown red on to
    v-region, v-imported-test red; M4 package-lock.json dropped from WORKER_BUNDLE -> v-lock red (unclassified count).
    M5 list entries matched by bare prefix -> v-near-miss red; M6 imports read at LIVE -> v-import-added and
    v-import-dropped red; M7 WORKER_NOT_BUNDLE replaced by a `"test" in path` blacklist -> v-near-miss red.
+   M8 classify() import match `path in imported` -> v-spell-static-bare, v-spell-dir-index red (v-spell-static-ext
+   green); M9 IMPORT regex `(?:\bfrom)` only -> v-spell-dynamic, v-spell-side-effect red (v-spell-export-from green);
+   M10 ops/sane `vrc -eq 0` -> `vrc -ne 1` -> v-cannot-tell red (v-src green).
 4. `wc -l ops/sane ops/lib/check_sane_prod.py ops/lib/sane_version.py ops/lib/sane_version_cases.py` each <= 300.
 5. Gates bare: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py, check-pins-yaml.py,
    check-exec-bits, queue-check.

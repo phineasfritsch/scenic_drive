@@ -52,7 +52,12 @@ def git(*args: str) -> bytes:
 
 
 def imports(head: str) -> set[str]:
-    """Every repo path a relative import in services/api/src at HEAD resolves to (extension not added)."""
+    """Every repo path a relative import in services/api/src at HEAD names, as written (no extension added).
+
+    classify() matches these by prefix, so `./geo` covers geo.ts and a directory import covers its index.ts (fail
+    closed: a sibling such as geography.ts counts too). Read: static, side-effect, dynamic, `export ... from`, and a
+    multi-line import whose specifier shares a line with `from`. Declared limit: a specifier on a later line than its
+    `from` / `import(` keyword, and require()."""
     p = subprocess.run(["git", "grep", "-z", "-I", "-E", GREP, head, "--", SRC], capture_output=True)
     if p.returncode not in (0, 1):  # 1 = no match, which is an answer
         raise CannotTell(f"git grep over {SRC} at {head} exited {p.returncode}")
