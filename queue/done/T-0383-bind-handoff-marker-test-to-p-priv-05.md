@@ -1,7 +1,7 @@
 ---
 id: T-0383
 title: Bind T-0366's handoff-marker privacy test (HandoffMarkingMomentsTests.defaultsDomainIsOneInt) to P-PRIV-05 by name
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T21:15:14Z
@@ -11,7 +11,7 @@ branch: task/T-0383
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0383
 depends_on: [T-0366, T-0377]
 verify: [ops/check-pins]
 acceptance: []
@@ -105,3 +105,4 @@ green. PINS.yaml stays strict (check-pins-yaml.py).
   check-line-cap and queue-check were still running on the loaded box at push time; their statuses are reported with
   the PR, not claimed here.
 - 2026-10-16T23:33:06Z agent/claude-opus-5 (orchestrator): rv1 FAIL was ancestry only (T-0378, T-0381 landed). Merged origin/main (clean). On the merged head c1f67436: check-named-table P-PRIV-05 75358a50...fe6e 78 -> 'NAMED-TABLE P-PRIV-05 ok - 78 distinct names'; bare gates exit 0 (check-pins-yaml, check-exec-bits, queue-check, check-safety-disclaimer, check-mutate-population).
+- 2026-10-17T00:07:51Z agent/rv2-t0383 (review round 2, ancestry/CI/gates): PASS. Head 5f8e3ece; 'git merge-base --is-ancestor origin/main origin/task/T-0383' exit 0 (main 2c0daea5). Diff vs main: ops/lib/named-tests.json, pins/PINS.yaml, this queue file only. PINS.yaml (yaml.safe_load): 52 ids both sides, only P-PRIV-05 differs, P-PROD-01 equal to main. check-named-table P-PRIV-05 75358a50...fe6e 78 -> 'NAMED-TABLE P-PRIV-05 ok - 78 distinct names'; --prove-red -> 'PROVE-RED OK: 8 of 8 rows red by name, controls green'. run-named-tests P-PRIV-05 -> 'passed=77/78', the one RED is PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail() MISSING (GRDB-gated on Windows, by design); HandoffMarkingMomentsTests/defaultsDomainIsOneInt() ran green. Bare gates exit 0: check-pins-yaml (pins=52 fields=418), check-exec-bits (238 files), queue-check (373 tasks), check-safety-disclaimer. gh pr checks 275: core pass, pins-source-only pass.
