@@ -1,13 +1,13 @@
 ---
 id: T-0390
 title: Bind the production KV namespaces (PLANS, CONFIG, KILL_SWITCH, CLOSURES) in services/api/wrangler.jsonc - the owner created them 2026-10-17
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T07:52:44Z
+lease_expires_at: 2026-10-18T07:52:44Z
+worktree: .worktrees/T-0390
+branch: task/T-0390
 exclusive: []
 touches: [services/api/wrangler.jsonc, services/api/test/, services/api/src/index.ts, pins/PINS.yaml]
 pins_affected: [P-SAFE-08, P-COST-01]
@@ -41,3 +41,4 @@ No deploy in this task. The deploy is T-0391, holding exclusive [prod].
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 after the owner authorised backend setup.
+- 2026-10-17T07:52:44Z claimed by agent/claude-opus-5; lease until 2026-10-18T07:52:44Z
