@@ -64,14 +64,16 @@ TEST_FILES = (
     "Tests/ScenicKitTests/ScenicPlannerHonestFailureTests.swift",
     "Tests/ScenicPlanCLITests/PlanCLILARecordingTests.swift",
     "Tests/ScenicKitTests/PlanNothingPrettyBoundsTests.swift",
+    "Tests/ScenicPlanCLITests/PlanCLIGateValuesTests.swift",
 )
 
 SUITES = ("ScenicPlannerMetaTests|LambdaCustomModelParityTests|ScenicPlanGoldenTests"
           "|PlanCLIBudgetTests|PlanCLIRequestBodyTests|LambdaCustomModelRatRunTests|PlanCeilingOverLATests"
-          "|ScenicPlannerHonestFailureTests|PlanCLILARecordingTests|PlanNothingPrettyBoundsTests")
+          "|ScenicPlannerHonestFailureTests|PlanCLILARecordingTests|PlanNothingPrettyBoundsTests"
+          "|PlanCLIGateValuesTests")
 SCRATCH = os.environ.get("SCENIC_MUTATE_SCRATCH", ".build-mutate-plan")
 
-MIN_MUTATIONS = 47
+MIN_MUTATIONS = 51
 
 # name, module, old, new
 MUTATIONS = [
@@ -201,6 +203,16 @@ MUTATIONS = [
     ("budget-state/whole-budget-instead-of-half", "Sources/ScenicKit/Plan/ScenicPlan.swift",
      "budget > 0 && outcome.duration < fastestDuration + LambdaSearch.minBudgetUse * budget",
      "budget > 0 && outcome.duration < fastestDuration + budget"),
+    # T-0385: the CLI's body gate, bound to car_scenic_base.json's zero clauses by PlanCLIGateValuesTests.
+    ("cli/gate-forgets-the-first-name", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     '"car_access", "road_access",', '"road_access",'),
+    ("cli/gate-forgets-the-last-name", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     '"gate_ford", "gate_service_way",', '"gate_ford",'),
+    ("cli/gate-compares-case-sensitively", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "let text = body.lowercased()", "let text = body"),
+    ("cli/gate-checks-only-the-first-name", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "for value in Self.forbiddenEncodedValues where text.contains(value) {",
+     "for value in Self.forbiddenEncodedValues.prefix(1) where text.contains(value) {"),
 ]
 
 FAIL_LINE = re.compile(r"recorded an issue|Test run with .*failed")
