@@ -204,12 +204,46 @@ def test_chunk_1000_is_accepted_and_dry_run_with_out_refused(tmp_path):
     assert main("--corpus", corpus, "--dry-run", "--out", str(tmp_path / "o")).returncode == 2
 
 
-def test_a_non_empty_out_dir_is_refused_and_left_alone(tmp_path):
-    out = tmp_path / "out"
-    out.mkdir()
-    (out / "keep.txt").write_text("x", encoding="ascii")
-    done = main("--corpus", str(full_corpus(tmp_path / "c.sqlite", FIXTURE_ROWS)), "--out", str(out))
-    assert (done.returncode, written(out)) == (2, {"keep.txt": "x"})
+def state(path: pathlib.Path):
+    """What is at `path`: None if nothing, the bytes of a regular file, else the directory's files by name."""
+    if not path.exists():
+        return None
+    return path.read_bytes() if path.is_file() else written(path)
+
+
+# --out PATH before the run: (name, the relative path, what to create there, accepted). The expected exit code,
+# stdout, stderr and after-state are each computed from the row and its absolute path below, never typed per row.
+OUT_STATES = [
+    ("absent", "out", None, True),
+    ("absent-under-an-absent-parent", "a/b/out", None, True),
+    ("existing-empty-dir", "out", {}, True),
+    ("existing-non-empty-dir", "out", {"keep.txt": "x"}, False),
+    ("existing-regular-file", "out", b"x", False),
+    ("existing-empty-regular-file", "out", b"", False),
+]
+
+
+@pytest.mark.parametrize("rel,before,accepted", [r[1:] for r in OUT_STATES], ids=[r[0] for r in OUT_STATES])
+def test_every_out_state_exits_0_or_2_with_exact_output_and_files(tmp_path, rel, before, accepted):
+    out = tmp_path / rel
+    if isinstance(before, bytes):
+        out.write_bytes(before)
+    elif before is not None:
+        out.mkdir()
+        for name, text in before.items():
+            (out / name).write_text(text, encoding="ascii")
+    snapshot = state(out)
+    corpus = full_corpus(tmp_path / "c.sqlite", FIXTURE_ROWS)
+    done = main("--corpus", str(corpus), "--out", str(out), "--chunk", str(FIXTURE_CHUNK))
+    head = (f"seed-places: schema_version={schema.SCHEMA_VERSION} region=fx corpus_version=20261017T000000Z rows=5 "
+            f"chunks=3 sha256={sha(FIXTURE_ROWS)}")
+    if accepted:
+        expected = (0, "".join(f"{line}\n" for line in [head] + [
+            f"npx wrangler d1 execute scenic --remote --file {out / name}" for name in sorted(EXPECTED_FILES)]),
+            "", EXPECTED_FILES)
+    else:
+        expected = (2, "", f"seed-places: REFUSED: --out {out} exists and is not an empty directory\n", snapshot)
+    assert (done.returncode, done.stdout, done.stderr, state(out)) == expected
 
 
 BOUNDS = [
