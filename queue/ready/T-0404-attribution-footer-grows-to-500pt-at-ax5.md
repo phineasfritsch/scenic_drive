@@ -1,7 +1,7 @@
 ---
 id: T-0404
 title: The attribution footer grows to about 500pt and 6 lines at AX5, covering the map, the route and the drive controls - make it one caption line at default sizes and at most a 2-line strip at AX sizes, never a box over content
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
