@@ -11,8 +11,9 @@ import FoundationNetworking
 ///
 /// Ours, over HTTP, with the SAME per-request custom model the Worker's `buildCustomModel` emits - built
 /// here by `LambdaCustomModel`, the single Swift copy, held to the TypeScript by a byte-equality golden.
-/// The safety gates (`road_access`, `surface`, `road_class == TRACK`) are NOT sent: they live in
-/// car_scenic_base.json on the server, where a per-request body cannot relax them.
+/// The safety gates (every `multiply_by: "0"` clause: access, unpaved surface, `road_class == TRACK`, track
+/// grade, smoothness, locked barrier, ford, service way) are NOT sent: they live in car_scenic_base.json on the
+/// server, where a per-request body cannot relax them.
 ///
 /// ## What has and has not been exercised
 ///
@@ -47,11 +48,15 @@ public struct GraphHopperRouteSource: RouteSource {
     /// it does the table stops apportioning seconds by metres.
     public static let details = ["scenic_score", "road_class", "osm_way_id"]
 
-    /// The encoded values a request body may never name, the same two as customModel.ts's
-    /// `FORBIDDEN_ENCODED_VALUES`. They are the unpaved and access safety gates, they live in
-    /// car_scenic_base.json on the server, and a per-request body that can NAME one is a body that can
-    /// relax it.
-    public static let forbiddenEncodedValues = ["road_access", "surface"]
+    /// The encoded values a request body may never name, the same list as customModel.ts's
+    /// `FORBIDDEN_ENCODED_VALUES`: every identifier a `multiply_by: "0"` clause of car_scenic_base.json reads,
+    /// in profile order, minus `road_class` (LambdaCustomModel's minor clause reads it). They live on the server,
+    /// and a per-request body that can NAME one is a body that can relax it. PlanCLIGateValuesTests derives
+    /// this list from the shipped profile and holds it equal (T-0385).
+    public static let forbiddenEncodedValues = [
+        "car_access", "road_access", "surface", "track_type", "smoothness",
+        "gate_locked_barrier", "gate_ford", "gate_service_way",
+    ]
 
     public let baseURL: URL
     public let fastProfile: String
@@ -112,7 +117,7 @@ public struct GraphHopperRouteSource: RouteSource {
     ///
     /// The Worker's `rejectCustomModel` does this to bodies clients send it; this is the same refusal on
     /// the same property, here, where this tool is the client. Without it the property "the bytes on the
-    /// wire never name `road_access` or `surface`" rests entirely on tests of `LambdaCustomModel`, so one
+    /// wire never name a gate value" rests entirely on tests of `LambdaCustomModel`, so one
     /// clause added to that template would ship a request that can relax an unpaved-road gate with
     /// nothing at the request path to stop it. Both `fastest` and `scenic` reach the socket only through
     /// `send`, so this is the one place that covers every request rather than every current CALLER.
