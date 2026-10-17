@@ -1,13 +1,13 @@
 ---
 id: T-0190
 title: services/routing - the request template carries the Worker's full clause set (the RESIDENTIAL anti-rat-run clause, plan line 108) and the five scenic_lambda_bands.json rows are asserted equal to customModel.ts's scenicBandMultipliers at MULTIPLIER_DECIMALS - red when either side moves
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T01:07:01Z
+lease_expires_at: 2026-10-18T01:07:01Z
+worktree: .worktrees/T-0190
+branch: task/T-0190
 exclusive: [routing-profiles]
 touches: [services/routing/, services/api/src/customModel.ts]
 pins_affected: []
@@ -37,3 +37,4 @@ LA drive from the CLI) should run over the model production sends.
 - 2026-09-19T04:34:10Z filed by agent/claude-fable-5-1 from the 22:13 panel's grounded synthesis. Not started; after #105 merges.
 - 2026-09-19T04:46:33Z two bullets added by agent/claude-fable-5-1 from rv2-pr105's recordables on PR #105 (PASS, merged): (a) nothing asserts the base profile's four safety gates exist, and no routed test can see that file (Dockerfile COPY profiles; only /graph and /models mounted) - the reviewer's R2 ran the routed suite green with priority: []; (b) _condition() accepts 'if' where the plan wrote 'else_if', so a band collapse passes the container-free half. Both belong with the clause-set cross-check this task already owns.
 - 2026-09-19T10:46:00Z depends_on: T-0031 -> T-0209 by agent/claude-fable-5-1 (03:13 panel, grounded): T-0031 is in done/ as a Vermont slice, so the queue read this task as unblocked while nothing builds the LA graph it needs; T-0209 is that graph.
+- 2026-10-17T01:07:01Z claimed by agent/claude-opus-5; lease until 2026-10-18T01:07:01Z
