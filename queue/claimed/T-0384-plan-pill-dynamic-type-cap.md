@@ -65,6 +65,22 @@ home unchanged.
   - R5 Re-approval in the same commit as the code: PINNED_SHELL_DIGEST and the shell's PINNED_APP_SWIFT row,
     ScenicHomeScreen.swift's PINNED_FEATURE and PINNED_APP_SWIFT rows, new HomeTypeSize.swift rows in both lists;
     the frozen shell block gains the cap line and the frozen home block's cap line is re-typed.
+- 2026-10-17T00:40:17Z CODE + RED/GREEN (agent/claude-opus-5). New FeatureScenicHome/HomeTypeSize.swift (7 lines,
+  `public static let cap = DynamicTypeSize.xxxLarge`); ScenicHomeScreen's cap line now `.dynamicTypeSize(...HomeTypeSize.cap)`;
+  the shell's pill `PlanDriveButton(action: { isPlanning = true })` gains `.dynamicTypeSize(...HomeTypeSize.cap)` on
+  the next line, before its `.sheet(isPresented: $isPlanning ...)`.
+  - RED 1 (code only): `bash ops/lib/check-safety-disclaimer` rc=1 "P-SAFE-03: a frozen render block changed:
+    ScenicHomeScreen's body ... line 40 of 41 ... approved `.dynamicTypeSize(...DynamicTypeSize.xxxLarge)`, found
+    `.dynamicTypeSize(...HomeTypeSize.cap)`" and "the app shell ScenicDriveApp line 38 of 55 ... approved
+    `.sheet(isPresented: $isPlanning, ...) {`, found `.dynamicTypeSize(...HomeTypeSize.cap)`".
+  - RED 2 (frozen lines re-typed, digests not): rc=1 "P-SAFE-03: the pinned render surface changed:
+    FeatureScenicHome's file set is not the approved one: added HomeTypeSize.swift."
+  - GREEN (digests typed: HomeTypeSize.swift 3e0bd071..., ScenicHomeScreen.swift 2ff8efdc..., PINNED_SHELL_DIGEST
+    and the shell row 4040765f...): rc=0 "37 feature file(s), shell, footer pinned (-pinned); ... all 114 app .swift".
+  - A7: `grep -rn "DynamicTypeSize.xxxLarge" apps/ios` prints one line, HomeTypeSize.swift:6. `wc -l`:
+    ScenicHomeScreen.swift 299, ScenicDriveApp.swift 89, HomeTypeSize.swift 7.
+  - Gates on this head before merge: check-mutate-population, check-store-links, check-ios-compile-guardrails,
+    check-map-attribution, check-pins-yaml, check-exec-bits all rc=0.
 
 ## Acceptance
 - A1 RED first: the Swift edits without the re-approval commit make `bash ops/lib/check-safety-disclaimer` exit
