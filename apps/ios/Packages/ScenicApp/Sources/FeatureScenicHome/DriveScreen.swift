@@ -66,8 +66,8 @@ public struct DriveScreen: View {
                             .padding(16)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(DesignTokens.surface)
-                    } else if confirming {
-                        DriveEndConfirm(onKeep: { confirming = false }, onEnd: finish)
+                    } else if confirming && display.showsDetails {
+                        DriveEndConfirm(onKeep: { confirming = false }, onEnd: endDrive)
                     } else {
                         controls
                     }
@@ -109,13 +109,13 @@ public struct DriveScreen: View {
         if display.showsDetails {
             confirming = true
         } else {
-            finish()
+            endDrive()
         }
     }
 
     /// T-0358 R2: ending asks the post-drive question once when PostDriveQuestion says so (arrived, stopped, not
     /// asked); otherwise the drive ends.
-    private func finish() {
+    private func endDrive() {
         confirming = false
         if PostDriveQuestion.asks(after: display, alreadyAsked: asked) {
             asked = true

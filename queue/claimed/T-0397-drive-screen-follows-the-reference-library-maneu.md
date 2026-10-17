@@ -209,3 +209,29 @@ and drive-dark and state, item by item, what each shot shows. Any new or changed
   - A5 PASS wc -l: DriveScreen 147, DriveCard 111, DriveEndConfirm 60, DriveDisplay 89, DriveDisplayTests 141,
     check-drive-display.py 218.
   - A6-A10 unchanged (no apps/ios byte changed): ios-compile 39047780264, ios-screenshot 39050093003 stand.
+- 2026-10-17T19:40:42Z fix round 2 (rv1 FAIL on e5c8d6c8, B1-B3). Rulings first: B1 is a name collision, not a store
+  change - P-STORE-01's `finish()` whitelist exists so StoreKit transactions finish in ONE place, and DriveScreen's
+  private helper only shared the spelling; it is renamed `endDrive()` (the whitelist is not widened). B2 is a class -
+  any modifier, wrapper or trailing extension on the drive views - so the three views are frozen WHOLE, like
+  check-safety-disclaimer-frozen's FROZEN_CONDITIONS: ops/lib/drive_display_frozen.py (new, data, 100644) holds
+  DriveCard's, DriveEndConfirm's and DriveScreen's structs as approved non-blank kept lines (243), each under its
+  approved line (`import SwiftUI`) and each its file's last code; check-drive-display.py refuses any difference by
+  label and line number. B3 is closed structurally: the confirm renders only under
+  `} else if confirming && display.showsDetails {`, an approved whole line of the DriveDisplay whitelist, so a
+  `confirming` left true can never put the confirm on the moving surface; closeOnMoving's reset is also inside the
+  frozen DriveScreen block. Driver .build/t0397-red.py (HEAD's guards over HEAD's screen, then the worktree's):
+  - B2 card `.opacity(0)` after drive.conditions: HEAD "SURVIVED (exit 0)"; now "REFUSED - DriveCard's struct line
+    19 of 90 ...: approved `if typeSize >= .accessibility3 {`, found `.opacity(0)`".
+  - B2 confirm, same: HEAD "SURVIVED (exit 0)"; now "REFUSED - DriveEndConfirm's struct line 15 of 50 ...: approved
+    `Text(Self.title)`, found `.opacity(0)`".
+  - B3 closeOnMoving without `confirming = false`: HEAD "SURVIVED (exit 0)"; now "REFUSED - DriveScreen's struct line
+    91 of 103 ...: approved `confirming = false`, found `if isAsking { answer(.dismissed) }`".
+  - B1 P-STORE-01 over HEAD's DriveScreen: ['finish(): an unapproved line in .../DriveScreen.swift: `finish()`',
+    'finish(): an unapproved line in .../DriveScreen.swift: `private func finish() {`']; over the worktree's: [].
+  - check-drive-display.py [0]: "22 approved whole lines ... display", "23 approved whole lines ... showsEstimate",
+    "P-SAFE-03/09 (drive views): 3 structs (243 kept lines) are their approved whole blocks, each its file's last
+    code."; --prove-red [0] "PROVE-RED OK: 20/20 refused by name" (was 13/13; adds both B2 fades, the estimate
+    caption hidden, the whole card faded at the screen, B3's deleted reset, the confirm ungated by surface, and code
+    after the card's struct).
+  - DriveScreen.swift digest re-approved in check-safety-disclaimer-pinned: cb64f759... -> 99119f0f... (the rename
+    and the surface gate, nothing else).

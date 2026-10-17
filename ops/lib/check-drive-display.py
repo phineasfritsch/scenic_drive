@@ -33,6 +33,9 @@ import shutil
 import sys
 import tempfile
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from drive_display_frozen import BLOCKS  # noqa: E402  (this directory is sys.path[0])
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORD = re.compile(r"(?<![A-Za-z0-9_])(DriveDisplay|DriveSurface|DriveMode|display)(?![A-Za-z0-9_])")
 MIN_FILES = 60
@@ -46,6 +49,8 @@ APPROVED = [
     (SCREEN, "private let display: DriveDisplay"),
     (SCREEN, "public init(preview: PlanPreview, display: DriveDisplay, onEnd: @escaping () -> Void) {"),
     (SCREEN, "self.display = display"),
+    # T-0397 rv1 B3: the End confirm renders only on the full surface, whatever `confirming` holds.
+    (SCREEN, "} else if confirming && display.showsDetails {"),
     (SCREEN, ".onChange(of: display.line) { resolveMap() }"),
     (SCREEN, ".onChange(of: display.showsDetails) { if !display.showsDetails { closeOnMoving() } }"),
     (SCREEN, "if display.showsDetails, let status = display.status {"),
@@ -131,6 +136,20 @@ MUTATIONS = [
      "endMinHeight: display.actionMinHeight,", "endMinHeight: 44,"),
     ("the confirm stays up when the drive moves (T-0397)", SCREEN,
      "if !display.showsDetails { closeOnMoving() }", "if !display.showsDetails { }"),
+    ("the card fades its conditions line (T-0397 rv1 B2)", CARD, '.accessibilityIdentifier("drive.conditions")\n',
+     '.accessibilityIdentifier("drive.conditions")\n                .opacity(0)\n'),
+    ("the confirm fades its conditions line (T-0397 rv1 B2)", CONFIRM, '.accessibilityIdentifier("drive.conditions")\n',
+     '.accessibilityIdentifier("drive.conditions")\n                .opacity(0)\n'),
+    ("the card hides its estimate caption (T-0397 rv1 B2)", CARD, '.accessibilityIdentifier("drive.estimate")\n',
+     '.accessibilityIdentifier("drive.estimate")\n                    .hidden()\n'),
+    ("the screen fades the whole card (T-0397 rv1 B2)", SCREEN, "                        controls\n",
+     "                        controls\n                            .opacity(0)\n"),
+    ("moving no longer closes the confirm (T-0397 rv1 B3)", SCREEN,
+     "private func closeOnMoving() {\n        confirming = false\n", "private func closeOnMoving() {\n"),
+    ("the confirm renders on any surface (T-0397 rv1 B3)", SCREEN, "} else if confirming && display.showsDetails {",
+     "} else if confirming {"),
+    ("code after the card's struct (T-0397 rv1 B2)", CARD, '.accessibilityIdentifier("drive.end")\n    }\n}\n',
+     '.accessibilityIdentifier("drive.end")\n    }\n}\n\nextension DriveCard { var faded: Double { 0 } }\n'),
     ("a new feature file branches on DriveSurface", None, S + "FeatureScenicHome/DriveMotion.swift",
      "import ScenicKit\nenum DriveMotion {\n    static let shown = DriveSurface.full\n}\n"),
 ]
@@ -156,6 +175,46 @@ def population(tree: pathlib.Path, word: re.Pattern[str] = WORD) -> list[tuple[s
     return found
 
 
+def kept(path: pathlib.Path) -> list[str]:
+    """Non-blank lines, trimmed; only a line STARTING with // is dropped (source-guards-fail-closed)."""
+    lines = (raw.rstrip("\r").strip() for raw in path.read_text(encoding="utf-8").split("\n"))
+    return [line for line in lines if line and not line.startswith("//")]
+
+
+def frozen(tree: pathlib.Path) -> list[str]:
+    """T-0397 rv1 B2/B3: each drive view is its approved whole block, under its approved line, its file's last code."""
+    bad = []
+    for label, rel, above, want in BLOCKS:
+        lines = kept(tree / rel) if (tree / rel).is_file() else []
+        if lines.count(want[0]) != 1:
+            bad.append(f"{label}: `{want[0]}` occurs {lines.count(want[0])} time(s) in {rel}, expected exactly 1")
+            continue
+        at = lines.index(want[0])
+        up = lines[at - 1] if at else "<start of file>"
+        if up != above:
+            bad.append(f"{label}: the line above `{want[0]}` is `{up}`, approved `{above}`")
+            continue
+        depth, end = 0, len(lines)
+        for j in range(at, len(lines)):
+            depth += lines[j].count("{") - lines[j].count("}")
+            if depth <= 0:
+                end = j + 1
+                break
+        got = lines[at:end]
+        for j, line in enumerate(want):
+            if j >= len(got) or got[j] != line:
+                bad.append(f"{label} line {j + 1} of {len(want)} in {rel}: approved `{line}`, found "
+                           f"`{got[j] if j < len(got) else '<end of block>'}`")
+                break
+        else:
+            if len(got) != len(want):
+                bad.append(f"{label} in {rel}: {len(got)} lines, approved {len(want)}; first unapproved "
+                           f"`{got[len(want)]}`")
+            elif end != len(lines):
+                bad.append(f"{label}: code after the block in {rel}, first `{lines[end]}`")
+    return bad
+
+
 def check(tree: pathlib.Path) -> None:
     if not tree.is_dir():
         raise Refusal(f"no such directory: {tree}")
@@ -168,6 +227,11 @@ def check(tree: pathlib.Path) -> None:
                           f"{len(approved)} approved)\n  unapproved: " + ("\n    ".join([""] + extra) if extra else
                           "none") + "\n  missing: " + ("\n    ".join([""] + missing) if missing else
                           "none (the order differs)") + f"\n  {why}")
+    bad = frozen(tree)
+    if bad:
+        raise Refusal(f"a drive view is not its approved whole block (ops/lib/drive_display_frozen.py)\n  "
+                      f"{len(bad)} refusal(s)\n  " + "\n  ".join(bad) + "\n  The card, the confirm and the screen draw "
+                      "the conditions line, the estimate caption and the End target; an edit is re-approved there.")
 
 
 def prove_red(tree: pathlib.Path) -> int:
@@ -211,6 +275,8 @@ def main(argv: list[str]) -> int:
           "display under apps/ios, and no other line does: the drive screen renders the navigator's DriveDisplay.")
     print(f"P-SAFE-03/07 (screens): {len(SAFETY_APPROVED)} approved whole lines name conditions, estimateBadge, "
           "showsEstimateBadge or showsEstimate under apps/ios, and no other line does.")
+    print(f"P-SAFE-03/09 (drive views): {len(BLOCKS)} structs ({sum(len(b[3]) for b in BLOCKS)} kept lines) are "
+          "their approved whole blocks, each its file's last code.")
     return 0
 
 
