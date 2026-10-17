@@ -165,3 +165,11 @@ Run the LA GraphHopper container (WSL docker, the committed LA graph build; no V
     test_lambda_monotone.py + test_route_details.py + test_request_models_static.py `18 passed in 34.22s`; whole
     services/routing pytest `50 passed in 70.22s`. `wc -l`: test_lambda_monotone.py 174, test_request_models_static.py
     152, test_route_details.py 175.
+- 2026-10-17T05:01:30Z FINAL after the pre-review close (acceptance 1-5 re-quoted). `git fetch origin` in the main
+  checkout; origin/main 1272ec4d merged into task/T-0386 (b7a91073, clean). On the merged head, 05:00:23Z: whole
+  services/routing pytest `50 passed in 46.88s`; (1) and (2) unchanged since 04:36:57Z (grep re-run empty: the close
+  adds no stale number); (3) and (5) red/green in the 04:58:42Z entry. (4) gates, each bare, exit 0:
+  check-safety-disclaimer 0; check-mutate-population.py 0 (`P-PROC-06: every added module is covered or allowlisted;
+  the floor of 171 holds`); check-mutate-only.py 0 (`NAME-PAIRS OK: 239389 pair tokens over 48 id populations`);
+  check-pins-yaml.py 0 (`PINS-YAML ok pins=52 fields=418`); check-exec-bits 0 (`P-OPS-01: 244 files, 23 required
+  present, all modes correct`); queue-check 0 (`QUEUE OK (379 tasks)`).
