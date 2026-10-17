@@ -1,13 +1,13 @@
 ---
 id: T-0388
 title: Bind T-0385's PlanCLIGateValuesTests to P-SAFE-01 by name, and give P-SAFE-01 a check-named-table digest
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T04:46:37Z
+lease_expires_at: 2026-10-18T04:46:37Z
+worktree: .worktrees/T-0388
+branch: task/T-0388
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-SAFE-01]
@@ -22,3 +22,4 @@ P-SAFE-01's named-tests entry binds the Worker's refusal tests (T-0382: 26 names
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from T-0385 stillOpen 1.
+- 2026-10-17T04:46:37Z claimed by agent/claude-opus-5; lease until 2026-10-18T04:46:37Z
