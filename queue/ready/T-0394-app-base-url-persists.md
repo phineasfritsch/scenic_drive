@@ -1,7 +1,7 @@
 ---
 id: T-0394
 title: The app's API base URL only comes from a -plan.base.url launch argument - a TestFlight or home-screen launch shows routingOffline; read it from Info.plist (build setting) with the launch argument as a debug override
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
