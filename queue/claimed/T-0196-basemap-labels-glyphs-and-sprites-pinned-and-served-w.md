@@ -163,3 +163,20 @@ street names is not shippable. The next tiles task, not a nicety.
   - Re-measured: test_basemap_assets.py 237, test_publish_refusal.py 107 (`wc -l`, both <= 300).
   - R3 stays STILL OPEN as recorded above (ScenicStyleDocument does not rewrite `basemap://`; Swift, outside touches);
     nothing here claims on-device labels.
+- 2026-10-17T07:46:11Z agent/claude-opus-5 ACCEPTANCE re-run on the merged head (`git fetch origin`; origin/main 14727772 merged, one
+  queue file, T-0389 backlog):
+  - A1 `SCENIC_TILES_WORK=<main>/services/tiles/work SCENIC_LA_PMTILES=<main>/services/tiles/work/la.pmtiles
+    python -m pytest services/tiles/tests -q -p no:cacheprovider -o addopts=` -> `106 passed in 118.51s` (104 + the
+    two prod-lock tests).
+  - A2 `basemap_assets: OK 2 font stack(s) ['Noto Sans Medium', 'Noto Sans Regular'] x 256 ranges, 2 sprite sheet(s),
+    521 files 9962457 bytes, tree cd04e163d6f21932145c77046b2a5a527ad2e8a41764c7e9ed63289827f68f4b`, exit 0.
+  - A3 `make_styles: all 9 source-layers and every field the layers read present in la.pmtiles`, exit 0.
+  - A4 credentials: `PUBLISH REFUSED: 4 credential(s) not set: CLOUDFLARE_ACCOUNT_ID R2_ACCESS_KEY_ID
+    R2_SECRET_ACCESS_KEY R2_BUCKET`, exit 1; prod lock: test_with_credentials_and_no_prod_lock_the_lock_refuses passed
+    in A1 (exact line, exit 1), red by name above.
+  - A6 EXIT 0 each: check-safety-disclaimer; check-mutate-population.py (`the floor of 171 holds`); check-mutate-only.py
+    (`NAME-PAIRS OK: 239389 pair tokens over 48 id populations`); check-pins-yaml.py (`pins=52 fields=418`);
+    check-exec-bits (`244 files, 23 required present, all modes correct`); queue-check (`QUEUE OK (380 tasks)`).
+    check-line-cap NOT re-run (EXIT 124 at 600 s last round); `wc -l`: test_basemap_assets.py 237,
+    test_publish_refusal.py 107, the other touched files unchanged since 06:54:18Z - all <= 300.
+  - STILL OPEN unchanged: (1) R3, (2) R8, (3) tests outside ops/test's floor until T-0198, (4) check-line-cap timeout.
