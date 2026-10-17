@@ -240,3 +240,18 @@ pins-source-only. A regression in either directory is invisible to the one comma
     fields=426`; check-exec-bits `P-OPS-01: 252 files, 23 required present, all modes correct`; queue-check
     `QUEUE OK (391 tasks)`. check-pins --source-only: CI's pins-source-only job (pass 5m39s above).
   - `wc -l`: ops/test 161, ops/lib/python_suites.py 112, ops/lib/python-suites.txt 10.
+- 2026-10-17T17:08:15Z ROUND 3 confirmation on d41ca50d (floor 7998) by agent/claude-opus-5 (owner).
+  - CI core job, PR #285 run 39051036963 on d41ca50d (core pass 8m32s, pins-source-only pass 5m31s): `PYTEST
+    services/etl=4160(skipped=1) services/tiles=112 services/routing=52(skipped=23)` / `TESTS linux=8041/7998
+    ios=skipped failed=0 skipped=24` / `OK`.
+  - This box, bare `bash ops/test` on d41ca50d, rc=1 in 600 s: `PYTEST services/etl=4160(skipped=1)
+    services/tiles=112 services/routing=52(skipped=4)` / `TESTS linux=7998/7998 ios=skipped failed=1 skipped=5` /
+    `FAIL: 1 failing test(s):` / `  - the GET /config answer path (T-0288 rv3 B1) loading the shipped worker
+    leaves every global, intrinsic and prototype the /config answer runs on untouched - Error:
+    STACK_TRACE_ERROR` - the known services/api vitest timeout under load (no services/api file in this diff).
+    Alone, `npx vitest run test/configAnswerPath.test.ts`: `Test Files  1 passed (1)` / `Tests  3 passed (3)`.
+    The python tier and the floor (7998/7998) are green on this box; "exit 0" on d41ca50d rests on CI's core job
+    (the same head's cd0329dd run above was rc=0 on this box).
+  - Last step: `git fetch origin` in the main checkout; origin/main had moved to 8444fbc8, `git diff --name-only
+    efbb58e9 8444fbc8` = queue/ only (prod.lock, T-0395 claimed -> done, T-0402/T-0403 filings). Outside every
+    measured population, so merged without re-measuring.
