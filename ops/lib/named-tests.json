@@ -25,6 +25,19 @@
         "a fresh set rides every driven request as areas (R7, R8) > /plan: 200 with no closures_hazard; every model carries the areas and the zero clause, gate-clean; no car_fast model",
         "a fresh set rides every driven request as areas (R7, R8) > /loop: 200 with no closures_hazard; every model carries the areas and the zero clause, gate-clean; no car_fast model",
         "a fresh set rides every driven request as areas (R7, R8) > /trip: 200 with no closures_hazard; every model carries the areas and the zero clause, gate-clean; no car_fast model"
+      ],
+      "test/customModelGateValues.test.ts": [
+        "T-0382 FORBIDDEN_ENCODED_VALUES is bound to the shipped base profile > equals the identifiers of every multiply_by 0 clause of car_scenic_base.json, in order, minus the builder's own",
+        "T-0382 scenicPlanner.route refuses every clause shape reading a shipped gate value > the corpus is generated for every derived name: every family, refused and forwarded rows both present",
+        "T-0382 scenicPlanner.route refuses every clause shape reading a shipped gate value > car_access: every near miss in every clause shape is refused iff it contains a gate name, else forwarded unchanged",
+        "T-0382 scenicPlanner.route refuses every clause shape reading a shipped gate value > road_access: every near miss in every clause shape is refused iff it contains a gate name, else forwarded unchanged",
+        "T-0382 scenicPlanner.route refuses every clause shape reading a shipped gate value > surface: every near miss in every clause shape is refused iff it contains a gate name, else forwarded unchanged",
+        "T-0382 scenicPlanner.route refuses every clause shape reading a shipped gate value > track_type: every near miss in every clause shape is refused iff it contains a gate name, else forwarded unchanged",
+        "T-0382 scenicPlanner.route refuses every clause shape reading a shipped gate value > smoothness: every near miss in every clause shape is refused iff it contains a gate name, else forwarded unchanged",
+        "T-0382 scenicPlanner.route refuses every clause shape reading a shipped gate value > gate_locked_barrier: every near miss in every clause shape is refused iff it contains a gate name, else forwarded unchanged",
+        "T-0382 scenicPlanner.route refuses every clause shape reading a shipped gate value > gate_ford: every near miss in every clause shape is refused iff it contains a gate name, else forwarded unchanged",
+        "T-0382 scenicPlanner.route refuses every clause shape reading a shipped gate value > gate_service_way: every near miss in every clause shape is refused iff it contains a gate name, else forwarded unchanged",
+        "T-0382 ROUTES['/plan'] never takes a client model naming a gate value > handlePlan refuses a body carrying custom_model that reads each derived name: 400, zero upstream calls"
       ]
     }
   },

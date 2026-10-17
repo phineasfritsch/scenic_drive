@@ -6,11 +6,11 @@
  *   1. `buildCustomModel` is the ONLY thing allowed to write a custom model. The safety gates
  *      (`road_access == PRIVATE || NO`, the unpaved `surface` list, `road_class == TRACK`) live in
  *      car_scenic_base.json on the server and are not restated here, because a per-request model that
- *      mentioned them could relax them. So the model this builds never names `road_access` or `surface`
- *      at all - not in a condition, not in an area property. That is an assertable property of the
+ *      mentioned them could relax them. So the model this builds never names a FORBIDDEN_ENCODED_VALUES
+ *      entry at all - not in a condition, not in an area property. That is an assertable property of the
  *      serialised output, which a comment saying "do not add surface here" would not be.
  *
- *   2. `rejectCustomModel` refuses a request-supplied body that mentions either, ANYWHERE. It walks keys
+ *   2. `rejectCustomModel` refuses a request-supplied body that mentions any, ANYWHERE. It walks keys
  *      and string values recursively, because the interesting smuggling route is not a top-level key - it
  *      is an `else_if` three clauses down, or a property on an `areas` feature.
  *
@@ -30,8 +30,8 @@ export const LAMBDA_MAX = 8;
 export const MAX_CLOSURE_POLYGONS = 50;
 /** A GeoJSON linear ring is >= 4 positions and closes on itself (RFC 7946 3.1.6). */
 export const MIN_RING_POSITIONS = 4;
-/** Encoded values a request-supplied model may not touch; they are the safety gates (plan :98). */
-export const FORBIDDEN_ENCODED_VALUES = ["road_access", "surface"] as const;
+/** T-0382: what the shipped base routing profile's zero clauses read, minus road_class (the builder reads it), in profile order. */
+export const FORBIDDEN_ENCODED_VALUES = ["car_access", "road_access", "surface", "track_type", "smoothness", "gate_locked_barrier", "gate_ford", "gate_service_way"] as const;
 /** Decimals kept when a multiplier is serialised. Fixed so the model is byte-stable across boxes. */
 export const MULTIPLIER_DECIMALS = 6;
 /** A body nested deeper than this is refused rather than walked. */

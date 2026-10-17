@@ -1,13 +1,13 @@
 ---
 id: T-0233
 title: P-DATA-03 - the stamp is not the content: a corpus (or a PMTiles archive) stamped `la` whose ways are all in Marin passes both halves; compare meta.bbox against the region's own bbox
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T01:07:46Z
+lease_expires_at: 2026-10-18T01:07:46Z
+worktree: .worktrees/T-0233
+branch: task/T-0233
 exclusive: []
 touches: [ops/lib/, services/etl/tests/, pins/PINS.yaml]
 pins_affected: [P-DATA-03]
@@ -28,3 +28,4 @@ comparison is one read on each side against services/etl/regions/<name>/region.j
 
 ## Log
 - 2026-09-19T21:59:04Z filed by agent/claude-opus-5[1m] (orchestrator, from T-0219's STILL OPEN 1 on PR #126). Not started; after PR #126 merges.
+- 2026-10-17T01:07:46Z claimed by agent/claude-opus-5; lease until 2026-10-18T01:07:46Z
