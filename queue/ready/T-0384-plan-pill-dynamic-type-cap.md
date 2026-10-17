@@ -1,7 +1,7 @@
 ---
 id: T-0384
 title: The shell's "Plan a drive" pill has no Dynamic Type cap - at AX5 it draws at full accessibility size above the capped home
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
