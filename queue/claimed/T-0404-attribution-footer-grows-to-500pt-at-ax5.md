@@ -1,13 +1,13 @@
 ---
 id: T-0404
 title: The attribution footer grows to about 500pt and 6 lines at AX5, covering the map, the route and the drive controls - make it one caption line at default sizes and at most a 2-line strip at AX sizes, never a box over content
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T19:02:24Z
+lease_expires_at: 2026-10-18T19:02:24Z
+worktree: .worktrees/T-0404
+branch: task/T-0404
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/DesignSystem/, ops/lib/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-ATTR-01, P-A11Y-01]
@@ -45,3 +45,4 @@ or changed guard is shown red, then green.
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from the T-0396 and T-0397 authors' still-open notes.
+- 2026-10-17T19:02:24Z claimed by agent/claude-opus-5; lease until 2026-10-18T19:02:24Z
