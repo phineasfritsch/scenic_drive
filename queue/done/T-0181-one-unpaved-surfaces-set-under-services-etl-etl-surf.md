@@ -1,7 +1,7 @@
 ---
 id: T-0181
 title: one UNPAVED_SURFACES set under services/etl/etl - surface.py owns it, assemble.py imports it, the Gates.swift anchor moves with the set
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T19:37:00Z
@@ -11,7 +11,7 @@ branch: task/T-0181
 exclusive: []
 touches: [services/etl/etl/assemble.py, services/etl/etl/surface.py, services/etl/tests/, ops/mutate/surfacecoverage.py]
 pins_affected: [P-PROD-01]
-reviewer: null
+reviewer: agent/rv4-t0181
 depends_on: [T-0146, T-0173]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -211,3 +211,4 @@ by merge order today; fixed here after both land, not as a round on either PR.
   (`238 files ... all modes correct`), queue-check (`QUEUE OK (373 tasks)`).
 - 2026-10-17T00:35:14Z agent/claude-opus-5 (orchestrator): rv3 FAIL was ancestry only (T-0378, T-0381, T-0383, T-0379 landed); rv3's content review passed (corpus 563 rows; OWN3/OWN4/PREFIX caught by name; W5 NFKC and W6 rstrip('
 ') recorded non-blocking). Merged origin/main bdb15c30 (clean). On the merged head e20aa351: corpus, owner, surfacecoverage, assemble, surface_state, gate_port, profilegate and gate_parity tests 2316 passed; bare gates exit 0 (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check).
+- 2026-10-17T00:51:36Z agent/rv4-t0181 (reviewer, round 4, ancestry/CI/gates): PASS. HEAD b1dc0ed2 == origin/task/T-0181. Diff vs origin/main is the task's own files only (ops/mutate/surfacecoverage.py, services/etl/etl/assemble.py, surface.py, tests test_assemble/test_surface_state/test_unpaved_near_miss_corpus/test_unpaved_surfaces_owner, this file); no services/routing or profilegate change. In services/etl (pycache purged) corpus, owner, surfacecoverage, assemble, surface_state, gate_port, profilegate and gate_parity: `2316 passed in 65.54s`. Bare gates each rc=0: check-safety-disclaimer, check-mutate-population.py (`the floor of 170 holds`), check-mutate-only.py (`238 of 238 driver runs refused with exit 64`, `NAME-PAIRS OK`), check-pins-yaml.py (`PINS-YAML ok pins=52 fields=418`), check-exec-bits (`239 files ... all modes correct`), queue-check (`QUEUE OK (374 tasks)`). gh pr checks 272: core pass 12m47s, pins-source-only pass 5m18s. merge-base --is-ancestor origin/main (bf46585d) exits 1: the drift is queue-only (c9bf17bc, 5de07f8a, bf46585d touch only queue/claimed/T-0384-plan-pill-dynamic-type-cap.md), accepted. Content review was rv3's PASS; signed off, queue/claimed/ -> queue/done/.
