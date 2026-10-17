@@ -1,7 +1,7 @@
 ---
 id: T-0388
 title: Bind T-0385's PlanCLIGateValuesTests to P-SAFE-01 by name, and give P-SAFE-01 a check-named-table digest
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T04:46:37Z
@@ -11,7 +11,7 @@ branch: task/T-0388
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-SAFE-01]
-reviewer: null
+reviewer: agent/rv1-t0388
 depends_on: [T-0385, T-0382]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -103,3 +103,18 @@ P-SAFE-01's named-tests entry binds the Worker's refusal tests (T-0382: 26 names
   A6 by the pin-edit script's own yaml.safe_load asserts. Bare gates exit 0: `python ops/lib/check-pins-yaml.py`
   (`PINS-YAML ok pins=52 fields=418`), `bash ops/lib/check-exec-bits` (`244 files ... all modes correct`), `bash
   ops/queue-check` (`QUEUE OK (379 tasks)`), `bash ops/lib/check-safety-disclaimer` (P-SAFE-03 report).
+- 2026-10-17T05:50:15Z REVIEW PASS by agent/rv1-t0388 (PR #283, head 31fc9999; origin/main 1272ec4d an ancestor). Re-measured in
+  detached worktree .worktrees/rv1-t0388 by yaml.safe_load / json.load vs origin/main: only P-SAFE-01 changed, only
+  `assertion` (ends in ` && ` + origin/main's whole assertion; head = check-named-table.py P-SAFE-01 42351bc5...dba4 29
+  && --prove-red ... >/dev/null) and `why_no_test_catches_it` (origin/main's text a prefix, one APPENDED 2026-10-17
+  (T-0388) sentence); named-tests.json: the other fourteen entries equal, P-SAFE-01 vitest equal, keys [swift, vitest].
+  Log append-only across d23549ea..HEAD (no removed lines). Reviewer mutants, SCENIC_SWIFT_SCRATCH=.build/t-0388, each
+  run by `run-named-tests.py P-SAFE-01` and restored by git checkout: MX1 `.disabled("rv1")` on
+  sendRefusesExactlyTheGateValues() -> `RED ...PlanCLIGateValuesTests/sendRefusesExactlyTheGateValues(): SKIPPED`,
+  `NAMED P-SAFE-01 passed=28/29`, exit 1 CAUGHT; MX2 `#expect(Bool(false))` first in
+  theCorpusCoversEveryFamilyForEveryName() -> `RED ...theCorpusCoversEveryFamilyForEveryName(): FAILED`, passed=28/29,
+  exit 1 CAUGHT. Control, the SHIPPED assertion by `bash -o pipefail -c`: `NAMED-TABLE P-SAFE-01 ok - 29 distinct
+  names, sha256 42351bc565d1`, `NAMED P-SAFE-01 passed=29/29`, exit 0. Bare gates exit 0: check-pins-yaml (`PINS-YAML ok
+  pins=52 fields=418`), check-exec-bits (244 files), queue-check (`QUEUE OK (379 tasks)`), check-safety-disclaimer.
+  `gh pr checks 283`: core pass 12m58s, pins-source-only pass. Remaining by-name limit (a body emptied under a kept
+  name stays green) is the pin's stated limit, not a gap of this PR.
