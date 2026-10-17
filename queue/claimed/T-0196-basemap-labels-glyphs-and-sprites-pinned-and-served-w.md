@@ -138,3 +138,28 @@ street names is not shippable. The next tiles task, not a nicety.
   glyphs/sprites must be copied/downloaded there) before ANY label draws on a device; Swift, MapLibre-only target, next
   task. (2) R8 - no ios-screenshot home shot can show these labels (no archive on the simulator; R3). (3) these tests
   are still outside ops/test's floor (T-0198 in flight wires services/*/pyproject.toml). (4) check-line-cap timed out.
+- 2026-10-17T07:24:36Z agent/claude-opus-5 PRE-REVIEW FINDINGS closed by class (no BLOCKING survivor; two gaps):
+  - G1 (class: a pin field no typed test reads). Mutant 3b, `tree_sha256` edited in basemap_assets.json, was green in
+    CI because test_the_pin_records_the_measured_archive compared five fields one by one. Closed by WHITELIST: the test
+    now asserts the WHOLE parsed pin `== MEASURED_PIN` (all 15 keys and values), so any field added, dropped or edited
+    is a diff in that typed test - not one more field appended. MISSED (07:19:17Z, SCENIC_TILES_WORK unset, test
+    unchanged): `MUTANT tree_sha256: exit 0`, `18 passed in 64.93s`. CAUGHT (07:21:51Z, same mutant, new test):
+    `FAILED services\tiles\tests\test_basemap_assets.py::test_the_pin_records_the_measured_archive`,
+    `1 failed, 17 passed in 87.25s`.
+  - G2 (class: a publish-tiles refusal limb only ever shown in prose). A4 quoted the credential refusal; the prod-lock
+    refusal the Brief's third line names was pre-existing and never re-demonstrated, and
+    test_the_credential_gate_runs_before_every_other_gate accepts ANY refusal after the credentials. Closed fail-closed:
+    the shipping ops/publish-tiles is copied alone into a fresh `git init` tree under tmp_path (no artifact, no styles,
+    so nothing past the gates is reachable, and the lock's presence is set by the test, never by this box), run with
+    all four credentials set to `x`; test_with_credentials_and_no_prod_lock_the_lock_refuses asserts the exact first
+    line `PUBLISH REFUSED: queue/LOCKS/prod.lock not held (claim a task with exclusive: [prod])`, exit 1, and its pair
+    test_with_the_prod_lock_held_the_lock_no_longer_refuses asserts the next gate's exact line
+    (`... services/tiles/work/la.pmtiles does not exist - run services/tiles/build-la.sh first`), so the first line is
+    the lock deciding. MISSED (07:19:17Z, mutant `if [ ! -f queue/LOCKS/prod.lock ]; then` -> `if false; then`, old
+    tests): `MUTANT lock_gate_deleted: exit 0`, `3 passed in 12.39s`. CAUGHT (07:21:51Z, same mutant):
+    `FAILED services\tiles\tests\test_publish_refusal.py::test_with_credentials_and_no_prod_lock_the_lock_refuses`,
+    `1 failed, 4 passed in 26.11s`. Mutant driver: services/tiles/work/mutants_t0196.py (gitignored scratch; exact-once
+    site, __pycache__ purged and 1.1 s between runs, file restored byte-for-byte).
+  - Re-measured: test_basemap_assets.py 237, test_publish_refusal.py 107 (`wc -l`, both <= 300).
+  - R3 stays STILL OPEN as recorded above (ScenicStyleDocument does not rewrite `basemap://`; Swift, outside touches);
+    nothing here claims on-device labels.

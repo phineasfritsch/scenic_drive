@@ -185,13 +185,30 @@ def test_publish_list_is_every_url_the_styles_request(capsys) -> None:
     assert set(listed) == expected
 
 
+MEASURED_PIN = {
+    "name": "basemaps-assets.tar.gz",
+    "url": "https://github.com/protomaps/basemaps-assets/archive/028c18f713baecad011301ff7a69acc39bcc2ae7.tar.gz",
+    "commit": "028c18f713baecad011301ff7a69acc39bcc2ae7",
+    "verify": "sha256",
+    "sha256": "57e40e8c512bd8042d0a3a251f19d0d1c8523ad963c666c3c6643bada4dc92d0",
+    "bytes": 6379327,
+    "license": "fonts: OFL-1.1 (glyphs/OFL.txt ships beside them); sprites: derived from MIT-licensed tangrams/icons",
+    "attribution": "Protomaps basemaps-assets; Noto Sans by Google (SIL Open Font License)",
+    "purpose": "PBF glyph ranges for the font stacks the styles' label layers name, and the v4 sprite sheets "
+               "the styles' sprite URLs name",
+    "retrieved": "2026-10-17",
+    "consumed_by": "T-0196",
+    "tree_sha256": "cd04e163d6f21932145c77046b2a5a527ad2e8a41764c7e9ed63289827f68f4b",
+    "tree_files": 521,
+    "tree_bytes": 9962457,
+}
+
+
 def test_the_pin_records_the_measured_archive() -> None:
+    """The WHOLE pin, compared by equality: a field added, dropped or edited (the served tree's digest
+    included, which CI cannot otherwise see without the real build) is a diff in this typed test."""
     pin = json.loads((ROOT / "services/tiles/basemap_assets.json").read_text(encoding="utf-8"))
-    assert pin["url"] == ("https://github.com/protomaps/basemaps-assets/archive/"
-                          "028c18f713baecad011301ff7a69acc39bcc2ae7.tar.gz")
-    assert (pin["sha256"], pin["bytes"]) == (
-        "57e40e8c512bd8042d0a3a251f19d0d1c8523ad963c666c3c6643bada4dc92d0", 6379327)
-    assert (pin["tree_files"], pin["tree_bytes"]) == (521, 9962457)
+    assert pin == MEASURED_PIN
 
 
 def test_the_real_build_passes_when_named() -> None:
