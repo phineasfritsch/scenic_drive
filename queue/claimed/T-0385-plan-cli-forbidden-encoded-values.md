@@ -1,13 +1,13 @@
 ---
 id: T-0385
 title: ops/plan's body gate (ScenicPlanCLI GraphHopperRouteSource.forbiddenEncodedValues) still lists only road_access and surface - bind it to the shipped base profile like the Worker
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T01:56:02Z
+lease_expires_at: 2026-10-18T01:56:02Z
+worktree: .worktrees/T-0385
+branch: task/T-0385
 exclusive: []
 touches: [Sources/ScenicPlanCLI/, Tests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/mutate/]
 pins_affected: [P-SAFE-01]
@@ -32,3 +32,4 @@ Re-approve the digest row, and add mutation population entries if the gate is a 
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from T-0382 stillOpen 1.
+- 2026-10-17T01:56:02Z claimed by agent/claude-opus-5; lease until 2026-10-18T01:56:02Z
