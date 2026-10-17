@@ -43,6 +43,56 @@ Demonstration: dispatch ios-compile and ios-screenshot; quote the run ids; look 
 AX5 and at default size in light and dark, and state the footer's line count and what it covers in each. Any new
 or changed guard is shown red, then green.
 
+## Acceptance
+
+A1. `wc -l apps/ios/Packages/ScenicApp/Sources/DesignSystem/AttributionFooter.swift` is at most 300.
+A2. In AttributionFooter.swift: `.font(.caption2)`, no `RoundedRectangle`/`.background(`, every visible `Text` carries
+    `.lineLimit(1)`, `.dynamicTypeSize(...DynamicTypeSize.accessibility2)`, `.accessibilityLabel(Text(text))`,
+    `.accessibilityIdentifier("attribution.footer")` and `.accessibilityHidden(false)` (read in the diff).
+A3. `bash ops/lib/check-map-attribution` passes; `bash ops/lib/check-map-attribution --prove-red` refuses every
+    mutation by name (P5 "the footer's own file edited" included).
+A4. Bare gates pass: `bash ops/lib/check-safety-disclaimer`, `python ops/lib/check-mutate-population.py`,
+    `python ops/lib/check-mutate-only.py`, `python ops/lib/check-pins-yaml.py`, `bash ops/lib/check-exec-bits`,
+    `bash ops/queue-check`.
+A5. ios-compile and ios-screenshot succeed on task/T-0404 (run ids quoted). In home, plan-preview and drive, light,
+    dark and AX5: the footer is one line at default size, at most two lines at AX5, no word is broken, no box, and
+    it does not cover the route line, the (i) button, Start or the disclaimer line. Observed line count and what
+    it overlaps are recorded per shot.
+
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from the T-0396 and T-0397 authors' still-open notes.
 - 2026-10-17T19:02:24Z claimed by agent/claude-opus-5; lease until 2026-10-18T19:02:24Z
+- 2026-10-17T19:06:49Z rulings (author rule, before code). Looked at run 39050093003 (task/T-0397, newest successful
+  ios-screenshot; main has no ios-screenshot run): drive-light shows a boxed 2-line pill at default size,
+  drive-ax5 a 6-line box from the status bar to the sheet over the route and the (i), "OpenStreet-Map"
+  hyphenated; plan-preview-ax5 a 4-line box about 500pt tall in the sheet over the conditions text.
+  - R1 THE STRING. The footer keeps taking `text` from its callers; no call site changes and nothing in the footer
+    names a party. The drawn tiles decide it: in CI (demo fallback, no la.pmtiles) the screen draws MapLibre demo
+    tiles and an OpenStreetMap-derived route line, so the composed credit is `© MapLibre · Natural Earth · Route
+    data © OpenStreetMap contributors` and BOTH halves are required; on a device with la.pmtiles the basemap half
+    is `© OpenStreetMap contributors · Protomaps` (MapStyle.protomapsAttribution, the product invariant). Brief 4's
+    "different string" is therefore correct for the CI tiles and is not changed. The footer renders `text`
+    verbatim and only chooses where lines break, at the " · " separator; no credit is dropped or shortened.
+  - R2 VOICEOVER reads ONE element whose label is `text` verbatim (`.accessibilityElement(children: .ignore)` +
+    `.accessibilityLabel(Text(text))`), e.g. "© MapLibre · Natural Earth · Route data © OpenStreetMap
+    contributors", whatever the visible split or scale; identifier `attribution.footer`; `accessibilityHidden(false)`
+    stays (check-map-attribution limb (e)).
+  - R3 SIZES. "Default sizes" = every non-accessibility Dynamic Type size: one line, `.caption2`, `.lineLimit(1)`,
+    `.minimumScaleFactor(0.5)` shrinks instead of wrapping (the 68-character CI credit at xxxLarge needs about
+    0.65). Accessibility sizes: one line if it fits at its natural width (ViewThatFits), else a two-line strip
+    split at the separator into the most even halves, each line `.lineLimit(1)` + the same scale factor. The
+    footer clamps Dynamic Type at `.accessibility2` so the strip's height is bounded (two caption2 lines at about
+    24pt): at AX5 caption2 is about 40pt and the credit cannot fit two 378pt lines without breaking inside a word
+    or covering the map, which is the defect. The full credit stays in the VoiceOver label (R2).
+  - R4 NO HYPHENATION: every visible line is `.lineLimit(1)`, so no line break can fall inside a word at all; the
+    parties keep CreditLine's no-break spaces.
+  - R5 NO BOX: the rounded-rectangle ground goes. Legibility over tiles comes from a tight `surface`-coloured halo
+    (shadow, radius 1) on the glyphs, which is not a box and covers nothing beyond the letters.
+  - R6 PLACEMENT stays bottom-right (call sites stay; ScenicHomeScreen reserves the lower-right for attribution).
+    The 104pt left spacer protected MapLibre's logo in the lower-left, which MapView.swift has since moved to
+    `logoViewPosition = .topLeft`; it drops to 12pt so the strip can use the full width. The library's bottom-left
+    placement is a call-site and MapAdapter change outside this Brief and is not done here.
+  - R7 GUARDS. No new guard: line count and overlap are render properties that no source check on this box can
+    prove (the screenshots are the proof, A5), and every byte of AttributionFooter.swift is already sha256-pinned
+    by check-safety-disclaimer-pinned, so any later edit needs re-approval. No guard changes, so nothing to show
+    red-then-green beyond the pinned digest refusing the edit before re-approval (quoted below).
