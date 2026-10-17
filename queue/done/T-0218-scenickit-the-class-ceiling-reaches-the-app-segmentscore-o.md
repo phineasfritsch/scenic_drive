@@ -1,7 +1,7 @@
 ---
 id: T-0218
 title: ScenicKit - the class ceiling reaches the app: SegmentScore over corpus terms_* is UNCAPPED while the router's band is capped by assemble.CLASS_SCORE_CEILING; rule ONE owner before M4's explanation and hazard strip read both, and name what the P-PROD-01 differential compares
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T23:04:05Z
@@ -11,7 +11,7 @@ branch: task/T-0218
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, services/etl/etl/, services/etl/tests/, pins/PINS.yaml, ops/mutate/segmentceiling.py, ops/mutate/segmentceiling_mutations.py, ops/mutate/segmentceiling_run.py, ops/lib/mutate_population_table.py, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/named-tests.json]
 pins_affected: [P-PROD-01]
-reviewer: null
+reviewer: agent/rv2-t0218
 depends_on: [T-0207]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -66,3 +66,4 @@ wrong until M4 puts a number on a screen; rule it before then, not after.
   - A5 bare: check-mutate-population.py rc 0 `P-PROC-06: every added module is covered or allowlisted; the floor of 171 holds`; check-mutate-only.py rc 0 `NAME-PAIRS OK`; check-exec-bits rc 0 `P-OPS-01: 242 files, 23 required present, all modes correct`; check-pins-yaml.py rc 0 `PINS-YAML ok pins=52 fields=418`; check-safety-disclaimer rc 0; queue-check rc 0 `QUEUE OK (375 tasks)`; `SCENIC_SWIFT_SCRATCH=.../.build/t-0218 python ops/lib/run-named-tests.py P-PROD-01` rc 0 `NAMED P-PROD-01 passed=147/147` (136 pytest + 11 swift). check-line-cap printed NOTHING in 580 s on the loaded box and was killed (timeout rc 124) - relying on CI core; measured by hand (`wc -l`): SegmentScoreCeiling.swift 29, ETLCeilingTable.swift 64, SegmentScoreCeilingTests.swift 128, SegmentScoreSurfaceTests.swift 92, SegmentScoreContractTests.swift 171, test_score_contract.py 199, segmentceiling.py 174, segmentceiling_mutations.py 92, segmentceiling_run.py 112, mutate_population_table.py 119.
   - STILL OPEN (recorded, not in scope): ops/route-autopsy (AutopsyReport.swift:66) prints the formula score, whitelisted by R4; if M4 wants the autopsy to print the device number too, that is Sources/ScenicPlanCLI/ + ops/mutate/autopsy_mutations.py, a separate task.
 - 2026-10-17T02:03:28Z agent/claude-opus-5 (orchestrator): rv1 FAIL was ancestry only (T-0181, T-0382 landed). Merged origin/main (clean; PINS.yaml and named-tests.json auto-merged). On the merged head d4dd13bd: test_score_contract + test_class_cap + test_gate_parity + test_assemble 121 passed; bare gates exit 0 (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check).
+- 2026-10-17T02:21:10Z agent/rv2-t0218 (review round 2, ancestry/CI/gates): PASS. Detached worktree at origin/task/T-0218 = 4dc8bf92. `git diff origin/main origin/task/T-0218 --stat` lists only the task's own files plus its queue file (and main's T-0385 claim, queue-only). ETL: test_score_contract + test_class_cap + test_gate_parity + test_assemble -> `121 passed`, rc 0 (__pycache__ purged). Swift: `swift test --filter "SegmentScoreCeilingTests|SegmentScoreContractTests|SegmentScoreSurfaceTests"` -> `Test run with 13 tests in 3 suites passed`, rc 0. Bare gates rc 0: check-safety-disclaimer; check-mutate-population `P-PROC-06: every added module is covered or allowlisted; the floor of 171 holds`; check-mutate-only `MUTATE-ONLY OK: 241 of 241 driver runs refused with exit 64` / `NAME-PAIRS OK`; check-pins-yaml `PINS-YAML ok pins=52 fields=418`; check-exec-bits `P-OPS-01: 242 files, 23 required present, all modes correct`; queue-check `QUEUE OK (375 tasks)`. `gh pr checks 277`: core pass, pins-source-only pass (head 4dc8bf92). `git merge-base --is-ancestor origin/main origin/task/T-0218` rc 1 with main at e6ca1f66; the only main-side difference is queue/claimed/T-0385-plan-cli-forbidden-encoded-values.md (queue-only drift, accepted). queue/claimed/ -> queue/done/.
