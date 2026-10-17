@@ -1,7 +1,7 @@
 ---
 id: T-0396
 title: Preview sheet follows the reference library - ETA (distance) with the estimate badge as a tag on it, why line, one hazard row, labelled climb and scenic-share line, Start + Save, the disclaimer line directly under Start
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T15:13:44Z
@@ -11,7 +11,7 @@ branch: task/T-0396
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/, Sources/ScenicKit/, Tests/, ops/lib/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-SAFE-03, P-SAFE-07, P-A11Y-01]
-reviewer: null
+reviewer: agent/rv1-t-0396
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -206,3 +206,25 @@ the disclaimer line must both be reachable. Any new or changed guard is shown re
   - A5 largest FeaturePlanSheet file PlanSheetScreen.swift 281 lines (no Swift file changed in this round).
   - A6/A7 unchanged from 39050077285 / 39050070882: this round touched no Swift, no apps/ios file.
   - A8 `prove-red: 3/3 mutations refused by name`; stage-B red quoted in the 18:27:27Z entry.
+- 2026-10-17T19:33:31Z REVIEW PASS by agent/rv1-t-0396 (not the owner) on 1906049c, PR #294.
+  - Looked at ios-screenshot 39050070882 plan-preview-light, -dark, -ax5: they match the Log row by row (title
+    "Zuma Beach" + "...", no "Plan a drive"; "55 min (17 mi)" with the gray tag on the line, under it at ax5 inside
+    an 8pt rounded rectangle; "+20 min over fastest"; one amber hazard row + "+1 more"; no outline; Start filled +
+    Save tonal; "Conditions change. Verify locally." directly under Start; no trip/loop bar; footer present). At ax5
+    the hazard row, Start and the line are below the fold above the ~500pt footer (R12; footer is T-0404).
+  - Reviewer mutants (digest row in -pinned re-approved for each, file and row restored after; restored rc=0):
+    R1 Save in the AX stack painted `.background(DesignTokens.bg)` and `.offset(y: -58)` over the conditions line
+    (edit in the unfrozen `save`) -> check-safety-disclaimer rc=0, SURVIVED. R2 `extension Text { func
+    fixedSize(horizontal: Bool, vertical: Bool) -> some View { EmptyView() } }` appended to PlanPreviewActions.swift
+    (both frozen Texts call that modifier; no frozen line changes) -> rc=0, SURVIVED. Both are in classes the
+    -preview header (and -frozen's, for the home screen) declares unseen - "covered" and "an overload of a modifier
+    elsewhere in the module" - so they are RECORDABLE, not a regression of this PR: worth one follow-up that
+    whitelists `extension` declarations in the feature modules by occurrence and freezes `start`/`save`.
+  - swift test --filter "PlanPreviewLinesTests|PlanSheetTests|HazardCopyTests|DriveDisplayTests":
+    `Test run with 24 tests in 4 suites passed`. Gates bare, rc=0 each: check-safety-disclaimer (`Frozen (-frozen,
+    -preview); 37 feature file(s) ...`), check-map-attribution, check-hazard-copy-sites (`13 sites, every one
+    approved, in 5 files`), `P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds`,
+    check-mutate-only (`NAME-PAIRS OK`), `PINS-YAML ok pins=53 fields=426`, `P-OPS-01: 253 files, 23 required
+    present, all modes correct`, `QUEUE OK (393 tasks)`. Largest FeaturePlanSheet file 281 lines.
+  - gh pr checks 294: core pass, pins-source-only pass. merge-base --is-ancestor origin/main origin/task/T-0396
+    rc=1; drift is queue/ only (queue/claimed/T-0404-attribution-footer-grows-to-500pt-at-ax5.md) - OK.
