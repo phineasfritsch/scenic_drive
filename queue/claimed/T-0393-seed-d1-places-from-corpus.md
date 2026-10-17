@@ -118,3 +118,33 @@ Test the exporter through its shipped entry point: a fixture corpus is exported,
   - The refusal and bound tables call `etl.seedplaces.main` - what ops/seed-places execs - in process: through bash
     each case cost ~6 s on this box (201 s for the RED run). The three tests that bind the entry point itself (the
     fixture export equal to the committed files, the re-run, the fallback dry-run with no --corpus) run ops/seed-places.
+- 2026-10-17T09:57:08Z mutation population, first full run (08:48-09:34): `MUTATIONS: 40 caught, 3 missed`,
+  MISSED `CHUNK_MAX raised`, `chunk 0 accepted`, `place_id type check dropped`; EQUIVALENT 0 caught of 1;
+  `--prove-vacuity`: `VACUITY: 0 caught, 43 missed` `VACUITY PROVED`. The survivors were test defects:
+  test_bad_arguments_are_refused passed --chunk with neither --dry-run nor --out, so the one-of guard refused before
+  the chunk bound was reached (now `--dry-run --chunk 0|1001`); the loose corpus declared place_id INTEGER PRIMARY
+  KEY, a rowid alias that can only hold an integer, so the type check was unreachable (now untyped; the bound
+  table adds 5.0, "5" and NULL place_ids, all refused). Re-run of the three (owner-approved touched-rows-only):
+  `MUTATE OK  caught=3/3`, each caught by its named test (`test_bad_arguments_are_refused[chunk-1001]`,
+  `[chunk-0]`, `test_every_bound_of_every_row_field[(5.0, 0, 0)->2]`).
+- 2026-10-17T09:57:08Z ACCEPTANCE re-run on 56cbd106 (origin/main merged: already up to date):
+  1. `bash ops/seed-places --dry-run` exit 0: `seed-places: schema_version=4 region=la
+     corpus_version=20261006T000000Z rows=1334 chunks=3
+     sha256=0e6435da0287a5211a26bf48710bd89ddd99f4f8ea22cf323ec99a056a908e86`; test_dry_run_of_the_bundled_fallback
+     recomputes the line from the corpus read directly. The LA work corpus: `REFUSED: corpus schema_version '3' is
+     not this ETL's 4`, exit 2.
+  2. `python -m pytest -q tests/test_seedplaces.py`: `38 passed in 19.59s`.
+  3. `npx vitest run test/seedPlaces.test.ts test/migrationColumns.test.ts`: `Test Files 2 passed (2)`, `Tests 8
+     passed (8)`.
+  4. RED by name: quoted at 08:48:33Z above (pytest 34 failed with the module absent; vitest DO NOTHING fails the
+     stale-coordinate test).
+  5. `python ops/mutate/seedplaces.py`: population 43 = MIN_MUTATIONS 43; full run 40/43 then the three closed
+     (above); VACUITY PROVED.
+  6. Gates bare, exit 0 each: check-mutate-population (`every added module is covered or allowlisted; the floor of
+     172 holds`), check-mutate-only (`MUTATE-ONLY OK: 245 of 245`), check-mutate-anchors (`0 stale`),
+     check-pins-yaml (`PINS-YAML ok pins=52`), check-exec-bits (`246 files ... all modes correct`; ops/seed-places
+     100755), queue-check (`QUEUE OK (385 tasks)`), check-safety-disclaimer (exit 0).
+  Line counts: seedplaces.py 140, test_seedplaces.py 234, ops/mutate/seedplaces.py 160, ops/seed-places 11,
+  seedPlaces.test.ts 63.
+  NOT DONE HERE (by the Brief): nothing ran against the remote D1. The orchestrator runs, after merge,
+  `ops/seed-places --out <dir>` and the printed `npx wrangler d1 execute scenic --remote --file ...` lines.
