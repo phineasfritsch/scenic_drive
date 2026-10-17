@@ -1,6 +1,6 @@
-# The router's configuration, read by ScenicRouterMain today and by the served GraphHopper in this task's
-# second half - one file, so a profile the test exercises is the profile that ships. The Dropwizard `server:`
-# section arrives with the HTTP surface; nothing here exercises one yet, so none is written.
+# The router's configuration, read by ScenicRouterMain (the import and the probes: its graphhopper: node only) and
+# by ScenicServerApplication, the served GraphHopper (T-0392: both nodes) - one file, so a profile the test
+# exercises is the profile that ships.
 #
 # scenic_score is in graph.encoded_values, which is the whole reason the import needs our ImportRegistry:
 # GraphHopper's own registry does not know the name and the import fails without it.
@@ -40,3 +40,18 @@ graphhopper:
     - name: car_scenic
       weighting: custom
       custom_model_files: [car_scenic_base.json]
+
+# T-0392: the HTTP surface, read by ScenicServerApplication only. The application port is reachable only on the
+# compose network (compose publishes no GraphHopper port; Caddy is the front door); the admin port stays on the
+# container's loopback. The request log is OFF: /route bodies and /isochrone queries carry coordinates.
+server:
+  application_connectors:
+    - type: http
+      port: 8989
+      bind_host: 0.0.0.0
+  admin_connectors:
+    - type: http
+      port: 8990
+      bind_host: 127.0.0.1
+  request_log:
+    appenders: []

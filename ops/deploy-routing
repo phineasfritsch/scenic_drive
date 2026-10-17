@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
-# Ships a BUILT graph to the routing box and flips it live. Same shape as ops/deploy (the Worker): it refuses
-# rather than guesses, and it prints what is live when it is done.
+# Ships a BUILT graph and the routing compose bundle to the routing box and flips them live. Same shape as
+# ops/deploy (the Worker): it refuses rather than guesses, and it prints what is live when it is done.
+#
+# T-0392: a release is services/routing AS COMMITTED AT HEAD (git archive - never the working tree: compose.yaml,
+# Caddyfile, Dockerfile, config.yml, profiles, plugins) plus the graph under <release>/graph, which compose.yaml
+# mounts by default. The restart is `docker compose up -d --build` in <root>/current with the box-local secret
+# file <root>/router.secret.env (ROUTER_SECRET=..., written by the owner on the box, never in the tree).
 #
 #   ops/deploy-routing services/routing/work/graph-la-window
 #
 # Refusals, in this order:
 #   1. the argument is not a built graph (no `edges` file in it)
 #   2. HEAD is not reachable on origin - a deploy of unpushed code has no version anyone else can check out
-#   3. the box credentials are not in the environment, and the refusal NAMES the missing ones:
+#   3. HEAD carries no services/routing/compose.yaml - there is no box definition to ship
+#   4. the box credentials are not in the environment, and the refusal NAMES the missing ones:
 #        SCENIC_ROUTING_HOST  SCENIC_ROUTING_USER  SCENIC_ROUTING_KEY  SCENIC_ROUTING_ROOT
+#   5. the box has no non-empty <root>/router.secret.env - compose would refuse to start the front door anyway
 #
 # What it does on the box: uploads into a NEW release directory (never over the live one), flips
 # <root>/current by writing a fresh symlink beside it and `mv -T`-ing it over the old one - atomic on one
@@ -24,7 +31,6 @@ cd "$(git rev-parse --show-toplevel)"
 
 KEEP=2
 REHEARSE="${SCENIC_ROUTING_REHEARSE:-}"
-RESTART_CMD="${SCENIC_ROUTING_RESTART_CMD:-sudo systemctl restart scenic-routing}"
 
 refuse() { echo "DEPLOY-ROUTING REFUSED: $*" >&2; exit 1; }
 
@@ -36,6 +42,7 @@ sha="$(git rev-parse HEAD)"
 if ! git branch -r --contains "$sha" 2>/dev/null | grep "origin/" >/dev/null; then
   refuse "HEAD $sha is not on origin - push first"
 fi
+git cat-file -e "HEAD:services/routing/compose.yaml" 2>/dev/null   || refuse "HEAD $sha has no services/routing/compose.yaml - nothing defines the box"
 
 if [[ -n "$REHEARSE" ]]; then
   root="$REHEARSE"
@@ -60,9 +67,18 @@ send() {  # $1 local directory, $2 destination directory
   else rsync -a --delete -e "ssh -i $SCENIC_ROUTING_KEY" "$1/" "$SCENIC_ROUTING_USER@$SCENIC_ROUTING_HOST:$2/"; fi
 }
 
+SECRET_FILE="$root/router.secret.env"
+remote "test -s '$SECRET_FILE'"   || refuse "the box has no non-empty $SECRET_FILE (one line: ROUTER_SECRET=<the Worker's ROUTER_SECRET>) - see services/routing/README.md"
+RESTART_CMD="${SCENIC_ROUTING_RESTART_CMD:-cd '$root/current' && docker compose -p scenic-routing --env-file '$SECRET_FILE' up -d --build --remove-orphans}"
+
+bundle="$(mktemp -d)"
+trap 'rm -rf "$bundle"' EXIT
+git archive "$sha" services/routing | tar -x -C "$bundle"
+
 release="$root/releases/$(date -u +%Y%m%dT%H%M%SZ)-${sha:0:7}"
 echo "== upload -> $release =="
 remote "mkdir -p '$release'"
+send "$bundle/services/routing" "$release"
 send "$graph" "$release/graph"
 remote "ls -1 '$release/graph' | head -3"
 

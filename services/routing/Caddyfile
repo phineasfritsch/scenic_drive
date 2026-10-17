@@ -1,0 +1,53 @@
+# The routing box's front door (T-0392, P-COST-03). Exactly the three calls the Worker makes reach GraphHopper -
+# POST /route, GET /isochrone, GET /info - and only with the Worker's x-scenic-router-secret, which is stripped
+# before the proxy. The README's placeholder is refused even when the box was started with it. Any other request
+# to those paths is 401, every other path 404. No access log: the requests carry coordinates.
+# ops/lib/check-routing-front-door.py holds this file to that whitelist.
+#
+# ROUTER_SITE (compose defaults it to :80): plain HTTP on :80 for the local proof; set to the router's hostname,
+# Caddy terminates TLS for it.
+{
+	admin off
+}
+
+{$ROUTER_SITE} {
+	@route {
+		header x-scenic-router-secret {env.ROUTER_SECRET}
+		not header x-scenic-router-secret REPLACE_WITH_THE_WORKER_ROUTER_SECRET
+		method POST
+		path /route
+	}
+	@isochrone {
+		header x-scenic-router-secret {env.ROUTER_SECRET}
+		not header x-scenic-router-secret REPLACE_WITH_THE_WORKER_ROUTER_SECRET
+		method GET
+		path /isochrone
+	}
+	@info {
+		header x-scenic-router-secret {env.ROUTER_SECRET}
+		not header x-scenic-router-secret REPLACE_WITH_THE_WORKER_ROUTER_SECRET
+		method GET
+		path /info
+	}
+	@api {
+		path /route /isochrone /info
+	}
+	handle @route {
+		request_header -x-scenic-router-secret
+		reverse_proxy graphhopper:8989
+	}
+	handle @isochrone {
+		request_header -x-scenic-router-secret
+		reverse_proxy graphhopper:8989
+	}
+	handle @info {
+		request_header -x-scenic-router-secret
+		reverse_proxy graphhopper:8989
+	}
+	handle @api {
+		respond 401
+	}
+	handle {
+		respond 404
+	}
+}
