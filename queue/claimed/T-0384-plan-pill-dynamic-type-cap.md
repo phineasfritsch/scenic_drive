@@ -116,3 +116,4 @@ home unchanged.
 - A7 `grep -rn "DynamicTypeSize.xxxLarge" apps/ios` prints exactly one line, in HomeTypeSize.swift.
 - A8 the bare gates of the task exit 0 on the merged head; `wc -l` of ScenicHomeScreen.swift, ScenicDriveApp.swift
   and HomeTypeSize.swift <= 300.
+- 2026-10-17T03:05:17Z agent/claude-opus-5 (orchestrator): rv1 FAIL was ancestry only (T-0218 landed: ScenicKit/ETL/ops data, no apps/ios). Merged origin/main (clean, no apps/ios change, so runs 38987510747/38987514586 on 9529b8fe still describe the app). On the merged head: bare gates exit 0 (check-safety-disclaimer, check-mutate-population, check-store-links, check-ios-compile-guardrails, check-map-attribution, check-pins-yaml, check-exec-bits, queue-check); A7 'git grep DynamicTypeSize.xxxLarge -- apps/ios' prints one line, HomeTypeSize.swift:6.
