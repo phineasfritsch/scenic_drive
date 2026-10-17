@@ -1,7 +1,7 @@
 ---
 id: T-0198
 title: ops/test's python tier discovers every services/*/pyproject.toml (tiles, routing) instead of services/etl alone, and the floor counts them; red first on a services/tiles test made to fail
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T06:03:54Z
@@ -11,7 +11,7 @@ branch: task/T-0198
 exclusive: [floors]
 touches: [ops/test, ops/lib/, pins/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv3-t0198
 depends_on: [T-0165]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -255,3 +255,20 @@ pins-source-only. A regression in either directory is invisible to the one comma
   - Last step: `git fetch origin` in the main checkout; origin/main had moved to 8444fbc8, `git diff --name-only
     efbb58e9 8444fbc8` = queue/ only (prod.lock, T-0395 claimed -> done, T-0402/T-0403 filings). Outside every
     measured population, so merged without re-measuring.
+- 2026-10-17T17:22:13Z REVIEW ROUND 3 (ancestry/CI/gates) by agent/rv3-t0198 (not the owner): PASS. rv2 passed the
+  content and failed only on ancestry; this round checks that alone, on head fc44e345.
+  - `git fetch origin` in the main checkout: origin/main 8444fbc8, origin/task/T-0198 fc44e345 (== PR #285 head,
+    base main, MERGEABLE). `git merge-base --is-ancestor origin/main origin/task/T-0198` exit 0. Drift since the
+    measured head d41ca50d is queue/ only (prod.lock, T-0395 claimed -> done, T-0402/T-0403 filings, this file).
+  - Floor not lowered: `git diff origin/main origin/task/T-0198 -- pins/floor_linux.txt` = `-76` / `+7998`.
+  - CI core run 39052544602 on fc44e345 (core success, pins-source-only success): `PYTEST
+    services/etl=4160(skipped=1) services/tiles=112 services/routing=52(skipped=23)` / `TESTS linux=8041/7998
+    ios=skipped failed=0 skipped=24` / `OK`. Each skip count is within ops/lib/python-suites.txt (etl max-skipped=1,
+    tiles 0, routing 23); 8041 >= floor 7998. Run 39051036963 on d41ca50d shows the same three lines.
+  - Bare gates in detached worktree .worktrees/rv3-t0198 at fc44e345, all exit 0: check-safety-disclaimer (P-SAFE-03
+    report, exit 0); check-mutate-population `the floor of 173 holds`; check-mutate-only `MUTATE-ONLY OK: 248 of 248`
+    and `NAME-PAIRS OK`; check-pins-yaml `PINS-YAML ok pins=53 fields=426`; check-exec-bits `P-OPS-01: 252 files,
+    23 required present, all modes correct`; queue-check `QUEUE OK (391 tasks)`.
+  - Recorded, not blocking: this box's bare ops/test on d41ca50d exited 1 on the services/api vitest flake
+    (configAnswerPath STACK_TRACE_ERROR), no services/api file in this diff; the python tier and floor were green.
+  - floors.lock released; queue/claimed/ -> queue/done/.
