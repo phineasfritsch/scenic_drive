@@ -1,0 +1,21 @@
+{
+ "region": "fixture-landmarks",
+ "ways": [
+  {"access_ok": 1, "cls": "secondary", "highway": "secondary", "id": 21, "name": "Line Road", "oneway": 0,
+   "nodes": [[34.0, -118.6], [34.0, -118.5]]},
+  {"access_ok": 1, "cls": "secondary", "highway": "secondary", "id": 23, "name": "Line Road Twin", "oneway": 0,
+   "nodes": [[34.0, -118.6], [34.0, -118.5]]},
+  {"access_ok": 1, "cls": "tertiary", "highway": "tertiary", "id": 24, "name": "Lat Edge Road", "oneway": 0,
+   "nodes": [[34.0201, -118.7], [34.0201, -118.69]]},
+  {"access_ok": 1, "cls": "tertiary", "highway": "tertiary", "id": 25, "name": "Lon Edge Road", "oneway": 0,
+   "nodes": [[34.05, -118.8001], [34.06, -118.8001]]},
+  {"access_ok": 1, "cls": "primary", "highway": "primary", "id": 26, "name": "Long Road", "oneway": 0,
+   "nodes": [[34.0855, -118.9], [34.0855, -118.6]]},
+  {"access_ok": 1, "cls": "tertiary", "highway": "tertiary", "id": 27, "name": "Lon Top Road", "oneway": 0,
+   "nodes": [[34.065, -118.70928], [34.075, -118.70928]]},
+  {"access_ok": 1, "cls": "tertiary", "highway": "tertiary", "id": 28, "name": "Lat Bottom Road", "oneway": 0,
+   "nodes": [[34.03995, -118.66], [34.03995, -118.64]]},
+  {"access_ok": 1, "cls": "primary", "highway": "primary", "id": 29, "name": "Long North Road", "oneway": 0,
+   "nodes": [[33.9, -118.95], [34.2, -118.95]]}
+ ]
+}

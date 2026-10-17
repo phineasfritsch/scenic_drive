@@ -258,7 +258,7 @@
       ]
     },
     "swift": {
-      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests|TelemetryClientTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests|SurpriseShownRecordFieldsTests|CorridorRatioRecordFieldsTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests|WaitlistClientTests|WaitlistAcrossSheetsTests)|ScenicKitTests\\.LearnedSpeedsPrivacyTests",
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests|TelemetryClientTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests|SurpriseShownRecordFieldsTests|CorridorRatioRecordFieldsTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests|WaitlistClientTests|WaitlistAcrossSheetsTests)|ScenicKitTests\\.(LearnedSpeedsPrivacyTests|HandoffMarkingMomentsTests)",
       "tests": [
         "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
         "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
@@ -298,7 +298,8 @@
         "TelemetryTests.TelemetryClientTests/everyOutcomeDropsTheBatch()",
         "TelemetryTests.TelemetryClientTests/capacityIsTheWorkersCap()",
         "TelemetryTests.TelemetryClientTests/recordedOnlyAfterTheFirstPostReturns()",
-        "TelemetryTests.TelemetryClientTests/everyRequestStampsTheProvidersCurrentID()"
+        "TelemetryTests.TelemetryClientTests/everyRequestStampsTheProvidersCurrentID()",
+        "ScenicKitTests.HandoffMarkingMomentsTests/defaultsDomainIsOneInt()"
       ]
     }
   },

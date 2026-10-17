@@ -13,13 +13,13 @@ final class PlaceStoreReadTests: XCTestCase {
             try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'schema_version'")
         }
         XCTAssertEqual(stored, "\(PlaceStore.schemaVersion)")
-        XCTAssertEqual(PlaceStore.schemaVersion, 3)
+        XCTAssertEqual(PlaceStore.schemaVersion, 4)
     }
 
     func testMetaReadsBuiltCorpus() throws {
         let store = try PlaceStore(path: CorpusFixture.build().path)
         XCTAssertEqual(try store.meta(), CorpusMeta(
-            schemaVersion: 3, minAppBuild: 1, region: "fixture", corpusVersion: "20260918T000000Z",
+            schemaVersion: 4, minAppBuild: 1, region: "fixture", corpusVersion: "20260918T000000Z",
             builtAt: "2026-09-18T00:00:00Z", attribution: "© OpenStreetMap contributors · Protomaps"))
     }
 

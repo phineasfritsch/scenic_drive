@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import math
 import sys
 
-from . import contentdigest, corpusmatch, schema, surfacecoverage
+from . import contentdigest, corpusmatch, landmarks, schema, surfacecoverage
 from .corpuswriter import CorpusWriter
 from .extractplace import load_places
 from .extractway import load_extract
@@ -38,6 +39,13 @@ from .segmenter import Segmenter
 CORPUS_BUDGET_BYTES = 60 * 1024 * 1024
 
 BUDGET_EXIT = 3
+
+# T-0379 R4: the candidate ways handed to landmarks.nearest_way_id. Every way is filed under each CELL_DEG cell
+# its bbox touches; a landmark reads every cell within MARGIN_DEG of its point (longitude widened by 1/cos lat).
+# MARGIN_DEG is over 1 km, more than three times landmarks.NEAR_M, so the candidates are a superset of the ways
+# that can be near and nearest_way_id alone decides.
+CELL_DEG = 0.01
+MARGIN_DEG = 0.01
 
 
 class CorpusTooLargeError(RuntimeError):
@@ -73,8 +81,44 @@ def load_curated(path) -> list:
     return rows
 
 
+def cell_of(value: float) -> int:
+    return math.floor(value / CELL_DEG)
+
+
+def way_cells(pairs: list) -> dict:
+    """{(lat cell, lon cell): [index into pairs, ...]} over each (way_id, coords) pair's bbox."""
+    cells = {}
+    for index, (_way_id, coords) in enumerate(pairs):
+        lats = [point[0] for point in coords]
+        lons = [point[1] for point in coords]
+        for i in range(cell_of(min(lats)), cell_of(max(lats)) + 1):
+            for j in range(cell_of(min(lons)), cell_of(max(lons)) + 1):
+                cells.setdefault((i, j), []).append(index)
+    return cells
+
+
+def landmark_rows(found: list, ways: list) -> list:
+    """(osm_type, osm_id, kind, name, ele_dm, lat_e5, lon_e5, nearest_way_id) per landmarks.select row
+    (T-0379 R2): ele and the 5-dp point as integers, the nearest way measured from the stored point."""
+    pairs = [(way.way_id, way.coords) for way in ways]
+    cells = way_cells(pairs)
+    rows = []
+    for lm in found:
+        lat, lon = lm["lat"], lm["lon"]
+        widen = MARGIN_DEG / math.cos(math.radians(lat))
+        near = set()
+        for i in range(cell_of(lat - MARGIN_DEG), cell_of(lat + MARGIN_DEG) + 1):
+            for j in range(cell_of(lon - widen), cell_of(lon + widen) + 1):
+                near.update(cells.get((i, j), ()))
+        ele = None if lm["ele_m"] is None else round(lm["ele_m"] * 10)
+        rows.append((lm["osm_type"], lm["osm_id"], lm["kind"], lm["name"], ele, round(lat * 1e5),
+                     round(lon * 1e5), landmarks.nearest_way_id((lat, lon), [pairs[k] for k in sorted(near)])))
+    return rows
+
+
 def build(input_path, out_path, built_at: str, previous=None, curated_path=None,
-          corpus_version=None, region=None, budget_bytes: int = CORPUS_BUDGET_BYTES, kind=None) -> dict:
+          corpus_version=None, region=None, budget_bytes: int = CORPUS_BUDGET_BYTES, kind=None,
+          landmarks_osm=None) -> dict:
     """Build one corpus. Returns the report `main` prints; raises on any refusal.
 
     `budget_bytes` defaults to the one literal above and exists as a parameter so the refusal is provable
@@ -95,6 +139,8 @@ def build(input_path, out_path, built_at: str, previous=None, curated_path=None,
         writer.write_features(ways)
         assigned = writer.write_segments(segments)
         writer.write_places(load_places(input_path))
+        found = landmarks.select(landmarks_osm)[0] if landmarks_osm is not None else []
+        writer.write_landmarks(landmark_rows(found, ways))
         writer.write_term_defs()
         writer.write_curated(load_curated(curated_path))
 
@@ -189,6 +235,8 @@ def parse_args(argv=None):
     parser.add_argument("--region", default=None, help="default: the extract's own region")
     parser.add_argument("--budget-bytes", type=int, default=CORPUS_BUDGET_BYTES, metavar="N",
                         help=f"refuse a corpus over N bytes; default {CORPUS_BUDGET_BYTES} (60 MiB)")
+    parser.add_argument("--landmarks-osm", default=None,
+                        help="OSM XML whose viewpoints and peaks fill the landmarks table; absent, it is empty")
     return parser.parse_args(argv)
 
 
@@ -202,7 +250,7 @@ def main(argv=None) -> int:
     try:
         report = build(args.input, args.out, args.built_at, previous=args.previous,
                        curated_path=args.curated, corpus_version=args.corpus_version,
-                       region=args.region, budget_bytes=args.budget_bytes)
+                       region=args.region, budget_bytes=args.budget_bytes, landmarks_osm=args.landmarks_osm)
     except CorpusTooLargeError as too_large:
         print(f"CORPUS REFUSED {too_large}", file=sys.stderr)
         return BUDGET_EXIT
