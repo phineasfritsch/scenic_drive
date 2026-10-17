@@ -27,7 +27,7 @@ LAMBDAS = ORACLE_LAMBDAS
 
 # How much more lambda=8 must cost than lambda=0 for the penalty to count as biting. See
 # test_lambda_penalty_bites for how the number is ruled.
-BITE_FLOOR = 0.05
+BITE_FLOOR = 0.18
 
 # Typed literals, both in Vermont: Burlington City Hall Park to downtown Rutland, about 100 km apart on the
 # Vermont extract, with US 7 and the quieter roads on either side of it available between them.
@@ -110,12 +110,11 @@ def test_lambda_penalty_bites(routes):
     band. This asserts the model bites: lambda=8 costs strictly more than lambda=0 by a stated margin, and at
     least one step of the five strictly rises.
 
-    UNVERIFIED since T-0190: the measurement below was taken on the old three-band template, not on the Worker's
-    nine-clause model this file now routes; it has not been re-measured (T-0190 Log, R5).
-
-    The margin is ruled from the five measured durations on this fixture (5945246 -> 8491177 ms, +43%): a 5%
-    floor is an order of magnitude below what the model delivers, and the router is deterministic over a
-    fixed graph, so it leaves room for another region's numbers without leaving room for a dead model."""
+    The margin is ruled from the five durations measured on this fixture with the Worker's nine-clause models
+    (T-0386 Log, 2026-10-17: 5945246, 6015807, 6785536, 7510022, 8122353 ms; lambda=8 is +36.62 %). The router is
+    deterministic over a fixed graph and fixed model bytes, so the floor is half the measured bite, rounded down:
+    18 %. It refuses a model whose penalty saturates early - lambda-2's model routed at lambda 4 and 8 is +14.13 %
+    and passed the old 5 % floor - and leaves the real model 2x headroom."""
     durations = [routes[f"lambda-{value}.json"][0] for value in LAMBDAS]
     at_zero, at_eight = durations[0], durations[-1]
     floor = at_zero * (1 + BITE_FLOOR)

@@ -34,8 +34,9 @@ IMAGE = os.environ.get("SCENIC_ROUTING_IMAGE", "scenic-routing:t0209")
 ROUTING = Path(__file__).resolve().parents[1]
 FROM = "34.0387,-118.5836"
 TO = "34.0938,-118.6045"
-# The loop pair: a 3x3 grid inside the window's import bounds, 28 of 36 pairs routed, every one with lambda-0 ==
-# car_fast and 20 with lambda-8 slower. This one: car_fast 1449345 ms / 23971.0 m, lambda-8 2515815 ms (+73.58 %).
+# The loop pair: a 3x3 grid inside the window's import bounds, 28 of 36 pairs routed on the Worker's models, 24 with
+# lambda-0 == car_fast and 25 with lambda-8 slower (T-0386 Log). This one: car_fast 1449345 ms / 23971.0 m, lambda-0
+# the same, lambda-8 2522680 ms / 36576.6 m (+74.06 %).
 LOOP_FROM = "34.0366,-118.7401"
 LOOP_TO = "34.0875,-118.6044"
 MODELS = ("lambda-0.json", "lambda-8.json")
@@ -170,5 +171,5 @@ def test_every_model_file_routes_its_own_model(loop_routed):
     )
     assert eight["time_ms"] > fast["time_ms"], (
         f"lambda-8 routed {eight['time_ms']} ms / {eight['distance_m']} m, car_fast {fast['time_ms']} ms - "
-        f"measured 2515815 ms against 1449345 ms; lambda-8.json was not the model routed under its label"
+        f"measured 2522680 ms against 1449345 ms; lambda-8.json was not the model routed under its label"
     )
