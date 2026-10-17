@@ -116,6 +116,20 @@ services/api that wrangler bundles -> exit 3 (fail closed). Each shown red on to
   - Noted, not changed: classify()'s import match is a prefix match by design (R1b, extensionless imports), so a
     sibling of an IMPORTED path (src/util.tsx for `./util`) counts as imported - the fail-closed direction.
 
+- 2026-10-17T21:03:56Z acceptance re-quoted by agent/claude-opus-5 on da1e4a15 (fixes 28e32446; origin/main merged,
+  the merge added only queue/claimed/T-0405-*.md). Fast round (owner-approved): only the touched rows re-run.
+  1. `bash ops/lib/check-sane-prod --only <all 22 v- rows>` -> `SANE-PROD ok       22/22 cases passed`: v-none,
+     v-fixture, v-test, v-vitest, v-outside exit=0; the other 17 exit=3. The 325 non-v rows are untouched by this round
+     (347/347 at 19:51:40Z above).
+  2. Red on main: not re-run; unchanged rows, quoted at 19:51:40Z.
+  3. M1-M4 quoted at 19:51:40Z (sane_version.py unchanged since); M5 (MA), M6 (MB), M7 (MC) red at 20:40:58Z above.
+  4. wc -l: ops/sane 214, check_sane_prod.py 279, sane_version.py 116, sane_version_cases.py 189.
+  5. Gates bare on da1e4a15: check-safety-disclaimer exit 0 (`P-SAFE-03: 31 Swift file(s) under ...FeatureScenicHome;
+     SafetyDisclaimer declared once in its own file; ...`); `P-PROC-06: every added module is covered or allowlisted;
+     the floor of 173 holds`; `MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64 ...`; `NAME-PAIRS OK:
+     242318 pair tokens ...`; `PINS-YAML ok pins=53 fields=426`; `P-OPS-01: 255 files, 23 required present, all modes
+     correct`; `QUEUE OK (395 tasks)`.
+
 ## Acceptance
 1. `bash ops/lib/check-sane-prod` -> `SANE-PROD ok N/N cases passed`, N including the v- rows, each compared on exit
    code and the WHOLE version line: v-none, v-fixture, v-test, v-vitest, v-outside -> version ok, exit 0; v-src,
