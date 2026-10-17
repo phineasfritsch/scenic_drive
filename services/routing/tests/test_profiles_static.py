@@ -1,18 +1,17 @@
-"""The shipped profiles and config, read as files - no container, no graph, no docker.
+"""The shipped base profile and config, read as files - no container, no graph, no docker.
 
 test_lambda_monotone.py's routed tests SKIP wherever docker is absent, which is every CI runner this repo
 has, and they cannot see these properties even when they run:
 
-  - The band THRESHOLDS in car_scenic_request.json are load-bearing and invisible to a routed assertion.
-    `scenic_score >= 7` -> `scenic_score >= 0` puts every edge in the `high` band, whose multiplier is 1 at
-    every lambda; the per-request model becomes a no-op, T(lambda) is constant, and a constant is
-    non-decreasing and equals car_fast everywhere.
-  - The band TABLE can be inverted - mid 1, 1.5, 2, 3, 5 and low 1, 2, 3, 5, 9, a penalty that grows with
-    lambda instead of shrinking - and T(lambda) stays non-decreasing. The routed property tells neither a
-    dead model nor an inverted one from the plan's.
+  - The safety gates live in car_scenic_base.json, which the Dockerfile bakes into the image; no routed test
+    mounts it, so the routed suite ran 9 passed with `priority: []` (PR #105 rv2 R2). The whole priority list is
+    compared here to a typed literal (T-0190, P-SAFE-01's JSON half).
   - The CLAUDE.md invariant "motorway/trunk are PENALIZED, not hard-excluded" is guarded on the Vermont pair
     only by the route disappearing (ConnectionNotFoundException). On a fixture that stayed routable, a hard
     gate would pass unnoticed.
+
+The per-request models are not a profile here any more: they are the Worker's recorded bytes, checked by
+test_request_models_static.py and services/api/test/customModelGolden.test.ts (T-0190).
 
 Anchors are the files' own identifiers - JSON keys, expression strings, the `import.osm.ignored_highways`
 config key - never a comment, which gets stripped.
@@ -24,30 +23,32 @@ from pathlib import Path
 
 import pytest
 
-LAMBDAS = ("0", "1", "2", "4", "8")
-
-# Typed literals, not a re-computation of the formula: the plan's bands (:105-107) are high = 1,
-# mid = 1/(1+0.5*lambda), low = 1/(1+lambda), written to the six decimals the file carries with trailing
-# zeros dropped. test_lambda_monotone.py checks the same table against the formula; this checks the digits.
-EXPECTED_BANDS = {
-    "0": {"high": "1", "mid": "1", "low": "1"},
-    "1": {"high": "1", "mid": "0.666667", "low": "0.5"},
-    "2": {"high": "1", "mid": "0.5", "low": "0.333333"},
-    "4": {"high": "1", "mid": "0.333333", "low": "0.2"},
-    "8": {"high": "1", "mid": "0.2", "low": "0.111111"},
-}
-
-EXPECTED_THRESHOLDS = [7, 4]
+from request_models import ORACLE_LAMBDAS, recorded
 
 ROUTING = Path(__file__).resolve().parents[1]
-REQUEST = ROUTING / "profiles" / "car_scenic_request.json"
 BASE = ROUTING / "profiles" / "car_scenic_base.json"
-BANDS = ROUTING / "profiles" / "scenic_lambda_bands.json"
 CONFIG = ROUTING / "config.yml"
 
-THRESHOLD = re.compile(r"^scenic_score\s*>=\s*(\d+)$")
+# Typed out, not read from anywhere: the base profile's nine zero clauses (plan :98-110, T-0381), in order. A
+# gate deleted, relaxed, reordered or turned into a penalty is red by name; so is a tenth clause, which is the
+# only place a motorway or trunk hard gate could be added.
+EXPECTED_BASE_PRIORITY = [
+    {"if": "!car_access", "multiply_by": "0"},
+    {"if": "road_access == PRIVATE || road_access == NO || road_access == DESTINATION", "multiply_by": "0"},
+    {"if": "surface == GRAVEL || surface == DIRT || surface == GROUND || surface == SAND || surface == UNPAVED "
+           "|| surface == COMPACTED || surface == FINE_GRAVEL", "multiply_by": "0"},
+    {"if": "road_class == TRACK", "multiply_by": "0"},
+    {"if": "track_type == GRADE3 || track_type == GRADE4 || track_type == GRADE5", "multiply_by": "0"},
+    {"if": "smoothness == BAD || smoothness == VERY_BAD || smoothness == HORRIBLE || smoothness == VERY_HORRIBLE "
+           "|| smoothness == IMPASSABLE", "multiply_by": "0"},
+    {"if": "gate_locked_barrier", "multiply_by": "0"},
+    {"if": "gate_ford", "multiply_by": "0"},
+    {"if": "gate_service_way", "multiply_by": "0"},
+]
+
 HARD_GATE = re.compile(r"\b(MOTORWAY|TRUNK)\b")
 MODEL_KEYS = {"speed", "priority", "distance_influence"}
+CLAUSE_KINDS = ("if", "else_if", "else")
 SPEED_VALUE_KEYS = ("limit_to", "multiply_by")
 SPEED_NAMES = {"car_average_speed"}
 IGNORED_HIGHWAYS = re.compile(r"^\s*import\.osm\.ignored_highways\s*:(.*)$", re.MULTILINE)
@@ -58,64 +59,19 @@ def _priority(path):
 
 
 def _condition(rule):
-    for key in ("if", "else_if"):
-        value = rule.get(key)
-        if value:
-            return value
-    return ""
+    """The rule's condition under whichever ONE of if / else_if / else it carries ("" for else)."""
+    kinds = [kind for kind in CLAUSE_KINDS if kind in rule]
+    assert len(kinds) == 1, f"rule {rule!r} carries {kinds}, not exactly one of {CLAUSE_KINDS}"
+    return rule[kinds[0]]
 
 
-def test_request_model_bands_are_the_plan_thresholds():
-    """Three rules: scenic_score >= 7 -> high, scenic_score >= 4 -> mid, everything else -> low."""
-    rules = _priority(REQUEST)
-    assert len(rules) == 3, f"{REQUEST.name} has {len(rules)} priority rules, expected the plan's 3: {rules}"
-    thresholds = []
-    for rule, placeholder in zip(rules, ("${high}", "${mid}")):
-        condition = _condition(rule)
-        match = THRESHOLD.match(condition.strip())
-        assert match, (
-            f"{REQUEST.name}: band condition {condition!r} is not a scenic_score threshold - the three "
-            f"bands are what the per-request lambda model acts on"
-        )
-        thresholds.append(int(match.group(1)))
-        assert rule["multiply_by"] == placeholder, (
-            f"{REQUEST.name}: band {condition!r} multiplies by {rule['multiply_by']!r}, expected "
-            f"{placeholder!r} so scenic_lambda_bands.json's value reaches it"
-        )
-    assert thresholds == EXPECTED_THRESHOLDS, (
-        f"{REQUEST.name}: band thresholds are {thresholds}, the plan's are {EXPECTED_THRESHOLDS}. A first "
-        f"threshold of 0 puts every edge in the never-penalized band and the whole per-request model dies "
-        f"with every routed test still green."
+def test_base_profile_priority_is_the_nine_safety_gates():
+    """P-SAFE-01's JSON half, compared WHOLE: no routed test can see this file (the image bakes it in)."""
+    priority = _priority(BASE)
+    assert priority == EXPECTED_BASE_PRIORITY, (
+        f"{BASE.name} priority is not the nine safety gates.\nexpected: {EXPECTED_BASE_PRIORITY}\n"
+        f"actual:   {priority}"
     )
-    assert "else" in rules[2] and rules[2]["multiply_by"] == "${low}", (
-        f"{REQUEST.name}: the third rule must be the else band multiplying by ${{low}}: {rules[2]}"
-    )
-
-
-def test_band_table_matches_the_plan_literals():
-    bands = json.loads(BANDS.read_text(encoding="utf-8"))
-    assert sorted(bands, key=int) == sorted(LAMBDAS, key=int), (
-        f"{BANDS.name} carries lambdas {sorted(bands, key=int)}, the plan's five are {list(LAMBDAS)}"
-    )
-    for value in LAMBDAS:
-        assert bands[value] == EXPECTED_BANDS[value], (
-            f"{BANDS.name} at lambda={value}: {bands[value]} is not the plan's {EXPECTED_BANDS[value]} "
-            f"(high 1, mid 1/(1+0.5*lambda), low 1/(1+lambda))"
-        )
-
-
-def test_band_multipliers_never_grow_with_lambda():
-    """A multiplier that GROWS with lambda is a penalty pointing the wrong way. Inverting both penalized
-    bands leaves T(lambda) non-decreasing, so no routed assertion catches it."""
-    bands = json.loads(BANDS.read_text(encoding="utf-8"))
-    for name in ("high", "mid", "low"):
-        series = [float(bands[value][name]) for value in LAMBDAS]
-        for index in range(len(LAMBDAS) - 1):
-            assert series[index + 1] <= series[index], (
-                f"{BANDS.name}: the {name} band's multiplier GREW from lambda={LAMBDAS[index]} "
-                f"({series[index]}) to lambda={LAMBDAS[index + 1]} ({series[index + 1]}) - a larger lambda "
-                f"must never make a band cheaper"
-            )
 
 
 def _positive_speed(value):
@@ -132,8 +88,8 @@ def test_no_profile_hard_excludes_motorway_or_trunk():
     shoulders, scenic middle). Hard gates are safety only: unpaved, private/no access, track. GraphHopper
     never routes an edge of speed 0 either, so the WHOLE model is read (T-0012 rv1 B1): no key this test
     cannot read, and every speed rule's value a positive number or an encoded speed - the gates live in
-    priority, never in speed."""
-    for path in (BASE, REQUEST):
+    priority, never in speed. Read over the base profile AND every recorded per-request model."""
+    for path in (BASE, *(recorded(value) for value in ORACLE_LAMBDAS)):
         model = json.loads(path.read_text(encoding="utf-8"))
         unread = sorted(set(model) - MODEL_KEYS)
         assert not unread, f"{path.name} carries {unread}: a key this test cannot read could exclude a road"
@@ -143,7 +99,7 @@ def test_no_profile_hard_excludes_motorway_or_trunk():
                 f"{path.name} speed rule {rule!r} can set a speed of 0 (or is unreadable): a zero speed is "
                 f"a hard exclusion, and motorway and trunk are penalized, never hard-excluded"
             )
-        for rule in _priority(path):
+        for rule in model["priority"]:
             condition = _condition(rule)
             assert not HARD_GATE.search(condition), (
                 f"{path.name} gates on {condition!r}: motorway and trunk are penalized by the band model, "
