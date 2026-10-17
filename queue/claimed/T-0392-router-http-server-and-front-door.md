@@ -1,13 +1,13 @@
 ---
 id: T-0392
 title: The router is not servable over HTTP - a GraphHopper web image for the LA graph (with the scenic-score and T-0381 gate plugins) behind a Caddy front door that refuses requests without x-scenic-router-secret
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T07:57:30Z
+lease_expires_at: 2026-10-18T07:57:30Z
+worktree: .worktrees/T-0392
+branch: task/T-0392
 exclusive: [routing-profiles]
 touches: [services/routing/, ops/deploy-routing, ops/lib/, ops/sane]
 pins_affected: [P-COST-03, P-PROD-04]
@@ -37,3 +37,4 @@ ops/deploy-routing must deploy this compose to a host given by environment varia
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from the pilot runbook audit (owner authorised the pilot backend 2026-10-17).
+- 2026-10-17T07:57:30Z claimed by agent/claude-opus-5; lease until 2026-10-18T07:57:30Z
