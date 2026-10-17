@@ -1,13 +1,13 @@
 ---
 id: T-0391
 title: First production deploy of scenic-api from main (pilot backend) - ops/deploy, live /__version == HEAD, /__health quoted
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T10:49:37Z
+lease_expires_at: 2026-10-18T10:49:37Z
+worktree: .worktrees/T-0391
+branch: task/T-0391
 exclusive: [prod]
 touches: [ops/api-url, queue/]
 pins_affected: []
@@ -29,3 +29,4 @@ A reviewer who is not the owner re-reads the live endpoints and confirms that /_
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 after the owner authorised the deploy.
+- 2026-10-17T10:49:37Z claimed by agent/claude-opus-5; lease until 2026-10-18T10:49:37Z
