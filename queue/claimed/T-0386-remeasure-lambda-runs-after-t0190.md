@@ -14,7 +14,11 @@ pins_affected: [P-PROD-01]
 reviewer: null
 depends_on: [T-0190]
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "(1) MEASURED, QUOTED. The Log quotes the routed numbers on the T-0190 models with the graph hash (Vermont graph-cache file sha256s and both source PBF sha256s), the images, the command and its count line: Vermont T(lambda) = 5945246, 6015807, 6785536, 7510022, 8122353 ms (+36.6193 %); LA loop pair lambda-8 2522680 ms / 36576.6 m against car_fast 1449345 ms / 23971.0 m (+74.0566 %); T-0209's 3x3 grid 28 of 36 routed, lambda-0 == car_fast on 24, lambda-8 slower on 25."
+  - "(2) THE FLOOR IS RULED FROM THE MEASUREMENT. test_lambda_monotone.BITE_FLOOR = 0.18 (R3: half the measured +36.6193 %, rounded down); its docstring quotes 5945246 -> 8122353 ms and no longer says UNVERIFIED. test_route_details quotes 2522680 ms and the stage-2 grid counts. `grep -rn -E '8491177|2515815|UNVERIFIED since T-0190|every one with lambda-0 == car_fast' services/routing/tests` prints nothing."
+  - "(3) RED BY NAME, THEN GREEN. Mutant: the recorded lambda-2.json written into the routed models under the name lambda-8.json (Tests/Fixtures/custom-model/lambda-8.json overwritten with lambda-2.json's bytes in the worktree, restored with git checkout after). With BITE_FLOOR 0.05 (main) test_lambda_penalty_bites PASSES on it (the old floor's miss); with 0.18 it FAILS by name; on the real record all of test_lambda_monotone.py and test_route_details.py pass (9 passed), printing the stage-1 T(lambda) line byte-equal."
+  - "(4) GATES at the final commit, on the merged head: services/routing pytest count line; bash ops/lib/check-safety-disclaimer, python ops/lib/check-mutate-population.py, python ops/lib/check-mutate-only.py, python ops/lib/check-pins-yaml.py, bash ops/lib/check-exec-bits, bash ops/queue-check, each run bare and quoted."
 ---
 ## Brief
 
@@ -57,3 +61,46 @@ Run the LA GraphHopper container (WSL docker, the committed LA graph build; no V
     is byte-identical in time, lambda=8 is 368824 ms shorter under the 9-clause model. LA loop lambda-8 +74.0566 %
     (old record 2515815 ms, +73.5829 %): 6865 ms longer. The typed pair is unchanged (526739 / 8230.4 for all three,
     as before).
+- 2026-10-17T04:29:29Z MEASURE, stage 2: test_route_details' loop-pair comment also quotes a POPULATION ("a 3x3 grid
+  inside the window's import bounds, 28 of 36 pairs routed, every one with lambda-0 == car_fast and 20 with lambda-8
+  slower"), measured by T-0209 on the old template. Re-routed with a gitignored scratch driver
+  (services/routing/work/t0386/measure_grid.py: request_models.write_models((0, 8)), the t0209 image importing the
+  window itself, `--mode route` per unordered pair of a 3x3 grid at fractions 0.2/0.5/0.8 of the import bounds -
+  T-0209's grid: IMPORT bounds -118.9663074,-118.5138948,34.0026669,34.172355; points lat 34.0366/34.0875/34.1384 x
+  lon -118.8758/-118.7401/-118.6044, which reproduces the loop pair). Count lines, verbatim: `GRID routed=28 of 36
+  l8_slower=25`, `exit=0`, 8 pairs `exit=1` (the same 28/8 split as T-0209). From the PAIR lines: lambda-0 == car_fast
+  on 24 of 28; on 4 lambda-0 is FASTER than car_fast - 34.0366,-118.7401 -> 34.1384,-118.8758 (1899294 vs 1899371
+  ms), 34.0875,-118.8758 -> 34.0875,-118.6044 (2474921 vs 2504511), 34.1384,-118.7401 -> 34.1384,-118.6044 (1719585
+  vs 1727424), and in the quartile grid (0.25/0.5/0.75, first run, 21 of 36 routed, l8_slower=17)
+  34.0875,-118.8532 -> 34.1299,-118.8532 (1236965 vs 1245718) and 34.0451,-118.7401 -> 34.1299,-118.8532 (2247942 vs
+  2248019). lambda-8 equal to car_fast on 3 of 28 (spread +0.00 %); smallest positive spread +0.20 %; the loop pair
+  is +74.06 %, the largest +187.26 %.
+- 2026-10-17T04:29:29Z RULINGS (before any code).
+  - R1 (Brief vs code): the Brief says "the LA GraphHopper container ... the committed LA graph build". Reality:
+    test_lambda_monotone's pair is in VERMONT (FROM_POINT 44.4759,-73.2121, a graph at services/routing/work/
+    graph-cache), and test_route_details imports its own LA graph from the sha-pinned canyon window; no graph is
+    committed (services/routing/.gitignore: work/). Ruled: each floor is re-measured on the fixture its test asserts
+    on - Vermont for BITE_FLOOR, the LA window for lambda-8 - with that test's own image. Graph hashes above.
+  - R2 (which image): T-0190 changed the per-request MODELS, not the image; both tests name their image
+    (t0213, t0209) and were measured with it. The newer T-0381 profile (image scenic-routing:t0381) is in neither
+    test and is not re-measured here; recorded in stillOpen.
+  - R3 (BITE_FLOOR): measured bite +36.6193 % (5945246 -> 8122353 ms) on a deterministic router over a fixed graph and
+    fixed model bytes. Ruled BITE_FLOOR = 0.18: half the measured bite, rounded DOWN to two places (0.1831 -> 0.18).
+    The old 0.05 was "an order of magnitude below" a +43 % measurement and passes a model that bites at a third of
+    the measured strength: lambda-2's recorded model routed under lambda-8's label is +14.1338 % on this pair (stage
+    1), above 0.05 and below 0.18. Half leaves 2x headroom under the measurement and refuses a model whose bite has
+    halved.
+  - R4 (step rises): every one of the four steps rises (min +70561 ms, +1.19 % at 0 -> 1). Declined to tighten
+    "at least one step rises" to "every step rises": the plan's property is non-decreasing, and the 0 -> 1 step is a
+    near-tie no floor here was asked for.
+  - R5 (test_route_details): the loop assertion stays `lambda-8 > car_fast` (it checks that each model file is
+    routed under its own label, not a bite size). The quoted number becomes 2522680 ms (+74.06 %) and the grid
+    sentence becomes the stage-2 counts (28 of 36 routed, lambda-0 == car_fast on 24, lambda-8 slower on 25).
+  - R6 (lambda-0 != car_fast on 4 LA pairs): a real finding, out of this task's scope (touches are tests only). The
+    models carry distance_influence 0 and car_scenic_base.json 30, so lambda-0 optimises pure time and can beat
+    car_fast; test_lambda_zero_is_the_car_fast_route holds on the Vermont pair only. Not a ceiling breach (lambda-0
+    is faster, never slower). Recorded in stillOpen for a follow-up task; no test here is changed to hide it.
+  - R7 (touches): `services/routing/measure_runs.py` does not exist; the file is services/routing/tests/
+    measure_runs.py (inside services/routing/tests/, already in touches). It quotes only T-0213/T-0224 numbers and
+    is not changed. Tests/Fixtures/custom-model/ is not changed (the record is T-0190's, held by the vitest).
+- 2026-10-17T04:29:29Z ACCEPTANCE written (frontmatter), before code.
