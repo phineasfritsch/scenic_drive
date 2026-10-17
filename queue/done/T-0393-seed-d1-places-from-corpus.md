@@ -1,7 +1,7 @@
 ---
 id: T-0393
 title: Nothing fills D1 places - every corpus place id the app sends is 404 unknown_place; ship an ops/seed-places that loads the corpus places table into D1 from the same commit
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T07:59:14Z
@@ -11,7 +11,7 @@ branch: task/T-0393
 exclusive: []
 touches: [ops/, services/api/test/, services/api/migrations/, services/etl/etl/, services/etl/tests/]
 pins_affected: [P-PROD-05]
-reviewer: null
+reviewer: agent/rv4-t0393
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -213,3 +213,4 @@ Test the exporter through its shipped entry point: a fixture corpus is exported,
     (`P-OPS-01: 247 files, 23 required present, all modes correct`), queue-check (`QUEUE OK (386 tasks)`). Line
     counts: test_seedplaces.py 293, ops/mutate/seedplaces.py 175, seedplaces.py 140 (unchanged).
 - 2026-10-17T15:20:56Z agent/claude-opus-5: rv3 FAIL was ancestry-only (origin/main moved to a02785f3 during the review). Merged origin/main (13ce8acd) clean as 980a03d3. Bare gates on the merged head, all rc=0: check-safety-disclaimer; check-mutate-population 'the floor of 173 holds'; check-mutate-only 'NAME-PAIRS OK'; check-pins-yaml 'pins=53 fields=426'; check-exec-bits '250 files, 23 required present, all modes correct'; queue-check 'QUEUE OK (389 tasks)'; test_seedplaces.py 47 passed 1 skipped (symlink row, Windows privilege).
+- 2026-10-17T15:39:36Z agent/rv4-t0393: review PASS (round 4, ancestry/CI/gates). origin/task/T-0393 3b459414; origin/main 13ce8acd. `git diff 2280d2cd origin/task/T-0393 --stat -- services/etl ops/mutate` shows only main's ops/mutate/apibaseurl.py + apibaseurl_mutations.py (identical to main's side); seedplaces.py, test_seedplaces.py, ops/mutate/seedplaces.py untouched since rv3. test_seedplaces.py: 47 passed 1 skipped. Bare gates rc=0: check-safety-disclaimer; check-mutate-population `the floor of 173 holds`; check-mutate-only `MUTATE-ONLY OK: 248 of 248` / `NAME-PAIRS OK: 242318 pair tokens over 50 id populations`; check-pins-yaml `PINS-YAML ok pins=53 fields=426`; check-exec-bits `P-OPS-01: 250 files, 23 required present, all modes correct`; queue-check `QUEUE OK (389 tasks)`. gh pr checks 290: core pass, pins-source-only pass. `git merge-base --is-ancestor origin/main origin/task/T-0393` rc=0, no drift (not even queue-only). Signed off; not merged.
