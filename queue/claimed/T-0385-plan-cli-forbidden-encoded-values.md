@@ -14,7 +14,12 @@ pins_affected: [P-SAFE-01]
 reviewer: null
 depends_on: [T-0382]
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "A1 GraphHopperRouteSource.forbiddenEncodedValues equals, as an ordered array by full equality, the identifiers read by the `if` of every `multiply_by: \"0\"` priority clause of the SHIPPED services/routing/profiles/car_scenic_base.json (read by path from the repo root by the test, never restated), in profile order, minus the identifiers LambdaCustomModel.json(for:) reads at every lambda tenth 0...80 (the CLI's only model builder; ruled R2); that subtracted overlap equals exactly [road_class] by full equality - measured today: [car_access, road_access, surface, track_type, smoothness, gate_locked_barrier, gate_ford, gate_service_way]"
+  - "A2 per derived name, a GENERATED corpus (exact, case variants, every single-char deletion, separators space/tab/;/_/-/,/|/x at every position, prefix/suffix, compounds, the name under every GraphHopper operator shape, empty) is placed in every clause shape (priority if, priority else_if, speed if, speed else_if, areas feature property, object key), embedded by body(_:_:profile:model:) and sent through GraphHopperRouteSource.send(_:) - the one function fastest() and scenic() reach the socket through - at the `post` seam; oracle (over the profile-derived list, never the constant): throws PlanFailure.modelTouchesSafetyGate(<first derived name the lowered model text contains>) iff one occurs, else the transport receives the body unchanged by full equality; one array equality per name; a meta row proves every family exists for every name and that the model-free body mentions none"
+  - "A3 RED first by name: on the pre-change constant the A1 derivation test and the six new names' A2 rows fail (quoted in the Log), then green; PlanCLIRequestBodyTests stays green (scenic() at every lambda tenth and fastest() still reach the transport past the wider gate)"
+  - "A4 ops/mutate/plan.py gains the gate's mutants (a name dropped from each end of the list, case-sensitive comparison, only the first name checked), MIN_MUTATIONS 47 -> 51, the new test in TEST_FILES/SUITES; `python ops/mutate/plan.py --only cli/gate-` 4/4 caught"
+  - "A5 digest row for Sources/ScenicPlanCLI/GraphHopperRouteSource.swift re-approved; bare gates exit 0: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py, check-line-cap, check-pins-yaml.py, check-exec-bits, queue-check; the new test file and GraphHopperRouteSource.swift stay <= 300 lines (wc -l quoted)"
 ---
 ## Brief
 
@@ -33,3 +38,27 @@ Re-approve the digest row, and add mutation population entries if the gate is a 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from T-0382 stillOpen 1.
 - 2026-10-17T01:56:02Z claimed by agent/claude-opus-5; lease until 2026-10-18T01:56:02Z
+- 2026-10-17T02:00:49Z measured before ruling. car_scenic_base.json priority has nine `multiply_by: "0"`
+  clauses, every one keyed `if`; their lower-case identifiers in order: car_access, road_access, surface,
+  road_class, track_type, smoothness, gate_locked_barrier, gate_ford, gate_service_way. The CLI's one model
+  builder is LambdaCustomModel.json(for:) (no areas: the CLI sends no closures); its conditions are
+  `minorCondition` (road_class, scenic_score) and `scenic_score >= n` bands, so it reads {road_class,
+  scenic_score}; overlap = [road_class]. The gate is `refuseSafetyGates(in:)`, called first in `send(_:)`;
+  fastest() and scenic() both reach the socket only through `send`. The constant today is
+  `["road_access", "surface"]` - six names short. The non-model body text (points, "car_scenic"/"car_fast",
+  details scenic_score/road_class/osm_way_id) contains none of the eight.
+- 2026-10-17T02:00:49Z rulings, before code:
+  R1 the Swift list becomes the eight derived names in profile order, the same order as the Worker's
+     FORBIDDEN_ENCODED_VALUES; the substring, case-insensitive rule of refuseSafetyGates is unchanged.
+  R2 "the builder" is LambdaCustomModel.json(for:) over every lambda tenth 0...80 (the bisection's bracket,
+     LambdaSearch.maxLambda = 8); the Brief's "what the builder reads" is asserted as overlap == [road_class].
+  R3 the shipping gate driven is GraphHopperRouteSource.send(_:) through the `post` seam (the same seam
+     PlanCLIRequestBodyTests uses); scenic() cannot carry a corpus model, and both entry points pass through
+     send first. The oracle reads the profile-derived list, never the constant under test.
+  R4 no Package.swift change: the test reads the profile by #filePath from the repo root, like the existing
+     PlanCLI tests read their fixtures.
+  R5 GraphHopperRouteSource.swift is already a SUBJECT of ops/mutate/plan.py, so the gate's decisions get
+     mutants there (not a new population); MIN_MUTATIONS rises by the count added.
+  R6 P-SAFE-01's statement and its named-test row are Worker-only and pins/ + ops/lib/named-tests.json are
+     outside touches: not edited here, recorded as still open.
+  R7 the doc comments of GraphHopperRouteSource that say "the same two" are corrected in the same edit.
