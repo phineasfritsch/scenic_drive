@@ -62,3 +62,12 @@ Re-approve the digest row, and add mutation population entries if the gate is a 
   R6 P-SAFE-01's statement and its named-test row are Worker-only and pins/ + ops/lib/named-tests.json are
      outside touches: not edited here, recorded as still open.
   R7 the doc comments of GraphHopperRouteSource that say "the same two" are corrected in the same edit.
+- 2026-10-17T02:23:34Z A3 RED, on the pre-change constant `["road_access", "surface"]`, new test file only
+  (`swift test --filter PlanCLIGateValuesTests`, exit 1, "Test run with 3 tests in 1 suite failed ... with 7 issues"):
+  the derivation test failed `(GraphHopperRouteSource.forbiddenEncodedValues -> ["road_access", "surface"]) ==
+  (gates.filter { !builder.contains($0) } ...)`; send's corpus rows failed for exactly the six new names -
+  car_access 222 of 720 rows differ, track_type 228 of 720, smoothness 222 of 720, gate_locked_barrier 222 of
+  1206, gate_ford 222 of 666, gate_service_way 222 of 1044; road_access and surface rows and the corpus meta
+  test passed. After the eight-name list (and the digest row re-approved,
+  5fe37906b0e6cbcdcf478c47cecfd1d947ebcd585c88d537c546332567200133):
+  `--filter "PlanCLIGateValuesTests|PlanCLIRequestBodyTests"` exit 0, "Test run with 9 tests in 2 suites passed".
