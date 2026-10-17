@@ -1,7 +1,7 @@
 ---
 id: T-0395
 title: Deploy the router wiring (T-0391's ROUTER_URL and GRAPH_VERSION) and prove one live /plan plus ops/sane --prod
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
