@@ -1,7 +1,7 @@
 ---
 id: T-0406
 title: Close the shadowing class once - every file-scope line in the feature modules is at an approved site (whitelist by brace depth), so no declaration can shadow a name a frozen safety block uses
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
