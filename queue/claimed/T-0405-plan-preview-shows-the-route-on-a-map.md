@@ -1,13 +1,13 @@
 ---
 id: T-0405
 title: The plan preview shows the chosen route on a map above the sheet (reference library, Biggest changes 1) instead of a full-height sheet with an empty lower half
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T19:53:44Z
+lease_expires_at: 2026-10-18T19:53:44Z
+worktree: .worktrees/T-0405
+branch: task/T-0405
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/ScenicKit/, Tests/, ops/lib/, ops/mutate/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-ATTR-01, P-SAFE-03, P-SAFE-07, P-A11Y-01]
@@ -45,3 +45,4 @@ disclaimer. Any new or changed guard is shown red, then green.
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 after T-0396 merged (empty lower half seen in run 39050070882).
+- 2026-10-17T19:53:44Z claimed by agent/claude-opus-5; lease until 2026-10-18T19:53:44Z
