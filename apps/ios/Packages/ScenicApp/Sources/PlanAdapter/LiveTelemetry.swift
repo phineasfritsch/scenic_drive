@@ -11,8 +11,7 @@ public enum LiveTelemetry {
     private static let client: TelemetryClient? = build()
 
     static func build() -> TelemetryClient? {
-        guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
-              base.scheme == "https" else { return nil }
+        guard let base = LiveBaseURL.url else { return nil }
         return TelemetryClient(base: base, device: { StoredInstallID().installID() },
                                transport: URLSessionTelemetryTransport())
     }
