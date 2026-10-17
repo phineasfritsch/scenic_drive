@@ -140,3 +140,15 @@ ops/deploy-routing must deploy this compose to a host given by environment varia
   lines removed -> `FAIL placeholder_secret_401_when_box_started_with_it`, `E2E 9/10` exit=1; restored.
 - 2026-10-17T08:47:21Z RED BY NAME, e2e: ScenicServerApplication with the GraphHashInfoFilter registration disabled
   (`if (false)`) -> `info graph_hash=None` `FAIL info_graph_hash_equals_properties_sha256`, `E2E 9/10` exit=1; restored.
+- 2026-10-17T09:00:27Z ops/deploy-routing (R5): ships `git archive HEAD services/routing` + the graph as one
+  release; refuses when HEAD has no services/routing/compose.yaml and when the box has no non-empty
+  <root>/router.secret.env; default restart `cd '$root/current' && docker compose -p scenic-routing --env-file
+  '$SECRET_FILE' up -d --build --remove-orphans`. RED: the rehearsal driver run against the pre-change script
+  (HEAD:ops/deploy-routing) printed under `refusal 4: the box has no secret file` a full `DEPLOY-ROUTING OK ...
+  exit=0` (no refusal), an EMPTY `the bundle under current` and no default compose restart line - so the new
+  tests test_refuses_a_box_without_the_secret_file and
+  test_a_release_carries_the_compose_bundle_and_restarts_through_compose fail on it. GREEN: `python -m pytest
+  tests/test_deploy_routing_rehearsal.py -q` -> 8 passed (6 old + 2 new).
+- 2026-10-17T09:00:27Z P-COST-03 registered (source half, anchor config) over check-routing-front-door.py and its
+  --prove-red; check-pins-yaml `PINS-YAML ok pins=53`. ops/lib/check-routing-front-door.py is 100644 like its
+  siblings (check-exec-bits refused 100755 - corrected). README: the served router and the owner's VPS steps.
