@@ -92,7 +92,10 @@ Test the exporter through its shipped entry point: a fixture corpus is exported,
    byte-equal a fresh run of `ops/seed-places`; refusals exit 2 and write nothing for schema_version 3, 5 and missing,
    build_complete 0, zero places, a non-empty --out, --chunk 0 and 1001; the bound table for place_id (0 refused, 1
    and 2^63-1 accepted), lat_e7 (+-900000000 accepted, +-900000001 refused), lon_e7 (+-1800000000 accepted,
-   +-1800000001 refused), a REAL lat_e7 refused.
+   +-1800000001 refused), a REAL lat_e7 refused; and (rv1 B1) the --out state table through main() - absent,
+   absent under an absent parent and an existing empty dir exit 0 writing exactly the fixture files; a non-empty
+   dir, a regular file and an empty regular file exit 2 with the exact REFUSED stderr and the path unchanged - each
+   row asserting exit code, stdout, stderr and the after-state whole.
 3. `cd services/api && npx vitest run test/seedPlaces.test.ts` passes: rows read back from local D1 equal the typed
    expected rows whole (ids above 2^53 as exact strings), a second apply leaves them equal, a stale coordinate is
    updated and a non-corpus row kept, and d1PlaceResolver returns each fixture coordinate and null for an unknown id.
@@ -148,3 +151,31 @@ Test the exporter through its shipped entry point: a fixture corpus is exported,
   seedPlaces.test.ts 63.
   NOT DONE HERE (by the Brief): nothing ran against the remote D1. The orchestrator runs, after merge,
   `ops/seed-places --out <dir>` and the printed `npx wrangler d1 execute scenic --remote --file ...` lines.
+- 2026-10-17T11:12:37Z rv1 FAIL (agent/rv1-t-0393, head 297e07d6) B1 closed by CLASS - every clause of the --out
+  guard and both mkdir arguments. The single non-empty-dir test is replaced by
+  `test_every_out_state_exits_0_or_2_with_exact_output_and_files`, a six-row table through `etl.seedplaces.main`
+  (absent, absent-under-an-absent-parent, existing-empty-dir, existing-non-empty-dir, existing-regular-file,
+  existing-empty-regular-file); every row asserts (exit code, stdout, stderr, after-state) whole, the expectation
+  computed from the row's accepted flag and its absolute path. ops/mutate/seedplaces.py gains six mutants - the
+  reviewer's (a) `exist_ok dropped`, (b) `the is_dir clause dropped`, (c) `every existing out path refused`, plus
+  `parents dropped`, `an out file accepted`, `the exists clause dropped` - MIN_MUTATIONS 43 -> 49 (population 49).
+  - RED on the old tests (da40982c, mutants committed, tests untouched; touched rows only, owner-approved):
+    `MISSED an existing empty out dir crashes - exist_ok dropped (exit 0)`, `MISSED a nested out dir crashes -
+    parents dropped (exit 0)`, `MISSED an out file reaches iterdir - the is_dir clause dropped (exit 0)`, `MISSED an
+    out file accepted (exit 0)`, `MISSED every existing out path refused (exit 0)`; `caught an absent out path
+    refused - the exists clause dropped <- test_fixture_export_equals_typed_sql_and_the_committed_files`;
+    `MUTATE FAILED  caught=1/6`.
+  - GREEN (91ff6e6e, the table): `MUTATE OK  caught=8/8` over the six plus the two neighbouring guard mutants, by
+    name: exist_ok dropped <- `[existing-empty-dir]`; parents dropped <- `[absent-under-an-absent-parent]`; the
+    is_dir clause dropped <- `[existing-regular-file]`; an out file accepted <- `[existing-regular-file]`; every
+    existing out path refused <- `[existing-empty-dir]`; a non-empty out dir accepted <- `[existing-non-empty-dir]`;
+    the exists clause dropped <- `test_fixture_export_equals_typed_sql_and_the_committed_files`; --dry-run with
+    --out accepted <- `test_bad_arguments_are_refused[neither-dry-run-nor-out]`.
+  - On the merged head 2bf95207 (origin/main c3fd1f80 + queue commits to 2daea62c merged): `python -m pytest -q
+    tests/test_seedplaces.py`: `43 passed in 20.62s`; `--prove-vacuity` over the six: `VACUITY: 0 caught, 6
+    missed, 0 skipped, of 6` `VACUITY PROVED`. Gates bare, exit 0 each: check-safety-disclaimer (exit 0, P-SAFE-03
+    report), check-mutate-population (`P-PROC-06: every added module is covered or allowlisted; the floor of 172
+    holds`), check-mutate-only (`MUTATE-ONLY OK: 245 of 245 driver runs refused with exit 64`), check-pins-yaml
+    (`PINS-YAML ok pins=53 fields=426`), check-exec-bits (`P-OPS-01: 247 files, 23 required present, all modes
+    correct`), queue-check (`QUEUE OK (385 tasks)`). Line counts: test_seedplaces.py 268, ops/mutate/seedplaces.py
+    170, seedplaces.py 140 (unchanged). Acceptance item 2 gains the --out state table clause.
