@@ -162,3 +162,50 @@ and drive-dark and state, item by item, what each shot shows. Any new or changed
   - A8 PASS drive-light; A9 PASS drive-dark; A10 PASS for the card (stacked, End full width, conditions above);
     the AX5 credit-pill overlap is recorded above as a DesignSystem follow-up.
   NOT SHOT: the End confirm (needs a stopped surface and a tap; the rehearsal moves at 15 m/s) - compiled only.
+- 2026-10-17T18:58:38Z pre-review mutant pass: three SURVIVORS closed by class (agent/claude-opus-5), eeacba3f, then
+  origin/main merged last (f82449b7). No apps/ios or Sources/ byte changed this round: no digest re-approved, the
+  shots and ios-compile of A7-A10 stand.
+  RULING: the drive card's conditions line and estimate caption were pinned only by sha256 (P-SAFE-03's (ii) limb
+  reads home.conditions on ScenicHomeScreen.swift only), so a retyped digest let them go. Closed by a WHITELIST on
+  identifiers, not by a spelling of the bad write: check-drive-display.py gains a second whole-line whitelist on its
+  own terms - every apps/ios line naming conditions, estimateBadge, showsEstimateBadge or showsEstimate is one of 23
+  approved lines, at its file, in scan order (population measured first: 23 lines over 8 files - plan sheet x3, drive
+  card, end confirm, drive screen, disclaimer, home). A dropped approved line is refused as missing, any other line
+  naming a word as unapproved.
+  - M1 (DriveCard's six-line conditions row deleted), over a copy of apps/ios with the guard at HEAD a829f4cf:
+    RED-BEFORE 18:17:09Z check-drive-display exit 0 "21 approved whole lines ... no other line does" (survived).
+    AFTER: exit 1 "a line naming conditions, estimateBadge, showsEstimateBadge or showsEstimate is not an approved
+    whole line (21 found, 23 approved)", missing "DriveCard.swift: Text(PlanPreview.conditions)" and
+    "DriveCard.swift: .accessibilityIdentifier("drive.conditions")".
+  - M2 (DriveScreen `showsEstimate: !preview.showsEstimateBadge,`): RED-BEFORE exit 0 (survived). AFTER: exit 1
+    "(23 found, 23 approved)", unapproved "DriveScreen.swift: showsEstimate: !preview.showsEstimateBadge,", missing
+    "DriveScreen.swift: showsEstimate: preview.showsEstimateBadge,".
+  - The guard's own --prove-red carries M1, M2, "if showsEstimate {" -> "if true {" and "showsEstimate: false,":
+    "PROVE-RED OK: 13/13 refused by name" (was 9/9). Tree: exit 0, both summary lines (21 and 23 approved).
+  - M4 (DriveDisplay(session:) fallback `: session.etaSeconds,` -> `: 0,`): RED-BEFORE 18:17:09Z swift test
+    DriveDisplayTests|DriveContinuedTests exit 0 (survived; 11 tests). Closed by a test bound to the shipping entry
+    DriveDisplay(session:) (what DriveNavigator publishes): "T-0397 R2: a zero-length line's glance is the session's
+    whole ETA, never zero seconds" - DriveSession over two equal vertices, ETA 600 s -> remainingSeconds == 600 and
+    glanceLine "10 min · 0.0 mi". With the mutant (18:29:49Z): exit 1, "Test run with 12 tests in 2 suites failed
+    ... with 1 issue" naming that test; restored: "Test run with 12 tests in 2 suites passed". Mutant 158 added to
+    ops/mutate/drive_mutations.py bound to that test, floor 157 -> 158; `drive.py --only 154,158` (18:36:59Z):
+    "caught 158 a zero-length line's seconds left zeroed by: T-0397 R2: a zero-length line's glance ...";
+    "MUTATE OK caught=2/2 equivalent_caught=0 (--only: 2 of 158 entries)".
+  ACCEPTANCE re-quoted on the merged head f82449b7 (18:42:36Z on):
+  - A1 PASS "Test run with 87 tests in 16 suites passed" (86 + the new zero-length test).
+  - A2 PASS mutants 154,158 "MUTATE OK caught=2/2"; 153,155-157 untouched since 43ee2d10 (DriveDisplay unchanged);
+    [0] check-mutate-population "P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds";
+    [0] check-mutate-only "NAME-PAIRS OK: 244250 pair tokens over 50 id populations ...".
+  - A3 PASS [0] check-drive-display.py "21 approved whole lines ..." + "23 approved whole lines name conditions,
+    estimateBadge, showsEstimateBadge or showsEstimate under apps/ios, and no other line does."; --prove-red
+    "PROVE-RED OK: 13/13 refused by name".
+  - A4 PASS [0] check-safety-disclaimer "Frozen (-frozen); 39 feature file(s), shell, footer pinned (-pinned); doors
+    over 117 .swift (-doors); LAST all 117 app .swift, then 336 root + pbxproj file(s) (-linked)."; [0]
+    check-pins-yaml "PINS-YAML ok pins=53 fields=426"; [0] check-exec-bits "P-OPS-01: 252 files, 23 required
+    present, all modes correct"; [0] queue-check "QUEUE OK (391 tasks)"; [0] check-ios-compile-guardrails "OK".
+    NOT re-run this round: check-map-attribution / -sites (ran > 10 min and was stopped; nothing in their scope
+    changed since their [0] at 3cddb61d - this round touched only Tests/, ops/lib/check-drive-display.py and
+    ops/mutate/drive_mutations.py).
+  - A5 PASS wc -l: DriveScreen 147, DriveCard 111, DriveEndConfirm 60, DriveDisplay 89, DriveDisplayTests 141,
+    check-drive-display.py 218.
+  - A6-A10 unchanged (no apps/ios byte changed): ios-compile 39047780264, ios-screenshot 39050093003 stand.
