@@ -98,7 +98,8 @@ struct PlanPreviewCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .background(Capsule().fill(DesignTokens.fgMuted.opacity(0.14)))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(DesignTokens.fgMuted.opacity(0.14)))
                 .accessibilityIdentifier("plan.estimate")
         }
     }

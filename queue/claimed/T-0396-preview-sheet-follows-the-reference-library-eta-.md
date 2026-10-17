@@ -110,3 +110,39 @@ the disclaimer line must both be reachable. Any new or changed guard is shown re
 - A5 every FeaturePlanSheet file <= 300 lines (`wc -l`).
 - A6 ios-compile on task/T-0396 concludes success (run id quoted).
 - A7 ios-screenshot on task/T-0396 concludes success; plan-preview-light, -dark and -ax5 are LOOKED at and the Log states for each: title = destination and no "Plan a drive"; ETA + (distance) with the gray tag on it (ax5: under it); "+20 min over fastest"; one amber hazard row + "+N more"; no outline; Start + Save; the conditions line under Start; no trip/loop bottom bar; attribution footer present.
+- 2026-10-17T16:33:06Z EVIDENCE, first pass (commit d41f8973).
+  - Correction to R4: the follow-up id is T-0400, not T-0399 (T-0399 exists on another branch; ids on main + every
+    origin task branch listed, max T-0399). Filed: queue/backlog/T-0400 (learned-from-N needs the sample count) and
+    queue/backlog/T-0401 (plansheet mutation rows for the new PlanPreview lines - ops/mutate is outside touches).
+  - A1: `swift test ... --filter "PlanPreviewLinesTests|PlanSheetTests|HazardCopyTests|DriveDisplayTests"` ->
+    `Test run with 24 tests in 4 suites passed`.
+  - Hand mutants on PlanPreview.swift (driver in the session scratchpad, file restored after): M1 `tenths < 100` ->
+    `<= 100` KILLED ("(10.0 mi)" != "(10 mi)"); M2 `route.count >= 2` -> `>= 1` KILLED; M3 legs -> ends only KILLED
+    ("(0.0 mi)" != "(6.0 mi)"); M4 tenths truncated KILLED ("(9.9 mi)" != "(10 mi)"); M5 why line on etaMinutes
+    KILLED ("+55 min over fastest"). `MUTANTS OK`.
+  - Guard R10 RED then GREEN. RED on the new card with main's guard: `REFUSED  approved site missing:
+    .../PlanPreviewCard.swift:             Text(HazardCopy.noneFlagged)` / `P-SAFE-03 hazard copy: FAILED - 0
+    unapproved, 1 missing of 14 approved` (exit 1), and --prove-red `STALE    the table call is gone   anchor found 0
+    times` / `PROVE-RED FAILED: 12 of 13 rows red by name, control 1`. GREEN after the whitelist row went and the row
+    was re-anchored on SHIPPED: `P-SAFE-03 hazard copy: ok - 13 sites, every one approved, in 5 files`; `red      the
+    table call is gone   A7-grep=caught  sites=CAUGHT by name exit=1`; `PROVE-RED OK: 13 of 13 rows red by name,
+    control 0`.
+  - check-safety-disclaimer RED first (`added .../PlanPreviewActions.swift missing .../PlanRouteShape.swift`), then
+    rows re-approved (PlanPreviewActions added, PlanRouteShape removed, PlanPreviewCard + PlanSheetScreen rehashed,
+    linked PlanPreview.swift rehashed) -> exit 0.
+  - A6 ios-compile 39047588676: completed success (4m37s).
+  - A7 ios-screenshot 39047593126: completed success. LOOKED at plan-preview-{light,dark,ax5}:
+    light: (1) title "Zuma Beach" .title3, no "Plan a drive" (nav bar shows only Close / Saved), orange "..." circle
+      trailing; (2) "55 min" bold + "(17 mi)" gray on one line with the gray "estimate · no traffic data" tag on the
+      same line; (3) "+20 min over fastest" gray subheadline; (4) ONE row: amber triangle + the closure sentence
+      (wraps 3 lines), then orange "+1 more"; (5) no outline/chart; (6) "Start the drive" filled orange with car
+      glyph + "Save" tonal pale-orange with bookmark, one row; (7) "Conditions change. Verify locally." gray footnote
+      directly under Start; no "Plan a road trip / Just drive a loop" bottom bar; attribution footer at the bottom.
+    dark: same rows in dark tokens (lighter orange Start with dark label, brown tonal Save, yellow hazard glyph,
+      dark tag fill); nothing clipped.
+    ax5: title wraps "Zuma / Beach" with the "..." circle; "55 min (17 mi)" on one line; the tag WRAPS UNDER the
+      number (2 lines); "+20 min / over fastest"; then the bottom inset's attribution footer (~500pt at AX5,
+      DesignSystem's AttributionFooter, outside touches) - the hazard row, Start and the conditions line are below
+      the fold in the same ScrollView (reachable by scroll, R12), nothing floats over them. DEFECT: the 2-line tag's
+      text runs into the capsule's rounded ends ("estimate" and "traffic" touch the curve). FIX: the tag background is
+      a 8pt continuous rounded rectangle; card re-hashed in check-safety-disclaimer-pinned; one re-run below.
