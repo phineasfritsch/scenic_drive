@@ -78,6 +78,7 @@ L_LEN = "T-0321: a leg's length is the sum of Geo's distances between its consec
 D_TABLE = "P-SAFE-09: the drive screen shows the typed display for every surface and mode, compared whole"
 G_LINE = "T-0397 R2: the glance line is whole minutes and tenths of a mile under 10 mi, whole miles from 10"
 G_SESSION = "T-0397 R2: the session's glance is its line's ETA and metres left past the progress vertex, pro rata"
+G_ZERO = "T-0397 R2: a zero-length line's glance is the session's whole ETA, never zero seconds"
 D_LARGE = "P-SAFE-09: moving shows only the one large action - 60 pt, no details - in every mode"
 D_SESSION = ("P-SAFE-09: the session's display is the table's row for its own surface and mode, before and "
              "after fixes")
@@ -484,6 +485,8 @@ MUTATIONS = [
     ("156 ten miles shown in tenths", DISPLAY, "tenths < 100 ?", "tenths <= 100 ?", [G_LINE]),
     ("157 the tenths dropped under ten miles", DISPLAY, 'String(format: "%.1f", tenths / 10)',
      "String(Int(tenths / 10))", [G_LINE, G_SESSION]),
+    ("158 a zero-length line's seconds left zeroed", DISPLAY, "left / whole : session.etaSeconds,",
+     "left / whole : 0,", [G_ZERO]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -504,7 +507,7 @@ EQUIVALENT = [
      "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device run hears it (T-0329). What bounds it: ops/lib/check-drive-voice.py (P-SAFE-09's row) allows exactly this whole line and refuses its removal by name ('the navigator never asks DriveVoice'), and what DriveVoice returns is CAUGHT above (entries 82-99)"),
 ]
 
-MIN_MUTATIONS = 157
+MIN_MUTATIONS = 158
 EQUIVALENT.append(
     ("E5 (device-only) the navigator's session starts without the preview's token", NAVIGATOR,
      "guard let session = DriveSession(preview: preview, online: true) else { return nil }",

@@ -120,6 +120,15 @@ struct DriveDisplayTests {
                                      line: Self.twoSegments, etaLine: "20 min · 3 min longer than the fastest way",
                                      remainingSeconds: half.remainingSeconds, glanceLine: "10 min · 0.7 mi"))
     }
+
+    @Test("T-0397 R2: a zero-length line's glance is the session's whole ETA, never zero seconds")
+    func zeroLengthLineGlanceIsTheWholeEta() {
+        let point = Coordinate(latitude: 34.05, longitude: -118.25)
+        let session = DriveSession(line: [point, point], waypoints: [], lambda: 0.5, online: true,
+                                   etaSeconds: 600, fastestEtaSeconds: 600)!
+        let display = DriveDisplay(session: session)
+        #expect(display.remainingSeconds == 600 && display.glanceLine == "10 min · 0.0 mi")
+    }
 }
 
 extension DriveDisplay {
