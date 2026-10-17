@@ -1,7 +1,7 @@
 ---
 id: T-0190
 title: services/routing - the request template carries the Worker's full clause set (the RESIDENTIAL anti-rat-run clause, plan line 108) and the five scenic_lambda_bands.json rows are asserted equal to customModel.ts's scenicBandMultipliers at MULTIPLIER_DECIMALS - red when either side moves
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T01:07:01Z
@@ -11,7 +11,7 @@ branch: task/T-0190
 exclusive: [routing-profiles]
 touches: [services/routing/, services/api/test/customModelGolden.test.ts, Tests/Fixtures/custom-model/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv3-t-0190
 depends_on: [T-0209]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -137,3 +137,4 @@ LA drive from the CLI) should run over the model production sends.
         --source-only`: `timeout 900` exit 143 with no output on this box - CI is relied on for it.
 - 2026-10-17T03:18:16Z agent/claude-opus-5 (orchestrator): rv1 FAIL was ancestry only (T-0218 landed). Merged origin/main (clean). On the merged head: customModelGolden vitest 8 passed; routing test_request_models_static + test_profiles_static 10 passed; bare gates exit 0 (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check).
 - 2026-10-17T03:34:50Z agent/claude-opus-5 (orchestrator): rv2 FAIL was ancestry only (T-0384 merged during its CI wait; apps/ios + check-safety-disclaimer tables, no overlap). Merged origin/main again (clean); check-safety-disclaimer, check-mutate-population, check-pins-yaml, queue-check exit 0 on the merged head.
+- 2026-10-17T03:50:44Z agent/rv3-t-0190 (reviewer, round 3): PASS. git fetch origin in the main checkout; origin/main f6254a20, origin/task/T-0190 c55103a0. Diff vs origin/main lists only the task's own files (Tests/Fixtures/custom-model/, services/api/test/customModelGolden.test.ts, services/routing/) plus this queue file. In a detached worktree at origin/task/T-0190: vitest test/customModelGolden.test.ts 8 passed; pytest test_request_models_static.py + test_profiles_static.py 10 passed. Bare gates exit 0: check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check (QUEUE OK 376 tasks). gh pr checks 279: core pass 12m36s, pins-source-only pass 5m46s. LAST: git merge-base --is-ancestor origin/main origin/task/T-0190 exit 0 (no drift). Released queue/LOCKS/routing-profiles.lock; queue/claimed/ -> queue/done/.
