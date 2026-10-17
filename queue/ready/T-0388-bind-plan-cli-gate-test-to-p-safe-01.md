@@ -1,7 +1,7 @@
 ---
 id: T-0388
 title: Bind T-0385's PlanCLIGateValuesTests to P-SAFE-01 by name, and give P-SAFE-01 a check-named-table digest
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
