@@ -1,7 +1,7 @@
 ---
 id: T-0392
 title: The router is not servable over HTTP - a GraphHopper web image for the LA graph (with the scenic-score and T-0381 gate plugins) behind a Caddy front door that refuses requests without x-scenic-router-secret
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
