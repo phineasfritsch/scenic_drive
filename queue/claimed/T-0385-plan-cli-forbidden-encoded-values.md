@@ -71,3 +71,16 @@ Re-approve the digest row, and add mutation population entries if the gate is a 
   test passed. After the eight-name list (and the digest row re-approved,
   5fe37906b0e6cbcdcf478c47cecfd1d947ebcd585c88d537c546332567200133):
   `--filter "PlanCLIGateValuesTests|PlanCLIRequestBodyTests"` exit 0, "Test run with 9 tests in 2 suites passed".
+- 2026-10-17T03:23:10Z final pre-review re-run of the whole acceptance block, on the merge of origin/main
+  (d5c30c45, PR #277 T-0218) into the branch:
+  A1/A2/A3 `swift test --filter "PlanCLIGateValuesTests|PlanCLIRequestBodyTests"` exit 0, "Test run with 9 tests
+  in 2 suites passed" (RED quoted above, on the pre-change constant).
+  A4 `python ops/mutate/plan.py --only cli/gate-`: "population 51 mutations over 11 modules ... caught 4 of 4
+  trapped 0 compile-only 0 MISSED 0 skipped 0", exit 0 (cli/gate-forgets-the-first-name,
+  cli/gate-forgets-the-last-name, cli/gate-compares-case-sensitively, cli/gate-checks-only-the-first-name).
+  A5 digest row Sources/ScenicPlanCLI/GraphHopperRouteSource.swift 5fe37906...0133 survives the merge;
+  check-safety-disclaimer exit 0; check-mutate-population.py exit 0 ("the floor of 171 holds");
+  check-mutate-only.py exit 0 (241 of 241 driver runs refused); check-pins-yaml.py exit 0; check-exec-bits exit 0
+  (242 files); queue-check exit 0 (376 tasks). check-line-cap: `timeout 600` exit 124 on this loaded box (the
+  known hang), so CI core is relied on; a direct `git ls-files '*.swift' | xargs wc -l` lists no file over 300.
+  wc -l: PlanCLIGateValuesTests.swift 231, GraphHopperRouteSource.swift 165.
