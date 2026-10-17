@@ -1,13 +1,13 @@
 ---
 id: T-0196
 title: basemap labels - glyphs and sprites pinned by digest and served with the tiles, the style's glyphs/sprite URLs set, a check that every symbol layer's text-font exists in the glyph set
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T06:04:45Z
+lease_expires_at: 2026-10-18T06:04:45Z
+worktree: .worktrees/T-0196
+branch: task/T-0196
 exclusive: []
 touches: [services/tiles/, ops/publish-tiles]
 pins_affected: []
@@ -27,3 +27,4 @@ street names is not shippable. The next tiles task, not a nicety.
 
 ## Log
 - 2026-09-19T05:38:57Z filed by agent/claude-fable-5-1 from T-0165's STILL OPEN 2 (PR #109). Not started; after #109 merges.
+- 2026-10-17T06:04:45Z claimed by agent/claude-opus-5; lease until 2026-10-18T06:04:45Z
