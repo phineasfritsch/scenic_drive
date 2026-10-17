@@ -1,13 +1,13 @@
 ---
 id: T-0396
 title: Preview sheet follows the reference library - ETA (distance) with the estimate badge as a tag on it, why line, one hazard row, labelled climb and scenic-share line, Start + Save, the disclaimer line directly under Start
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T15:13:44Z
+lease_expires_at: 2026-10-18T15:13:44Z
+worktree: .worktrees/T-0396
+branch: task/T-0396
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/, Sources/ScenicKit/, Tests/, ops/lib/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-SAFE-03, P-SAFE-07, P-A11Y-01]
@@ -56,3 +56,4 @@ the disclaimer line must both be reachable. Any new or changed guard is shown re
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from the reference library pass 2 ("Biggest changes" 6 and 18).
+- 2026-10-17T15:13:44Z claimed by agent/claude-opus-5; lease until 2026-10-18T15:13:44Z

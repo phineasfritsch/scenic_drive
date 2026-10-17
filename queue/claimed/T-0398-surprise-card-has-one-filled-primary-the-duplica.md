@@ -1,13 +1,13 @@
 ---
 id: T-0398
 title: Surprise card has one filled primary - the duplicate Open in Apple Maps goes, secondary actions become tonal or text, and the hand-off button carries the external-link glyph
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T15:13:51Z
+lease_expires_at: 2026-10-18T15:13:51Z
+worktree: .worktrees/T-0398
+branch: task/T-0398
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureSurpriseMe/, Sources/ScenicKit/, Tests/, ops/lib/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-A11Y-01]
@@ -39,3 +39,4 @@ then green.
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from the reference library pass 2 ("Biggest changes" 2).
+- 2026-10-17T15:13:51Z claimed by agent/claude-opus-5; lease until 2026-10-18T15:13:51Z

@@ -1,13 +1,13 @@
 ---
 id: T-0397
 title: Drive screen follows the reference library - maneuver banner, bottom card with arrival, minutes, distance and the estimate caption, a short red End with a Keep-driving confirm, and the missing disclaimer line above the card
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T15:13:47Z
+lease_expires_at: 2026-10-18T15:13:47Z
+worktree: .worktrees/T-0397
+branch: task/T-0397
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/ScenicKit/, Tests/, ops/lib/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-SAFE-03, P-SAFE-06, P-SAFE-07, P-A11Y-01]
@@ -48,3 +48,4 @@ and drive-dark and state, item by item, what each shot shows. Any new or changed
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from the reference library pass 2 ("Biggest changes" 7).
+- 2026-10-17T15:13:47Z claimed by agent/claude-opus-5; lease until 2026-10-18T15:13:47Z
