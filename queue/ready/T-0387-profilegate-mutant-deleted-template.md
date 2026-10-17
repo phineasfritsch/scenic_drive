@@ -1,7 +1,7 @@
 ---
 id: T-0387
 title: ops/mutate/profilegate.py's 'the request profile read instead' mutant points at the deleted car_scenic_request.json - re-anchor it on the recorded models
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
