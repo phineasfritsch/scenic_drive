@@ -9,12 +9,13 @@ re-approval is routine on every Swift edit. So two WHITELISTS, both over the app
 ops/lib/check-estimate-badge-approved.txt:
 
   SITES   every line under apps/ios naming an ETA or badge identifier - estimate, estimateBadge, etaIsEstimate,
-          showsEstimateBadge, estimateTag, roundTripMinutes, roundTrip, roundTripValue, etaLine, etaSeconds,
-          fastestEtaSeconds, durationSeconds - counted in code and strings alike, is an approved whole line at its
+          showsEstimateBadge, estimateTag, roundTripMinutes, roundTrip, roundTripValue, etaLine, etaHero,
+          etaMinutes, etaRow, etaSeconds, fastestEtaSeconds, durationSeconds - counted in code and strings alike, is an approved whole line at its
           file, in scan order (paths sorted, then line order). A new surface that draws an ETA, or a badge line
           removed, moved or respelled, is refused by name.
   BLOCKS  each badge block (the Surprise card's round-trip call, its roundTrip/roundTripValue/estimateTag bodies and
-          its Copy literal; the plan, loop, trip and drive cards' `if ... {` badge blocks) is read from its
+          its Copy literal; the plan card's etaRow (T-0396's hero ETA beside its tag); the plan, loop, trip and
+          drive cards' `if ... {` badge blocks) is read from its
           declaration - a whole line that occurs exactly once in its file - to its matching close by counting
           { and } on whole lines, and compared line by line with the approved body, together with the first
           non-blank line ABOVE and BELOW it (an `if false {`, `.hidden()` or `.opacity(0)` around a block is a
@@ -52,7 +53,8 @@ import estimate_badge_decls as decls  # noqa: E402
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 APPROVED_FILE = ROOT / "ops" / "lib" / "check-estimate-badge-approved.txt"
 WORD = re.compile(r"(?<![A-Za-z0-9_])(estimate|estimateBadge|etaIsEstimate|showsEstimateBadge|estimateTag|"
-                  r"roundTripMinutes|roundTrip|roundTripValue|etaLine|etaSeconds|fastestEtaSeconds|durationSeconds)"
+                  r"roundTripMinutes|roundTrip|roundTripValue|etaLine|etaHero|etaMinutes|etaRow|etaSeconds|fastestEtaSeconds|"
+                  r"durationSeconds)"
                   r"(?![A-Za-z0-9_])")
 MIN_FILES = 60
 S = "Packages/ScenicApp/Sources/"
@@ -66,6 +68,7 @@ BLOCKS = [
     (CARD, "private func roundTripValue(minutes: Int) -> some View {"),
     (CARD, "private var estimateTag: some View {"),
     (CARD, 'static let estimate = "estimate \u00b7 no traffic data"'),
+    (PLAN, "private var etaRow: some View {"),
     (PLAN, "if preview.showsEstimateBadge {"),
     (LOOP, "if preview.etaIsEstimate {"),
     (TRIP, "if itinerary.etaIsEstimate {"),
@@ -202,6 +205,8 @@ MUTATIONS = [
     ("the round trip behind `if false {`", CARD, "            roundTrip(minutes: pick.reason.roundTripMinutes)\n",
      "            if false {\n            roundTrip(minutes: pick.reason.roundTripMinutes)\n            }\n"),
     ("the plan card's badge block dropped", PLAN, "if preview.showsEstimateBadge {", "if false {"),
+    ("the plan card's AX branch loses its tag", PLAN, "spacing: 6) {\n                etaText\n                estimateTag\n",
+     "spacing: 6) {\n                etaText\n"),
     ("the drive screen's badge cleared", DRIVE, '.accessibilityIdentifier("drive.estimate")',
      '.accessibilityIdentifier("drive.estimate")\n                        .hidden()'),
     ("B1 a file-scoped DesignTokens shadows the tag's colours", CARD, None,
