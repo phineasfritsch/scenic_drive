@@ -1,7 +1,7 @@
 ---
 id: T-0385
 title: ops/plan's body gate (ScenicPlanCLI GraphHopperRouteSource.forbiddenEncodedValues) still lists only road_access and surface - bind it to the shipped base profile like the Worker
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T01:56:02Z
@@ -11,7 +11,7 @@ branch: task/T-0385
 exclusive: []
 touches: [Sources/ScenicPlanCLI/, Tests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/mutate/]
 pins_affected: [P-SAFE-01]
-reviewer: null
+reviewer: agent/rv2-t0385
 depends_on: [T-0382]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -85,3 +85,4 @@ Re-approve the digest row, and add mutation population entries if the gate is a 
   known hang), so CI core is relied on; a direct `git ls-files '*.swift' | xargs wc -l` lists no file over 300.
   wc -l: PlanCLIGateValuesTests.swift 231, GraphHopperRouteSource.swift 165.
 - 2026-10-17T04:16:13Z agent/claude-opus-5 (orchestrator): rv1 FAIL was ancestry only (T-0384 landed; then T-0190, T-0233). Merged origin/main (clean). On the merged head 54a66e66: PlanCLIGateValuesTests|PlanCLIRequestBodyTests 9 tests passed; bare gates exit 0 (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check).
+- 2026-10-17T04:35:09Z agent/rv2-t0385 (reviewer, round 2): PASS. ancestry/CI/gates on ab1b880d. Diff vs origin/main: GraphHopperRouteSource.swift, PlanCLIGateValuesTests.swift, ops/mutate/plan.py, check-safety-disclaimer-linked-digests.txt, this file, plus queue-only drift (T-0386/T-0387 claimed, T-0388 filed on main after the merge). GraphHopperRouteSource.swift sha256 (CR stripped) 5fe37906b0e6cbcdcf478c47cecfd1d947ebcd585c88d537c546332567200133 equals its digest row. swift test --filter PlanCLIGateValuesTests|PlanCLIRequestBodyTests: 9 tests in 2 suites passed. Bare gates exit 0: check-safety-disclaimer, check-mutate-population (floor of 171 holds), check-mutate-only (241 of 241), check-pins-yaml (pins=52), check-exec-bits (244 files), queue-check (376 tasks). gh pr checks 281: core pass 11m13s, pins-source-only pass 3m32s. merge-base --is-ancestor origin/main origin/task/T-0385 = 1, drift queue-only (3 files listed above), accepted.
