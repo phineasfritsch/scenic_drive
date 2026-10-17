@@ -39,6 +39,14 @@
         "T-0382 scenicPlanner.route refuses every clause shape reading a shipped gate value > gate_service_way: every near miss in every clause shape is refused iff it contains a gate name, else forwarded unchanged",
         "T-0382 ROUTES['/plan'] never takes a client model naming a gate value > handlePlan refuses a body carrying custom_model that reads each derived name: 400, zero upstream calls"
       ]
+    },
+    "swift": {
+      "filter": "ScenicPlanCLITests\\.PlanCLIGateValuesTests",
+      "tests": [
+        "ScenicPlanCLITests.PlanCLIGateValuesTests/theGateListIsTheShippedProfilesGateValues()",
+        "ScenicPlanCLITests.PlanCLIGateValuesTests/theCorpusCoversEveryFamilyForEveryName()",
+        "ScenicPlanCLITests.PlanCLIGateValuesTests/sendRefusesExactlyTheGateValues()"
+      ]
     }
   },
   "P-SAFE-04": {

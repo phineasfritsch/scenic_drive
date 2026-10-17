@@ -71,3 +71,27 @@ P-SAFE-01's named-tests entry binds the Worker's refusal tests (T-0382: 26 names
   - R6 Brief "show RED (row dropped / test deleted)": both, as acceptance 3(b) and 4. Today a deleted CLI test is
     green under P-SAFE-01 for the stronger reason that nothing runs it (4, old table).
   - R7 in flight: T-0386 (services/routing tests) and T-0387 (ops/mutate/profilegate.py) touch neither file here.
+- 2026-10-17T04:59:44Z R3 checked: the warm-up `swift test --scratch-path .build/t-0388 --filter
+  'ScenicPlanCLITests\.PlanCLIGateValuesTests'` ("Test run with 3 tests in 1 suite passed") wrote
+  x-swift-testing.xml with classname `ScenicPlanCLITests.PlanCLIGateValuesTests` and names
+  `theGateListIsTheShippedProfilesGateValues()`, `theCorpusCoversEveryFamilyForEveryName()`,
+  `sendRefusesExactlyTheGateValues()` - the three rows as written.
+  RED (A4). `sendRefusesExactlyTheGateValues()` deleted (lines 210-230 of PlanCLIGateValuesTests.swift, never
+  committed). OLD table: `SCENIC_SWIFT_SCRATCH=.build/t-0388 python ops/lib/run-named-tests.py P-SAFE-01` ->
+  `NAMED P-SAFE-01 passed=26/26`, exit 0 - the deletion unseen. Table edited (A1, .build/t0388_table_edit.py, one
+  insertion asserted once), test still deleted: `RED ScenicPlanCLITests.PlanCLIGateValuesTests/
+  sendRefusesExactlyTheGateValues(): MISSING - no test of this name ran`, `NAMED P-SAFE-01 passed=28/29`, exit 1.
+  RED (A3). (a) `check-named-table.py P-SAFE-01 34a189dd...d229 26` over the edited table -> `REFUSED count 29
+  distinct names != approved 26`, `REFUSED digest 42351bc565d1b7498236376316280a99df4e42a91f7c8890ef23787f51f5dba4
+  != approved 34a189dd...`, `NAMED-TABLE P-SAFE-01 FAILED`, exit 1. (b) the module's own refusals() over the table
+  with the send row dropped in memory, NEW approval: `count 28 distinct names != approved 29`, `digest
+  bb474a070c18... != approved 42351bc565d1...`; over the live table: `[]`.
+  GREEN (A2, A5). Test restored by `git checkout`: blob 9acb10a6 = HEAD's. PINS.yaml edited by
+  .build/t0388_pin_edit.py (assertion and why tail each asserted once; yaml.safe_load diff asserted: only P-SAFE-01,
+  only assertion + why, why a prefix-extension, assertion ending in ` && ` + the old one).
+  `python ops/lib/check-pins-yaml.py` -> `PINS-YAML ok pins=52 fields=418`. `check-named-table.py P-SAFE-01
+  42351bc5...dba4 29` -> `NAMED-TABLE P-SAFE-01 ok - 29 distinct names, sha256 42351bc565d1`, exit 0; `--prove-red`
+  -> `PROVE-RED OK: 8 of 8 rows red by name, controls green`. The SHIPPED assertion (yaml.safe_load, `bash -c`,
+  PYTHON=python): `NAMED-TABLE P-SAFE-01 ok - 29 distinct names, sha256 42351bc565d1`, `NAMED P-SAFE-01
+  passed=29/29`, exit 0. A1: vs origin/main only P-SAFE-01 changed, its vitest half equal, keys [swift, vitest].
+  A6: the appended sentence begins `APPENDED 2026-10-17 (T-0388): ops/plan's body gate is bound too`.
