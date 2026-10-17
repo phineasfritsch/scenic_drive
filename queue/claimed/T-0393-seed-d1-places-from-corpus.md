@@ -1,13 +1,13 @@
 ---
 id: T-0393
 title: Nothing fills D1 places - every corpus place id the app sends is 404 unknown_place; ship an ops/seed-places that loads the corpus places table into D1 from the same commit
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T07:59:14Z
+lease_expires_at: 2026-10-18T07:59:14Z
+worktree: .worktrees/T-0393
+branch: task/T-0393
 exclusive: []
 touches: [ops/, services/api/test/, services/api/migrations/, services/etl/etl/, services/etl/tests/]
 pins_affected: [P-PROD-05]
@@ -31,3 +31,4 @@ Test the exporter through its shipped entry point: a fixture corpus is exported,
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from the pilot runbook audit (owner authorised the pilot backend 2026-10-17).
+- 2026-10-17T07:59:14Z claimed by agent/claude-opus-5; lease until 2026-10-18T07:59:14Z
