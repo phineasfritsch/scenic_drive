@@ -1,4 +1,4 @@
-"""The red half of P-DATA-03's corpus check: five defects, each refused BY NAME.
+"""The red half of P-DATA-03's corpus check: eight defects, each refused BY NAME.
 
     python ops/lib/check-corpus-provenance-mutations.py
     python ops/lib/check-corpus-provenance.py --prove-red      (the same thing; this is what it runs)
@@ -65,13 +65,27 @@ MUTANTS = (
      'elif built > reference + max_future_skew:',
      'elif False:',
      "stamped 2 days in the future"),
+    # T-0233: the CONTENT limbs. Mutant 6 deletes the containment, mutant 7 keeps it and widens it to a no-op
+    # (the acceptance's second mutant), mutant 8 stops comparing the meta.bbox stamp with the content.
+    ("the content containment deleted",
+     'if extent[0] < lo_lon or extent[1] < lo_lat or extent[2] > hi_lon or extent[3] > hi_lat:',
+     'if False:',
+     "stamped la, content in Marin"),
+    ("the containment widened to a no-op",
+     'CORPUS_OVERHANG_DEG = 0.25',
+     'CORPUS_OVERHANG_DEG = 360.0',
+     "stamped la, content in Marin"),
+    ("meta.bbox never compared with the content",
+     'if stamped != _e7(extent):',
+     'if False:',
+     "meta.bbox claiming la's whole box"),
 )
 
 
 # The literal floor, in the shape ops/mutate/ populations carry. Without it a table emptied - by a bad merge,
 # or by somebody deleting the row that caught them - prints "0/0 mutants refused by name" and exits 0, which
 # is a green over nothing (PR #94's shape). Raise it when rows are added; never lower it to make a run pass.
-MUTANT_FLOOR = 5
+MUTANT_FLOOR = 8
 
 
 def main() -> int:

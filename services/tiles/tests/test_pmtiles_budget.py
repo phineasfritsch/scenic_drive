@@ -97,9 +97,16 @@ def test_refuses_bounds_short_on_every_edge(tmp_path: Path) -> None:
 
 
 def test_a_wider_archive_is_fine(tmp_path: Path) -> None:
-    """Cover, not equal - an extract's bounds snap out to whole tiles, so they are never exactly the bbox."""
-    wide = write_pmtiles(tmp_path / "wide.pmtiles", (-119.5, 33.5, -117.5, 34.6), good_metadata())
+    """Cover, not equal - but by at most one z14 tile per edge (T-0233 R2: the measured build is exact)."""
+    wide = write_pmtiles(tmp_path / "wide.pmtiles", (-119.02, 33.68, -117.83, 34.47), good_metadata())
     assert check(wide, LA_BBOX, region="la", now=NOW) == []
+
+
+def test_an_archive_past_its_region_is_refused(tmp_path: Path) -> None:
+    """T-0233: half a degree past la on every edge is somebody else's map under la's stamp."""
+    wide = write_pmtiles(tmp_path / "wide.pmtiles", (-119.5, 33.5, -117.5, 34.6), good_metadata())
+    failures = check(wide, LA_BBOX, region="la", now=NOW)
+    assert len(failures) == 1 and "extend past the region bbox" in failures[0], failures
 
 
 def test_refuses_over_the_120_mb_budget(good: Path) -> None:
