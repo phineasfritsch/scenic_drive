@@ -161,3 +161,18 @@ pins-source-only. A regression in either directory is invisible to the one comma
     services/etl has no max-skipped=<N> - a run row must bound its skipped tests`; `max-skipped=-1`,
     `max-skipped=03`, `max-skipped=23 extra` -> `malformed row ...`, each also UNCLASSIFIED by name. Shipped
     table: `RUN services/etl 1` / `RUN services/tiles 0` / `RUN services/routing 23`, rc=0.
+- 2026-10-17T10:30:27Z A5 re-run by agent/claude-opus-5 (owner) on c7f4ea99 = 3efffe62 merged with origin/main
+  e41a7170 (`git fetch origin` in the main checkout; origin/main is an ancestor of HEAD, re-checked after the run):
+  - bare `bash ops/test`, rc=1 in 970 s: `PYTEST services/etl=4109 services/tiles=82
+    services/routing=50(skipped=4)` / `TESTS linux=7902/7902 ios=skipped failed=1 skipped=4` / `FAIL: 1 failing
+    test(s):` / `  - the GET /config answer path (T-0288 rv3 B1) loading the shipped worker leaves every global,
+    intrinsic and prototype the /config answer runs on untouched - Error: STACK_TRACE_ERROR`. That is the
+    services/api vitest flake the pre-review verifier also hit on a loaded box (the gates ran concurrently); it
+    is not in this diff. Alone on the same head `npx vitest run test/configAnswerPath.test.ts`: `Test Files 1
+    passed (1)` / `Tests 3 passed (3)`. The python tier and floor are green; A5's "exit 0" is NOT shown on this
+    box for this head and rests on the PR's CI core job.
+  - Gates, each bare, rc=0: check-safety-disclaimer; check-mutate-population.py `the floor of 171 holds`;
+    check-mutate-only.py `NAME-PAIRS OK`; check-pins-yaml.py `PINS-YAML ok pins=52 fields=418`;
+    check-exec-bits `P-OPS-01: 246 files, 23 required present, all modes correct`; queue-check `QUEUE OK (385
+    tasks)`. check-pins --source-only not re-run (124 on this box, as at 07:08); CI's pins-source-only job.
+    `wc -l`: ops/test 161, ops/lib/python_suites.py 112, ops/lib/python-suites.txt 10.
