@@ -1,7 +1,7 @@
 ---
 id: T-0386
 title: Re-measure the routed lambda runs (test_lambda_monotone BITE_FLOOR, test_route_details lambda-8) against the models production now sends
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T04:12:32Z
@@ -11,7 +11,7 @@ branch: task/T-0386
 exclusive: []
 touches: [services/routing/tests/, services/routing/measure_runs.py, Tests/Fixtures/custom-model/]
 pins_affected: [P-PROD-01]
-reviewer: null
+reviewer: agent/rv1-t-0386
 depends_on: [T-0190]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -173,3 +173,31 @@ Run the LA GraphHopper container (WSL docker, the committed LA graph build; no V
   the floor of 171 holds`); check-mutate-only.py 0 (`NAME-PAIRS OK: 239389 pair tokens over 48 id populations`);
   check-pins-yaml.py 0 (`PINS-YAML ok pins=52 fields=418`); check-exec-bits 0 (`P-OPS-01: 244 files, 23 required
   present, all modes correct`); queue-check 0 (`QUEUE OK (379 tasks)`).
+- 2026-10-17T05:15:23Z REVIEW PASS (agent/rv1-t-0386, reviewer, not the owner) on PR #282, head cc817eba, in a detached
+  worktree .worktrees/rv1-t-0386 (Vermont graph-cache copied from the main checkout; edges/nodes/geometry/properties
+  sha256 equal to the stage-1 entry). Acceptance re-run:
+  - (1)/(3)/(5) routed, SCENIC_ROUTING_PBF=<main>/services/etl/work/la/window-tagged-1.osm.pbf: test_lambda_monotone.py
+    + test_route_details.py + test_request_models_static.py `18 passed in 28.92s`, printing
+    `T(lambda) ms: lambda=0: 5945246, lambda=1: 6015807, lambda=2: 6785536, lambda=4: 7510022, lambda=8: 8122353`,
+    `car_fast: 5945246 ms / 107153.8 m   lambda=0: 5945246 ms / 107153.8 m`, loop lambda-8 `time_ms=2522680
+    distance_m=36576.6`, typed pair `time_ms=526739 distance_m=8230.4` - equal to stage 1. Arithmetic re-derived:
+    bite 0.36619, lambda-2 saturation 0.14134, lambda-4 0.26320; floor(36.619/2)/100 = 0.18. Whole services/routing
+    pytest `50 passed in 54.10s`.
+  - (2) stale-number grep: no output, exit 1. BITE_FLOOR = 0.18.
+  - Reviewer mutants (docker-free, __pycache__ purged and 1.1 s python sleep between, each restored with git checkout):
+    write_models iterating ORACLE_LAMBDAS instead of its lambdas argument; write_models writing rstrip()ed record bytes;
+    write_models dropping the rmtree (stale files kept): each `FAILED
+    test_request_models_static.py::test_write_models_writes_each_label_its_own_record_bytes`, `1 failed, 6 passed`.
+    BITE_FLOOR = 0.10 and = 0.17: each `FAILED test_lambda_monotone.py::test_bite_floor_is_ruled_from_the_measured_record`.
+    No survivor.
+  - (4) gates, each bare, exit 0: check-safety-disclaimer 0; check-mutate-population.py 0 (`the floor of 171 holds`);
+    check-mutate-only.py 0 (`NAME-PAIRS OK: 239389 pair tokens over 48 id populations`); check-pins-yaml.py 0
+    (`PINS-YAML ok pins=52 fields=418`); check-exec-bits 0 (`P-OPS-01: 244 files, 23 required present, all modes
+    correct`); queue-check 0 (`QUEUE OK (379 tasks)`). gh pr checks: pins-source-only pass, core pending at review time.
+  - Ancestry, last: `git fetch origin` in the main checkout, origin/main 1272ec4d is an ancestor of origin/task/T-0386
+    cc817eba (exit 0).
+  - Recorded, not blocking: the 2026-10-17T04:58:42Z entry quotes `wc -l` test_lambda_monotone.py 174 and
+    test_request_models_static.py 152; at c61f6999 and at head both files measure 176 and 154 (test_route_details.py
+    175 is right). Both are under the 300-line cap; the earlier record stands as written, corrected here.
+  - Recorded, out of scope (owner R6, stillOpen 1): lambda-0 routes faster than car_fast on 4 of 28 LA grid pairs
+    (distance_influence 0 in the models vs 30 in car_scenic_base.json); a follow-up task is needed.
