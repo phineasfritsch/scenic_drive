@@ -1,0 +1,13 @@
+<configuration>
+  <!-- The CLI's log goes to stderr at INFO, as slf4j-simple's did: its stdout carries the ROUTE / EDGE / GRAPH
+       lines the routing tests parse. The served router ignores this file - Dropwizard configures logback itself. -->
+  <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.err</target>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+  <root level="INFO">
+    <appender-ref ref="STDERR"/>
+  </root>
+</configuration>

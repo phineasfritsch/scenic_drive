@@ -114,3 +114,29 @@ ops/deploy-routing must deploy this compose to a host given by environment varia
   * A7 bare gates: check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml,
     check-exec-bits, queue-check.
   * A8 `git grep -nI` over the diff finds no secret value; ROUTER_SECRET appears only as an env reference.
+- 2026-10-17T08:24:59Z RED: `python ops/lib/check-routing-front-door.py` before the Caddyfile/compose existed:
+  `ROUTING FRONT DOOR UNREADABLE: [Errno 2] No such file or directory: ...services\routing\Caddyfile` exit=2.
+  With the files: `ROUTING FRONT DOOR OK: 3 proxied calls, all behind the secret` exit 0; `--prove-red`:
+  REFUSED placeholder refusal dropped / route opened to GET / secret header line dropped / catch-all proxies /
+  secret forwarded upstream / access log on / graphhopper port published / secret literal in compose / caddy by
+  tag only - `PROVE-RED OK: 9/9 mutants refused` exit 0.
+- 2026-10-17T08:32:54Z STAGE A1 (WSL docker): `docker build -t scenic-routing:t0392 services/routing` exit=0;
+  maven in the builder: `Tests run: 32, Failures: 0, Errors: 0, Skipped: 0`.
+- 2026-10-17T08:32:54Z STAGE A2: import-graph.sh of la-tagged.osm.pbf (45914107 bytes, sha256
+  648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39): `Finished reading OSM file: nodes: 951,816,
+  edges: 1,194,924, zero distance edges: 70,743`; `SCENIC_EV present=true bits=4 max=10`;
+  `GRAPH nodes=951816 edges=1194924`; graph-la 79M on disk. The CLI now logs through logback (stderr, INFO).
+- 2026-10-17T08:44:32Z STAGE A3 GREEN (WSL docker, compose up --build against graph-la, throwaway secret):
+  `route distance=17935 m time=1162 s points=548` PASS route_fast_with_secret; PASS
+  route_scenic_custom_model_with_secret (same 17935 m path - the check proves the custom model is accepted and
+  answered, NOT that it moves the route); `isochrone polygons=1` PASS isochrone_with_secret; `info
+  graph_hash=64d2c75e...9863f0 properties_sha256=64d2c75e...9863f0 profiles=['car_fast', 'car_scenic']` PASS
+  info_graph_hash_equals_properties_sha256; `POST /route -> 401` PASS route_without_secret_401; `POST /route ->
+  401` PASS route_wrong_secret_401; `GET /info -> 401` PASS info_without_secret_401; `GET /maps/ -> 404` PASS
+  unlisted_path_404; PASS graphhopper_port_unpublished; `POST /route -> 401` PASS
+  placeholder_secret_401_when_box_started_with_it; `E2E 10/10` exit=0. (A first run printed `E2E 9/10`:
+  graphhopper_port_unpublished FAILED because the driver's `compose ps` lacked ROUTER_SECRET - a driver bug, fixed.)
+- 2026-10-17T08:44:32Z RED BY NAME, e2e: Caddyfile with its three `not header ... REPLACE_WITH_THE_WORKER_ROUTER_SECRET`
+  lines removed -> `FAIL placeholder_secret_401_when_box_started_with_it`, `E2E 9/10` exit=1; restored.
+- 2026-10-17T08:47:21Z RED BY NAME, e2e: ScenicServerApplication with the GraphHashInfoFilter registration disabled
+  (`if (false)`) -> `info graph_hash=None` `FAIL info_graph_hash_equals_properties_sha256`, `E2E 9/10` exit=1; restored.
