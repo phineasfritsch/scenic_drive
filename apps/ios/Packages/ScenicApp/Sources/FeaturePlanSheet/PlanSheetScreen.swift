@@ -78,7 +78,8 @@ public struct PlanSheetScreen: View {
     public var body: some View {
         NavigationStack {
             content
-                .navigationTitle(showingLoop ? "Just drive a loop" : showingTrip ? "Plan a road trip" : "Plan a drive")
+                .navigationTitle(showingLoop ? "Just drive a loop" : showingTrip ? "Plan a road trip"
+                                 : onPreview ? "" : "Plan a drive")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -109,6 +110,7 @@ public struct PlanSheetScreen: View {
                         .accessibilityIdentifier("plan.loopTab")
                     }
                 }
+                .toolbar(onPreview ? .hidden : .automatic, for: .bottomBar)
         }
         .onAppear {
             sheet.setDisclaimerAccepted(safetyNoteRead)
@@ -126,6 +128,12 @@ public struct PlanSheetScreen: View {
             trip.setDisclaimerAccepted(accepted)
             loop.setDisclaimerAccepted(accepted)
         }
+    }
+
+    /// T-0396 R1, R8: the preview is on screen - the card titles it, and its "..." menu holds the loop and trip doors.
+    private var onPreview: Bool {
+        guard !showingLoop, !showingTrip, !showingSaved, case .preview = sheet.state else { return false }
+        return true
     }
 
     @ViewBuilder private var content: some View {
@@ -154,7 +162,8 @@ public struct PlanSheetScreen: View {
         case .preview(let ticket, let preview):
             PlanPreviewCard(preview: preview, destination: sheet.destination?.name ?? "", saveLine: saveLine,
                             onSave: { save(preview, budgetMinutes: ticket.budgetMinutes) },
-                            onChangePlace: { searchFor(.destination) }, onDrive: { onDrive(preview) })
+                            onChangePlace: { searchFor(.destination) }, onDrive: { onDrive(preview) },
+                            onLoop: { showingLoop = true }, onTrip: { showingTrip = true })
         case .failed(_, let failure):
             if showingWaitlist {
                 WaitlistCard(answer: waitlistAnswer, onChangeStart: { searchFor(.start) })

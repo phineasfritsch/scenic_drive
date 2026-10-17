@@ -117,7 +117,7 @@ RED_ROWS = (
     ("HazardCopy used from another card", APP + "FeaturePlanSheet/TripItineraryCard.swift", None,
      "private let copyProbe = HazardCopy.noneFlagged\n"),
     ("an approved line repeated", CARD, None, SHIPPED.strip() + "\n"),
-    ("the table call is gone", CARD, "Text(HazardCopy.noneFlagged)", "Text(\"No hazards flagged\")"),
+    ("the table call is gone", CARD, SHIPPED, "        let lines = [\"Road closed ahead\"]"),
     ("a card reads closures beside the site", TRIP, TRIP_SITE,
      "                Text(itinerary.closures.crosses ? \"Road closed ahead\" : \"\")\n" + TRIP_SITE),
     ("the raw closures state reaches a Text", TRIP, TRIP_SITE,
