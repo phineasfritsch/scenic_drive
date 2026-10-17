@@ -81,6 +81,38 @@ disclaimer. Any new or changed guard is shown red, then green.
     ScrollView, reachable by scrolling.
   - R6 (no numeric module): no ops/mutate population - the change is layout and wiring; the guards' red is shown by
     four hand mutants (M1-M4 below) run against the edited tree.
+- 2026-10-17T20:47:17Z implementation c2df7e05: PlanPreviewMap (FeatureScenicHome), PlanPreviewCard map pinned above
+  the ScrollView (0.42 / 0.24 at AX), the card's bottom-inset footer removed, PlanSheetScreen `previewMap:`, the shell
+  line, limb (f3), FROZEN_PREVIEW_CARD_BODY re-typed, the shell's frozen line, FeatureScenicHome + app-wide + shell
+  digests re-approved. Local: `bash ops/lib/check-map-attribution` EXIT 0 with
+  `P-ATTR-01 (f3): the plan preview's map Packages/ScenicApp/Sources/FeatureScenicHome/PlanPreviewMap.swift - footer
+  text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit), mounted from style and
+  route, one DriveBasemap.planned(, nothing hidden.`; `bash ops/lib/check-safety-disclaimer` EXIT 0.
+  ios-compile 39066700839 and ios-screenshot 39066704478 FAILED: `PlanPreviewMap.swift:34:37: error: cannot find
+  'CreditLine' in scope` (CreditLine is Handoff's; DriveScreen imports Handoff). Fixed 0973b9e7 (`import Handoff`,
+  both PlanPreviewMap digests re-approved); re-dispatched ios-compile 39068165781, ios-screenshot 39068169091.
+  Prove red (.build/t0405-mutants.py, ignored, each mutant against the edited tree, restored after):
+  `M1 footer deleted: exit=1 :: P-ATTR-01: the footer construction AttributionFooter( occurs outside its tracked set`
+  `M2 footer reads a second resolve: exit=1 :: P-ATTR-01: the planned resolve call DriveBasemap.planned( occurs
+  outside its tracked set; found: ... DriveScreen.swift(1) ... PlanPreviewMap.swift(2`
+  `M3 footer hidden from VoiceOver: exit=1 :: P-ATTR-01: .../PlanPreviewMap.swift hides something from
+  accessibility: 1 \`accessibilityHidden\` occurrence(s), 0 \`(false)\`.`
+  `M4 shell hands a mapless preview: exit=1 :: P-ATTR-01: a frozen render block changed:`
+  `restored: exit=0`
+- 2026-10-17T21:08:50Z ios-compile 39068165781 SUCCESS, ios-screenshot 39068169091 SUCCESS (head 0973b9e7). LOOKED:
+  - plan-preview-light: route VISIBLE, bold blue line on the map under the nav bar (the demo basemap: CI has no
+    la.pmtiles); FRAMED - whole line inside the map, both ends clear of the edges and above the credit band;
+    ATTRIBUTION on the map's bottom-right edge, "(c) MapLibre . Natural Earth . Route data (c) OpenStreetMap
+    contributors"; Start the drive + Save; "Conditions change. Verify locally." directly under Start; the
+    estimate tag on the ETA row. No overlap.
+  - plan-preview-dark: same items, dark card and dark credit chip; no overlap.
+  - plan-preview-ax5: FAIL. The credit renders at AX5 and fills the 24% map: it wraps mid-word ("OpenStreet-/Map/
+    contributors"), the basemap half is cut off above the map's top edge, and the route is not framed (the
+    coordinator's open band is under its margin, so the camera stays put). The card text is not covered.
+  FIX (the one re-run): PlanPreviewMap takes the home's own cap, `.dynamicTypeSize(...HomeTypeSize.cap)` on the
+  map surface (map chrome + credit; the card's text is uncapped), and the AX share rises from 0.24 to 0.32
+  (R5 superseded on that number; FROZEN_PREVIEW_CARD_BODY re-typed; PlanPreviewMap's two digest rows and
+  PlanPreviewCard's re-approved).
 
 ## Acceptance
 1. `bash ops/lib/check-map-attribution` exits 0 and prints an (f3) line naming PlanPreviewMap.swift.

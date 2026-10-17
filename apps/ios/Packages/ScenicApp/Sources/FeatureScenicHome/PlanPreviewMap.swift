@@ -36,6 +36,8 @@ public struct PlanPreviewMap: View {
                 .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { creditBandTop = $0 }
         }
         .clipped()
+        // T-0405 AX5 shot 39068169091: an uncapped credit filled the map and cut itself off; the home's cap.
+        .dynamicTypeSize(...HomeTypeSize.cap)
         .accessibilityIdentifier("plan.map")
         .task { resolveMap() }
         .onChange(of: colorScheme) { resolveMap() }

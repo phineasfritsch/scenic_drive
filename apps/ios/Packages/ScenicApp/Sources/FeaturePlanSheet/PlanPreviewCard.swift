@@ -29,7 +29,7 @@ struct PlanPreviewCard: View {
         GeometryReader { proxy in
             VStack(spacing: 0) {
                 map
-                    .frame(height: proxy.size.height * (typeSize.isAccessibilitySize ? 0.24 : 0.42))
+                    .frame(height: proxy.size.height * (typeSize.isAccessibilitySize ? 0.32 : 0.42))
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         titleRow
