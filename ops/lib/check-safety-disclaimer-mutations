@@ -154,6 +154,11 @@ rows=(
   # Row 61 is T-0376 R9: the shell's fixed home frame places its child top-first, so an AX5 home taller than the
   # frame overflows downward and never over the pill's inset; centring it again is refused by the frozen shell.
   "T-0376 the home's overflow centred again|ScenicDrive/ScenicDriveApp.swift|s/, alignment: .top)/)/|the app shell ScenicDriveApp line 29 of 50"
+  # Rows 62-64 are T-0396's pre-review survivors M1, M2 and M1's mount twin: refused by -preview, which runs before
+  # the digest pins, so each is refused by this name even with its sha256 row re-approved.
+  "T-0396 M1 the conditions line dropped from both preview stacks|Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewActions.swift|/^ *conditions$/d|PlanPreviewActions' body line 5 of 18"
+  "T-0396 M2 the estimate tag inverted|Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift|s/if preview.showsEstimateBadge {/if !preview.showsEstimateBadge {/|PlanPreviewCard's estimateTag line 2 of 13"
+  "T-0396 M1 twin the actions block unmounted from the card|Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift|/^ *PlanPreviewActions(saveLine: /d|PlanPreviewCard's body line 12 of 23"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies

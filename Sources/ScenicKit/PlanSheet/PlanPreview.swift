@@ -56,6 +56,30 @@ public struct PlanPreview: Equatable, Sendable {
     /// "52 min · 14 min longer than the fastest way", or "· about as quick as the fastest way" when it is not longer.
     public var etaLine: String { Self.etaLine(etaSeconds: etaSeconds, fastestEtaSeconds: fastestEtaSeconds) }
 
+    /// The preview's hero number (T-0396 R2): "55 min".
+    public var etaHero: String { "\(etaMinutes) min" }
+
+    /// The preview's why line (T-0396 R5): "+20 min over fastest", or "About as quick as the fastest way".
+    public var whyLine: String {
+        extraMinutes == 0 ? "About as quick as the fastest way" : "+\(extraMinutes) min over fastest"
+    }
+
+    /// The drawn line's length in metres, haversine summed over its vertices (T-0396 R2).
+    public var routeMeters: Double {
+        zip(route, route.dropFirst()).reduce(0) { $0 + Geo.distanceMeters($1.0, $1.1) }
+    }
+
+    /// "(2.7 mi)" under 10 miles, "(14 mi)" from 10; nil when the route has fewer than two points (T-0396 R2).
+    public var distanceLabel: String? {
+        guard route.count >= 2 else { return nil }
+        let miles = routeMeters / Self.metersPerMile
+        let tenths = Int((miles * 10).rounded())
+        return tenths < 100 ? "(\(tenths / 10).\(tenths % 10) mi)" : "(\(Int(miles.rounded())) mi)"
+    }
+
+    /// The international mile.
+    public static let metersPerMile = 1609.344
+
     /// The one ETA formatter: the preview's line, and the drive screen's for whatever line it is on (T-0330 R4).
     public static func etaLine(etaSeconds: Double, fastestEtaSeconds: Double) -> String {
         let minutes = Int((etaSeconds / 60).rounded())
