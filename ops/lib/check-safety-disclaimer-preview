@@ -10,7 +10,7 @@
 # blocks that mount the line and draw the tag are whole-line WHITELISTS, so ANY edit inside one - a deleted line,
 # a negation, a wrapper, a modifier - is refused until its approved list below is edited in the same commit.
 #
-# The blocks: PlanPreviewCard's `var body` (mounts PlanPreviewActions and the attribution footer), `etaRow` and
+# The blocks: PlanPreviewCard's `var body` (mounts the shell's map over PlanPreviewActions, T-0405), `etaRow` and
 # `estimateTag`; PlanPreviewActions' `var body` (the line in BOTH stacks) and `conditions`. Directive fence: no
 # kept line of the two files starts with `#` (an `#if` compiles an unfrozen twin).
 #
@@ -21,6 +21,10 @@ PREVIEW_REASON="a frozen preview render block changed"
 
 FROZEN_PREVIEW_CARD_BODY=(
   'var body: some View {'
+  'GeometryReader { proxy in'
+  'VStack(spacing: 0) {'
+  'map'
+  '.frame(height: proxy.size.height * (typeSize.isAccessibilitySize ? 0.24 : 0.42))'
   'ScrollView {'
   'VStack(alignment: .leading, spacing: 12) {'
   'titleRow'
@@ -37,9 +41,7 @@ FROZEN_PREVIEW_CARD_BODY=(
   '.frame(maxWidth: .infinity, alignment: .leading)'
   '.padding(16)'
   '}'
-  '.safeAreaInset(edge: .bottom) {'
-  'AttributionFooter(text: PlanPreview.attribution)'
-  '.background(.bar)'
+  '}'
   '}'
   '.onAppear { moments?.report(.planPreviewOnScreen) }'
   '}'

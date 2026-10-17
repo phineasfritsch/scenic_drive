@@ -70,7 +70,7 @@ struct ScenicDriveApp: App {
                 PlanDriveButton(action: { isPlanning = true })
                     .dynamicTypeSize(...HomeTypeSize.cap)
                     .sheet(isPresented: $isPlanning, onDismiss: { surpriseGate = LivePlanner.surpriseGate() }) {
-                        PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, surpriseGate: { LivePlanner.surpriseGate() }, onDrive: { isPlanning = false; drive = $0 }, onClose: { isPlanning = false })
+                        PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, surpriseGate: { LivePlanner.surpriseGate() }, onDrive: { isPlanning = false; drive = $0 }, previewMap: { AnyView(PlanPreviewMap(preview: $0)) }, onClose: { isPlanning = false })
                     }
             }
             .sheet(isPresented: $isShowingCorpusDownload) {

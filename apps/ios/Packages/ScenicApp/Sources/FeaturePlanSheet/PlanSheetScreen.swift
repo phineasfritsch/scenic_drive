@@ -11,7 +11,7 @@ import SwiftUI
 /// typed place (R4): this module asks for no location at all.
 ///
 /// Presented full height, as Settings is, with no detent: a partial sheet over the map would cover its credit
-/// (P-ATTR-01).
+/// (P-ATTR-01). T-0405: the preview carries its own map, `previewMap`, handed in by the shell.
 public struct PlanSheetScreen: View {
     /// T-0362 R9: the same value is the sheet's address search, so the shell's one LivePlanner.make() builds it too.
     private let planner: any RoutePlanning & WaitlistJoining & PlaceSearching
@@ -24,6 +24,8 @@ public struct PlanSheetScreen: View {
     @State private var surprise = SurpriseGate.on
     /// The door to the drive (T-0324 R4): the shell takes the previewed plan and shows the drive in place of the home.
     private let onDrive: (PlanPreview) -> Void
+    /// T-0405 R2: the route's map on the preview, built by the shell (this target cannot import MapAdapter).
+    private let previewMap: @MainActor (PlanPreview) -> AnyView
 
     /// The home's on-device acknowledgement, read only (R3).
     @AppStorage("safety.disclaimer.acknowledged.v1") private var safetyNoteRead = false
@@ -50,7 +52,7 @@ public struct PlanSheetScreen: View {
                 dayLinks: @escaping ([Coordinate]) -> [URL], loopPlanner: any LoopPlanning,
                 loopLink: @escaping (Coordinate, [Coordinate]) -> URL?,
                 surpriseGate: @escaping @MainActor () -> SurpriseGate, onDrive: @escaping (PlanPreview) -> Void,
-                onClose: @escaping () -> Void) {
+                previewMap: @escaping @MainActor (PlanPreview) -> AnyView, onClose: @escaping () -> Void) {
         self.planner = planner
         self.tripPlanner = tripPlanner
         self.dayLinks = dayLinks
@@ -59,6 +61,7 @@ public struct PlanSheetScreen: View {
         self.onClose = onClose
         self.surpriseGate = surpriseGate
         self.onDrive = onDrive
+        self.previewMap = previewMap
         // T-0336: a DEBUG `-screen` rehearsal opens on its fixed state; nil in every release build.
         if let rehearsal = PlanRehearsal.atLaunch {
             _sheet = State(initialValue: rehearsal.sheet)
@@ -160,7 +163,8 @@ public struct PlanSheetScreen: View {
             ProgressView("Finding a calmer way there")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .preview(let ticket, let preview):
-            PlanPreviewCard(preview: preview, destination: sheet.destination?.name ?? "", saveLine: saveLine,
+            PlanPreviewCard(preview: preview, map: previewMap(preview), destination: sheet.destination?.name ?? "",
+                            saveLine: saveLine,
                             onSave: { save(preview, budgetMinutes: ticket.budgetMinutes) },
                             onChangePlace: { searchFor(.destination) }, onDrive: { onDrive(preview) },
                             onLoop: { showingLoop = true }, onTrip: { showingTrip = true })
