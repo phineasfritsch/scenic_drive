@@ -75,6 +75,30 @@ The value for the pilot is https://scenic-api.phineas-fritsch.workers.dev. Re-ap
     re-approved in ops/lib/check-safety-disclaimer-pinned. The app shell (ScenicDriveApp.swift) is NOT edited, so
     no frozen shell line moves.
   - R9 (privacy): no request body, header or coordinate changes; only WHICH base URL a release build uses.
+- 2026-10-17T08:42:39Z RED then GREEN, by name (swift 6.3.3, Windows, `--scratch-path .build/t-0394`):
+  - RED, A2: APIBaseURLTests against a stub `resolve` returning nil:
+    `× Test everyAcceptedBaseComposesThePlanPathExactly() failed after 0.025 seconds with 8 issues.`
+    `× Test resolveMatchesTheTableRowByRow() failed after 0.026 seconds with 8 issues.`
+    `× Test shippedInfoPlistResolvesToThePilot() failed after 0.026 seconds with 2 issues.`
+    `× Test run with 4 tests in 1 suite failed after 0.028 seconds with 18 issues.`
+  - RED, A2: the real resolver before the Info.plist key: the table tests pass, and
+    `shippedInfoPlistResolvesToThePilot() recorded an issue ... (got?.absoluteString → nil) == (Self.pilot → "https://scenic-api.phineas-fritsch.workers.dev")`.
+  - GREEN: `√ Test run with 4 tests in 1 suite passed`; the whole target `√ Test run with 185 tests in 45 suites passed`.
+  - RED, A3: check-base-url-sites.py over `git archive e41a7170 apps/ios` exits 1, `P-SAFE-03 (base URL) FAIL: 39
+    refusal(s)`, 23 `not an approved` lines, first `guard let text = UserDefaults.standard.string(forKey:
+    LivePlanner.baseURLKey), let base = URL(string: text),` at .../LiveAccountDeletion.swift.
+  - GREEN, A3: `P-SAFE-03 (base URL): 37 approved base URL sites, LiveBaseURL.swift as approved, the -plan.base.url
+    read inside #if DEBUG`; `--prove-red` `PROVE-RED OK: 12/12 refused by name` (override outside DEBUG, override in
+    the #else arm, the release arm reading the environment, the old UserDefaults reader restored, telemetry on a
+    literal URL, the ledger on the pilot literal, a second resolve, the shell reading the Info.plist key, a new file
+    building a client, a raw PlanHTTPRequest, LiveBaseURL.swift deleted, the reroute sender dropping LiveBaseURL).
+  - A4: check-ios-compile-guardrails with the screenshot launch line edited but the pin not yet moved:
+    `IOS-COMPILE-GUARDRAILS FAIL: 1 guardrail(s) gone in ios-screenshot.yml` (steps[4].run differs); after
+    ios_screenshot_pinned.py moved: OK, and `--prove-red` `PROVE-RED OK: 99 mutations red, 6 legitimate spellings
+    green over 2 workflows`, its new row `T-0394: the offline override dropped` red. ios_screenshot_pinned.py is
+    298 lines (`wc -l`), under the cap.
+  - check-base-url-sites.py is committed 100644: check-exec-bits refused 100755 (`ops/lib/check-base-url-sites.py
+    (data, should be 100644, is 100755)`), as check-screen-rehearsals.py is 100644.
 
 ## Acceptance
 1. `swift test --scratch-path .build/t-0394 --filter APIBaseURLTests` passes; the suite holds the R3/R4 table

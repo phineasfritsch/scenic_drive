@@ -20,6 +20,8 @@
 	<string>0.1</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>SCENIC_API_BASE_URL</key>
+	<string>https://scenic-api.phineas-fritsch.workers.dev</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>

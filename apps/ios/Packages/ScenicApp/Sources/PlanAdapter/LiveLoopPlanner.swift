@@ -7,8 +7,7 @@ import ScenicKit
 /// target that imports ScenicAPIClient.
 public enum LiveLoopPlanner {
     public static func make() -> any LoopPlanning {
-        guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
-              base.scheme == "https" else { return UnreachableLoopPlanner() }
+        guard let base = LiveBaseURL.url else { return UnreachableLoopPlanner() }
         let client = ClientLoopPlanner(client: LoopClient(base: base, transport: URLSessionPlanTransport(),
                                                     installID: StoredInstallID(),
                                                     accountToken: StoreKitAccountToken(),

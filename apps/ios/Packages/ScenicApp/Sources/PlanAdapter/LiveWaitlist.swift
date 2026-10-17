@@ -8,8 +8,7 @@ import Telemetry
 /// without an https base: then nothing is sent.
 enum LiveWaitlist {
     static func make() -> (any WaitlistJoining)? {
-        guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
-              base.scheme == "https" else { return nil }
+        guard let base = LiveBaseURL.url else { return nil }
         return WaitlistClient(base: base, transport: URLSessionPlanTransport(), installID: StoredInstallID(),
                               memory: DefaultsWaitlistMemory(),
                               cellOf: { H3Cell.containing(latitudeDegrees: $0, longitudeDegrees: $1)?.hexString })
