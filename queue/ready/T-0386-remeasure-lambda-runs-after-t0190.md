@@ -1,7 +1,7 @@
 ---
 id: T-0386
 title: Re-measure the routed lambda runs (test_lambda_monotone BITE_FLOOR, test_route_details lambda-8) against the models production now sends
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
