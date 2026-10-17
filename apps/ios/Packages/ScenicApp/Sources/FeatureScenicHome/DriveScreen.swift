@@ -8,10 +8,9 @@ import SwiftUI
 /// show for the navigator's surface and mode. This target never imports NavAdapter: the shell composes DriveHost's
 /// published display into it (R1). It reads `display` and nothing else about the drive's state (P-SAFE-09, R7).
 ///
-/// Moving (the minimal surface): the map, its credit and the one large action - the reroute or rejoin state is a
-/// caption inside that action. Stopped (full): a status banner, the ETA line of the line being driven (DriveDisplay's -
-/// the plan's, then each taken reroute's; Ferrostar's step durations are 0) with PlanPreview's estimate badge, the
-/// fresh-route note when the Worker answered a new plan (T-0330 R3) and the conditions line are added.
+/// T-0397: on both surfaces, the map, its credit and DriveCard - the conditions line, the arrival, the minutes and
+/// miles left (DriveDisplay's), the estimate caption and the one End pill, 60 pt tall while moving. Moving adds the
+/// reroute or rejoin caption; stopped adds the status banner, the fresh-route note (T-0330 R3) and the End confirm.
 public struct DriveScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     /// T-0358 R7: where a post-drive answer goes - the shell's, from PlanAdapter; unset, nowhere.
@@ -28,6 +27,8 @@ public struct DriveScreen: View {
     @State private var asked = false
     /// T-0358 R2: the question is on screen in place of the controls.
     @State private var isAsking = false
+    /// T-0397 R4: "End this drive?" is on screen in place of the card (full surface only).
+    @State private var confirming = false
 
     private let preview: PlanPreview
     private let display: DriveDisplay
@@ -65,6 +66,8 @@ public struct DriveScreen: View {
                             .padding(16)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(DesignTokens.surface)
+                    } else if confirming {
+                        DriveEndConfirm(onKeep: { confirming = false }, onEnd: finish)
                     } else {
                         controls
                     }
@@ -76,7 +79,7 @@ public struct DriveScreen: View {
         .task { resolveMap() }
         .onChange(of: colorScheme) { resolveMap() }
         .onChange(of: display.line) { resolveMap() }
-        .onChange(of: display.showsDetails) { if isAsking, !display.showsDetails { answer(.dismissed) } }
+        .onChange(of: display.showsDetails) { if !display.showsDetails { closeOnMoving() } }
     }
 
     /// The full surface's status, as a sentence under the status bar. Nothing on the minimal surface.
@@ -92,70 +95,40 @@ public struct DriveScreen: View {
         }
     }
 
-    /// The ETA, the badge and the conditions when stopped; the one action always.
+    /// T-0397: the card on both surfaces - the conditions line, arrival, minutes and miles, the estimate caption and
+    /// the one short End pill (R2/R3); the reroute or rejoin caption while moving, the fresh note when stopped.
     private var controls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if display.showsDetails {
-                if let note = display.note {
-                    Text(note)
-                        .font(.subheadline)
-                        .foregroundStyle(DesignTokens.fg)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("drive.note")
-                }
-                Text(display.etaLine)
-                    .font(.body)
-                    .foregroundStyle(DesignTokens.fg)
-                    .accessibilityIdentifier("drive.eta")
-                if preview.showsEstimateBadge {
-                    Text(PlanPreview.estimateBadge)
-                        .font(.footnote)
-                        .foregroundStyle(DesignTokens.fgMuted)
-                        .accessibilityIdentifier("drive.estimate")
-                }
-                Text(PlanPreview.conditions)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(DesignTokens.fg)
-                    .accessibilityIdentifier("drive.conditions")
-            }
-            endButton
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DesignTokens.surface)
+        DriveCard(remainingSeconds: display.remainingSeconds, glanceLine: display.glanceLine,
+                  showsEstimate: preview.showsEstimateBadge,
+                  caption: display.showsDetails ? nil : display.status, note: display.note,
+                  endTitle: display.actionTitle, endMinHeight: display.actionMinHeight, onEnd: endTapped)
     }
 
-    /// The one action. While moving it is the one large target, and it carries the reroute or rejoin caption.
-    private var endButton: some View {
-        Button(action: endTapped) {
-            VStack(spacing: 2) {
-                Label(display.actionTitle, systemImage: "xmark.circle.fill")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                if !display.showsDetails, let status = display.status {
-                    Text(status)
-                        .font(.subheadline)
-                        .accessibilityIdentifier("drive.caption")
-                }
-            }
-            .foregroundStyle(DesignTokens.onPrimary)
-            .frame(maxWidth: .infinity, minHeight: display.actionMinHeight)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(DesignTokens.primary))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("drive.end")
-    }
-
-    /// T-0358 R2: End drive asks the post-drive question once when PostDriveQuestion says so (arrived, stopped, not
-    /// asked); otherwise the drive ends.
+    /// T-0397 R4: stopped, End asks "End this drive?" first; moving, it ends at once - no new surface above 4.5 m/s.
     private func endTapped() {
+        if display.showsDetails {
+            confirming = true
+        } else {
+            finish()
+        }
+    }
+
+    /// T-0358 R2: ending asks the post-drive question once when PostDriveQuestion says so (arrived, stopped, not
+    /// asked); otherwise the drive ends.
+    private func finish() {
+        confirming = false
         if PostDriveQuestion.asks(after: display, alreadyAsked: asked) {
             asked = true
             isAsking = true
         } else {
             onEnd()
         }
+    }
+
+    /// T-0358 R2 / T-0397 R4: moving closes the confirm, and moving while the question shows is a skip.
+    private func closeOnMoving() {
+        confirming = false
+        if isAsking { answer(.dismissed) }
     }
 
     /// T-0358 R5/R6: the tapped answer goes to PostDriveQuestion.send (a skip sends nothing), and the drive ends.
