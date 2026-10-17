@@ -120,3 +120,29 @@ then green.
     39035404874, no card) has none of it. Those views are FeatureScenicHome (outside touches, T-0397's touches);
     not fixed here - recorded as scope item 4 in T-0399. No re-run: no element inside touches is clipped,
     overlapping or missing.
+- 2026-10-17T16:31:59Z agent/claude-opus-5: final pre-review. git fetch origin (main checkout), merged origin/main c6f2da75 into the
+  branch (29ff6d01). Acceptance re-run on the merged head:
+  A1 PASS surprise-light/-dark/-ax5 (run 39046317171): the card holds one filled capsule "Open in Apple Maps" + trailing
+     arrow.up.right, unclipped in all three.
+  A2 PASS same three: four tonal capsules, no outlines, labels whole.
+  A3 PASS same three: Peak, Tongva Peak, hook, "Round trip from Westwood" over "About 84 min" + estimate tag (beside at
+     default size, under it at ax5), primary, "Not this one?" + reasons; no golden-hour row (nil at shot time); no
+     overlap inside the card.
+  A4 RECORDED the home sheet's own "Open in Apple Maps" is still drawn under the card (light, dark); at ax5 the home's
+     chips and route tiles squeeze - both filed as T-0399 (FeatureScenicHome, outside touches).
+  A5 PASS `bash ops/lib/check-safety-disclaimer` exit=0 ("37 feature file(s), shell, footer pinned (-pinned); doors
+     over 115 .swift (-doors); LAST all 115 app .swift, then 336 root + pbxproj file(s) (-linked)"). A first run on the
+     merged head exited 1 on -linked ("Approve an added, removed or renamed file there") because I had redirected its
+     output into .build-a5.txt in the worktree root - an unpinned root file; output moved to the scratchpad, file
+     removed, re-run exit=0. The guard did its job.
+  A6 PASS `grep -c 'onOpenInMaps(candidate.coordinate)' SurpriseCard.swift` -> 1.
+  A7 PASS `wc -l` SurpriseCard.swift 251, SurpriseNotThis.swift 57.
+  A8 PASS `python ops/lib/check-ios-compile-guardrails.py` exit=0: "IOS-COMPILE-GUARDRAILS OK: ios-screenshot.yml equals
+     the pinned workflow ...".
+  A9 PASS bare gates: check-mutate-population.py "P-PROC-06: every added module is covered or allowlisted; the floor of
+     173 holds" exit=0; check-mutate-only.py "MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64" exit=0;
+     check-pins-yaml.py "PINS-YAML ok pins=53 fields=426" exit=0; check-exec-bits "P-OPS-01: 250 files, 23 required
+     present, all modes correct" exit=0; queue-check "QUEUE OK (390 tasks)" exit=0.
+  A10 PASS ios-compile 39046312312 completed success; ios-screenshot 39046317171 completed success, surprise-ax5.png
+     present. (Runs were on a55f2d2f; the merge brought no FeatureSurpriseMe, workflow or DesignSystem change.)
+  No root Swift test touched (Sources/ScenicKit and Tests/ unchanged), so no swift test run.
