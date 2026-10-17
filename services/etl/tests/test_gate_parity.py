@@ -39,7 +39,8 @@ CORE_CLASSES = (
     + ["access=" + a for a in ("private", "no", "permit", "destination")] + ["motor_vehicle=no"]
     + ["no surface on " + h for h in ("primary", "secondary", "tertiary", "unclassified", "residential")]
 )
-# R1: ScenicKit refuses these; T-0188 ported them into the ETL and the profile has no encoded value for them.
+# R1: ScenicKit refused these first; T-0188 ported them into the ETL, T-0381 into the profile (track_type and
+# the GateFacts booleans). The name is kept: these were the divergent rows, and none diverges now.
 DIVERGENT_CLASSES = ("tracktype=grade3 on tertiary", "barrier=gate+locked=yes", "ford=yes", "service=driveway",
                      "service=parking_aisle")
 # T-0188 rv1 B1/B2: Gates.verdict compares ford and locked to "yes" ONLY, so every layer routes these.
@@ -146,12 +147,9 @@ def test_the_fixture_is_the_briefs_table():
 
 
 def test_only_the_typed_classes_diverge():
-    """R1: a divergent record anywhere else would be a way for a core gate to drift with the test green."""
+    """R1, closed by T-0381: no row may carry a divergent record - every layer gives every row its verdict."""
     divergent = {r["class"]: r["divergent"] for r in ROWS if "divergent" in r}
-    assert sorted(divergent) == sorted(DIVERGENT_CLASSES)
-    for name, record_ in divergent.items():
-        assert record_["profile"] == NOT_GATED and "etl" not in record_, name
-        assert "T-0188" in record_["tracked_by"], name
+    assert divergent == {}
 
 
 def test_the_profile_read_is_the_shipped_file():

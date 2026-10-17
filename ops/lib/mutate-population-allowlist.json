@@ -48,7 +48,6 @@
     "services/etl/etl/byway_source.py": "parses the two byway pulls into the entry shape byways.match consumes; shapes records, computes nothing",
     "services/etl/etl/checkbounds.py": "compares a built extract's meta.json with region.json and never builds; its numbers gate a build, they reach no score, route or tag",
     "services/etl/etl/contentdigest.py": "a sha256 over what the corpus says; a digest of bytes, not a quantity",
-    "services/etl/etl/corpus.py": "the `python -m etl.corpus` command line; wiring over corpuswriter and the producers",
     "services/etl/etl/corpuswriter.py": "writes corpus.sqlite deterministically; it stores the numbers others computed",
     "services/etl/etl/counts.py": "per-class object counts out of osmium fileinfo; the bounds make a silent drop loud and stop there",
     "services/etl/etl/extract.py": "drives osmium to cut the region and filter tags; a subprocess pipeline",

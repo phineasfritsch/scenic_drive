@@ -20,11 +20,18 @@ values the gates read:
   car_access   held TRUE. GraphHopper's own car access parser is not restated, on purpose: the parity is about
                the clauses this repository writes, and modelling `car_access` as already refusing a private
                road would hide the deletion of the profile's own `road_access` clause. Fail closed.
+  track_type   OSMTrackTypeParser (T-0381): `tracktype` on any way, Helper.isEmpty (trimmed) -> MISSING, else
+               upper-cased if an enum name, MISSING if not
+  smoothness   OSMSmoothnessParser: `smoothness`, blank -> MISSING, upper-cased if an enum name, OTHER if not
+  gate_*       OUR GateFacts booleans (plugins/scenic-score-parser), exact like Gates.verdict: a locked gate on
+               the way, ford=yes, a refused service value on highway=service. One table
+               (plugins/scenic-score-parser/src/test/resources/gate_encoding.json) holds both encoders.
 
 THE EVALUATOR is the subset of GraphHopper's custom-model language the base profile uses: `true`, `false`,
 `!`, `&&`, `||`, parentheses, and `name == CONST` / `name != CONST`. Any other token, any unknown encoded
 value, any rule key other than `if` + `multiply_by`, any `multiply_by` that is not a number refuses with
-ValueError - an expression this module cannot read is never read as "does not fire".
+ValueError - an expression this module cannot read is never read as "does not fire". A comparison refuses
+unless `name` is an enum value in DOMAINS and CONST one of its values (GraphHopper refuses both at load).
 
 THE WHOLE MODEL IS READ (rv1 B1). GraphHopper never routes an edge whose priority OR speed is 0, so `gated` reads
 both blocks: a firing `speed` rule with `limit_to` 0 or `multiply_by` 0 is an exclusion exactly as a priority 0
@@ -53,6 +60,15 @@ SURFACES = frozenset({
     "MISSING", "PAVED", "ASPHALT", "CONCRETE", "PAVING_STONES", "COBBLESTONE", "UNPAVED", "COMPACTED",
     "FINE_GRAVEL", "GRAVEL", "GROUND", "DIRT", "GRASS", "SAND", "WOOD", "OTHER",
 })
+TRACK_TYPES = ("MISSING", "GRADE1", "GRADE2", "GRADE3", "GRADE4", "GRADE5")
+SMOOTHNESS = ("MISSING", "EXCELLENT", "GOOD", "INTERMEDIATE", "BAD", "VERY_BAD", "HORRIBLE", "VERY_HORRIBLE",
+              "IMPASSABLE", "OTHER")
+REFUSABLE_BARRIERS = frozenset({"gate"})
+REFUSED_SERVICE_VALUES = frozenset({"driveway", "parking_aisle", "drive-through", "emergency_access"})
+SERVICE_HIGHWAY = "service"
+YES = "yes"
+DOMAINS = {"road_class": ROAD_CLASSES, "road_access": frozenset(ROAD_ACCESS), "surface": SURFACES,
+           "track_type": frozenset(TRACK_TYPES), "smoothness": frozenset(SMOOTHNESS)}
 LINK_SUFFIX = "_link"
 RULE_KEYS = frozenset({"if", "multiply_by"})
 MODEL_KEYS = frozenset({"speed", "priority", "distance_influence"})
@@ -89,10 +105,43 @@ def surface(tags: dict) -> str:
     return value if value in SURFACES else "OTHER"
 
 
+def _enum_name(raw):
+    """GraphHopper's Helper.isEmpty (null or blank after trim) as None, else Helper.toUpperCase."""
+    if raw is None or not raw.strip():
+        return None
+    return raw.upper()
+
+
+def track_type(tags: dict) -> str:
+    value = _enum_name(tags.get("tracktype"))
+    return value if value in TRACK_TYPES else "MISSING"
+
+
+def smoothness(tags: dict) -> str:
+    value = _enum_name(tags.get("smoothness"))
+    if value is None:
+        return "MISSING"
+    return value if value in SMOOTHNESS else "OTHER"
+
+
+def gate_locked_barrier(tags: dict) -> bool:
+    return tags.get("barrier") in REFUSABLE_BARRIERS and tags.get("locked") == YES
+
+
+def gate_ford(tags: dict) -> bool:
+    return tags.get("ford") == YES
+
+
+def gate_service_way(tags: dict) -> bool:
+    return tags.get("highway") == SERVICE_HIGHWAY and tags.get("service") in REFUSED_SERVICE_VALUES
+
+
 def encode(tags: dict) -> dict:
     """The encoded values the base profile's expressions read, for one way's tags."""
     return {"road_class": road_class(tags), "road_access": road_access(tags), "surface": surface(tags),
-            "car_access": True}
+            "track_type": track_type(tags), "smoothness": smoothness(tags),
+            "gate_locked_barrier": gate_locked_barrier(tags), "gate_ford": gate_ford(tags),
+            "gate_service_way": gate_service_way(tags), "car_access": True}
 
 
 def tokens(expression: str) -> list:
@@ -167,6 +216,9 @@ class _Parser:
         if self.peek() in ("==", "!="):
             op = self.take()
             constant = self.take()
+            if constant not in DOMAINS.get(tok, ()):
+                raise ValueError("expression %r compares %r to %r, not one of its values" % (self.expression, tok,
+                                                                                             constant))
             return (value == constant) if op == "==" else (value != constant)
         if not isinstance(value, bool):
             raise ValueError("expression %r reads %r as a boolean" % (self.expression, tok))

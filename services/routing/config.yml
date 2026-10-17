@@ -13,7 +13,12 @@ graphhopper:
   # OSM way - `--mode probe --probe-ways 74344132` walks the edges and answers way id -> scenic_score with no
   # coordinate and no snap in the loop. It costs 31 bits per edge in the graph and nothing at query time, and
   # it ships rather than living in a probe-only config: the config under test has to be the config that ships.
-  graph.encoded_values: car_access, car_average_speed, road_class, road_access, surface, scenic_score, osm_way_id
+  #
+  # T-0381: the safety gates GraphHopper 11 can read are its own track_type and smoothness; the three it cannot
+  # (a locked gate on the way, ford=yes exactly, a driveway/parking_aisle/drive-through/emergency_access service
+  # way) are booleans our ImportRegistry adds (GateFacts). road_environment == FORD is NOT used: it fires on any
+  # ford value, ford=no included. Adding a name here changes the edge layout - the graph must be re-imported.
+  graph.encoded_values: car_access, car_average_speed, road_class, road_access, surface, scenic_score, osm_way_id, track_type, smoothness, gate_locked_barrier, gate_ford, gate_service_way
 
   # GraphHopper 11 refuses to start without this key. It drops ways a car can never use from the graph; it is
   # NOT a scenic gate and it names no motorway or trunk - those carry scenic_score 0 and are penalized by the

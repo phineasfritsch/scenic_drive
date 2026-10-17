@@ -126,6 +126,12 @@ class CorpusWriter:
             "INSERT INTO places_fts (rowid, name) VALUES (?,?)",
             [(r[0], r[4]) for r in rows if r[4] is not None])
 
+    def write_landmarks(self, rows: list) -> None:
+        """corpus.landmark_rows' tuples (T-0379), in (osm_type, osm_id) order."""
+        self.conn.executemany(
+            "INSERT INTO landmarks (osm_type, osm_id, kind, name, ele_dm, lat_e5, lon_e5, nearest_way_id) "
+            "VALUES (?,?,?,?,?,?,?,?)", sorted(rows, key=lambda row: (row[0], row[1])))
+
     def add_term(self, family: str, segment_id: int, term_id: int, value: float) -> None:
         if family not in schema.TERM_FAMILIES:
             raise ValueError(f"unknown term family {family!r}")

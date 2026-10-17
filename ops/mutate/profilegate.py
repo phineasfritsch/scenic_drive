@@ -112,6 +112,56 @@ MUTATIONS = [
      "    if isinstance(raw, str) and raw.isidentifier():"),
     ("an unread top-level key accepted", SUBJECT, "    if unread:", "    if False:"),
     ("a non-number distance_influence accepted", SUBJECT, "    if not _number(influence):", "    if False:"),
+    # T-0381: the five gates the profile learned, both halves - the shipped clauses and profilegate's encoding.
+    ("profile: GRADE3 let through", PROFILE, '"track_type == GRADE3 || ', '"'),
+    ("profile: GRADE5 let through", PROFILE, ' || track_type == GRADE5"', '"'),
+    ("profile: BAD smoothness let through", PROFILE, '"smoothness == BAD || ', '"'),
+    ("profile: IMPASSABLE let through", PROFILE, ' || smoothness == IMPASSABLE"', '"'),
+    ("profile: INTERMEDIATE smoothness gated", PROFILE, '"smoothness == BAD || ',
+     '"smoothness == INTERMEDIATE || smoothness == BAD || '),
+    ("profile: the locked barrier gate a penalty", PROFILE, '{ "if": "gate_locked_barrier", "multiply_by": "0" }',
+     '{ "if": "gate_locked_barrier", "multiply_by": "0.5" }'),
+    ("profile: ford let through", PROFILE, '{ "if": "gate_ford",', '{ "if": "false",'),
+    ("profile: ford read off road_environment", PROFILE, '{ "if": "gate_ford",',
+     '{ "if": "road_environment == FORD",'),
+    ("profile: service way let through", PROFILE, '"gate_service_way", "multiply_by"',
+     '"gate_service_way && false", "multiply_by"'),
+    ("a blank tag not trimmed to empty", SUBJECT, "    if raw is None or not raw.strip():", "    if raw is None:"),
+    ("an enum tag not upper-cased", SUBJECT, "    return raw.upper()", "    return raw"),
+    ("a padded enum tag trimmed", SUBJECT, "    return raw.upper()", "    return raw.strip().upper()"),
+    ("a padded ford value trimmed", SUBJECT, '    return tags.get("ford") == YES',
+     '    return (tags.get("ford") or "").strip() == YES'),
+    ("a padded service highway trimmed", SUBJECT, 'tags.get("highway") == SERVICE_HIGHWAY',
+     '(tags.get("highway") or "").strip() == SERVICE_HIGHWAY'),
+    ("a cased service highway folded", SUBJECT, 'tags.get("highway") == SERVICE_HIGHWAY',
+     '(tags.get("highway") or "").lower() == SERVICE_HIGHWAY'),
+    ("a service list split on semicolons", SUBJECT, 'tags.get("service") in REFUSED_SERVICE_VALUES',
+     'bool(set((tags.get("service") or "").split(";")) & REFUSED_SERVICE_VALUES)'),
+    ("a cased barrier folded", SUBJECT, 'tags.get("barrier") in REFUSABLE_BARRIERS',
+     '(tags.get("barrier") or "").lower() in REFUSABLE_BARRIERS'),
+    ("an unknown tracktype read as GRADE3", SUBJECT, 'return value if value in TRACK_TYPES else "MISSING"',
+     'return value if value in TRACK_TYPES else "GRADE3"'),
+    ("an unknown smoothness read as MISSING", SUBJECT, 'return value if value in SMOOTHNESS else "OTHER"',
+     'return value if value in SMOOTHNESS else "MISSING"'),
+    ("GRADE3 not a track type", SUBJECT, '"GRADE2", "GRADE3", "GRADE4"', '"GRADE2", "GRADE4"'),
+    ("BAD not a smoothness", SUBJECT, '"INTERMEDIATE", "BAD", "VERY_BAD"', '"INTERMEDIATE", "VERY_BAD"'),
+    ("locked compared ignoring case", SUBJECT, 'tags.get("locked") == YES',
+     '(tags.get("locked") or "").lower() == YES'),
+    ("a gate refused unlocked", SUBJECT, ' in REFUSABLE_BARRIERS and tags.get("locked") == YES',
+     " in REFUSABLE_BARRIERS"),
+    ("any ford value a ford", SUBJECT, '    return tags.get("ford") == YES', '    return tags.get("ford") is not None'),
+    ("a service value refused on any highway", SUBJECT,
+     '    return tags.get("highway") == SERVICE_HIGHWAY and ', "    return "),
+    ("drive-through not refused", SUBJECT, '"parking_aisle", "drive-through", "emergency_access"',
+     '"parking_aisle", "emergency_access"'),
+    ("emergency_access not refused", SUBJECT, '"parking_aisle", "drive-through", "emergency_access"',
+     '"parking_aisle", "drive-through"'),
+    ("a constant outside the enum read", SUBJECT, "            if constant not in DOMAINS.get(tok, ()):",
+     "            if False:"),
+    ("track_type not encoded", SUBJECT, '"track_type": track_type(tags), ', ""),
+    ("gate_ford encoded false", SUBJECT, '"gate_ford": gate_ford(tags)', '"gate_ford": False'),
+    ("smoothness compared to the track types", SUBJECT, '"smoothness": frozenset(SMOOTHNESS)}',
+     '"smoothness": frozenset(TRACK_TYPES)}'),
 ] + [("profile: %s let through" % s, PROFILE, "surface == %s || " % s, "") for s in SURFACE_NAMES]
 
 EQUIVALENT = [
@@ -121,7 +171,7 @@ EQUIVALENT = [
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 53
+MIN_MUTATIONS = 84
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
