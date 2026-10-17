@@ -1,5 +1,5 @@
 ---
-id: T-0400
+id: T-0402
 title: ops/sane --prod exit 3 counts a services/api/test fixture change as a pending deploy - compare only the files the deployed Worker is built from
 state: backlog
 owner: null
