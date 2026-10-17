@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-18T08:00:25Z
 worktree: .worktrees/T-0394
 branch: task/T-0394
 exclusive: []
-touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, ops/lib/, Tests/, Sources/ScenicAPIClient/, pins/PINS.yaml, .github/workflows/ios-screenshot.yml]
+touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, ops/lib/, ops/mutate/apibaseurl, Tests/, Sources/ScenicAPIClient/, pins/PINS.yaml, .github/workflows/ios-screenshot.yml]
 pins_affected: [P-SAFE-03]
 reviewer: null
 depends_on: []

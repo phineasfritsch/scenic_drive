@@ -28,6 +28,16 @@ import Testing
         ("\(pilot)#top", nil, nil),
         ("https://me@scenic-api.phineas-fritsch.workers.dev", nil, nil),
         ("https://me:pw@scenic-api.phineas-fritsch.workers.dev", nil, nil),
+        ("https://:pw@scenic-api.phineas-fritsch.workers.dev", nil, nil),
+        ("https://:443", nil, nil),
+        ("https://:443/", nil, nil),
+        ("https://@", nil, nil),
+        ("https://@:443", nil, nil),
+        ("https://a.dev/p q", nil, nil),
+        ("https://a.dev/p\tq", nil, nil),
+        ("https://a.dev/p\nq", nil, nil),
+        ("https://a.dev/p\u{A0}q", nil, nil),
+        ("https://a.dev/p", nil, "https://a.dev/p"),
         (pilot, nil, pilot),
         ("\(pilot)/", nil, pilot),
         ("\(pilot)//", nil, pilot),
@@ -55,6 +65,41 @@ import Testing
             guard let expected else { continue }
             let got = APIBaseURL.resolve(bundled: bundled, override: override)
             #expect(got?.appendingPathComponent("plan").absoluteString == expected + "/plan")
+        }
+    }
+
+    /// T-0394 rv1 B3: a GENERATED near-miss corpus, so the whitespace rule - not whatever URLComponents happens to
+    /// refuse - carries every refusal. Every seed is an ACCEPTED base; every whitespace character is inserted at
+    /// every position of every seed, and each result must resolve to nil, as bundled and as override.
+    static let seeds = [pilot, pilot + "/", pilot + "/p", "https://example.dev:8443/api/v1"]
+    static let whitespace: [String] = [" ", "\t", "\n", "\r", "\r\n", "\u{0B}", "\u{0C}", "\u{85}", "\u{A0}",
+                                       "\u{1680}", "\u{2000}", "\u{2009}", "\u{200A}", "\u{2028}", "\u{2029}",
+                                       "\u{202F}", "\u{205F}", "\u{3000}"]
+
+    static func nearMisses(of seed: String) -> [String] {
+        let chars = Array(seed)
+        return whitespace.flatMap { w in
+            (0...chars.count).map { i in String(chars[..<i]) + w + String(chars[i...]) }
+        }
+    }
+
+    @Test func theSeedsAreAcceptedAndEveryWhitespaceIsAWhitespace() {
+        for seed in Self.seeds {
+            #expect(APIBaseURL.resolve(bundled: seed, override: nil) != nil, "\(seed)")
+        }
+        for w in Self.whitespace {
+            #expect(w.contains(where: { $0.isWhitespace }), "\(w.unicodeScalars.map(\.value))")
+        }
+        #expect(Self.seeds.allSatisfy { Self.nearMisses(of: $0).count == Self.whitespace.count * ($0.count + 1) })
+    }
+
+    @Test func whitespaceInsertedAnywhereInAnAcceptedBaseIsRefused() {
+        for seed in Self.seeds {
+            for text in Self.nearMisses(of: seed) {
+                #expect(APIBaseURL.resolve(bundled: text, override: nil) == nil, "bundled \(text.debugDescription)")
+                #expect(APIBaseURL.resolve(bundled: Self.pilot, override: text) == nil,
+                        "override \(text.debugDescription)")
+            }
         }
     }
 
