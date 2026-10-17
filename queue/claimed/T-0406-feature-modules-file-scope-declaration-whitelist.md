@@ -1,13 +1,13 @@
 ---
 id: T-0406
 title: Close the shadowing class once - every file-scope line in the feature modules is at an approved site (whitelist by brace depth), so no declaration can shadow a name a frozen safety block uses
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T23:09:14Z
+lease_expires_at: 2026-10-18T23:09:14Z
+worktree: .worktrees/T-0406
+branch: task/T-0406
 exclusive: []
 touches: [ops/lib/, ops/mutate/, pins/PINS.yaml, queue/]
 pins_affected: [P-SAFE-03, P-SAFE-07, P-SAFE-09, P-ATTR-01]
@@ -54,3 +54,4 @@ This task lands first. T-0397 and T-0398 then merge main and need no shadowing g
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from the T-0396 rv1, T-0397 rv2 and T-0398 rv1/rv2 findings.
+- 2026-10-17T23:09:14Z claimed by agent/claude-opus-5; lease until 2026-10-18T23:09:14Z
