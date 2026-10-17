@@ -84,3 +84,4 @@ Re-approve the digest row, and add mutation population entries if the gate is a 
   (242 files); queue-check exit 0 (376 tasks). check-line-cap: `timeout 600` exit 124 on this loaded box (the
   known hang), so CI core is relied on; a direct `git ls-files '*.swift' | xargs wc -l` lists no file over 300.
   wc -l: PlanCLIGateValuesTests.swift 231, GraphHopperRouteSource.swift 165.
+- 2026-10-17T04:16:13Z agent/claude-opus-5 (orchestrator): rv1 FAIL was ancestry only (T-0384 landed; then T-0190, T-0233). Merged origin/main (clean). On the merged head 54a66e66: PlanCLIGateValuesTests|PlanCLIRequestBodyTests 9 tests passed; bare gates exit 0 (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check).
