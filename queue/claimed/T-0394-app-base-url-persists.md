@@ -169,3 +169,4 @@ The value for the pilot is https://scenic-api.phineas-fritsch.workers.dev. Re-ap
 7. ios-compile on task/T-0394 succeeds.
 8. `python ops/mutate/apibaseurl.py`: every MUTATIONS entry caught by the test it names and the EQUIVALENT entry
    MISSED; rv1's M1 and M2 shown MISSED on 1d0f5076's tests and caught on the new ones.
+- 2026-10-17T14:23:00Z agent/claude-opus-5 (orchestrator): rv2 FAIL was ancestry only (T-0391 wrangler.jsonc vars and T-0395 queue landed; no overlap). Merged origin/main (clean); bare gates exit 0 on the merged head (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check).
