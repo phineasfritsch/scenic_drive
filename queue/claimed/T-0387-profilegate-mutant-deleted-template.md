@@ -23,3 +23,45 @@ T-0190 deleted services/routing/profiles/car_scenic_request.json. ops/mutate/pro
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from T-0190 stillOpen 2.
 - 2026-10-17T04:13:14Z claimed by agent/claude-opus-5; lease until 2026-10-18T04:13:14Z
+- 2026-10-17T04:16:37Z MEASURE 1 (the path mutant; .build/t0387/measure.py, gitignored, not shipped: apply the
+  mutant to services/etl/etl/profilegate.py, run test_profilegate.py + test_gate_parity.py with --junitxml, read
+  each failure's crash site = the last `path:line: Exception` line). Baseline 0 failed of 1593.
+  `current: car_scenic_request.json  failed=81 kinds={FileNotFoundError@pathlib: 80, AssertionError@tests: 1}`;
+  the one test-site failure is test_gate_parity.py::test_the_profile_read_is_the_shipped_file. Every one of the 7
+  recorded lambdas (0, 1, 2, 2.5, 4, 7.75, 8) as PROFILE: `failed=81 kinds={ValueError@subject: 80,
+  AssertionError@tests: 1}` (their `else_if`/`else` rules are refused by `priority`). The harness's report
+  `caught <- failed[0]` named test_the_shipped_profile_gates_exactly_its_clauses, a FileNotFoundError.
+- 2026-10-17T05:38:34Z MEASURE 2 (the whole population, 84 mutants, same script): 84 rows, every one exit=1.
+  73 rows have only test-site failures; 84 - 73 = 11 rows carry
+  an outside failure; of those, FOUR have ZERO test-site failures - killed only by an exception outside the tests:
+  `SAND not a surface` (ValueError@subject x80), `profile: a top-level key the evaluator cannot read`
+  (ValueError@subject x80), `a firing speed of 0 not an exclusion` (TypeError@subject x47: `None < 0.0`),
+  `profile: ford read off road_environment` (ValueError@subject x80). Totals by kind over all rows:
+  AssertionError@tests 69 mutants, Failed@tests 12, KeyError@tests 1, ValueError@subject 9, TypeError@subject 1,
+  FileNotFoundError@pathlib 1.
+- RULINGS.
+  R1 Brief vs reality: the old mutant was NOT killed only by FileNotFoundError - 1 of 81 failures is the
+  shipped-file test's assertion - but the harness reported the FileNotFoundError, and that test compares
+  PROFILE to a literal path. The vacuous kills are the four rows above. Both are fixed.
+  R2 Re-anchor on `lambda-2.json` (the default-ish slider record; all 7 measured identical). Renamed
+  `the recorded request model read instead`. Floor stays 84 (the entry replaces one).
+  R3 The Brief's "--prove-vacuity check" is enforced in the population run, not the emptied arm: with the
+  tests emptied there is no failure whose site could be read. `run_tests` is replaced in ops/mutate/profilegate.py
+  (only file this task touches under ops/): a failure counts only when its crash site is under
+  services/etl/tests; a mutant with failures but none there prints VACUOUS and is MISSED, failing the run.
+  `--prove-vacuity` keeps its emptied arm unchanged.
+  R4 The four vacuous mutants get test-site assertions in test_gate_parity.py (an EMPTIED file, so the harness
+  runs them): the file config.yml's `custom_model_files` names is PROFILE, every clause of it evaluates
+  without a refusal (catches SAND / top-level key / road_environment at the test via pytest.fail), and a
+  numeric `limit_to 0` speed rule excludes (catches the `< 0.0` mutant by assertion).
+- ACCEPTANCE (written after MEASURE 2).
+  A1 RED: on the harness-only commit, `python ops/mutate/profilegate.py --only "SAND not a surface" --only
+     "a top-level key" --only "a firing speed of 0" --only "ford read off road_environment"` prints VACUOUS and
+     MISSED for the four measured rows and exits 1.
+  A2 GREEN: the same line on the tests commit catches every row, each `<-` a tests.test_gate_parity test; exit 0.
+  A3 `--only "the recorded request model read instead"` prints `caught` with a test_gate_parity test; exit 0.
+  A4 `python ops/mutate/profilegate.py` prints `MUTATE OK  caught=84/84 equivalent_caught=0` and no VACUOUS line.
+  A5 `python ops/mutate/profilegate.py --prove-vacuity` prints `VACUITY PROVED`.
+  A6 the two test files pass natively; `wc -l` of ops/mutate/profilegate.py and test_gate_parity.py <= 300;
+     the bare gates (check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits,
+     check-safety-disclaimer, queue-check) exit 0.
