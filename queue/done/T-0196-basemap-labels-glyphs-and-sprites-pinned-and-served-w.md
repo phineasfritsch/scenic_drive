@@ -1,7 +1,7 @@
 ---
 id: T-0196
 title: basemap labels - glyphs and sprites pinned by digest and served with the tiles, the style's glyphs/sprite URLs set, a check that every symbol layer's text-font exists in the glyph set
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T06:04:45Z
@@ -11,7 +11,7 @@ branch: task/T-0196
 exclusive: []
 touches: [services/tiles/, ops/publish-tiles, apps/ios/Packages/ScenicApp/Sources/MapAdapter/ScenicLightStyle.swift, apps/ios/Packages/ScenicApp/Sources/MapAdapter/ScenicDarkStyle.swift, ops/lib/check-safety-disclaimer-pinned]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t-0196
 depends_on: [T-0165]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -235,3 +235,18 @@ street names is not shippable. The next tiles task, not a nicety.
   - STILL OPEN: (1) R3 as corrected at 11:47:17Z - labels on device need ScenicStyleDocument to rewrite `basemap://` to
     the archive's directory AND refuse when glyphs/ and sprites/ are absent there; until then the device style carries
     none. (2) R8, (3) T-0198 floor, (4) check-line-cap timeout - unchanged.
+- 2026-10-17T14:13:04Z agent/rv2-t-0196 REVIEW PASS (round 2) on head 922e0065 (PR #286), reviewer != owner:
+  - rv1 B1 reproduced as CLOSED: the 58e88ce4 Swift literals (2 `basemap://` URLs each) put back -> the shipping-literal
+    whitelist test `test_the_device_style_requests_nothing_the_app_does_not_rewrite` fails (`top-level keys off the
+    whitelist: ['glyphs', 'sprite']` + 2 more items, rc=1); restored -> green. Head Swift styles carry no glyphs, sprite,
+    symbol layer or URL other than `pmtiles://la.pmtiles`; their only diff from main is the `kind` filter fix. R3 corrected.
+  - rv1 B2 reproduced as CLOSED: asset PUT without `$PREFIX/` -> test_publish_upload_keys.py fails (rc=1); restored ->
+    green. Own mutant of the same class: `${rel// /%20}` -> `${rel/ /%20}` (only the first space of `Noto Sans Regular`
+    escaped) -> CAUGHT (rc=1). Baseline of the two touched test files: 16 passed (rc=0); services/tiles/tests rc=0.
+  - Gates BARE on 922e0065, each rc=0: check-safety-disclaimer; check-mutate-population.py (`P-PROC-06: every added
+    module is covered or allowlisted; the floor of 171 holds`); check-mutate-only.py (`MUTATE-ONLY OK: 241 of 241 driver
+    runs refused with exit 64 ...`); check-pins-yaml.py (`PINS-YAML ok pins=53 fields=426 ...`); check-exec-bits
+    (`P-OPS-01: 245 files, 23 required present, all modes correct`); queue-check (`QUEUE OK (386 tasks)`).
+  - `gh pr checks 286`: core pass, pins-source-only pass. ios-compile 39035365905 / ios-screenshot 39035404874 success on
+    a57b5e76; no apps/, Sources/ or Package.swift change between a57b5e76 and 922e0065.
+    `git merge-base --is-ancestor origin/main origin/task/T-0196` rc=0. Sign-off: queue/claimed/ -> queue/done/.
