@@ -1,7 +1,7 @@
 ---
 id: T-0190
 title: services/routing - the request template carries the Worker's full clause set (the RESIDENTIAL anti-rat-run clause, plan line 108) and the five scenic_lambda_bands.json rows are asserted equal to customModel.ts's scenicBandMultipliers at MULTIPLIER_DECIMALS - red when either side moves
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
