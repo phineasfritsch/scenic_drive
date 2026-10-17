@@ -102,3 +102,19 @@ Test the exporter through its shipped entry point: a fixture corpus is exported,
    `VACUITY PROVED`.
 6. Gates bare: check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check,
    check-safety-disclaimer exit 0.
+- 2026-10-17T08:48:33Z RED, then GREEN, by name:
+  - pytest RED: with services/etl/etl/seedplaces.py moved aside, `python -m pytest -q tests/test_seedplaces.py`
+    printed `34 failed in 201.85s` (every test, the last named
+    `test_every_bound_of_every_row_field[(5, 0, None)->2]`). GREEN with the module: `34 passed in 37.87s`.
+  - vitest RED: the committed fixture SQL rewritten in place to `ON CONFLICT (id) DO NOTHING;` (restored after),
+    `npx vitest run test/seedPlaces.test.ts`: `× a stale coordinate is updated and a row the corpus does not carry
+    is kept (R2: upsert, never delete)`, `Tests 1 failed | 3 passed (4)`. GREEN on the shipped fixture: `Tests 4
+    passed (4)`.
+  - R4 CORRECTED: the per-statement 100000-byte refusal was unreachable - the widest row is 76 bytes with its separator, so
+    --chunk 1000 of max-width rows is under 80000 bytes - and an unreachable branch is a mutant nothing can kill. It is gone;
+    `test_the_widest_statement_the_largest_chunk_can_make_fits_d1s_100000_bytes` exports 1000 rows of 19-digit ids at
+    the negative bounds through main() and requires 70000 < bytes < 100000. The wrapper no longer scans its
+    arguments for --corpus: it puts the default FIRST and argparse keeps the last, so a caller's --corpus wins.
+  - The refusal and bound tables call `etl.seedplaces.main` - what ops/seed-places execs - in process: through bash
+    each case cost ~6 s on this box (201 s for the RED run). The three tests that bind the entry point itself (the
+    fixture export equal to the committed files, the re-run, the fallback dry-run with no --corpus) run ops/seed-places.

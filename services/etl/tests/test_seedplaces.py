@@ -92,10 +92,10 @@ def full_corpus(path: pathlib.Path, rows, meta=None) -> pathlib.Path:
 
 
 def loose_corpus(path: pathlib.Path, rows) -> pathlib.Path:
-    """A corrupt corpus: right meta, a places table with no CHECKs, so any value can reach the exporter."""
+    """A corrupt corpus: right meta, a places table with no types or CHECKs, so any value can reach the exporter."""
     conn = sqlite3.connect(path)
     conn.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)")
-    conn.execute("CREATE TABLE places (place_id INTEGER PRIMARY KEY, lat_e7, lon_e7)")
+    conn.execute("CREATE TABLE places (place_id, lat_e7, lon_e7)")
     conn.executemany("INSERT INTO meta VALUES (?, ?)", [("schema_version", str(schema.SCHEMA_VERSION)),
                                                         ("build_complete", "1")])
     conn.executemany("INSERT INTO places VALUES (?, ?, ?)", rows)
@@ -191,7 +191,7 @@ def test_a_missing_corpus_is_refused(tmp_path):
     assert (done.returncode, done.stdout) == (2, "")
 
 
-@pytest.mark.parametrize("args", [["--chunk", "0"], ["--chunk", "1001"], []],
+@pytest.mark.parametrize("args", [["--dry-run", "--chunk", "0"], ["--dry-run", "--chunk", "1001"], []],
                          ids=["chunk-0", "chunk-1001", "neither-dry-run-nor-out"])
 def test_bad_arguments_are_refused(tmp_path, args):
     done = main("--corpus", str(full_corpus(tmp_path / "c.sqlite", FIXTURE_ROWS)), *args)
@@ -213,7 +213,8 @@ def test_a_non_empty_out_dir_is_refused_and_left_alone(tmp_path):
 
 
 BOUNDS = [
-    ((0, 0, 0), 2), ((-1, 0, 0), 2), ((1, 0, 0), 0), ((9223372036854775807, 0, 0), 0),
+    ((0, 0, 0), 2), ((-1, 0, 0), 2), ((1, 0, 0), 0), ((9223372036854775807, 0, 0), 0), ((5.0, 0, 0), 2),
+    (("5", 0, 0), 2), ((None, 0, 0), 2),
     ((5, 900000000, 0), 0), ((5, 900000001, 0), 2), ((5, -900000000, 0), 0), ((5, -900000001, 0), 2),
     ((5, 0, 1800000000), 0), ((5, 0, 1800000001), 2), ((5, 0, -1800000000), 0), ((5, 0, -1800000001), 2),
     ((5, 1.0, 0), 2), ((5, 0, 1.0), 2), ((5, "1", 0), 2), ((5, 0, "1"), 2), ((5, None, 0), 2), ((5, 0, None), 2),
