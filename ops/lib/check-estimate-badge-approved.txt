@@ -1,0 +1,133 @@
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	Text("About \(Self.duration(preview.durationSeconds)) behind the wheel, \(Self.miles(preview.distanceMeters)). You asked for \(minutes) min.")
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	if preview.etaIsEstimate {
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	Text(PlanPreview.estimateBadge)
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	.accessibilityIdentifier("loop.estimate")
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	Text(preview.etaLine)
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	if preview.showsEstimateBadge {
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	Text(PlanPreview.estimateBadge)
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	.accessibilityIdentifier("plan.estimate")
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	etaSeconds: 3_300, fastestEtaSeconds: 2_100, etaIsEstimate: true,
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	durationSeconds: 3_480, distanceMeters: 52_000, retraceFraction: 0.04, etaIsEstimate: true,
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	isFull: true, etaSeconds: 9_000, fastestEtaSeconds: 6_600, etaIsEstimate: true,
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	Text("About \(Self.duration(itinerary.etaSeconds)) behind the wheel, \(Self.duration(max(0, itinerary.etaSeconds - itinerary.fastestEtaSeconds))) more than the fastest way")
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	if itinerary.etaIsEstimate {
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	Text(PlanPreview.estimateBadge)
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	.accessibilityIdentifier("trip.estimate")
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	return PlanPreview(route: planned, etaSeconds: 1_500, fastestEtaSeconds: 1_200, etaIsEstimate: true,
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	RerouteReply(line: Self.line, waypoints: [], etaSeconds: 1_380, fastestEtaSeconds: 1_200, continued: true)
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	Text(display.etaLine)
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	if preview.showsEstimateBadge {
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	Text(PlanPreview.estimateBadge)
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	.accessibilityIdentifier("drive.estimate")
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	roundTrip(minutes: pick.reason.roundTripMinutes)
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTrip(minutes: Int) -> some View {
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	Text("\(Copy.roundTrip) from \(SurpriseOfflineReach.originName)")
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	roundTripValue(minutes: minutes)
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	estimateTag
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	roundTripValue(minutes: minutes)
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	estimateTag
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	.accessibilityIdentifier("surprise.roundTrip")
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTripValue(minutes: Int) -> some View {
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private var estimateTag: some View {
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	Text(Copy.estimate)
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	.accessibilityIdentifier("surprise.estimate")
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	roundTripMinutes: pick.reason.roundTripMinutes,
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	static let roundTrip = "Round trip"
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	static let estimate = "estimate · no traffic data"
+BLOCK	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	roundTrip(minutes: pick.reason.roundTripMinutes)
+ABOVE	.accessibilityIdentifier("surprise.hook")
+BODY	roundTrip(minutes: pick.reason.roundTripMinutes)
+BELOW	if let line = pick.reason.goldenHourLine {
+BLOCK	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTrip(minutes: Int) -> some View {
+ABOVE	}
+BODY	private func roundTrip(minutes: Int) -> some View {
+BODY	VStack(alignment: .leading, spacing: 2) {
+BODY	Label {
+BODY	Text("\(Copy.roundTrip) from \(SurpriseOfflineReach.originName)")
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.fixedSize(horizontal: false, vertical: true)
+BODY	} icon: {
+BODY	Image(systemName: "clock.arrow.circlepath")
+BODY	.foregroundStyle(DesignTokens.primary)
+BODY	}
+BODY	.font(.footnote)
+BODY	ViewThatFits(in: .horizontal) {
+BODY	HStack(alignment: .firstTextBaseline, spacing: 8) {
+BODY	roundTripValue(minutes: minutes)
+BODY	estimateTag
+BODY	}
+BODY	VStack(alignment: .leading, spacing: 4) {
+BODY	roundTripValue(minutes: minutes)
+BODY	estimateTag
+BODY	}
+BODY	}
+BODY	}
+BODY	.accessibilityElement(children: .combine)
+BODY	.accessibilityIdentifier("surprise.roundTrip")
+BODY	}
+BELOW	private func roundTripValue(minutes: Int) -> some View {
+BLOCK	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTripValue(minutes: Int) -> some View {
+ABOVE	}
+BODY	private func roundTripValue(minutes: Int) -> some View {
+BODY	Text("About \(minutes) min")
+BODY	.font(.headline)
+BODY	.foregroundStyle(DesignTokens.fg)
+BODY	.fixedSize(horizontal: false, vertical: true)
+BODY	}
+BELOW	private var estimateTag: some View {
+BLOCK	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private var estimateTag: some View {
+ABOVE	}
+BODY	private var estimateTag: some View {
+BODY	Text(Copy.estimate)
+BODY	.font(.caption2.weight(.semibold))
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.padding(.horizontal, 6)
+BODY	.padding(.vertical, 2)
+BODY	.overlay(Capsule().strokeBorder(DesignTokens.border, lineWidth: 1))
+BODY	.fixedSize(horizontal: false, vertical: true)
+BODY	.accessibilityIdentifier("surprise.estimate")
+BODY	}
+BELOW	private var empty: some View {
+BLOCK	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	static let estimate = "estimate · no traffic data"
+ABOVE	static let roundTrip = "Round trip"
+BODY	static let estimate = "estimate · no traffic data"
+BELOW	static let empty = "Nothing within reach right now."
+BLOCK	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	if preview.showsEstimateBadge {
+ABOVE	.foregroundStyle(DesignTokens.fg)
+BODY	if preview.showsEstimateBadge {
+BODY	Text(PlanPreview.estimateBadge)
+BODY	.font(.footnote)
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.padding(.horizontal, 10)
+BODY	.padding(.vertical, 4)
+BODY	.background(Capsule().fill(DesignTokens.surface))
+BODY	.accessibilityIdentifier("plan.estimate")
+BODY	}
+BELOW	hazardStrip
+BLOCK	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	if preview.etaIsEstimate {
+ABOVE	.fixedSize(horizontal: false, vertical: true)
+BODY	if preview.etaIsEstimate {
+BODY	Text(PlanPreview.estimateBadge)
+BODY	.font(.caption)
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.accessibilityIdentifier("loop.estimate")
+BODY	}
+BELOW	Text(Self.retraceLine(preview.retraceFraction))
+BLOCK	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	if itinerary.etaIsEstimate {
+ABOVE	.fixedSize(horizontal: false, vertical: true)
+BODY	if itinerary.etaIsEstimate {
+BODY	Text(PlanPreview.estimateBadge)
+BODY	.font(.caption)
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.accessibilityIdentifier("trip.estimate")
+BODY	}
+BELOW	ForEach(Array(HazardCopy.lines(for: itinerary).enumerated()), id: \.offset) { _, line in
+BLOCK	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	if preview.showsEstimateBadge {
+ABOVE	.accessibilityIdentifier("drive.eta")
+BODY	if preview.showsEstimateBadge {
+BODY	Text(PlanPreview.estimateBadge)
+BODY	.font(.footnote)
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.accessibilityIdentifier("drive.estimate")
+BODY	}
+BELOW	Text(PlanPreview.conditions)
