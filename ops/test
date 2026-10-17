@@ -14,7 +14,7 @@ set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 PY="${PYTHON:-$(command -v python3 || command -v python)}"
 ART=".artifacts"; mkdir -p "$ART"
-rm -f "$ART"/spm-junit*.xml "$ART"/vitest.json "$ART"/pytest-junit.xml
+rm -f "$ART"/spm-junit*.xml "$ART"/vitest.json "$ART"/pytest-junit*.xml
 linux_total=0; linux_failed=0; linux_skipped=0; ios_total=0; ios_failed=0; ios_skipped=0
 junit_reports=()   # every JUnit file produced, so a red run can NAME the tests that broke
 rc=0
@@ -41,25 +41,45 @@ PYEOF
   linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 fi
 
-# ---- Tier 1c: ETL (pytest) — expected iff services/etl/pyproject.toml exists ---------------------
-if [[ -f services/etl/pyproject.toml ]]; then
+# ---- Tier 1c: every services/*/pyproject.toml (pytest), classified by ops/lib/python-suites.txt ----------
+# It ran services/etl alone, so services/tiles and services/routing ran in no job (T-0198). The table is a
+# whitelist over the pyprojects on disk: an unclassified or stale one is a FAIL by name, and every `run` row
+# still runs so one red run names everything.
+py_runs=(); py_line="PYTEST"; py_excluded=""
+suites_out="$("$PY" ops/lib/python_suites.py 2>&1 | tr -d '\r')"; suites_rc=$?
+while IFS= read -r line; do
+  case "$line" in
+    "RUN "*) py_runs+=("${line#RUN }") ;;
+    "EXCLUDE "*) echo "python tier: excluded ${line#EXCLUDE }"; d="${line#EXCLUDE }"; py_excluded+="${py_excluded:+,}${d%% *}" ;;
+    *) [[ -n "$line" ]] && echo "$line" ;;
+  esac
+done <<< "$suites_out"
+if [[ $suites_rc -ne 0 ]]; then echo "FAIL: ops/lib/python_suites.py exited $suites_rc - classify every services/*/pyproject.toml in ops/lib/python-suites.txt"; rc=1; fi
+if [[ ${#py_runs[@]} -eq 0 ]]; then echo "FAIL: ops/lib/python_suites.py named no suite to run"; rc=1; fi
+if [[ ${#py_runs[@]} -gt 0 ]]; then
   # $PY is not necessarily the interpreter that HAS pytest. On the Windows dev box `command -v python3`
   # resolves to the App Execution Alias stub (a bare 3.14 with no site-packages) while `python` is the real
   # install; on Linux CI python3 is correct. Pick the first candidate that can actually import pytest, and
   # fail loudly naming what was tried rather than skipping the tier.
-  etl_py=""
+  pytest_py=""
   for cand in "${PYTHON:-}" python3 python py; do
     [[ -z "$cand" ]] && continue
     command -v "$cand" >/dev/null 2>&1 || continue
-    "$cand" -c "import pytest" >/dev/null 2>&1 && { etl_py="$cand"; break; }
+    "$cand" -c "import pytest" >/dev/null 2>&1 && { pytest_py="$cand"; break; }
   done
-  [[ -n "$etl_py" ]] || { echo "FAIL: services/etl exists but no interpreter has pytest (tried: \$PYTHON python3 python py). Install it: python -m pip install pytest"; exit 1; }
-  (cd services/etl && "$etl_py" -m pytest -q --junitxml="../../$ART/pytest-junit.xml" >/dev/null 2>&1); true
-  [[ -f "$ART/pytest-junit.xml" ]] || { echo "FAIL: services/etl exists but pytest ($etl_py) produced no report"; exit 1; }
-  junit_reports+=("$ART/pytest-junit.xml")
-  read -r t f s < <("$PY" ops/lib/junit_count.py "$ART/pytest-junit.xml" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/') || { echo "FAIL: could not parse pytest JUnit"; exit 1; }
-  linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
+  [[ -n "$pytest_py" ]] || { echo "FAIL: ${py_runs[*]} need pytest but no interpreter has it (tried: \$PYTHON python3 python py). Install it: python -m pip install pytest"; exit 1; }
 fi
+for d in ${py_runs[@]+"${py_runs[@]}"}; do   # services/<dir>: always two levels deep
+  rep="$ART/pytest-junit-$(basename "$d").xml"
+  (cd "$d" && "$pytest_py" -m pytest -q -p no:cacheprovider --junitxml="../../$rep" >/dev/null 2>&1); true
+  if [[ ! -f "$rep" ]]; then echo "FAIL: $d: pytest ($pytest_py) produced no report (expected $rep)"; rc=1; py_line+=" $d=NO-REPORT"; continue; fi
+  junit_reports+=("$rep")
+  read -r t f s < <("$PY" ops/lib/junit_count.py "$rep" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/') || { echo "FAIL: could not parse $rep"; exit 1; }
+  [[ "$t" -gt 0 ]] || { echo "FAIL: $d: pytest collected no tests - a suite that runs nothing is not green"; rc=1; }
+  py_line+=" $d=$t"; [[ "$f" -gt 0 ]] && py_line+="(failed=$f)"
+  linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
+done
+echo "$py_line${py_excluded:+ excluded=$py_excluded}"
 
 # ---- Tier 1d: the read-only SQL grammar's Python mirror ------------------------------------------
 # Not a counted tier: it produces no JUnit report and adding a floor for it would collide with the per-tier

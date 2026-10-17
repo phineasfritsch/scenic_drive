@@ -84,3 +84,25 @@ pins-source-only. A regression in either directory is invisible to the one comma
     renamed to per-suite files. The `rm -f` at the top clears pytest-junit*.xml so a stale report never counts.
   - R7 Out of touches: services/tiles/pyproject.toml's comment saying the tier does not see it goes stale; it
     is a comment (nothing anchors on it) and services/ is not in touches - recorded, not edited.
+- 2026-10-17T06:47:48Z RED by agent/claude-opus-5 (owner). Forced reds were working-tree only: services/tiles/tests/
+  test_tile_meta.py `assert tile_meta.main(argv) == 0` -> `== 1`, and an untracked services/zz/pyproject.toml;
+  both restored (`git checkout --`, `rm -r`) before this commit, `git status` clean of them.
+  - (a) main's ops/test (`git show HEAD:ops/test` run as a copy, services/api deps installed with npm ci) with the
+    tiles test forced red: `TESTS linux=7770/76 ios=skipped failed=0 skipped=0` / `OK` / rc=0 in 636 s - the
+    defect: a red services/tiles test leaves the one command green. 7770 is also this box's BEFORE line (CI
+    main's is 7813: the swift tier counts differently on Windows).
+  - (b)+(c) this branch's ops/test, same forced red plus services/zz/pyproject.toml, rc=1 in 630 s:
+    `FAIL: UNCLASSIFIED services/zz/pyproject.toml: add `run services/zz` or `exclude services/zz <reason>` to
+    ops/lib/python-suites.txt` / `FAIL: ops/lib/python_suites.py exited 1 - classify every
+    services/*/pyproject.toml in ops/lib/python-suites.txt` / `PYTEST services/etl=4109
+    services/tiles=82(failed=1) services/routing=50` / `TESTS linux=7902/76 ios=skipped failed=1 skipped=4` /
+    `FAIL: 1 failing test(s):` / `  - tests.test_tile_meta.test_merge_stamps_the_arguments_into_the_source_metadata
+    - AssertionError: assert 0 == 1`. 7902 = 7770 + 82 + 50.
+  - (d) `python ops/lib/python_suites.py --table <copy>` with a duplicate routing row, `run services/gone`,
+    `exclude services/tiles` (no reason), `run`, `skip services/etl because`: rc=1 and `FAIL: ...:6: exclude
+    services/tiles has no reason - an exclusion must say why` / `FAIL: ...:7: malformed row 'run'` / `FAIL:
+    ...:8: malformed row 'skip services/etl because'` / `FAIL: ...: services/routing has more than one row` /
+    `FAIL: STALE row in ...: services/gone/pyproject.toml does not exist`. The exclude path with a reason
+    (`exclude services/routing needs the GraphHopper container`) prints `EXCLUDE services/routing needs the
+    GraphHopper container` and no RUN for it. The shipped table: `RUN services/etl` / `RUN services/tiles` /
+    `RUN services/routing`, rc=0.
