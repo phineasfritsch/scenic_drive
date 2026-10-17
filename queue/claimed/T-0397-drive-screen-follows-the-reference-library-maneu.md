@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-18T15:13:47Z
 worktree: .worktrees/T-0397
 branch: task/T-0397
 exclusive: []
-touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/ScenicKit/, Tests/, ops/lib/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
+touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/ScenicKit/, Tests/, ops/lib/, ops/mutate/drive_mutations.py, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-SAFE-03, P-SAFE-06, P-SAFE-07, P-A11Y-01]
 reviewer: null
 depends_on: []

@@ -49,10 +49,12 @@ import Testing
     static func expected(continued: Bool, speed: Double) -> DriveDisplay {
         let eta = "15 min · 2 min longer than the fastest way"
         return speed == 0
-            ? DriveDisplay(actionTitle: "End drive", actionMinHeight: 44, status: nil, showsDetails: true,
-                           line: answerLine, etaLine: eta, note: continued ? nil : freshNote)
-            : DriveDisplay(actionTitle: "End drive", actionMinHeight: 60, status: nil, showsDetails: false,
-                           line: answerLine, etaLine: eta, note: nil)
+            ? DriveDisplay(actionTitle: "End", actionMinHeight: 44, status: nil, showsDetails: true,
+                           line: answerLine, etaLine: eta, note: continued ? nil : freshNote,
+                           remainingSeconds: 900, glanceLine: "15 min · 2.3 mi")
+            : DriveDisplay(actionTitle: "End", actionMinHeight: 60, status: nil, showsDetails: false,
+                           line: answerLine, etaLine: eta, note: nil, remainingSeconds: 900,
+                           glanceLine: "15 min · 2.3 mi")
     }
 
     @Test("T-0330 R3/R4: continued x surface - the taken answer's ETA line, and the fresh note on the full surface only")
@@ -93,8 +95,9 @@ import Testing
         var stopped = session!
         _ = stopped.observe(Self.fix(34.05, -118.695, 0, speed: 0))
         #expect(DriveDisplay(session: stopped)
-            == DriveDisplay(actionTitle: "End drive", actionMinHeight: 44, status: nil, showsDetails: true,
-                            line: Self.line, etaLine: "25 min · 5 min longer than the fastest way", note: nil))
+            == DriveDisplay(actionTitle: "End", actionMinHeight: 44, status: nil, showsDetails: true,
+                            line: Self.line, etaLine: "25 min · 5 min longer than the fastest way", note: nil,
+                            remainingSeconds: 1_500, glanceLine: "25 min · 2.9 mi"))
     }
 
     /// Every bound of an ETA: just below 0, 0, exactly a day, just above it, and NaN and both infinities.
