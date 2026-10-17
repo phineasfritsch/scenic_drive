@@ -93,18 +93,46 @@ services/api that wrangler bundles -> exit 3 (fail closed). Each shown red on to
      `NAME-PAIRS OK: 242318 pair tokens ...`; `PINS-YAML ok pins=53 fields=426`; `P-OPS-01: 255 files, 23 required
      present, all modes correct`; `QUEUE OK (394 tasks)`; check-safety-disclaimer quoted in the PR body.
 
+- 2026-10-17T20:40:58Z pre-review mutant survivors closed by agent/claude-opus-5 (no code change to sane_version.py;
+  three rows added to ops/lib/sane_version_cases.py, acceptance items 1 and 3 extended):
+  - MA (prefix-whitelist: `path.startswith(e.rstrip("/"))`) and MC (WORKER_NOT_BUNDLE replaced by `"test" in path or
+    path.endswith("vitest.config.ts")`) survived because no row held a sibling of a list entry. Ruled: v-near-miss
+    generates, for every entry of TYPED_BUNDLE + TYPED_NOT_BUNDLE (typed in the cases file; the row fails unless they
+    equal the shipped WORKER_BUNDLE/WORKER_NOT_BUNDLE, so a new entry gets siblings), `-old/x.ts`, `s/x.ts`, `.bak`,
+    `-util.ts` and `x`-prefixed siblings: 45 paths, 40 under services/api (want unclassified), 5 under ops/
+    (outside); the row also fails if a sibling is itself an entry or a BASE path. Meta seen red (an added
+    `services/api/bench/` entry -> `typed lists (...) != shipped (...)`), restored.
+  - MB (imports read at LIVE) survived because no row changed an import. Ruled: v-import-added (HEAD's index.ts
+    newly imports ../test/fixtures/new.json, added in the same commit) and its mirror v-import-dropped (HEAD drops
+    the shared.json import and shared.json changes - no longer in the bundle, so not bundled).
+  - GREEN on the shipped code: `check-sane-prod --only v-near-miss,v-import-added,v-import-dropped` ->
+    `SANE-PROD ok       3/3 cases passed`.
+  - RED, driver .artifacts/t0402-mutants.py (purges __pycache__ + 1.1 s around each), each restored (`git diff --quiet`
+    exit=0): MA `v-near-miss: ... deploy pending: ops/deploy-old/x.ts ops/deploy-util.ts ops/deploy.bak (28 bundle, 8
+    unclassified, 8 not bundled)` want `(0 bundle, 40 unclassified, 0 not bundled)`; MB `v-import-added: ...
+    (1 bundle, 0 unclassified, 1 not bundled)` want `(2 bundle, 0 unclassified, 0 not bundled)` and `v-import-dropped:
+    ... (2 bundle, 0 unclassified, 0 not bundled)` want `(1 bundle, 0 unclassified, 1 not bundled)`; MC `v-near-miss:
+    ... (0 bundle, 30 unclassified, 10 not bundled)` want `(0 bundle, 40 unclassified, 0 not bundled)`.
+  - Noted, not changed: classify()'s import match is a prefix match by design (R1b, extensionless imports), so a
+    sibling of an IMPORTED path (src/util.tsx for `./util`) counts as imported - the fail-closed direction.
+
 ## Acceptance
 1. `bash ops/lib/check-sane-prod` -> `SANE-PROD ok N/N cases passed`, N including the v- rows, each compared on exit
    code and the WHOLE version line: v-none, v-fixture, v-test, v-vitest, v-outside -> version ok, exit 0; v-src,
    v-src-new, v-wrangler-var, v-package, v-lock, v-tsconfig, v-deploy, v-migration, v-fixture-and-src, v-region
    (services/etl/regions/la/region.json, imported by src), v-imported-test (a test/ file src imports) -> FAIL, exit 3;
    v-newdir (services/api/lib/), v-newfile (services/api/worker-configuration.d.ts) -> exit 3, 1 unclassified;
-   v-real-tree -> exit 3, 0 unclassified.
+   v-real-tree -> exit 3, 0 unclassified; v-import-added (HEAD's src newly imports a test/ file added with it) ->
+   `(2 bundle, 0 unclassified, 0 not bundled)`; v-import-dropped (HEAD drops the import, the file changes) ->
+   `(1 bundle, 0 unclassified, 1 not bundled)`; v-near-miss (5 generated siblings of every list entry) ->
+   `(0 bundle, 40 unclassified, 0 not bundled)`, its typed entry lists equal to the shipped ones.
 2. Red on main: `bash ops/lib/check-sane-prod --sane <main's ops/sane> --only <v- rows>` -> v-fixture, v-test,
    v-vitest fail on `exit 3, want 0`; v-region and v-imported-test fail on `exit 0, want 3`.
 3. Mutants of ops/lib/sane_version.py, each red then restored: M1 unclassified paths ignored -> v-newdir, v-newfile
    red; M2 services/api/test/ dropped from WORKER_NOT_BUNDLE -> v-fixture, v-test red; M3 imports never read ->
    v-region, v-imported-test red; M4 package-lock.json dropped from WORKER_BUNDLE -> v-lock red (unclassified count).
+   M5 list entries matched by bare prefix -> v-near-miss red; M6 imports read at LIVE -> v-import-added and
+   v-import-dropped red; M7 WORKER_NOT_BUNDLE replaced by a `"test" in path` blacklist -> v-near-miss red.
 4. `wc -l ops/sane ops/lib/check_sane_prod.py ops/lib/sane_version.py ops/lib/sane_version_cases.py` each <= 300.
 5. Gates bare: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py, check-pins-yaml.py,
    check-exec-bits, queue-check.
