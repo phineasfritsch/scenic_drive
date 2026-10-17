@@ -212,3 +212,4 @@ Test the exporter through its shipped entry point: a fixture corpus is exported,
     (`17 drivers, 1295 anchors, 0 stale`), check-pins-yaml (`PINS-YAML ok pins=53 fields=426`), check-exec-bits
     (`P-OPS-01: 247 files, 23 required present, all modes correct`), queue-check (`QUEUE OK (386 tasks)`). Line
     counts: test_seedplaces.py 293, ops/mutate/seedplaces.py 175, seedplaces.py 140 (unchanged).
+- 2026-10-17T15:20:56Z agent/claude-opus-5: rv3 FAIL was ancestry-only (origin/main moved to a02785f3 during the review). Merged origin/main (13ce8acd) clean as 980a03d3. Bare gates on the merged head, all rc=0: check-safety-disclaimer; check-mutate-population 'the floor of 173 holds'; check-mutate-only 'NAME-PAIRS OK'; check-pins-yaml 'pins=53 fields=426'; check-exec-bits '250 files, 23 required present, all modes correct'; queue-check 'QUEUE OK (389 tasks)'; test_seedplaces.py 47 passed 1 skipped (symlink row, Windows privilege).
