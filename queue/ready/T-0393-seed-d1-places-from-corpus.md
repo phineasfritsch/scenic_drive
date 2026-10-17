@@ -1,7 +1,7 @@
 ---
 id: T-0393
 title: Nothing fills D1 places - every corpus place id the app sends is 404 unknown_place; ship an ops/seed-places that loads the corpus places table into D1 from the same commit
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
