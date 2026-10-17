@@ -124,3 +124,40 @@ pins-source-only. A regression in either directory is invisible to the one comma
     `timeout 600 bash ops/check-pins --source-only` returned 124 on this box (the known line-cap hang), so it
     is NOT verified locally; CI's pins-source-only job ran it and passed on 2042f960. `wc -l`: ops/test 157,
     ops/lib/python_suites.py 103, ops/lib/python-suites.txt 9.
+- 2026-10-17T09:59:56Z PRE-REVIEW M3a CLOSED by agent/claude-opus-5 (owner). Finding: a services/tiles/tests/
+  conftest.py that marks every collected item `pytest.mark.skip` when an import fails left ops/test green -
+  junit_count.py counts skipped testcases in total, and Tier 1c's only per-suite check was total > 0, so 82
+  self-skipped tiles tests held the floor and nothing named services/tiles. Is the acceptance weaker than the
+  Brief: yes, in exactly this respect (a vanished optional dependency made a suite invisible); A1-A5 otherwise
+  stand.
+  - R8 CLASS, not spelling: "a suite's testcases count toward TESTS linux= without executing". Closed per
+    suite on the JUnit report, whatever made the tests skip (conftest marker, module pytestmark, pytest.skip in
+    a fixture, xfail): (i) FAIL by name when total - skipped <= 0 ("all N tests skipped - a suite that executes
+    nothing is not green"); (ii) WHITELIST ceiling - every `run` row must carry `max-skipped=<N>` (no default;
+    a row without it, or with -1 / 03 / trailing text, is refused by name by python_suites.py), and a suite
+    reporting more skipped testcases than its ceiling FAILs by name. A skip ban was not an option: routing
+    legitimately self-skips its docker/graph/PBF tests.
+  - Ceilings MEASURED before they were written, per host, from the JUnit reports: this box (07:08 run)
+    etl 0 / tiles 0 / routing 4; CI core run 39011319158 on 2042f960 (`gh run download`, test-reports/
+    pytest-junit-*.xml through junit_count.py) etl `total=4109 failed=0 skipped=1` (test_fallback_committed's
+    gitignored LA input absent), routing `total=50 failed=0 skipped=23` (lambda_monotone x4 no graph,
+    route_details x6 + scenic_score_readback x10 no PBF, route_details_fixture x3 no image), tiles
+    `total=82 failed=0 skipped=0`. Table: etl max-skipped=1, tiles max-skipped=0, routing max-skipped=23 (the
+    max over both hosts). The PYTEST line now appends `(skipped=N)` per suite, so a skip is visible by name.
+  - R9 Out of scope, recorded: Tier 1a (swift) and 1b (vitest) count skipped tests in linux_total the same
+    way; this task's Brief is the python tier. Both report 0 skipped on CI today (CI total skipped 24 = etl 1 +
+    routing 23).
+  - MISSED, pre-fix ops/test (fix stashed, head aa76be60) with the M3a conftest planted in services/tiles/tests:
+    `PYTEST services/etl=4109 services/tiles=82 services/routing=50` / `TESTS linux=7902/7902 ios=skipped
+    failed=0 skipped=86` / `OK` / rc=0 in 682 s.
+  - CAUGHT, this fix, same M3a conftest plus a partial mutant (`pytestmark = pytest.mark.skip` appended to
+    services/etl/tests/test_assemble.py, 15 tests) so each check is seen red on its own: `FAIL: services/etl:
+    15 tests skipped, over its max-skipped=1 in ops/lib/python-suites.txt` / `FAIL: services/tiles: all 82
+    tests skipped - a suite that executes nothing is not green` / `FAIL: services/tiles: 82 tests skipped, over
+    its max-skipped=0 in ops/lib/python-suites.txt` / `PYTEST services/etl=4109(skipped=15)
+    services/tiles=82(skipped=82) services/routing=50(skipped=4)` / `TESTS linux=7902/7902 ios=skipped
+    failed=0 skipped=101` / rc=1 in 1061 s. Both mutants restored (`rm`, `git checkout --`) before this commit.
+  - Table refusals, `python ops/lib/python_suites.py --root <copy>` rc=1: `run services/etl` -> `...:1: run
+    services/etl has no max-skipped=<N> - a run row must bound its skipped tests`; `max-skipped=-1`,
+    `max-skipped=03`, `max-skipped=23 extra` -> `malformed row ...`, each also UNCLASSIFIED by name. Shipped
+    table: `RUN services/etl 1` / `RUN services/tiles 0` / `RUN services/routing 23`, rc=0.

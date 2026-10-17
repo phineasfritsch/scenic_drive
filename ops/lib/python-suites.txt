@@ -1,9 +1,10 @@
 # Every services/*/pyproject.toml, classified for ops/test's python tier (T-0198). Read by ops/lib/python_suites.py.
 #
-#   run <dir>               ops/test runs pytest in <dir> and counts its JUnit report into TESTS linux=
+#   run <dir> max-skipped=<N>  ops/test runs pytest in <dir> and counts its JUnit report into TESTS linux=;
+#                              more than N skipped testcases, or none executed, fails the suite by name
 #   exclude <dir> <reason>  ops/test does not run it and prints the reason; the reason is required
 #
 # A pyproject on disk with no row here, or a row whose pyproject is gone, fails ops/test by name.
-run services/etl
-run services/tiles
-run services/routing
+run services/etl max-skipped=1
+run services/tiles max-skipped=0
+run services/routing max-skipped=23

@@ -4,12 +4,17 @@
 usage: python_suites.py [--table FILE] [--root DIR]
 
 The table (default ops/lib/python-suites.txt) is a WHITELIST: one row per pyproject on disk,
-    run <dir>
+    run <dir> max-skipped=<N>
     exclude <dir> <reason...>
-Blank lines and lines whose first non-blank character is '#' are ignored.
+Blank lines and lines whose first non-blank character is '#' are ignored. max-skipped is REQUIRED on a run row:
+it is the most testcases that suite may report as skipped on any host (measured, quoted in T-0198's Log). A
+skipped testcase still counts in the JUnit total, so without a ceiling a suite whose tests all self-skip (a
+conftest that marks everything skip when an import fails) adds its full count to TESTS linux= and holds the floor
+while running nothing. ops/test fails a suite by name when its skipped count exceeds the ceiling or when it
+executed no test at all.
 
 prints, one per line:
-    RUN <dir>                  for every run row, in table order
+    RUN <dir> <N>              for every run row, in table order (N = its max-skipped)
     EXCLUDE <dir> <reason>     for every exclude row
     FAIL: <what>               for every refusal, each naming the pyproject or row it is about
 exit 0 when nothing is refused, 1 when anything is, 2 when the table cannot be read.
@@ -21,6 +26,7 @@ files on disk: a new pyproject is refused until someone classifies it, and nothi
 import argparse
 import glob
 import os
+import re
 import sys
 
 TABLE_DEFAULT = "ops/lib/python-suites.txt"
@@ -41,14 +47,17 @@ def parse(lines, table):
         parts = line.split(None, 2)
         kind = parts[0]
         where = f"{table}:{n}"
-        if kind == "run" and len(parts) == 2:
-            rows.append(("run", parts[1], ""))
+        ceiling = re.fullmatch(r"max-skipped=(0|[1-9][0-9]*)", parts[2].strip()) if len(parts) == 3 else None
+        if kind == "run" and ceiling:
+            rows.append(("run", parts[1], ceiling.group(1)))
+        elif kind == "run" and len(parts) == 2:
+            fails.append(f"{where}: run {parts[1]} has no max-skipped=<N> - a run row must bound its skipped tests")
         elif kind == "exclude" and len(parts) == 3 and parts[2].strip():
             rows.append(("exclude", parts[1], parts[2].strip()))
         elif kind == "exclude" and len(parts) == 2:
             fails.append(f"{where}: exclude {parts[1]} has no reason - an exclusion must say why")
         else:
-            fails.append(f"{where}: malformed row {line!r} - expected `run <dir>` or `exclude <dir> <reason>`")
+            fails.append(f"{where}: malformed row {line!r} - expected `run <dir> max-skipped=<N>` or `exclude <dir> <reason>`")
     return rows, fails
 
 
@@ -65,17 +74,17 @@ def classify(root, table_path, lines):
     excluded = {d for kind, d, _ in rows if kind == "exclude"}
     for d in disk:
         if d not in seen:
-            fails.append(f"UNCLASSIFIED {d}/pyproject.toml: add `run {d}` or `exclude {d} <reason>` to {table_path}")
+            fails.append(f"UNCLASSIFIED {d}/pyproject.toml: add `run {d} max-skipped=<N>` or `exclude {d} <reason>` to {table_path}")
     out = []
     emitted = set()
-    for kind, d, reason in rows:
+    for kind, d, extra in rows:
         if d in emitted or d not in disk:
             continue
         emitted.add(d)
         if kind == "run" and d not in excluded:
-            out.append(f"RUN {d}")
+            out.append(f"RUN {d} {extra}")
         elif kind == "exclude":
-            out.append(f"EXCLUDE {d} {reason}")
+            out.append(f"EXCLUDE {d} {extra}")
     return out, fails
 
 

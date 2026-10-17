@@ -45,11 +45,11 @@ fi
 # It ran services/etl alone, so services/tiles and services/routing ran in no job (T-0198). The table is a
 # whitelist over the pyprojects on disk: an unclassified or stale one is a FAIL by name, and every `run` row
 # still runs so one red run names everything.
-py_runs=(); py_line="PYTEST"; py_excluded=""
+py_runs=(); py_skip_max=(); py_line="PYTEST"; py_excluded=""
 suites_out="$("$PY" ops/lib/python_suites.py 2>&1 | tr -d '\r')"; suites_rc=$?
 while IFS= read -r line; do
   case "$line" in
-    "RUN "*) py_runs+=("${line#RUN }") ;;
+    "RUN "*) r="${line#RUN }"; py_runs+=("${r%% *}"); py_skip_max+=("${r##* }") ;;
     "EXCLUDE "*) echo "python tier: excluded ${line#EXCLUDE }"; d="${line#EXCLUDE }"; py_excluded+="${py_excluded:+,}${d%% *}" ;;
     *) [[ -n "$line" ]] && echo "$line" ;;
   esac
@@ -69,14 +69,18 @@ if [[ ${#py_runs[@]} -gt 0 ]]; then
   done
   [[ -n "$pytest_py" ]] || { echo "FAIL: ${py_runs[*]} need pytest but no interpreter has it (tried: \$PYTHON python3 python py). Install it: python -m pip install pytest"; exit 1; }
 fi
-for d in ${py_runs[@]+"${py_runs[@]}"}; do   # services/<dir>: always two levels deep
+for i in ${py_runs[@]+"${!py_runs[@]}"}; do   # services/<dir>: always two levels deep
+  d="${py_runs[$i]}"; smax="${py_skip_max[$i]}"
   rep="$ART/pytest-junit-$(basename "$d").xml"
   (cd "$d" && "$pytest_py" -m pytest -q -p no:cacheprovider --junitxml="../../$rep" >/dev/null 2>&1); true
   if [[ ! -f "$rep" ]]; then echo "FAIL: $d: pytest ($pytest_py) produced no report (expected $rep)"; rc=1; py_line+=" $d=NO-REPORT"; continue; fi
   junit_reports+=("$rep")
   read -r t f s < <("$PY" ops/lib/junit_count.py "$rep" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/') || { echo "FAIL: could not parse $rep"; exit 1; }
   [[ "$t" -gt 0 ]] || { echo "FAIL: $d: pytest collected no tests - a suite that runs nothing is not green"; rc=1; }
-  py_line+=" $d=$t"; [[ "$f" -gt 0 ]] && py_line+="(failed=$f)"
+  # A skipped testcase counts in t, so a suite that self-skips wholesale holds the floor running nothing.
+  [[ "$t" -gt 0 && $((t - s)) -le 0 ]] && { echo "FAIL: $d: all $t tests skipped - a suite that executes nothing is not green"; rc=1; }
+  [[ "$s" -gt "$smax" ]] && { echo "FAIL: $d: $s tests skipped, over its max-skipped=$smax in ops/lib/python-suites.txt"; rc=1; }
+  py_line+=" $d=$t"; [[ "$f" -gt 0 ]] && py_line+="(failed=$f)"; [[ "$s" -gt 0 ]] && py_line+="(skipped=$s)"
   linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 done
 echo "$py_line${py_excluded:+ excluded=$py_excluded}"
