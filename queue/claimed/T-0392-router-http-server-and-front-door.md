@@ -152,3 +152,23 @@ ops/deploy-routing must deploy this compose to a host given by environment varia
 - 2026-10-17T09:00:27Z P-COST-03 registered (source half, anchor config) over check-routing-front-door.py and its
   --prove-red; check-pins-yaml `PINS-YAML ok pins=53`. ops/lib/check-routing-front-door.py is 100644 like its
   siblings (check-exec-bits refused 100755 - corrected). README: the served router and the owner's VPS steps.
+- 2026-10-17T09:26:55Z ACCEPTANCE RE-RUN on the final head c42c529e after `git fetch origin` + merge of origin/main
+  (already up to date):
+  * A1 `docker build -t scenic-routing:t0392 services/routing` exit=0 (layers cached from the 08:47 build of the
+    same sources; the 08:32 run printed maven `Tests run: 32, Failures: 0, Errors: 0, Skipped: 0`).
+  * A2 unchanged since 08:32 (no import-side change after it): `SCENIC_EV present=true bits=4 max=10`,
+    `GRAPH nodes=951816 edges=1194924`.
+  * A3 PASS x10 (route_fast_with_secret, route_scenic_custom_model_with_secret, isochrone_with_secret,
+    info_graph_hash_equals_properties_sha256, route_without_secret_401, route_wrong_secret_401,
+    info_without_secret_401, unlisted_path_404, graphhopper_port_unpublished,
+    placeholder_secret_401_when_box_started_with_it), `E2E 10/10`, exit 0.
+  * A4 `ROUTING FRONT DOOR OK: 3 proxied calls, all behind the secret` exit 0; `PROVE-RED OK: 9/9 mutants refused`.
+  * A5 test_deploy_routing_rehearsal.py 8 passed; test_profiles_static + test_request_models_static 12 passed.
+  * A6 the P-COST-03 assertion (both commands above) exit 0; `PINS-YAML ok pins=53 fields=426`.
+  * A7 bare: check-safety-disclaimer exit 0; check-mutate-population exit 0 (`the floor of 171 holds`);
+    check-mutate-only exit 0 (`241 of 241 driver runs refused`); check-pins-yaml exit 0; check-exec-bits exit 0
+    (`245 files, 23 required present, all modes correct`); queue-check exit 0 (`QUEUE OK (385 tasks)`).
+  * A8 every added `ROUTER_SECRET=` in the diff is an env reference, a `...`/`<that value>` placeholder, the
+    rehearsal's literal `rehearsal-not-a-secret`, or the e2e's per-run random `$SECRET`; no secret value.
+  STILL OPEN: the live P-COST-03 probe and P-PROD-04 (/info graph_hash == config == goldens) as ops/sane checks
+  against a real host; the Worker's GRAPH_VERSION is not yet tied to graph_hash; nothing has run on a VPS.
