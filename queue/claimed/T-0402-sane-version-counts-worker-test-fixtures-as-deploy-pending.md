@@ -1,13 +1,13 @@
 ---
 id: T-0402
 title: ops/sane --prod exit 3 counts a services/api/test fixture change as a pending deploy - compare only the files the deployed Worker is built from
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T17:18:06Z
+lease_expires_at: 2026-10-18T17:18:06Z
+worktree: .worktrees/T-0402
+branch: task/T-0402
 exclusive: []
 touches: [ops/sane, ops/lib/, queue/]
 pins_affected: []
@@ -33,3 +33,4 @@ services/api that wrangler bundles -> exit 3 (fail closed). Each shown red on to
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from T-0395's ops/sane --prod run.
+- 2026-10-17T17:18:06Z claimed by agent/claude-opus-5; lease until 2026-10-18T17:18:06Z
