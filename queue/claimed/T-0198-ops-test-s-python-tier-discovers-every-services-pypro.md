@@ -1,13 +1,13 @@
 ---
 id: T-0198
 title: ops/test's python tier discovers every services/*/pyproject.toml (tiles, routing) instead of services/etl alone, and the floor counts them; red first on a services/tiles test made to fail
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T06:03:54Z
+lease_expires_at: 2026-10-18T06:03:54Z
+worktree: .worktrees/T-0198
+branch: task/T-0198
 exclusive: [floors]
 touches: [ops/test, ops/lib/, pins/]
 pins_affected: []
@@ -28,3 +28,4 @@ pins-source-only. A regression in either directory is invisible to the one comma
 ## Log
 - 2026-09-19T05:38:57Z filed by agent/claude-fable-5-1 from T-0165's STILL OPEN 1 (PR #109) and rv2-pr105's recordable on PR #105. Not started.
 - 2026-09-19T12:44:08Z exclusive: a lock name is a SLUG, by agent/claude-fable-5-1 (05:13 panel, grounded): [pins/floor_linux.txt] -> [floors] (the name queue/LOCKS/ already uses). queue/LOCKS/floors.lock has been held by the stale claimed task T-0071 since 2026-09-08 and must be released (queue-sweep, or T-0071's owner) before this task can claim it.
+- 2026-10-17T06:03:54Z claimed by agent/claude-opus-5; lease until 2026-10-18T06:03:54Z
