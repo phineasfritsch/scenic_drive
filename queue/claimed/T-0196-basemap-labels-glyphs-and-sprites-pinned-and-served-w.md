@@ -100,3 +100,41 @@ street names is not shippable. The next tiles task, not a nicety.
   - A5 RED-then-GREEN by name: `test_a_style_naming_a_font_with_no_glyphs_is_refused` (font `Noto Sans Bold`).
   - A6 bare gates: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py, check-pins-yaml.py,
     check-exec-bits, queue-check; `wc -l` of every touched file <= 300.
+- 2026-10-17T06:38:12Z agent/claude-opus-5 RED then GREEN, by name:
+  - A5 RED: `basemap_assets.check` written first WITHOUT the glyph limb (sprites + tree digest only); the fixture
+    style names `Noto Sans Bold`, the tree built for the committed styles, the fixture pin records that tree:
+    `FAILED test_basemap_assets.py::test_a_style_naming_a_font_with_no_glyphs_is_refused` -
+    `AssertionError: assert 0 == 1` (test_basemap_assets.py:102); same run `6 failed, 12 passed`
+    (also red: the extra-glyph-directory, two off-layout URLs, the text-font expression, the publish-tiles anchor).
+    GREEN after the glyph limb (stacks compared whole + every requested range on disk) and the publish-tiles
+    check/list lines: `18 passed in 78.73s`.
+  - R5 RED: `KIND = "pmap:kind"` restored for one run: `test_style_tokens.py::test_every_field_a_layer_reads_is_in_the_archive`
+    `AssertionError: assert 1 == 0` (`make_styles --check` refuses the v3 field), `1 failed`; `KIND = "kind"` back: `1 passed`.
+  - A2 real build (main checkout `services/tiles/work`, from the downloaded tarball, sha256 verified by `build`):
+    `basemap_assets: OK 2 font stack(s) ['Noto Sans Medium', 'Noto Sans Regular'] x 256 ranges, 2 sprite sheet(s),
+    521 files 9962457 bytes, tree cd04e163d6f21932145c77046b2a5a527ad2e8a41764c7e9ed63289827f68f4b`, exit 0; sizes on
+    disk: Noto Sans Regular 6,240,473 B, Medium 3,613,867 B, OFL.txt 4,374 B, sprites/v4 103,743 B. `publish-list` 521 lines.
+  - A3 `make_styles: all 9 source-layers and every field the layers read present in la.pmtiles`, exit 0.
+  - A4 `PUBLISH REFUSED: 4 credential(s) not set: CLOUDFLARE_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET`, exit 1.
+  - Styles now write LF (`newline="\n"`): on this box `write_text` wrote CRLF and the embedded-literal sizes would
+    have been measured over bytes git never commits. Re-measured SIZES light=5751 dark=5778; Swift literals 259 lines;
+    P-SAFE-03 digests re-approved in `ops/lib/check-safety-disclaimer-pinned` (Dark 2a6175f3…, Light 7b0985dd…).
+- 2026-10-17T06:54:18Z agent/claude-opus-5 ACCEPTANCE re-run at the final commit (`git fetch origin`: origin/main
+  cf085098 is an ancestor of task/T-0196 - nothing to merge):
+  - A1 `SCENIC_TILES_WORK=<main>/services/tiles/work SCENIC_LA_PMTILES=<main>/services/tiles/work/la.pmtiles
+    python -m pytest services/tiles/tests -q -p no:cacheprovider -o addopts=` -> `104 passed in 50.27s`
+    (`104 tests collected`; 18 of them in test_basemap_assets.py, 4 new in test_style_tokens.py).
+  - A2 `basemap_assets: OK 2 font stack(s) ['Noto Sans Medium', 'Noto Sans Regular'] x 256 ranges, 2 sprite sheet(s),
+    521 files 9962457 bytes, tree cd04e163…f68f4b`, exit 0. A3 exit 0 (quoted above). A4 refusal exit 1 (quoted above).
+  - A5 RED/GREEN quoted in the 06:38:12Z entry.
+  - A6 `EXIT 0` each: check-safety-disclaimer; check-mutate-population.py (`the floor of 171 holds`); check-mutate-only.py
+    (`241 of 241 driver runs refused`); check-pins-yaml.py (`pins=52 fields=418`); check-exec-bits (`244 files, 23
+    required present, all modes correct`; ops/publish-tiles 100755); queue-check (`QUEUE OK (379 tasks)`).
+    `timeout 600 bash ops/lib/check-line-cap` -> EXIT 124 (timed out; not a pass). `wc -l` instead: make_styles.py 285,
+    basemap_assets.py 201, test_basemap_assets.py 220, test_style_tokens.py 214, test_embedded_style_identity.py 139,
+    README.md 98, build-la.sh 133, ops/publish-tiles 112, ScenicLightStyle.swift 259, ScenicDarkStyle.swift 259,
+    scenic-light.json 232, scenic-dark.json 232 - all <= 300.
+- STILL OPEN: (1) R3 - `ScenicStyleDocument` must replace `basemap://` with the directory holding la.pmtiles (and the
+  glyphs/sprites must be copied/downloaded there) before ANY label draws on a device; Swift, MapLibre-only target, next
+  task. (2) R8 - no ios-screenshot home shot can show these labels (no archive on the simulator; R3). (3) these tests
+  are still outside ops/test's floor (T-0198 in flight wires services/*/pyproject.toml). (4) check-line-cap timed out.
