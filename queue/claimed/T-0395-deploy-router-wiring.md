@@ -1,13 +1,13 @@
 ---
 id: T-0395
 title: Deploy the router wiring (T-0391's ROUTER_URL and GRAPH_VERSION) and prove one live /plan plus ops/sane --prod
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T12:22:46Z
+lease_expires_at: 2026-10-18T12:22:46Z
+worktree: .worktrees/T-0395
+branch: task/T-0395
 exclusive: [prod]
 touches: [ops/api-url, queue/]
 pins_affected: []
@@ -27,3 +27,4 @@ owner's machine through a Cloudflare Tunnel (owner-authorised pilot, 2026-10-17)
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from T-0391's review note (the vars take effect only at the next deploy).
+- 2026-10-17T12:22:46Z claimed by agent/claude-opus-5; lease until 2026-10-18T12:22:46Z
