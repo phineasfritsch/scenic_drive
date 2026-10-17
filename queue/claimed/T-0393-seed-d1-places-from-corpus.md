@@ -179,3 +179,36 @@ Test the exporter through its shipped entry point: a fixture corpus is exported,
     (`PINS-YAML ok pins=53 fields=426`), check-exec-bits (`P-OPS-01: 247 files, 23 required present, all modes
     correct`), queue-check (`QUEUE OK (385 tasks)`). Line counts: test_seedplaces.py 268, ops/mutate/seedplaces.py
     170, seedplaces.py 140 (unchanged). Acceptance item 2 gains the --out state table clause.
+- 2026-10-17T14:50:40Z rv2 FAIL (agent/rv2-t-0393, head b9ef6f90) closed by CLASS. The survivor
+  `any(q.is_file() for q in out.iterdir())` lived because OUT_STATES had one non-empty row (a regular file) and
+  state()/written() could not represent a subdirectory. Ruling: the --out corpus is every entry type a directory can
+  hold, and the oracle is the whole recursive tree. state() is replaced by `tree()` - None, ("link", target),
+  ("file", bytes) or ("dir", {name: tree}), recursing, never following a link, failing on any other entry type -
+  and `build()` creates the same shape, so each row asserts `tree(out) == before` before the run and a refused row
+  expects `before` verbatim after it. OUT_STATES is eleven rows through `etl.seedplaces.main`: absent,
+  absent-under-an-absent-parent, empty-dir (the three accepted, exit 0), dir-with-a-regular-file,
+  dir-with-an-empty-file, dir-with-an-empty-subdir, dir-with-a-non-empty-subdir, dir-with-a-hidden-dotfile,
+  dir-with-a-symlink, regular-file, empty-regular-file (exit 2); each asserts (exit, stdout, stderr, tree) whole.
+  The symlink row SKIPS on this box (`[WinError 1314] A required privilege is not held by the client`); it runs
+  where a symlink can be made (CI Linux). ops/mutate/seedplaces.py gains `an out dir holding only subdirectories
+  accepted` (the rv2 mutant) and `an out dir holding only dotfiles accepted`; MIN_MUTATIONS 49 -> 51.
+  - RED (7de135a5: mutants committed, b9ef6f90 tests untouched; touched rows only, owner-approved):
+    `MISSED an out dir holding only subdirectories accepted (exit 0)`, `MISSED an out dir holding only dotfiles
+    accepted (exit 0)`, `MUTATIONS: 0 caught, 2 missed`, `MUTATE FAILED  caught=0/2`.
+  - GREEN (9f1f8cff, the corpus): `MUTATE OK  caught=10/10 equivalent_caught=0` over the two plus every --out and
+    mkdir mutant, by name: only subdirectories <- `[dir-with-an-empty-subdir]`; only dotfiles <-
+    `[dir-with-a-hidden-dotfile]`; a non-empty out dir accepted <- `[dir-with-a-regular-file]`; exist_ok dropped
+    <- `[empty-dir]`; parents dropped <- `[absent-under-an-absent-parent]`; the is_dir clause dropped <-
+    `[regular-file]`; an out file accepted <- `[regular-file]`; every existing out path refused <- `[empty-dir]`;
+    the exists clause dropped <- `test_fixture_export_equals_typed_sql_and_the_committed_files`; --dry-run with
+    --out accepted <- `test_bad_arguments_are_refused[neither-dry-run-nor-out]` (all rows of
+    `test_every_out_state_exits_0_or_2_with_exact_output_and_whole_tree`). `--prove-vacuity` over the two:
+    `VACUITY: 0 caught, 2 missed, 0 skipped, of 2` `VACUITY PROVED`.
+  - On the merged head 80740924 (origin/main 5e4150a0 merged): `python -m pytest -q tests/test_seedplaces.py`:
+    `47 passed, 1 skipped in 27.91s` (the skip is the symlink row). Gates bare, exit 0 each:
+    check-safety-disclaimer (exit 0, P-SAFE-03 report), check-mutate-population (`P-PROC-06: every added module is
+    covered or allowlisted; the floor of 172 holds`), check-mutate-only (`MUTATE-ONLY OK: 245 of 245 driver runs
+    refused with exit 64`, `NAME-PAIRS OK: 242093 pair tokens over 49 id populations`), check-mutate-anchors
+    (`17 drivers, 1295 anchors, 0 stale`), check-pins-yaml (`PINS-YAML ok pins=53 fields=426`), check-exec-bits
+    (`P-OPS-01: 247 files, 23 required present, all modes correct`), queue-check (`QUEUE OK (386 tasks)`). Line
+    counts: test_seedplaces.py 293, ops/mutate/seedplaces.py 175, seedplaces.py 140 (unchanged).
