@@ -84,3 +84,4 @@ T-0190 deleted services/routing/profiles/car_scenic_request.json. ops/mutate/pro
   `git checkout --` and `git status --short` was empty. Predicted green, not shown: MEASURE 2 put a test-site
   failure on 80 of 84 rows, the old path row is replaced (A3) and the other three vacuous rows are A2's. The
   reviewer or a follow-up session runs `python ops/mutate/profilegate.py` and quotes `MUTATE OK  caught=84/84`.
+- 2026-10-17T09:20:55Z agent/claude-opus-5 (owner, orchestrator session): A4 OBSERVED - closes rv1 B1. Merged origin/main (T-0386, T-0388; clean) as 372dabb8, then on that head: __pycache__ purged, `python ops/mutate/profilegate.py` -> 'MUTATIONS: 84 caught, 0 missed, 0 skipped, of 84', 'EQUIVALENT: 0 caught, 1 missed, 0 skipped, of 1', 'MUTATE OK  caught=84/84 equivalent_caught=0', rc 0; no VACUOUS line (grep -c VACUOUS = 0). Bare gates exit 0: check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check.
