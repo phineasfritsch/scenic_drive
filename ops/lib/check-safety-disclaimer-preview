@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# P-SAFE-03 and P-SAFE-07 on the ROUTE PREVIEW, THE FROZEN RENDER BLOCKS (T-0396 pre-review M1, M2). Sourced by
+# ops/lib/check-safety-disclaimer after -frozen, whose readers (frozen_block, frozen_directives) it reuses, and run
+# BEFORE the digest pins, so a mutant whose digest row was re-approved is still refused here, by this name.
+#
+# T-0396's pre-review pass found two survivors once the sha256 row was re-approved, exactly as the PR re-approved
+# it: M1 deleted both `conditions` lines from PlanPreviewActions' stacks (the persistent line gone from the route
+# screen); M2 flipped `if preview.showsEstimateBadge {` to `if !preview.showsEstimateBadge {` (the estimate tag
+# hidden while a corridor has < 5 samples). Nothing anchored on either view. The class closure is -frozen's: the
+# blocks that mount the line and draw the tag are whole-line WHITELISTS, so ANY edit inside one - a deleted line,
+# a negation, a wrapper, a modifier - is refused until its approved list below is edited in the same commit.
+#
+# The blocks: PlanPreviewCard's `var body` (mounts PlanPreviewActions and the attribution footer), `etaRow` and
+# `estimateTag`; PlanPreviewActions' `var body` (the line in BOTH stacks) and `conditions`. Directive fence: no
+# kept line of the two files starts with `#` (an `#if` compiles an unfrozen twin).
+#
+# WHAT IT CANNOT SEE: whether the card renders, is covered, or is presented at all (PlanSheetScreen mounts it -
+# the digest pin covers that file); what PlanPreview.showsEstimateBadge computes (P-SAFE-07's learner tests and
+# PlanPreview's own tests); an overload of a modifier elsewhere in the module; `/* */` comments.
+PREVIEW_REASON="a frozen preview render block changed"
+
+FROZEN_PREVIEW_CARD_BODY=(
+  'var body: some View {'
+  'ScrollView {'
+  'VStack(alignment: .leading, spacing: 12) {'
+  'titleRow'
+  'etaRow'
+  'Text(preview.whyLine)'
+  '.font(.subheadline)'
+  '.foregroundStyle(DesignTokens.fgMuted)'
+  '.fixedSize(horizontal: false, vertical: true)'
+  '.accessibilityIdentifier("plan.why")'
+  'hazardStrip'
+  'PlanPreviewActions(saveLine: saveLine, onDrive: onDrive, onSave: onSave)'
+  '.padding(.top, 12)'
+  '}'
+  '.frame(maxWidth: .infinity, alignment: .leading)'
+  '.padding(16)'
+  '}'
+  '.safeAreaInset(edge: .bottom) {'
+  'AttributionFooter(text: PlanPreview.attribution)'
+  '.background(.bar)'
+  '}'
+  '.onAppear { moments?.report(.planPreviewOnScreen) }'
+  '}'
+)
+FROZEN_PREVIEW_ETA_ROW=(
+  'private var etaRow: some View {'
+  'ViewThatFits(in: .horizontal) {'
+  'HStack(alignment: .firstTextBaseline, spacing: 8) {'
+  'etaText'
+  'estimateTag'
+  '}'
+  'VStack(alignment: .leading, spacing: 6) {'
+  'etaText'
+  'estimateTag'
+  '}'
+  '}'
+  '}'
+)
+FROZEN_PREVIEW_ESTIMATE_TAG=(
+  '@ViewBuilder private var estimateTag: some View {'
+  'if preview.showsEstimateBadge {'
+  'Text(PlanPreview.estimateBadge)'
+  '.font(.caption)'
+  '.foregroundStyle(DesignTokens.fgMuted)'
+  '.fixedSize(horizontal: false, vertical: true)'
+  '.padding(.horizontal, 8)'
+  '.padding(.vertical, 3)'
+  '.background(RoundedRectangle(cornerRadius: 8, style: .continuous)'
+  '.fill(DesignTokens.fgMuted.opacity(0.14)))'
+  '.accessibilityIdentifier("plan.estimate")'
+  '}'
+  '}'
+)
+FROZEN_PREVIEW_ACTIONS_BODY=(
+  'var body: some View {'
+  'if typeSize.isAccessibilitySize {'
+  'VStack(alignment: .leading, spacing: 8) {'
+  'start'
+  'conditions'
+  'save'
+  '}'
+  '} else {'
+  'VStack(alignment: .leading, spacing: 8) {'
+  'HStack(spacing: 8) {'
+  'start'
+  'save'
+  '.fixedSize(horizontal: true, vertical: false)'
+  '}'
+  'conditions'
+  '}'
+  '}'
+  '}'
+)
+FROZEN_PREVIEW_CONDITIONS=(
+  'private var conditions: some View {'
+  'Text(PlanPreview.conditions)'
+  '.font(.footnote)'
+  '.foregroundStyle(DesignTokens.fgMuted)'
+  '.fixedSize(horizontal: false, vertical: true)'
+  '.frame(maxWidth: .infinity, alignment: .leading)'
+  '.accessibilityIdentifier("plan.conditions")'
+  '}'
+)
+
+# require_preview_blocks APP_TREE: the five blocks and the directive fence, or `fail` naming each break.
+require_preview_blocks() {
+  local plan="$1/Packages/ScenicApp/Sources/FeaturePlanSheet" f
+  local card="$plan/PlanPreviewCard.swift" actions="$plan/PlanPreviewActions.swift"
+  FROZEN_BAD=()
+  frozen_block "$card" "PlanPreviewCard's body" FROZEN_PREVIEW_CARD_BODY '@Environment(\.planMoments) private var moments'
+  frozen_block "$card" "PlanPreviewCard's etaRow" FROZEN_PREVIEW_ETA_ROW "}"
+  frozen_block "$card" "PlanPreviewCard's estimateTag" FROZEN_PREVIEW_ESTIMATE_TAG "}"
+  frozen_block "$actions" "PlanPreviewActions' body" FROZEN_PREVIEW_ACTIONS_BODY '@Environment(\.dynamicTypeSize) private var typeSize'
+  frozen_block "$actions" "PlanPreviewActions' conditions" FROZEN_PREVIEW_CONDITIONS "}"
+  for f in "$card" "$actions"; do [[ -f "$f" ]] && frozen_directives "$f"; done
+  [[ "${#FROZEN_BAD[@]}" -eq 0 ]] || fail "$PREVIEW_REASON:" "${FROZEN_BAD[@]}" \
+    "These blocks put the persistent conditions line (P-SAFE-03) in both stacks of the route preview and the" \
+    "estimate tag (P-SAFE-07) on its ETA; each is a whole-line whitelist (ops/lib/check-safety-disclaimer-preview)." \
+    "An edit inside one is refused until the approved list is edited in the same commit (T-0396 M1, M2)."
+}
