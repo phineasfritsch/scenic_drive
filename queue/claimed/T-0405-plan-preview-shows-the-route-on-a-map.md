@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-18T19:53:44Z
 worktree: .worktrees/T-0405
 branch: task/T-0405
 exclusive: []
-touches: [apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/ScenicKit/, Tests/, ops/lib/, ops/mutate/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
+touches: [apps/ios/ScenicDrive/ScenicDriveApp.swift, apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/ScenicKit/, Tests/, ops/lib/, ops/mutate/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-ATTR-01, P-SAFE-03, P-SAFE-07, P-A11Y-01]
 reviewer: null
 depends_on: [T-0396]
@@ -46,3 +46,52 @@ disclaimer. Any new or changed guard is shown red, then green.
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 after T-0396 merged (empty lower half seen in run 39050070882).
 - 2026-10-17T19:53:44Z claimed by agent/claude-opus-5; lease until 2026-10-18T19:53:44Z
+- 2026-10-17T20:01:57Z RULINGS before code (agent/claude-opus-5). Read: PlanSheetScreen, PlanPreviewCard, the shell
+  (`apps/ios/ScenicDrive/ScenicDriveApp.swift`: `.sheet(isPresented: $isPlanning)` with NO detents, attached to
+  PlanDriveButton in `home`'s top safe-area inset, a sibling of ScenicHomeScreen), DriveScreen/DriveBasemap/
+  DriveMapLine, MapAdapter's MapView + MapRouteCoordinator (`.fit` of the route bbox with padding = covered edges +
+  margin, window y converted into the map view), and ops/lib/check-map-attribution{,-sites} and
+  check-safety-disclaimer-{preview,frozen,pinned}. Looked at today's shot and Google Maps #205 / Apple Maps #056.
+  - R1 (Scope 1, the choice): a map IN THE PREVIEW CARD through MapAdapter's MapView, not a medium detent over the
+    home map. Why: (a) the home map lives in ScenicHomeScreen, a sibling of the sheet - drawing the previewed route
+    there needs the preview carried out of the sheet to the home through the shell AND the home's frozen render
+    blocks (-frozen) and its five-line sheet mount (-sheet) reopened; (b) a medium plan sheet covers the home's
+    credit band, which P-ATTR-01 (h) places under HomeSheet - the credit would have to be duplicated onto the plan
+    sheet anyway; (c) the drive screen already proves the second-surface pattern (T-0324 R5: DriveBasemap.planned
+    + DriveMapLine.route + composed footer + covered edge), which a card map copies. The sheet stays full height.
+  - R2 (module boundary): FeaturePlanSheet may not import MapAdapter (Package.swift, CLAUDE.md) and Package.swift
+    is serial-only and outside touches. So the map is a new public FeatureScenicHome view `PlanPreviewMap(preview:)`
+    and the SHELL hands it to PlanSheetScreen as `previewMap: (PlanPreview) -> AnyView` - the precedent is
+    ScenicHomeScreen's `surprise:` closure. This needs the shell line: `touches:` gains
+    `apps/ios/ScenicDrive/ScenicDriveApp.swift` (one line, frozen in check-safety-disclaimer-frozen, updated there).
+    The parameter has NO default, so a caller cannot get a mapless preview by omission.
+  - R3 (Scope 2): PlanPreviewMap mounts `MapView(styleURL: style.url, ..., coveredBelowY: creditTop, route: route)`
+    with `route = DriveMapLine.route(for: preview.route)`, so the coordinator's `.fit` frames the route's bbox with
+    its margin above the credit band; style from ONE `DriveBasemap.planned(` held in @State (resolve off the body).
+  - R4 (Scope 3, P-ATTR-01): the credit moves from the card's bottom inset onto the map surface: PlanPreviewMap's
+    `AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))` at
+    the map's bottom edge - basemap + route data, one line, the DriveScreen form. The card's bottom-inset
+    `AttributionFooter(text: PlanPreview.attribution)` is removed (it would be a second, partial credit 300pt
+    below the map). Guards: FOOTER_SET's PlanPreviewCard(1) becomes PlanPreviewMap(1); MAP_SET, the credit-site
+    whitelist and `DriveBasemap.planned(` gain PlanPreviewMap; a new limb (f3) runs the drive-surface readers over
+    PlanPreviewMap. FROZEN_PREVIEW_CARD_BODY is re-typed to the new body. P-SAFE-03 (PlanPreviewActions, the
+    conditions line under Start) and P-SAFE-07 (etaRow, estimateTag) blocks are unchanged.
+  - R5 (Scope 4, AX5): the map is pinned above the card's ScrollView at 42% of the card's height, 24% at
+    accessibility sizes; the text scrolls under it and never under the map. Start + the disclaimer stay in the
+    ScrollView, reachable by scrolling.
+  - R6 (no numeric module): no ops/mutate population - the change is layout and wiring; the guards' red is shown by
+    four hand mutants (M1-M4 below) run against the edited tree.
+
+## Acceptance
+1. `bash ops/lib/check-map-attribution` exits 0 and prints an (f3) line naming PlanPreviewMap.swift.
+2. `bash ops/lib/check-safety-disclaimer` exits 0 (the preview's frozen blocks, the shell's frozen line, digests).
+3. `bash ops/check-pins --source-only` exits 0; `python ops/lib/check-mutate-population.py`,
+   `python ops/lib/check-mutate-only.py`, `python ops/lib/check-pins-yaml.py`, `bash ops/lib/check-exec-bits`,
+   `bash ops/queue-check` exit 0.
+4. Prove red, each against the edited tree then restored green: M1 PlanPreviewMap's footer deleted -> (d)/(f3)
+   red; M2 PlanPreviewMap's footer reads a second `DriveBasemap.planned(` -> red; M3 `.accessibilityHidden(true)`
+   on the map footer -> red; M4 the shell passes `previewMap: { _ in AnyView(EmptyView()) }` -> -frozen red.
+5. ios-compile green and ios-screenshot green on task/T-0405, run ids quoted; plan-preview light, dark and ax5
+   LOOKED AT, item by item: the route visible, the map framed on it, attribution on the map, Start, the disclaimer
+   directly under Start, the estimate tag on the ETA; at ax5 the map smaller and not over the text.
+6. Every file touched under Sources/ and apps/ios is <= 300 lines (`wc -l` quoted).
