@@ -11,12 +11,23 @@ in the pristine file or SKIP and FAIL; a catch requires a NAMED TEST to fail; th
 files and THIS FILE are compared to `git show HEAD:` first; `MIN_MUTATIONS` equals the shipped population;
 an EQUIVALENT entry caught is a failure; `--prove-vacuity` empties the tests and requires every mutation MISSED.
 Every `__pycache__` under services/etl is purged and the run sleeps past the mtime granularity per mutant.
+
+A KILL IS A TEST'S, NOT PYTHON'S (T-0387). `run_tests` below replaces the harness's: it reads pytest's junit
+report and counts a failing test only when its crash site - the last `path:line: Exception` of the failure -
+is a file under services/etl/tests. A mutant whose every failure was raised outside the test files (a
+FileNotFoundError in pathlib, a ValueError the evaluator refuses with) is reported VACUOUS and MISSED, so the
+run fails until a named test asserts on it. T-0190 deleted the file the old path mutant read.
 """
 from __future__ import annotations
 
 import argparse
 import pathlib
+import re
+import subprocess
 import sys
+import tempfile
+import time
+import xml.etree.ElementTree as ElementTree
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
@@ -85,7 +96,8 @@ MUTATIONS = [
      '        if True or fires(rule["if"], values):'),
     ("a low priority read as gated", SUBJECT, "    return priority(tags, profile) == 0.0",
      "    return priority(tags, profile) <= 0.5"),
-    ("the request profile read instead", SUBJECT, '/ "car_scenic_base.json"', '/ "car_scenic_request.json"'),
+    ("the recorded request model read instead", SUBJECT, 'parents[2] / "routing" / "profiles" / "car_scenic_base.json"',
+     'parents[3] / "Tests" / "Fixtures" / "custom-model" / "lambda-2.json"'),
     ("profile: DESTINATION let through", PROFILE, " || road_access == DESTINATION", ""),
     ("profile: PRIVATE let through", PROFILE, '"road_access == PRIVATE || ', '"'),
     ("profile: NO let through", PROFILE, " || road_access == NO ||", " ||"),
@@ -173,6 +185,43 @@ KNOWN_MISSED = []
 
 MIN_MUTATIONS = 84
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
+TEST_DIR = ETL / "tests"
+CRASH_SITE = re.compile(r"^(.+):\d+: \w+$")
+
+
+def crash_in_tests(failure_text: str | None) -> bool:
+    """True when the failure's crash site is a file under services/etl/tests; no crash site reads False."""
+    sites = [CRASH_SITE.match(line) for line in (failure_text or "").splitlines()]
+    sites = [site.group(1) for site in sites if site]
+    if not sites:
+        return False
+    path = pathlib.Path(sites[-1])
+    path = (path if path.is_absolute() else ETL / path).resolve()
+    return TEST_DIR.resolve() in path.parents
+
+
+def run_tests() -> tuple:
+    """The harness's run_tests, counting only the failures whose crash site is in the test files."""
+    harness.purge_pycache()
+    time.sleep(harness.SETTLE_S)
+    with tempfile.TemporaryDirectory() as tmp:
+        report = pathlib.Path(tmp) / "junit.xml"
+        out = subprocess.run(harness.PYTEST + ["--junitxml", str(report)], cwd=str(ETL), capture_output=True,
+                             text=True)
+        cases = list(ElementTree.parse(str(report)).iter("testcase")) if report.is_file() else []
+    in_tests, outside = [], 0
+    for case in cases:
+        for failure in case.findall("failure") + case.findall("error"):
+            if crash_in_tests(failure.text):
+                in_tests.append("%s::%s" % (case.get("classname"), case.get("name")))
+            else:
+                outside += 1
+    if outside and not in_tests:
+        print("  VACUOUS     %d failures, every one raised outside the test files" % outside)
+    return out.returncode, in_tests
+
+
+harness.run_tests = run_tests
 
 
 def main(argv: list | None = None) -> int:
