@@ -1,7 +1,7 @@
 ---
 id: T-0390
 title: Bind the production KV namespaces (PLANS, CONFIG, KILL_SWITCH, CLOSURES) in services/api/wrangler.jsonc - the owner created them 2026-10-17
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
