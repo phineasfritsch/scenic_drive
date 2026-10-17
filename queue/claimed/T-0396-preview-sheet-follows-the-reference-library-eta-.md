@@ -194,3 +194,15 @@ the disclaimer line must both be reachable. Any new or changed guard is shown re
     `T-0396 M1 twin ... 1 yes` / `prove-red: 3/3 mutations refused by name`.
   - Still unseen (recorded in the lib's header): whether PlanSheetScreen presents the card (its digest row covers the
     file), what showsEstimateBadge computes (P-SAFE-07's learner tests), modifier overloads elsewhere, `/* */`.
+- 2026-10-17T18:55:14Z FINAL acceptance re-quoted on the merged head bbc8b382 (c86846c2 + origin/main merged last).
+  - A1 rc=0 `Test run with 24 tests in 4 suites passed after 0.018 seconds.`
+  - A2 `grep -c` -> 0; PlanRouteShape.swift: `No such file or directory`.
+  - A3 `P-SAFE-03 hazard copy: ok - 13 sites, every one approved, in 5 files`; `PROVE-RED OK: 13 of 13 rows red by
+    name, control 0`.
+  - A4 check-safety-disclaimer rc=0 (`Frozen (-frozen, -preview); 37 feature file(s), shell, footer pinned ...`);
+    check-map-attribution rc=0; `P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds`;
+    `MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64`; `PINS-YAML ok pins=53 fields=426`;
+    `P-OPS-01: 253 files, 23 required present, all modes correct`; `QUEUE OK (393 tasks)`.
+  - A5 largest FeaturePlanSheet file PlanSheetScreen.swift 281 lines (no Swift file changed in this round).
+  - A6/A7 unchanged from 39050077285 / 39050070882: this round touched no Swift, no apps/ios file.
+  - A8 `prove-red: 3/3 mutations refused by name`; stage-B red quoted in the 18:27:27Z entry.
