@@ -40,6 +40,9 @@ SELECTS = (
      "SELECT segment_id, term_id, value FROM terms_osm ORDER BY segment_id, term_id"),
     ("places",
      "SELECT place_id, osm_type, osm_id, cls, name, lon_e7, lat_e7 FROM places ORDER BY place_id"),
+    ("landmarks",
+     "SELECT osm_type, osm_id, kind, name, ele_dm, lat_e5, lon_e5, nearest_way_id FROM landmarks "
+     "ORDER BY osm_type, osm_id"),
     ("terms_raster",
      "SELECT segment_id, term_id, value FROM terms_raster ORDER BY segment_id, term_id"),
     ("term_defs", "SELECT term_id, name, family FROM term_defs ORDER BY term_id"),

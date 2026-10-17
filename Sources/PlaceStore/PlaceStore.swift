@@ -13,7 +13,7 @@ import GRDB
 public final class PlaceStore: Sendable {
     /// The corpus schema this reader parses. P-PROD-05 holds it equal to services/etl/etl/schema.py and
     /// services/api/src/index.ts; PlaceStoreReadTests holds it equal to a corpus the shipping builder made.
-    public static let schemaVersion: Int = 3
+    public static let schemaVersion: Int = 4
 
     #if canImport(GRDB)
     /// `PRAGMA application_id` of every corpus: the ASCII bytes "SCNC" big-endian (schema.APPLICATION_ID).

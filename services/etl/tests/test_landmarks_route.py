@@ -182,8 +182,11 @@ def code_mentions(path: pathlib.Path) -> bool:
 
 
 def test_no_module_but_landmarks_names_a_landmark():
-    """A5 / R10, a WHITELIST: score.py and every module that builds its terms stay blind to landmarks."""
+    """A5 / R10, a WHITELIST: score.py and every module that builds its terms stay blind to landmarks. T-0379 R5:
+    the whitelist is the module and its storage path - the DDL, the writer, the build and the content digest."""
     modules = sorted((ETL / "etl").rglob("*.py"))
     assert len(modules) > 40
     named = [p.relative_to(ETL).as_posix() for p in modules if code_mentions(p)]
-    assert named == ["etl/landmarks.py"]
+    assert named == ["etl/contentdigest.py", "etl/corpus.py", "etl/corpuswriter.py", "etl/landmarks.py",
+                     "etl/schema.py"]
+    assert not {"etl/score.py", "etl/terms.py"} & set(named)

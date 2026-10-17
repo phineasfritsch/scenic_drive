@@ -123,7 +123,8 @@ def run(layout, names, jobs) -> int:
 
     begun = time.monotonic()
     code = corpus.main(["--input", str(layout.corpus_extract), "--out", str(layout.corpus),
-                        "--built-at", BUILT_AT, "--region", layout.region])
+                        "--built-at", BUILT_AT, "--region", layout.region,
+                        "--landmarks-osm", str(layout.places_xml)])
     print("CORPUS-BUILD exit=%d %.0fs" % (code, time.monotonic() - begun), flush=True)
     if layout.corpus.exists():
         measure(layout.corpus, corpus.CORPUS_BUDGET_BYTES)
