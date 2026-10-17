@@ -13,9 +13,10 @@ Two agreements are asserted here rather than assumed:
      tuple whose exact bytes are the artifact) and `SURFACE_STATES` is the same three values as data. A test
      is the only thing that can hold them together.
 
-The unpaved set is the third agreement and it is the one this task cannot close: it is a copy of
-Sources/ScenicKit/Gates/Gates.swift:80-82 across a language boundary, so it is asserted against seven values
-typed out here - a third copy, deliberately, so a widening on either side has to pass a human.
+The unpaved set is the third agreement. Since T-0181 `surface.UNPAVED_SURFACES` is the ETL's ONE set,
+imported by assemble.py and surfacecoverage.py, and test_assemble.py binds it to the parsed Swift literal
+`Gates.unpavedSurfaces`. The seven values typed out here stay as a deliberate tripwire: a widening on either
+side has to pass a human.
 """
 from __future__ import annotations
 

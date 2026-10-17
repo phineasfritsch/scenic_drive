@@ -28,7 +28,7 @@ import re
 
 import pytest
 
-from etl import assemble, byways, score, way_record
+from etl import assemble, byways, score, surface, way_record
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
@@ -241,9 +241,9 @@ def _swift_set(name: str) -> set:
 
 
 def test_the_gate_sets_are_the_ones_scenickit_gates_on():
-    """Anchored on the Swift declarations, not on a comment: two internally consistent files would put two
-    different answers for one road in the corpus, and neither would look wrong on its own."""
-    assert set(assemble.UNPAVED_SURFACES) == _swift_set("unpavedSurfaces")
+    """Anchored on the Swift declarations, not a comment: two consistent files answering one road twice."""
+    assert assemble.UNPAVED_SURFACES is surface.UNPAVED_SURFACES  # T-0181: the ETL's one set, imported
+    assert set(surface.UNPAVED_SURFACES) == _swift_set("unpavedSurfaces")
     assert set(assemble.CLOSED_ACCESS) == _swift_set("closedAccess")
     cases = set(re.findall(r"^\s*case (\w+)", GATE_REASON_SWIFT.read_text(encoding="utf-8"), re.M))
     assert {"unpavedSurface", "track", "noAccess"} <= cases, sorted(cases)

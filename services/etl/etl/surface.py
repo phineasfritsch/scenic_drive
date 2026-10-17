@@ -29,19 +29,19 @@ nobody has thought of are all 1. That is not laziness: `Gates` refuses only on p
 (Gates.swift:153) and the score flags only an absent tag, so a fourth state would be a state no consumer of
 this column has a rule for.
 
-UNPAVED_SURFACES IS A COPY ACROSS A LANGUAGE BOUNDARY, AND THAT IS A KNOWN DEFECT. score.py deliberately
-holds no gate list (score.py:29-32: the safety gates "live in the GraphHopper profile and in
-`ScenicKit.Gates`, never here"), so there is nothing in this package to import. The list below is the plan's
-line 80, already typed out once at Sources/ScenicKit/Gates/Gates.swift:80-82 as `unpavedSurfaces`. P-PROD-01
-is the pin that will drive one fixture set through the ETL, the routing profile and ScenicKit and assert
-they agree; its assertion is still TODO. Until then the only defence is that both copies are seven literals
-in one place each, asserted value by value in their own test suites.
+UNPAVED_SURFACES IS THE ETL'S ONE UNPAVED SET (T-0181). score.py deliberately holds no gate list (the safety
+gates "live in the GraphHopper profile and in `ScenicKit.Gates`, never here"), so this module owns it and
+every other ETL module imports it: `assemble.gate_reason` and `surfacecoverage` read this object, never a
+copy. It crosses one language boundary, to `Gates.unpavedSurfaces` in Sources/ScenicKit/Gates/Gates.swift,
+and is bound there by the identifier: test_assemble.py parses that Swift literal and asserts this set equals
+it, and test_unpaved_surfaces_owner.py holds every unpaved-value literal under services/etl/etl to this one
+site. The router's list is the profile's own; P-PROD-01's gate_parity fixture holds it to this one row by row.
 """
 from __future__ import annotations
 
 from .score import raises_surface_unknown_flag
 
-# plan:80, verbatim. Mirrors Sources/ScenicKit/Gates/Gates.swift:80-82 `Gates.unpavedSurfaces`.
+# plan:80. The ONE definition in services/etl/etl; `Gates.unpavedSurfaces` is held to it by the tests.
 UNPAVED_SURFACES = frozenset({
     "gravel", "dirt", "ground", "sand", "unpaved", "compacted", "fine_gravel",
 })
