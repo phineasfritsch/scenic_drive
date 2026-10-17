@@ -1,7 +1,7 @@
 ---
 id: T-0385
 title: ops/plan's body gate (ScenicPlanCLI GraphHopperRouteSource.forbiddenEncodedValues) still lists only road_access and surface - bind it to the shipped base profile like the Worker
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
