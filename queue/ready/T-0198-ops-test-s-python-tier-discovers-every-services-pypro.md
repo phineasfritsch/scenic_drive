@@ -1,7 +1,7 @@
 ---
 id: T-0198
 title: ops/test's python tier discovers every services/*/pyproject.toml (tiles, routing) instead of services/etl alone, and the floor counts them; red first on a services/tiles test made to fail
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
