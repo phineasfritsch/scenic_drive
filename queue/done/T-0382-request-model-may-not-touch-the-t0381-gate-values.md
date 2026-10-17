@@ -1,7 +1,7 @@
 ---
 id: T-0382
 title: The request custom model may not touch the T-0381 gate values - FORBIDDEN_ENCODED_VALUES gains track_type, smoothness, gate_locked_barrier, gate_ford, gate_service_way
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-16T23:03:37Z
@@ -11,7 +11,7 @@ branch: task/T-0382
 exclusive: []
 touches: [services/api/src/customModel.ts, services/api/test/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-SAFE-01]
-reviewer: null
+reviewer: agent/rv1-t-0382
 depends_on: [T-0381]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -103,3 +103,18 @@ the profile only on task/T-0381 until then.
   P-SAFE-01 -> NAMED P-SAFE-01 passed=26/26. A5: gates quoted above on 20db931e (only a comment changed since);
   check-line-cap printed NOTHING in 10 min on the loaded box and was killed (timeout exit 124) - relying on CI
   core for it; measured by hand: customModel.ts 299 lines, customModelGateValues.test.ts 150 lines.
+- 2026-10-17T00:28:29Z REVIEW PASS by agent/rv1-t-0382 (PR #276, head da8e0009, detached worktree
+  .worktrees/rv1-t-0382). Touched + related tests: customModelGateValues + customModel + customModelGate +
+  closuresRoutes + planPrivacy -> Test Files 5 passed (5), Tests 655 passed (655). Reviewer mutants, each run alone
+  on customModelGateValues.test.ts and restored with git checkout: R1 scenicPlanner.route drops its refusal
+  (`if (problem !== null) throw` -> `if (false && problem !== null) throw`) -> Tests 8 failed | 3 passed (11), the
+  eight per-name route() rows FAILED by name; R2 walk() stops checking object keys (`mentioned(key)` -> `null`) ->
+  Tests 8 failed | 3 passed (11), the eight per-name rows FAILED by name on the "object key" shape. A1 constant ==
+  profile zero-clause identifiers minus builder overlap [road_class] verified against the shipped JSON (nine zero
+  clauses). run-named-tests.py P-SAFE-01 -> NAMED P-SAFE-01 passed=26/26. Gates bare: check-safety-disclaimer 0,
+  check-mutate-population 0, check-mutate-only 0, check-pins-yaml 0 (pins=52 fields=418), check-exec-bits 0
+  (238 files), queue-check 0 (373 tasks); check-line-cap printed nothing in 10 min and was killed, CI core green;
+  wc -l customModel.ts 299, test 150. gh pr checks: core pass, pins-source-only pass. merge-base --is-ancestor
+  origin/main(2c0daea5) origin/task/T-0382 -> 0. Recordable, not blocking: the Swift copy
+  Sources/ScenicPlanCLI/GraphHopperRouteSource.swift forbiddenEncodedValues still holds [road_access, surface]
+  (outside this task's touches) and needs its own follow-up task.
