@@ -176,3 +176,21 @@ then green.
   check-pins-yaml "PINS-YAML ok pins=53 fields=426" exit=0; check-exec-bits "P-OPS-01: 252 files, 23 required present,
   all modes correct" exit=0 (the .py stays 100644 like check-drive-display.py; it runs through python).
   CANNOT SEE: whether the badge renders (ios-screenshot), an ETA under a name none of the words spells.
+- 2026-10-17T17:06:40Z agent/claude-opus-5: final pre-review after the M1 fix. git fetch origin (main checkout), merged
+  origin/main 8444fbc8 into the branch (69390eba). `git diff --stat 29ff6d01 HEAD -- apps/ios .github` is empty: the
+  app tree and workflows equal the tree the iOS runs were made on. Acceptance re-run on the merged head:
+  A1-A3 PASS unchanged - no apps/ios file changed since run 39046317171 (surprise-light/-dark/-ax5 as quoted above).
+  A4 RECORDED unchanged (T-0399).
+  A5 PASS `bash ops/lib/check-safety-disclaimer` exit=0 ("Frozen (-frozen); 37 feature file(s), shell, footer pinned
+     (-pinned); doors over 115 .swift (-doors); LAST all 115 app .swift, then 336 root + pbxproj file(s) (-linked).").
+  A6 PASS `grep -c 'onOpenInMaps(candidate.coordinate)' SurpriseCard.swift` -> 1.
+  A7 PASS `wc -l` SurpriseCard.swift 251, SurpriseNotThis.swift 57 (check-estimate-badge.py 222).
+  A8 PASS `python ops/lib/check-ios-compile-guardrails.py` exit=0 (ios-compile.yml and ios-screenshot.yml OK).
+  A9 PASS bare gates: check-mutate-population.py "P-PROC-06: every added module is covered or allowlisted; the floor of
+     173 holds" exit=0; check-mutate-only.py "MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64" exit=0;
+     check-pins-yaml.py "PINS-YAML ok pins=53 fields=426" exit=0; check-exec-bits "P-OPS-01: 252 files, 23 required
+     present, all modes correct" exit=0; queue-check "QUEUE OK (392 tasks)" exit=0.
+  A10 PASS ios-compile 39046312312 and ios-screenshot 39046317171 completed success (app tree unchanged since).
+  A11 PASS (M1 closed) `python ops/lib/check-estimate-badge.py` exit=0 "36 approved whole lines name an ETA or the
+     estimate badge under apps/ios and no other line does; 9 badge blocks equal their approved bodies and fences.";
+     red/green and `--prove-red` 9/9 quoted in the entry above.
