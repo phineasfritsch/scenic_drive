@@ -1,7 +1,7 @@
 ---
 id: T-0196
 title: basemap labels - glyphs and sprites pinned by digest and served with the tiles, the style's glyphs/sprite URLs set, a check that every symbol layer's text-font exists in the glyph set
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
