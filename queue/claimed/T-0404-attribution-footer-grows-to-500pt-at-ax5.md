@@ -79,8 +79,9 @@ A5. ios-compile and ios-screenshot succeed on task/T-0404 (run ids quoted). In h
     stays (check-map-attribution limb (e)).
   - R3 SIZES. "Default sizes" = every non-accessibility Dynamic Type size: one line, `.caption2`, `.lineLimit(1)`,
     `.minimumScaleFactor(0.5)` shrinks instead of wrapping (the 68-character CI credit at xxxLarge needs about
-    0.65). Accessibility sizes: one line if it fits at its natural width (ViewThatFits), else a two-line strip
-    split at the separator into the most even halves, each line `.lineLimit(1)` + the same scale factor. The
+    0.65). Accessibility sizes: a two-line strip split at the separator into the most even halves (one line
+    for a single party), each line `.lineLimit(1)` + the same scale factor. (Amended 20:02: the first cut tried
+    one line first with ViewThatFits; see that entry.) The
     footer clamps Dynamic Type at `.accessibility2` so the strip's height is bounded (two caption2 lines at about
     24pt): at AX5 caption2 is about 40pt and the credit cannot fit two 378pt lines without breaking inside a word
     or covering the map, which is the defect. The full credit stays in the VoiceOver label (R2).
@@ -110,3 +111,14 @@ A5. ios-compile and ios-screenshot succeed on task/T-0404 (run ids quoted). In h
   `return BasemapResolver.losAngeles(appearance: appearance)` no longer exists in DriveBasemap.swift. Ruled out of
   scope (no row this task touches); filed as T-0413. A3's prove-red half reads "as on main" for this task.
   Dispatched ios-compile 39062706820 and ios-screenshot 39062709376 on c25f9871.
+- 2026-10-17T20:02:27Z ios-compile 39062706820 success, ios-screenshot 39062709376 success (c25f9871). Main's
+  workflow has no drive-ax5 shot (that capture lives on T-0397's branch), so drive is judged at light/dark and AX
+  behaviour on home-ax5 and plan-preview-ax5. LOOKED: drive-light - one line "© MapLibre · Natural Earth · Route
+  data © OpenStreetMap contributors" at the map's bottom edge, full width, no box, clear of the route line (ends
+  about 300pt higher), the (i) and End drive. plan-preview-ax5 - one line "Route data © OpenStreetMap
+  contributors" (single party) at about 19pt, under the estimate line, over nothing (was a 4-line ~500pt box).
+  home-ax5-medium - ONE line, but at about 12pt: the ViewThatFits accepted the one-line child at half scale,
+  so the strip never showed and an AX5 reader got smaller text than at default. Ruled a defect of mine (R3 said
+  "else a two-line strip"); fixed by deciding the split instead of measuring it: at accessibility sizes the
+  footer is always the strip (one line for a single party). Digest re-approved (9058c06d -> 3373eb72),
+  `wc -l` 97, check-map-attribution exit=0. Re-dispatching.

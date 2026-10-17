@@ -7,8 +7,8 @@ import SwiftUI
 /// default: whoever mounts the map states what the map is made of, and this type never names a party.
 ///
 /// T-0404: a caption, not a box. At every non-accessibility Dynamic Type size it is ONE line that shrinks rather
-/// than wraps; at accessibility sizes it is one line if that fits, else a strip of at most TWO lines split at the
-/// credit's own " · " separator. Every visible line has `lineLimit(1)`, so no break can fall inside a word
+/// than wraps; at accessibility sizes it is a strip of at most TWO lines split at the credit's own " · "
+/// separator (one line when the text is a single party). Every visible line has `lineLimit(1)`, so no break can fall inside a word
 /// ("OpenStreet-Map" at AX5 on T-0397's drive screen), and Dynamic Type is clamped at `.accessibility2` so the
 /// strip's height is bounded and it never grows over the route, MapLibre's (i) or the sheet's controls. The text is
 /// rendered verbatim and nothing is dropped; VoiceOver reads `text` whole, whatever the visible split or scale.
@@ -27,13 +27,11 @@ public struct AttributionFooter: View {
             // lower-left is free and the caption may use the full width rather than wrap.
             Spacer(minLength: 12)
             if typeSize.isAccessibilitySize {
-                ViewThatFits(in: .horizontal) {
-                    line(text)
-                        .fixedSize(horizontal: true, vertical: false)
-                    VStack(alignment: .trailing, spacing: 0) {
-                        ForEach(Array(AttributionFooter.strip(text).enumerated()), id: \.offset) { item in
-                            line(item.element)
-                        }
+                // Always the strip at accessibility sizes: run 39062709376 showed a ViewThatFits here accepting
+                // the one-line child at half scale (about 12 pt at AX5), so the split is decided, not measured.
+                VStack(alignment: .trailing, spacing: 0) {
+                    ForEach(Array(AttributionFooter.strip(text).enumerated()), id: \.offset) { item in
+                        line(item.element)
                     }
                 }
             } else {
