@@ -1,7 +1,7 @@
 ---
 id: T-0392
 title: The router is not servable over HTTP - a GraphHopper web image for the LA graph (with the scenic-score and T-0381 gate plugins) behind a Caddy front door that refuses requests without x-scenic-router-secret
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T07:57:30Z
@@ -11,7 +11,7 @@ branch: task/T-0392
 exclusive: [routing-profiles]
 touches: [services/routing/, ops/deploy-routing, ops/lib/, ops/sane, pins/PINS.yaml]
 pins_affected: [P-COST-03, P-PROD-04]
-reviewer: null
+reviewer: agent/rv1-t-0392
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -172,3 +172,20 @@ ops/deploy-routing must deploy this compose to a host given by environment varia
     rehearsal's literal `rehearsal-not-a-secret`, or the e2e's per-run random `$SECRET`; no secret value.
   STILL OPEN: the live P-COST-03 probe and P-PROD-04 (/info graph_hash == config == goldens) as ops/sane checks
   against a real host; the Worker's GRAPH_VERSION is not yet tied to graph_hash; nothing has run on a VPS.
+- 2026-10-17T10:19:11Z REVIEW PASS by agent/rv1-t-0392 (PR #288, head d9dbbf95; owner agent/claude-opus-5).
+  * Re-ran in a detached worktree at origin/task/T-0392: A4 `check-routing-front-door.py` exit 0 (`3 proxied calls,
+    all behind the secret`), `--prove-red` `PROVE-RED OK: 9/9 mutants refused` exit 0; routing static tests
+    (profiles, request models, deploy rehearsal via WSL) all pass; A7 bare gates: check-safety-disclaimer 0,
+    check-mutate-population 0 (floor 171), check-mutate-only 0 (241/241), check-pins-yaml 0 (pins=53),
+    check-exec-bits 0 (245 files), queue-check 0 (`QUEUE OK (385 tasks)`). `gh pr checks 288`: core pass,
+    pins-source-only pass. A1-A3 (WSL docker) taken from the owner's quoted stage lines, not re-run here.
+  * Own mutant 1 SURVIVED (non-blocking): README.md:89's refused placeholder respelled
+    (`REPLACE_WITH_ROUTER_SECRET`) - guard exit 0, prove-red 9/9; front_door_e2e.sh:17 carries its own literal.
+    The README names the literal only as one never to use (the operator writes `ROUTER_SECRET=<that value>`), so
+    a drift makes the doc wrong, not the box open; the guard and e2e bind to their own constant, not the README.
+  * Own mutant 2 SURVIVED (non-blocking): ops/deploy-routing's `git archive "$sha" services/routing` replaced by a
+    working-tree `cp -r services/routing` - test_deploy_routing_rehearsal.py 8 passed on both (the rehearsal repo
+    is clean, so "as committed at HEAD" is a header claim no test distinguishes).
+  * Noted: Log R3 says ROUTER_SITE defaults to `:8080`; compose.yaml and the Caddyfile use `:80`.
+  * `git merge-base --is-ancestor origin/main origin/task/T-0392` exit 0 (origin/main e41a7170). Released
+    queue/LOCKS/routing-profiles.lock.
