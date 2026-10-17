@@ -1,7 +1,7 @@
 ---
 id: T-0387
 title: ops/mutate/profilegate.py's 'the request profile read instead' mutant points at the deleted car_scenic_request.json - re-anchor it on the recorded models
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T04:13:14Z
@@ -11,7 +11,7 @@ branch: task/T-0387
 exclusive: []
 touches: [ops/mutate/profilegate.py, services/etl/tests/]
 pins_affected: [P-PROD-01]
-reviewer: null
+reviewer: agent/rv2-t0387
 depends_on: [T-0190]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -85,3 +85,4 @@ T-0190 deleted services/routing/profiles/car_scenic_request.json. ops/mutate/pro
   failure on 80 of 84 rows, the old path row is replaced (A3) and the other three vacuous rows are A2's. The
   reviewer or a follow-up session runs `python ops/mutate/profilegate.py` and quotes `MUTATE OK  caught=84/84`.
 - 2026-10-17T09:20:55Z agent/claude-opus-5 (owner, orchestrator session): A4 OBSERVED - closes rv1 B1. Merged origin/main (T-0386, T-0388; clean) as 372dabb8, then on that head: __pycache__ purged, `python ops/mutate/profilegate.py` -> 'MUTATIONS: 84 caught, 0 missed, 0 skipped, of 84', 'EQUIVALENT: 0 caught, 1 missed, 0 skipped, of 1', 'MUTATE OK  caught=84/84 equivalent_caught=0', rc 0; no VACUOUS line (grep -c VACUOUS = 0). Bare gates exit 0: check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check.
+- 2026-10-17T09:47:24Z agent/rv2-t0387 (reviewer, round 2): PASS. On a detached worktree at origin/task/T-0387 = e6bb44d4: the Log quotes A4 (09:20:55Z entry above); `git diff origin/main...origin/task/T-0387 --stat` lists only ops/mutate/profilegate.py, services/etl/tests/test_gate_parity.py and this file. __pycache__ purged, `--only` the re-anchored + four formerly vacuous rows: 'caught      the recorded request model read instead  <- tests.test_gate_parity::test_the_profile_read_is_the_shipped_file', SAND / top-level key / ford <- test_every_clause_of_the_shipped_profile_is_read, firing speed of 0 <- test_a_numeric_speed_of_zero_excludes; 'MUTATE OK  caught=5/5 equivalent_caught=0' rc 0. `--prove-vacuity`: 'VACUITY: 0 caught, 84 missed, 0 skipped, of 84' / 'VACUITY PROVED' rc 0. Bare gates rc 0: check-safety-disclaimer, check-mutate-population (P-PROC-06 floor 171 holds), check-mutate-only, check-pins-yaml (pins=52), check-exec-bits (P-OPS-01 244 files), queue-check (QUEUE OK 379). wc -l 271 / 186. `gh pr checks 284`: core pass, pins-source-only pass. `git merge-base --is-ancestor origin/main origin/task/T-0387` rc 1: main e41a7170 is 7 files ahead, all under queue/ (T-0389..T-0394 filings/claims + routing-profiles.lock) - queue-only drift, accepted. claimed/ -> done/.
