@@ -1,13 +1,13 @@
 ---
 id: T-0384
 title: The shell's "Plan a drive" pill has no Dynamic Type cap - at AX5 it draws at full accessibility size above the capped home
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T00:28:31Z
+lease_expires_at: 2026-10-18T00:28:31Z
+worktree: .worktrees/T-0384
+branch: task/T-0384
 exclusive: []
 touches: [apps/ios/ScenicDrive/ScenicDriveApp.swift, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-frozen, queue/]
 pins_affected: [P-SAFE-03, P-ATTR-01]
@@ -31,3 +31,4 @@ home unchanged.
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from T-0378 stillOpen (the shell pill has no Dynamic Type cap).
+- 2026-10-17T00:28:31Z claimed by agent/claude-opus-5; lease until 2026-10-18T00:28:31Z
