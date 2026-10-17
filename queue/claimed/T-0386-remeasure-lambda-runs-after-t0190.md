@@ -17,7 +17,8 @@ verify: [ops/test, ops/check-pins]
 acceptance:
   - "(1) MEASURED, QUOTED. The Log quotes the routed numbers on the T-0190 models with the graph hash (Vermont graph-cache file sha256s and both source PBF sha256s), the images, the command and its count line: Vermont T(lambda) = 5945246, 6015807, 6785536, 7510022, 8122353 ms (+36.6193 %); LA loop pair lambda-8 2522680 ms / 36576.6 m against car_fast 1449345 ms / 23971.0 m (+74.0566 %); T-0209's 3x3 grid 28 of 36 routed, lambda-0 == car_fast on 24, lambda-8 slower on 25."
   - "(2) THE FLOOR IS RULED FROM THE MEASUREMENT. test_lambda_monotone.BITE_FLOOR = 0.18 (R3: half the measured +36.6193 %, rounded down); its docstring quotes 5945246 -> 8122353 ms and no longer says UNVERIFIED. test_route_details quotes 2522680 ms and the stage-2 grid counts. `grep -rn -E '8491177|2515815|UNVERIFIED since T-0190|every one with lambda-0 == car_fast' services/routing/tests` prints nothing."
-  - "(3) RED BY NAME, THEN GREEN. Mutant (amended 2026-10-17T04:31:52Z, see Log): the recorded lambda-2.json written into the routed models under the names lambda-4.json AND lambda-8.json (Tests/Fixtures/custom-model/lambda-4.json and lambda-8.json overwritten with lambda-2.json's bytes in the worktree, restored with git checkout after) - a penalty that saturates at lambda 2, so T(lambda) stays non-decreasing. With BITE_FLOOR 0.05 (main) test_lambda_penalty_bites PASSES on it (the old floor's miss); with 0.18 it FAILS by name; on the real record all of test_lambda_monotone.py and test_route_details.py pass (9 passed), printing the stage-1 T(lambda) line byte-equal."
+  - "(3) RED BY NAME, THEN GREEN. Mutant (amended 2026-10-17T04:31:52Z, see Log): the recorded lambda-2.json written into the routed models under the names lambda-4.json AND lambda-8.json (Tests/Fixtures/custom-model/lambda-4.json and lambda-8.json overwritten with lambda-2.json's bytes in the worktree, restored with git checkout after) - a penalty that saturates at lambda 2, so T(lambda) stays non-decreasing. With BITE_FLOOR 0.05 (main) test_lambda_penalty_bites PASSES on it (the old floor's miss); with 0.18 it FAILS by name; on the real record all of test_lambda_monotone.py and test_route_details.py pass (9 passed; 11 since the pre-review close of 2026-10-17T04:58:42Z, which added two tests to test_lambda_monotone.py), printing the stage-1 T(lambda) line byte-equal."
+  - "(5) PRE-REVIEW CLOSE (added 2026-10-17T04:58:42Z, see Log). Mutant A, write_models writing lambda-4's record under the lambda-8 label (`recorded(4 if value == 8 else value)` in request_models.write_models): on the test files before the close test_request_models_static.py passes (MISSED); after, test_request_models_static.py::test_write_models_writes_each_label_its_own_record_bytes and test_lambda_monotone.py::test_lambda_durations_are_the_measured_record FAIL by name. Mutant B, BITE_FLOOR = 0.10: test_lambda_monotone.py passes before the close (MISSED); after, test_lambda_monotone.py::test_bite_floor_is_ruled_from_the_measured_record FAILS by name. On the real record test_lambda_monotone.py, test_route_details.py and test_request_models_static.py pass (18 passed)."
   - "(4) GATES at the final commit, on the merged head: services/routing pytest count line; bash ops/lib/check-safety-disclaimer, python ops/lib/check-mutate-population.py, python ops/lib/check-mutate-only.py, python ops/lib/check-pins-yaml.py, bash ops/lib/check-exec-bits, bash ops/queue-check, each run bare and quoted."
 ---
 ## Brief
@@ -127,3 +128,40 @@ Run the LA GraphHopper container (WSL docker, the committed LA graph build; no V
   added module is covered or allowlisted; the floor of 171 holds`); check-mutate-only.py 0 (`NAME-PAIRS OK: 238997
   pair tokens over 48 id populations`); check-pins-yaml.py 0 (`PINS-YAML ok pins=52 fields=418`); check-exec-bits 0
   (`P-OPS-01: 244 files, 23 required present, all modes correct`); queue-check 0 (`QUEUE OK (379 tasks)`).
+- 2026-10-17T04:58:42Z PRE-REVIEW CLOSE (fable verifier: two mutants survived). Each closed by CLASS, MISSED then
+  CAUGHT by name; mutants applied with sed in the worktree, restored with `git checkout --`, __pycache__ purged and a
+  1.1 s python sleep between runs.
+  - Class A (BLOCKING): the routed models directory is not byte-equal, label by label, to the record - a swap, a drop,
+    an extra or a stale file. The verifier's instance, `recorded(4 if value == 8 else value)` in write_models, routes
+    lambda=8 at 7510022 ms (+26.32 %), above the 0.18 floor, so no test saw it. Closed twice: (i) docker-free,
+    test_request_models_static.py::test_write_models_writes_each_label_its_own_record_bytes calls the shipping
+    write_models for both label sets the routed tests pass ((0,1,2,4,8) and (0,8)) into a directory holding a stale
+    lambda-3.json, and holds the result by full equality - exactly the asked names, each byte-equal to
+    Tests/Fixtures/custom-model/lambda-<l>.json read directly, not through recorded() - plus
+    test_the_oracle_records_are_pairwise_distinct (a swap between equal records would be invisible); (ii) routed,
+    test_lambda_monotone.py::test_lambda_durations_are_the_measured_record holds the five routed durations equal to
+    MEASURED_T_MS = (5945246, 6015807, 6785536, 7510022, 8122353), the stage-1 measurement.
+    MISSED, 04:54:49Z, mutant on the pre-close tests: test_request_models_static.py `5 passed in 0.25s`.
+    CAUGHT, 04:56:10Z, same mutant: `FAILED test_request_models_static.py::test_write_models_writes_each_label_its_own_record_bytes`,
+    `FAILED test_lambda_monotone.py::test_lambda_durations_are_the_measured_record` (`AssertionError: T(lambda) over
+    [0, 1, 2, 4, 8] is (5945246, 6015807, 6785536, 7510022, 7510022) ms, not the measured (5945246, 6015807, 6785536,
+    7510022, 8122353)`), `2 failed, 10 passed in 8.44s`.
+  - Class B: BITE_FLOOR typed below the R3 rule, re-opening the lambda-2 saturation gap (verifier: 0.10 passed the
+    whole suite). Ruling on the verifier's "a floor literal cannot guard itself": the floor is now bound to a value
+    the router produces rather than to prose. test_bite_floor_is_ruled_from_the_measured_record (docker-free) asserts
+    BITE_FLOOR == floor(50 * (T8/T0 - 1)) / 100 over MEASURED_T_MS (= 0.18) and lambda-2-saturation bite (+14.13 %)
+    < BITE_FLOOR < measured bite (+36.62 %); MEASURED_T_MS is in turn held to the routed output by
+    test_lambda_durations_are_the_measured_record. The residual: an edit that changes BITE_FLOOR, MEASURED_T_MS and
+    the routed graph together - which is a re-measurement, the thing R3 asks for.
+    MISSED, 04:54:57Z, BITE_FLOOR = 0.10 on the pre-close tests: test_lambda_monotone.py `3 passed in 9.12s`.
+    CAUGHT, 04:56:26Z: `FAILED test_lambda_monotone.py::test_bite_floor_is_ruled_from_the_measured_record`,
+    `1 failed, 4 passed in 7.99s`. Restored (`BITE_FLOOR = 0.18`).
+  - Ruled: the acceptance (3) mutant (lambda-2 at labels 4 and 8) now also fails
+    test_lambda_durations_are_the_measured_record; test_lambda_penalty_bites still fails it by name at 0.18 and passes
+    it at 0.05, so (3) stands as written. The new equality test means a re-recorded custom-model fixture or a new
+    image fails the routed run until T(lambda) is re-measured - intended (this task exists because the numbers went
+    stale silently).
+  - GREEN on the real record, 04:56:52Z (SCENIC_ROUTING_PBF=<main>/services/etl/work/la/window-tagged-1.osm.pbf):
+    test_lambda_monotone.py + test_route_details.py + test_request_models_static.py `18 passed in 34.22s`; whole
+    services/routing pytest `50 passed in 70.22s`. `wc -l`: test_lambda_monotone.py 174, test_request_models_static.py
+    152, test_route_details.py 175.
