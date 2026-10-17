@@ -1,7 +1,7 @@
 ---
 id: T-0390
 title: Bind the production KV namespaces (PLANS, CONFIG, KILL_SWITCH, CLOSURES) in services/api/wrangler.jsonc - the owner created them 2026-10-17
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T07:52:44Z
@@ -11,7 +11,7 @@ branch: task/T-0390
 exclusive: []
 touches: [services/api/wrangler.jsonc, services/api/test/, services/api/src/index.ts, pins/PINS.yaml]
 pins_affected: [P-SAFE-08, P-COST-01]
-reviewer: null
+reviewer: agent/rv1-t-0390
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -125,3 +125,15 @@ No deploy in this task. The deploy is T-0391, holding exclusive [prod].
   pins=52 fields=418; QUEUE OK (385 tasks); P-OPS-01 244 files, all modes correct; check-safety-disclaimer exit 0;
   P-PROC-06 floor of 171 holds (check-mutate-population exit 0); queue-check and check-mutate-only re-run bare at
   the push.
+- 2026-10-17T10:23:51Z REVIEW PASS by agent/rv1-t-0390 (not the owner) on PR #287 head 5c0f6011. Touched files
+  (wranglerBindings, closuresCron, configAnswerPath, sessionIdentity) 4 files 73/73 (a first cold run had 1 failure
+  that a rerun did not reproduce). Own mutants: M1 CONFIG/KILL_SWITCH ids swapped in wrangler.jsonc CAUGHT by
+  'the four KV namespaces are bound by the shipped names to the owner's ids'; M2 CLOSURES field deleted from Env in
+  src/index.ts CAUGHT by 'the binding set of wrangler.jsonc equals the Env's non-string fields, each in its type's
+  section'. A3 git grep exit 1. A4 full Worker suite 100 files, 2690/2690. A5 P-COST-01 55/55, P-PRIV-04 83/83,
+  P-NAV-01 44/44, P-SAFE-08 836/836 (run alone; the first run, in a four-pin loop, exited 1 with no result line).
+  Bare gates: PINS-YAML ok pins=52 fields=418; MUTATE-ONLY OK 241/241; P-PROC-06 floor 171 holds; P-OPS-01 all
+  modes correct; QUEUE OK (385 tasks); check-safety-disclaimer exit 0. gh pr checks: core pass, pins-source-only
+  pass. origin/main e41a7170 is an ancestor of origin/task/T-0390. Recorded, not blocking: wranglerBindings skips
+  object-valued wrangler sections such as "ai": {"binding": ...}, so an extra binding of that shape in wrangler.jsonc
+  would go unseen. That direction only adds a binding Env does not read.
