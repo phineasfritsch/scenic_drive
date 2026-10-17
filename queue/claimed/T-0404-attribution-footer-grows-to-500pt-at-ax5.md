@@ -49,8 +49,8 @@ A1. `wc -l apps/ios/Packages/ScenicApp/Sources/DesignSystem/AttributionFooter.sw
 A2. In AttributionFooter.swift: `.font(.caption2)`, no `RoundedRectangle`/`.background(`, every visible `Text` carries
     `.lineLimit(1)`, `.dynamicTypeSize(...DynamicTypeSize.accessibility2)`, `.accessibilityLabel(Text(text))`,
     `.accessibilityIdentifier("attribution.footer")` and `.accessibilityHidden(false)` (read in the diff).
-A3. `bash ops/lib/check-map-attribution` passes; `bash ops/lib/check-map-attribution --prove-red` refuses every
-    mutation by name (P5 "the footer's own file edited" included).
+A3. `bash ops/lib/check-map-attribution` passes; `bash ops/lib/check-map-attribution --prove-red` behaves as on
+    main (rows 1-3 refused by name, row 4's dead anchor is pre-existing and filed as T-0413; see the 19:35 Log).
 A4. Bare gates pass: `bash ops/lib/check-safety-disclaimer`, `python ops/lib/check-mutate-population.py`,
     `python ops/lib/check-mutate-only.py`, `python ops/lib/check-pins-yaml.py`, `bash ops/lib/check-exec-bits`,
     `bash ops/queue-check`.
@@ -96,3 +96,17 @@ A5. ios-compile and ios-screenshot succeed on task/T-0404 (run ids quoted). In h
     prove (the screenshots are the proof, A5), and every byte of AttributionFooter.swift is already sha256-pinned
     by check-safety-disclaimer-pinned, so any later edit needs re-approval. No guard changes, so nothing to show
     red-then-green beyond the pinned digest refusing the edit before re-approval (quoted below).
+- 2026-10-17T19:35:31Z code at c25f9871. AttributionFooter.swift `wc -l` 99. RED before re-approval,
+  `bash ops/lib/check-safety-disclaimer` exit=1: "P-SAFE-03: the pinned render surface changed:
+  AttributionFooter.swift content changed (sha256 b0ff92f2..., approved 8f07bec7...)". First check-map-attribution
+  run exit=1 on limb (g): "unapproved: .../AttributionFooter.swift: static func strip(_ credit: String) ..." (three
+  lines naming the word `credit`); ruled: the helper's parameter is renamed `caption`, the (g) whitelist is NOT
+  widened. Then "P-ATTR-01: the pinned render surface changed: AttributionFooter.swift content changed (sha256
+  9058c06d..., approved b0ff92f2...)", re-approved in check-safety-disclaimer-pinned (both rows, 2 occurrences).
+  GREEN: check-map-attribution exit=0; check-safety-disclaimer exit=0 ("37 feature file(s), shell, footer pinned
+  (-pinned); ... LAST all 115 app .swift, then 336 root + pbxproj file(s) (-linked)").
+  `--prove-red` exit=1: rows 1-3 refused by name, then "THE MUTATION CHANGED NOTHING: a feature file names a
+  protomaps case" - the SAME on the main checkout at 34871225, so it is pre-existing: row 4's sed anchor
+  `return BasemapResolver.losAngeles(appearance: appearance)` no longer exists in DriveBasemap.swift. Ruled out of
+  scope (no row this task touches); filed as T-0413. A3's prove-red half reads "as on main" for this task.
+  Dispatched ios-compile 39062706820 and ios-screenshot 39062709376 on c25f9871.
