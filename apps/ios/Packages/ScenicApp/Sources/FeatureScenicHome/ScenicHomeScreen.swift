@@ -133,7 +133,7 @@ public struct ScenicHomeScreen: View {
             .accessibilityIdentifier("home.disclaimer")
             .dynamicTypeSize(userTypeSize)
         }
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .dynamicTypeSize(...HomeTypeSize.cap)
     }
 
     /// Ask `DriveBasemap` which tiles this drive can have on this device, and keep the answer: the LA drives get the
