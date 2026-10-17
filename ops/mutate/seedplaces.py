@@ -44,6 +44,7 @@ EMPTY = "    if not rows:\n"
 CHUNK = "    if not 1 <= chunk <= CHUNK_MAX:"
 ONE_OF = "    if dry_run == (out is not None):"
 OUT_DIR = "    if out is not None and out.exists() and (not out.is_dir() or any(out.iterdir())):"
+MKDIR = "    out.mkdir(parents=True, exist_ok=True)"
 UPSERT = 'TAIL = "\\nON CONFLICT (id) DO UPDATE SET lat = excluded.lat, lon = excluded.lon;\\n"'
 VALUE = "    return f\"('{place_id}', {lat_e7} / 10000000.0, {lon_e7} / 10000000.0)\""
 STEP = "            for start in range(0, len(rows), chunk)]"
@@ -93,6 +94,15 @@ MUTATIONS = [
     ("rows= prints the chunk count", SUBJECT, COUNT, "rows={chunks} chunks={chunks} "),
     ("--dry-run with --out accepted", SUBJECT, ONE_OF, "    if dry_run and out is not None:"),
     ("a non-empty out dir accepted", SUBJECT, OUT_DIR, "    if False:"),
+    ("an existing empty out dir crashes - exist_ok dropped", SUBJECT, MKDIR, "    out.mkdir(parents=True)"),
+    ("a nested out dir crashes - parents dropped", SUBJECT, MKDIR, "    out.mkdir(exist_ok=True)"),
+    ("an out file reaches iterdir - the is_dir clause dropped", SUBJECT, OUT_DIR,
+     "    if out is not None and out.exists() and any(out.iterdir()):"),
+    ("an out file accepted", SUBJECT, OUT_DIR,
+     "    if out is not None and out.exists() and out.is_dir() and any(out.iterdir()):"),
+    ("every existing out path refused", SUBJECT, OUT_DIR, "    if out is not None and out.exists() and True:"),
+    ("an absent out path refused - the exists clause dropped", SUBJECT, OUT_DIR,
+     "    if out is not None and (not out.is_dir() or any(out.iterdir())):"),
     ("chunk files numbered from 0", SUBJECT, "enumerate(texts, start=1)", "enumerate(texts)"),
     ("chunk file name changed", SUBJECT, FILE, '        path = out / f"places-{index}.sql"'),
     ("the wrangler line names another database", SUBJECT, 'D1_DATABASE = "scenic"', 'D1_DATABASE = "scenic-test"'),
@@ -110,7 +120,7 @@ EQUIVALENT = [
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 43
+MIN_MUTATIONS = 49
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
