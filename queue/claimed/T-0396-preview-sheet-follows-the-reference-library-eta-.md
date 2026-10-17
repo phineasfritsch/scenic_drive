@@ -110,6 +110,7 @@ the disclaimer line must both be reachable. Any new or changed guard is shown re
 - A5 every FeaturePlanSheet file <= 300 lines (`wc -l`).
 - A6 ios-compile on task/T-0396 concludes success (run id quoted).
 - A7 ios-screenshot on task/T-0396 concludes success; plan-preview-light, -dark and -ax5 are LOOKED at and the Log states for each: title = destination and no "Plan a drive"; ETA + (distance) with the gray tag on it (ax5: under it); "+20 min over fastest"; one amber hazard row + "+N more"; no outline; Start + Save; the conditions line under Start; no trip/loop bottom bar; attribution footer present.
+- A8 (pre-review M1, M2) the T-0396 rows of ops/lib/check-safety-disclaimer-mutations, run alone, print `prove-red: 3/3 mutations refused by name`; M1 and M2 applied with their -pinned sha256 row re-approved make check-safety-disclaimer exit 1 naming `a frozen preview render block changed`.
 - 2026-10-17T16:33:06Z EVIDENCE, first pass (commit d41f8973).
   - Correction to R4: the follow-up id is T-0400, not T-0399 (T-0399 exists on another branch; ids on main + every
     origin task branch listed, max T-0399). Filed: queue/backlog/T-0400 (learned-from-N needs the sample count) and
@@ -167,3 +168,29 @@ the disclaimer line must both be reachable. Any new or changed guard is shown re
   - A5 largest FeaturePlanSheet file PlanSheetScreen.swift 281 lines; PlanPreviewCard 140, PlanPreviewActions 80.
   - A6 39050077285 success. A7 39050070882 success, shots as above. The CI runs are on bdc8891c, before the merge of
     main; the merged head re-passed every local gate above.
+- 2026-10-17T18:27:27Z PRE-REVIEW SURVIVORS CLOSED (M1, M2 BLOCKING; M3 was caught by PlanPreviewLinesTests).
+  - Ruling: both survivors are one class - an edit inside a preview render block, green once the file's sha256 row is
+    re-approved because nothing anchored on the view. Closed as -frozen's class, not by spelling: new sourced lib
+    ops/lib/check-safety-disclaimer-preview freezes PlanPreviewCard's `var body` (mounts PlanPreviewActions and the
+    footer), `etaRow`, `estimateTag` and PlanPreviewActions' `var body` (the line in BOTH stacks) and `conditions` as
+    whole-line whitelists, plus the `#` directive fence on both files; reuses frozen_block/frozen_directives. It runs
+    in check-safety-disclaimer right after require_frozen_blocks and BEFORE the digest pins, so a re-approved digest
+    does not change the refusal. check-safety-disclaimer stays at 300 lines (the LIB loop and the call share lines).
+    Rows 62-64 added to ops/lib/check-safety-disclaimer-mutations (M1, M2, and M1's twin: the actions block
+    unmounted from the card).
+  - RED (stage B: mutant applied in the worktree AND its -pinned row re-approved, then both restored):
+    M1 `/^ *conditions$/d` on PlanPreviewActions.swift (sha256 c6285c0a.. -> dcfbedae.., row re-approved) ->
+    `P-SAFE-03: a frozen preview render block changed:` / `PlanPreviewActions' body line 5 of 18 in .../PlanPreviewActions.swift:
+    approved `conditions`, found `save`` / `check-safety-disclaimer rc=1`.
+    M2 `if preview.showsEstimateBadge {` -> `if !preview.showsEstimateBadge {` (1bb26a36.. -> 9d911ad2.., re-approved) ->
+    `PlanPreviewCard's estimateTag line 2 of 13 ...: approved `if preview.showsEstimateBadge {`, found
+    `if !preview.showsEstimateBadge {`` / rc=1.
+    Twin: the `PlanPreviewActions(saveLine: ...)` line deleted (-> 35e40f70.., re-approved) -> `PlanPreviewCard's body
+    line 12 of 23 ...: approved `PlanPreviewActions(saveLine: saveLine, onDrive: onDrive, onSave: onSave)`, found
+    `.padding(.top, 12)`` / rc=1.
+  - GREEN on the restored tree: check-safety-disclaimer rc=0, `Frozen (-frozen, -preview); 37 feature file(s), shell,
+    footer pinned (-pinned); doors over 115 .swift (-doors); LAST all 115 app .swift, then 336 root + pbxproj file(s)`.
+  - Table rows alone (owner-approved: touched rows only): `T-0396 M1 ... 1 yes` / `T-0396 M2 ... 1 yes` /
+    `T-0396 M1 twin ... 1 yes` / `prove-red: 3/3 mutations refused by name`.
+  - Still unseen (recorded in the lib's header): whether PlanSheetScreen presents the card (its digest row covers the
+    file), what showsEstimateBadge computes (P-SAFE-07's learner tests), modifier overloads elsewhere, `/* */`.
