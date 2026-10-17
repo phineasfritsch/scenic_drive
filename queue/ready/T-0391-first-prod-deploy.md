@@ -1,7 +1,7 @@
 ---
 id: T-0391
 title: First production deploy of scenic-api from main (pilot backend) - ops/deploy, live /__version == HEAD, /__health quoted
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
