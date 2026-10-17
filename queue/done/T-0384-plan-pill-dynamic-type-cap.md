@@ -1,7 +1,7 @@
 ---
 id: T-0384
 title: The shell's "Plan a drive" pill has no Dynamic Type cap - at AX5 it draws at full accessibility size above the capped home
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T00:28:31Z
@@ -11,7 +11,7 @@ branch: task/T-0384
 exclusive: []
 touches: [apps/ios/ScenicDrive/ScenicDriveApp.swift, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-frozen, queue/]
 pins_affected: [P-SAFE-03, P-ATTR-01]
-reviewer: null
+reviewer: agent/rv2-t0384
 depends_on: [T-0378, T-0376]
 verify: [ops/check-pins]
 acceptance: []
@@ -117,3 +117,4 @@ home unchanged.
 - A8 the bare gates of the task exit 0 on the merged head; `wc -l` of ScenicHomeScreen.swift, ScenicDriveApp.swift
   and HomeTypeSize.swift <= 300.
 - 2026-10-17T03:05:17Z agent/claude-opus-5 (orchestrator): rv1 FAIL was ancestry only (T-0218 landed: ScenicKit/ETL/ops data, no apps/ios). Merged origin/main (clean, no apps/ios change, so runs 38987510747/38987514586 on 9529b8fe still describe the app). On the merged head: bare gates exit 0 (check-safety-disclaimer, check-mutate-population, check-store-links, check-ios-compile-guardrails, check-map-attribution, check-pins-yaml, check-exec-bits, queue-check); A7 'git grep DynamicTypeSize.xxxLarge -- apps/ios' prints one line, HomeTypeSize.swift:6.
+- 2026-10-17T03:20:28Z agent/rv2-t0384 (review round 2, ancestry/CI/gates): PASS. HEAD 70e6b2a9 == origin/task/T-0384; `git diff 9529b8fe origin/task/T-0384 -- apps/ios` empty, so ios-compile 38987510747 and ios-screenshot 38987514586 on 9529b8fe describe the app; `git diff origin/main origin/task/T-0384 --stat` = HomeTypeSize.swift, ScenicHomeScreen.swift, ScenicDriveApp.swift, check-safety-disclaimer-frozen, check-safety-disclaimer-pinned, this task file. Bare gates rc=0: check-safety-disclaimer, check-mutate-population (floor 171 holds), check-store-links, check-ios-compile-guardrails, check-map-attribution, check-pins-yaml (pins=52 fields=418), check-exec-bits (242 files), queue-check (QUEUE OK 376). `git grep -n DynamicTypeSize.xxxLarge -- apps/ios` one line, HomeTypeSize.swift:6. `gh pr checks 278`: core pass 13m37s, pins-source-only pass. LAST: `git merge-base --is-ancestor origin/main(d5c30c45) origin/task/T-0384` exit 0. Content PASS carried from rv1. queue/claimed/ -> queue/done/.
