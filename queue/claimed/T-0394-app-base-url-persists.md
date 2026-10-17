@@ -99,6 +99,22 @@ The value for the pilot is https://scenic-api.phineas-fritsch.workers.dev. Re-ap
     298 lines (`wc -l`), under the cap.
   - check-base-url-sites.py is committed 100644: check-exec-bits refused 100755 (`ops/lib/check-base-url-sites.py
     (data, should be 100644, is 100755)`), as check-screen-rehearsals.py is 100644.
+- 2026-10-17T09:26:29Z ACCEPTANCE re-run on 1d913ffd (= merged head: `git fetch origin` in the main checkout,
+  `git log e41a7170..origin/main` empty, so the merge of origin/main is a no-op):
+  1. `√ Test run with 4 tests in 1 suite passed` (APIBaseURLTests); ScenicAPIClientTests `185 tests in 45 suites passed`.
+  2. RED quoted above (stub resolve: 3 tests red by name; Info.plist test red before the key).
+  3. check-base-url-sites.py rc=0 (37 sites); red on e41a7170 (39 refusals); `PROVE-RED OK: 12/12 refused by name`.
+  4. `bash ops/lib/check-safety-disclaimer` rc=0 (`LAST all 115 app .swift, then 336 root + pbxproj file(s)
+     (-linked)`); check-ios-compile-guardrails OK for ios-compile.yml and ios-screenshot.yml.
+  5. `grep -rn 'baseURLKey\|forKey: "plan.base.url"' apps/ios` -> 0 lines.
+  6. queue-check `QUEUE OK (385 tasks)`; check-store-links, check-telemetry-emit-sites (`55 lines approved`),
+     check-map-attribution, check-screen-rehearsals, check-pins-yaml (`pins=52`), check-exec-bits (`245 files`),
+     check-mutate-population (`the floor of 171 holds`), check-mutate-only: all rc=0.
+  7. ios-compile run 39019492194 on 1d913ffd: `conclusion: success`.
+  - `timeout 600 bash ops/lib/check-line-cap` exited 124 (timed out on this box, not a refusal); measured by hand
+    instead (`wc -l` over every file this branch changes): largest code files check-base-url-sites.py 212 and
+    ios_screenshot_pinned.py 298; check-safety-disclaimer-pinned is 389 (388 on e41a7170, +1 row for
+    LiveBaseURL.swift; an existing data table). CI's line-cap is the confirmation.
 
 ## Acceptance
 1. `swift test --scratch-path .build/t-0394 --filter APIBaseURLTests` passes; the suite holds the R3/R4 table
