@@ -154,6 +154,16 @@ def test_default_chunk_is_500_rows_per_statement(tmp_path):
                                         "ON CONFLICT (id) DO UPDATE SET lat = excluded.lat, lon = excluded.lon;\n")
 
 
+def test_the_widest_statement_the_largest_chunk_can_make_fits_d1s_100000_bytes(tmp_path):
+    rows = [(9223372036854775807 - i, -900000000, -1800000000) for i in range(1000)]
+    out = tmp_path / "out"
+    assert main("--corpus", str(full_corpus(tmp_path / "c.sqlite", rows)), "--out", str(out),
+                "--chunk", "1000").returncode == 0
+    files = written(out)
+    assert list(files) == ["places-0001.sql"]
+    assert 70000 < len(files["places-0001.sql"].encode("ascii")) < 100000
+
+
 GOOD_META = {"schema_version": str(schema.SCHEMA_VERSION), "build_complete": "1"}
 
 

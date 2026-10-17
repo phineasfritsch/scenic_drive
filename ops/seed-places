@@ -6,11 +6,6 @@
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 P="${PYTHON:-$(command -v python3 || command -v python)}"
-corpus_given=0
-for arg in "$@"; do
-  case "$arg" in --corpus|--corpus=*) corpus_given=1 ;; esac
-done
-if [ "$corpus_given" = 0 ]; then
-  set -- --corpus "$root/apps/ios/ScenicDrive/Corpus/corpus-fallback.sqlite" "$@"
-fi
-PYTHONPATH="$root/services/etl${PYTHONPATH:+:$PYTHONPATH}" exec "$P" -m etl.seedplaces "$@"
+# The default goes first: argparse keeps the LAST --corpus, so a caller's own --corpus wins.
+PYTHONPATH="$root/services/etl${PYTHONPATH:+:$PYTHONPATH}" exec "$P" -m etl.seedplaces \
+  --corpus "$root/apps/ios/ScenicDrive/Corpus/corpus-fallback.sqlite" "$@"

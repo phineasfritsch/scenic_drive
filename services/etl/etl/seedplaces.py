@@ -10,7 +10,7 @@ decimal of the corpus place_id (PlanRequestBody encodes `String(place)`), so a D
 Rulings (T-0393 Log): R1 the corpus must carry this ETL's schema_version and build_complete "1" and at least one
 place; R2 every statement is an upsert and nothing is deleted; R3 coordinates are written as `<e7> / 10000000.0` so
 SQLite divides to the same double JS and Python do, with no decimal rendering to round; R4 one statement per file,
-at most `CHUNK_MAX` rows, never over `STATEMENT_MAX_BYTES`; R5 one summary line with the sha256 of the canonical
+at most `CHUNK_MAX` rows - whose widest statement test_seedplaces.py holds under D1's 100000 bytes; R5 one summary line with the sha256 of the canonical
 rows; R6 every row re-validated. This module never runs wrangler: it prints the command for the orchestrator.
 
 EXITS. 0 written (or dry-run). 2 refused - nothing is written.
@@ -27,7 +27,6 @@ from etl import schema
 
 CHUNK_DEFAULT = 500
 CHUNK_MAX = 1000
-STATEMENT_MAX_BYTES = 100000
 PLACE_ID_MAX = 2 ** 63 - 1
 LAT_E7_MAX = 900000000
 LON_E7_MAX = 1800000000
@@ -87,14 +86,9 @@ def value_row(place_id: int, lat_e7: int, lon_e7: int) -> str:
 
 
 def statements(rows: list, chunk: int) -> list:
-    """One upsert statement per `chunk` rows, in order; each refused over STATEMENT_MAX_BYTES."""
-    out = []
-    for start in range(0, len(rows), chunk):
-        text = HEAD + ",\n".join(value_row(*row) for row in rows[start:start + chunk]) + TAIL
-        if len(text.encode("ascii")) > STATEMENT_MAX_BYTES:
-            raise Refusal(f"statement {len(out) + 1} is over {STATEMENT_MAX_BYTES} bytes")
-        out.append(text)
-    return out
+    """One upsert statement per `chunk` rows, in order."""
+    return [HEAD + ",\n".join(value_row(*row) for row in rows[start:start + chunk]) + TAIL
+            for start in range(0, len(rows), chunk)]
 
 
 def summary(meta: dict, rows: list, chunks: int) -> str:
