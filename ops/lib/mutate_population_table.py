@@ -14,7 +14,8 @@ DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "config.py", "corpusfet
            "loopsheet.py", "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py", "hazardcopy.py",
            "scenic_tags.py", "seedplaces.py",
            "segmentceiling.py", "segmentgeometry.py", "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py",
-           "posttelemetry.py", "telemetry.py", "traffic.py", "waitlist.py", "postdrive.py")
+           "posttelemetry.py", "telemetry.py", "traffic.py", "waitlist.py", "postdrive.py",
+           "apibaseurl.py")
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own",
           "sane_corpus.py": "ops/sane exit 4's population (T-0372): its subjects ops/lib/sane_corpus.py and ops/sane "
                             "are outside MODULE_ROOTS, so no SUBJECT_MODULES can name them; its floor is the "
@@ -23,6 +24,7 @@ PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declar
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
     "Sources/ScenicKit/Scoring/SegmentScoreCeiling.swift",
+    "Sources/ScenicAPIClient/APIBaseURL.swift",
     "Sources/ScenicAPIClient/ConfigClient.swift", "Sources/ScenicAPIClient/ConfigReader.swift",
     "Sources/ScenicAPIClient/ConfigWire.swift", "Sources/ScenicAPIClient/ConfigCache.swift",
     "Sources/ScenicAPIClient/ConfiguredPlanner.swift", "Sources/ScenicKit/Config/RemoteConfig.swift",

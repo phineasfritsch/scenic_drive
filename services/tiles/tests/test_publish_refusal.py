@@ -68,3 +68,40 @@ def test_the_credential_gate_runs_before_every_other_gate() -> None:
     assert line.startswith("PUBLISH REFUSED:"), line
     assert "credential(s) not set" not in line, line
     assert "PUBLISHED" not in completed.stdout
+
+
+def run_in_bare_tree(tree: Path, lock_held: bool) -> subprocess.CompletedProcess:
+    """The shipping script copied alone into a fresh git tree: no artifact, no sidecar, no styles, so no
+    branch past the gates is reachable, and whether prod.lock exists is decided here, not by this box."""
+    git = shutil.which("git")
+    bash = shutil.which("bash")
+    if git is None or bash is None:
+        pytest.fail("no git or bash on PATH: the prod-lock gate cannot be exercised, so it is not verified")
+    subprocess.run([git, "init", "-q", str(tree)], check=True, capture_output=True)
+    (tree / "ops").mkdir()
+    shutil.copyfile(SCRIPT, tree / "ops" / "publish-tiles")
+    (tree / "queue" / "LOCKS").mkdir(parents=True)
+    if lock_held:
+        (tree / "queue" / "LOCKS" / "prod.lock").write_text("held\n", encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k not in CREDENTIALS}
+    env.update({name: "x" for name in CREDENTIALS})
+    return subprocess.run([bash, str(tree / "ops" / "publish-tiles")], cwd=tree, env=env,
+                          capture_output=True, text=True, timeout=180)
+
+
+def test_with_credentials_and_no_prod_lock_the_lock_refuses(tmp_path: Path) -> None:
+    completed = run_in_bare_tree(tmp_path / "t", lock_held=False)
+    assert completed.returncode == 1, completed.stdout
+    assert first_line(completed) == (
+        "PUBLISH REFUSED: queue/LOCKS/prod.lock not held (claim a task with exclusive: [prod])")
+    assert "PUBLISHED" not in completed.stdout
+
+
+def test_with_the_prod_lock_held_the_lock_no_longer_refuses(tmp_path: Path) -> None:
+    """The pair: the same bare tree with the lock present refuses on the next gate, so the line above is
+    the lock deciding and not a refusal any missing file would print."""
+    completed = run_in_bare_tree(tmp_path / "t", lock_held=True)
+    assert completed.returncode == 1, completed.stdout
+    assert first_line(completed) == (
+        "PUBLISH REFUSED: services/tiles/work/la.pmtiles does not exist - run services/tiles/build-la.sh first")
+    assert "PUBLISHED" not in completed.stdout

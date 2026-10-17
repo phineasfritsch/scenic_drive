@@ -151,7 +151,7 @@ jobs:
                   xcrun simctl location "$UDID" start --speed=15 34.0905,-118.6370 34.0880,-118.6250 34.0855,-118.6150 34.0830,-118.6050 ;;
                 *) DETENT=$SHOT ROW=default SCREEN=home NAME=home-$LOOK-$SHOT ;;
               esac
-              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN" "${DONE[@]}" "${SIZE[@]}")
+              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN" -plan.base.url off "${DONE[@]}" "${SIZE[@]}")
               echo "$LAUNCHED"
               PID=${LAUNCHED##*: }
               case "$PID" in ''|*[!0-9]*) echo "ios-screenshot: simctl launch printed no pid: $LAUNCHED"; exit 1;; esac

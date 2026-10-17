@@ -9,8 +9,7 @@ enum LiveSession {
     static let store: SessionStore? = build()
 
     static func build() -> SessionStore? {
-        guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
-              base.scheme == "https" else { return nil }
+        guard let base = LiveBaseURL.url else { return nil }
         return SessionStore(client: AttestClient(base: base, transport: URLSessionPlanTransport(),
                                                  device: StoredInstallID()),
                             attester: DeviceAppAttester(), storage: KeychainSessionStorage(),

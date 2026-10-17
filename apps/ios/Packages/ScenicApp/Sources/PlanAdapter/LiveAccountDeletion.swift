@@ -7,8 +7,7 @@ import ScenicAPIClient
 /// the note is the no-session one and nothing is requested or erased.
 public enum LiveAccountDeletion {
     public static func run() async -> String {
-        guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
-              base.scheme == "https", let store = LiveSession.store
+        guard let base = LiveBaseURL.url, let store = LiveSession.store
         else { return AccountDeletionCopy.note(for: .noSession) }
         let client = AccountClient(base: base, transport: URLSessionPlanTransport(), session: store)
         let outcome = await AccountDeletion(client: client, eraser: DeviceAccountEraser()).run()
