@@ -1,7 +1,7 @@
 ---
 id: T-0198
 title: ops/test's python tier discovers every services/*/pyproject.toml (tiles, routing) instead of services/etl alone, and the floor counts them; red first on a services/tiles test made to fail
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T06:03:54Z
@@ -11,7 +11,7 @@ branch: task/T-0198
 exclusive: [floors]
 touches: [ops/test, ops/lib/, pins/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t-0198
 depends_on: [T-0165]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -211,3 +211,30 @@ pins-source-only. A regression in either directory is invisible to the one comma
     `Tests 43 passed (43)`. The python tier and the floor are green on this box; "exit 0" is NOT shown on this box
     for this head and rests on the PR's CI core job on the pushed head.
   - `wc -l`: ops/test 161, ops/lib/python_suites.py 112, ops/lib/python-suites.txt 10.
+- 2026-10-17T15:04:17Z REVIEW PASS (round 2) by agent/rv2-t-0198 (reviewer, not the owner), on head 19e16458 in a
+  detached worktree .worktrees/rv2-t-0198 after `git fetch origin` in the main checkout.
+  - rv1 B1 (stale base) CLOSED: `git merge-base --is-ancestor origin/main origin/task/T-0198` rc=0 with origin/main
+    5e4150a0; the PR diff against main is ops/test, ops/lib/python_suites.py, ops/lib/python-suites.txt,
+    pins/floor_linux.txt (7902 -> 7910, a raise) and this task file only.
+  - CI: `gh pr checks 285` core pass 13m27s, pins-source-only pass 5m19s (run 39039925678); core log read:
+    `PYTEST services/etl=4112(skipped=1) services/tiles=82 services/routing=52(skipped=23)` / `TESTS
+    linux=7953/7910 ios=skipped failed=0 skipped=24`. Ceilings etl 1 / tiles 0 / routing 23 equal the CI skips.
+  - Own mutant, same class as fm M3a but the ceiling-only path (a partial skip that the floor cannot see):
+    services/etl/conftest.py whose pytest_collection_modifyitems marks the first 2 collected items skip, working
+    tree only. Bare `bash ops/test` rc=1: `FAIL: services/etl: 2 tests skipped, over its max-skipped=1 in
+    ops/lib/python-suites.txt` / `PYTEST services/etl=4112(skipped=2) services/tiles=82
+    services/routing=52(skipped=4)` / `TESTS linux=7910/7910 ios=skipped failed=0 skipped=6`. The floor alone
+    held at 7910/7910 and only the per-row ceiling named etl: KILLED by name. conftest removed, __pycache__
+    purged. That run is also a green measurement of this box at 7910 with vitest failed=0.
+  - fm M3a (wholly-skipped suite must not hold the floor): the owner shows it red by name on the merged head
+    (`FAIL: services/tiles: all 82 tests skipped ...` and `... over its max-skipped=0 ...`); the code path
+    (`t - s <= 0` and `s > smax` per row) was read and is the shipped ops/test Tier 1c.
+  - Gates, each bare in the review worktree, rc=0: check-safety-disclaimer (P-SAFE-03 ... rc=0);
+    check-mutate-population `the floor of 171 holds`; check-mutate-only `NAME-PAIRS OK`; check-pins-yaml
+    `PINS-YAML ok pins=53 fields=426`; check-exec-bits `P-OPS-01: 247 files, 23 required present, all modes
+    correct`; queue-check `QUEUE OK (386 tasks)`.
+  - Recordable, not blocking: services/tiles/pyproject.toml still carries a comment saying ops/test does not see
+    that directory and its tests are not in the floor - stale since this PR; a comment, so file it as a tidy-up.
+    This box's vitest STACK_TRACE_ERROR timeouts (owner A5 note) are box load, not this diff; exit 0 rests on CI.
+  - Sign-off: state claimed -> done, reviewer agent/rv2-t-0198, queue/LOCKS/floors.lock released (queue-check
+    refuses a lock held by a task not in claimed/).
