@@ -12,9 +12,10 @@ DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "config.py", "corpusfet
            "hazards.py", "landmarks.py", "landmarkstable.py", "ledger.py", "menu.py", "search.py", "normalise.py", "onboarding.py", "placeallow.py", "plan.py", "profilegate.py", "plansheet.py", "retrace.py",
            "roadtrip.py", "routescore.py",
            "loopsheet.py", "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py", "hazardcopy.py",
-           "scenic_tags.py",
+           "scenic_tags.py", "seedplaces.py",
            "segmentceiling.py", "segmentgeometry.py", "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py",
-           "posttelemetry.py", "telemetry.py", "traffic.py", "waitlist.py", "postdrive.py")
+           "posttelemetry.py", "telemetry.py", "traffic.py", "waitlist.py", "postdrive.py",
+           "apibaseurl.py")
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own",
           "sane_corpus.py": "ops/sane exit 4's population (T-0372): its subjects ops/lib/sane_corpus.py and ops/sane "
                             "are outside MODULE_ROOTS, so no SUBJECT_MODULES can name them; its floor is the "
@@ -23,6 +24,7 @@ PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declar
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
     "Sources/ScenicKit/Scoring/SegmentScoreCeiling.swift",
+    "Sources/ScenicAPIClient/APIBaseURL.swift",
     "Sources/ScenicAPIClient/ConfigClient.swift", "Sources/ScenicAPIClient/ConfigReader.swift",
     "Sources/ScenicAPIClient/ConfigWire.swift", "Sources/ScenicAPIClient/ConfigCache.swift",
     "Sources/ScenicAPIClient/ConfiguredPlanner.swift", "Sources/ScenicKit/Config/RemoteConfig.swift",
@@ -72,7 +74,7 @@ COVERED_FLOOR = (
     "services/etl/etl/normalise.py", "services/etl/etl/placeallow.py", "services/etl/etl/proximity.py",
     "services/etl/etl/profilegate.py",
     "services/etl/etl/region_reference.py", "services/etl/etl/scenecheck.py",
-    "services/etl/etl/sinuosity.py",
+    "services/etl/etl/seedplaces.py", "services/etl/etl/sinuosity.py",
     "services/etl/etl/snap.py", "services/etl/etl/surfacecoverage.py", "services/etl/etl/tagwriter.py",
     "Sources/Handoff/AppleMapsDirections.swift", "Sources/Handoff/HandoffError.swift",
     "Sources/Handoff/StraightLineDistance.swift",

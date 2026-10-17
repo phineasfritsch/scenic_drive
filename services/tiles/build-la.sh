@@ -126,3 +126,8 @@ python3 "$TILES/check_pmtiles.py" "$OUT" --region-json "$REGION_JSON"
 # so the layer names were one transcription checked against another (rv1-pr109 B2).
 echo "== 7. the styles against the archive they will draw =="
 python3 "$TILES/make_styles.py" --check --archive "$OUT"
+
+# The labels' glyphs and sprites, beside the archive under the same prefix ops/publish-tiles uploads them to:
+# exactly the stacks and sheets the committed styles name, out of the sha256-pinned basemaps-assets archive.
+echo "== 8. glyphs and sprites the styles request =="
+python3 "$TILES/basemap_assets.py" build --work "$WORK"

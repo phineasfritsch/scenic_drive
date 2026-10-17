@@ -1,6 +1,6 @@
 import Foundation
 
-/// The light-appearance basemap style, byte-equal to `services/tiles/styles/scenic-light.json`.
+/// The light-appearance basemap style, byte-equal to `services/tiles/styles/embedded/scenic-light.json`.
 ///
 /// **Why a string literal and not a bundle resource.** `MapAdapter`'s target in
 /// `apps/ios/Packages/ScenicApp/Package.swift` declares no `resources:`, so a `.json` dropped into
@@ -80,7 +80,7 @@ public enum ScenicLightStyle {
         "fill-color": "#15803D",
         "fill-opacity": 0.35
       },
-      "filter": ["match", ["get", "pmap:kind"], ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], true, false]
+      "filter": ["match", ["get", "kind"], ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], true, false]
     },
     {
       "id": "landuse-built",
@@ -91,7 +91,7 @@ public enum ScenicLightStyle {
         "fill-color": "#FCEAE1",
         "fill-opacity": 0.6
       },
-      "filter": ["match", ["get", "pmap:kind"], ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], false, true]
+      "filter": ["match", ["get", "kind"], ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], false, true]
     },
     {
       "id": "water",
@@ -127,7 +127,7 @@ public enum ScenicLightStyle {
         "line-cap": "round",
         "line-join": "round"
       },
-      "filter": ["match", ["get", "pmap:kind"], ["highway", "major_road"], false, true]
+      "filter": ["match", ["get", "kind"], ["highway", "major_road"], false, true]
     },
     {
       "id": "roads-major",
@@ -143,7 +143,7 @@ public enum ScenicLightStyle {
         "line-cap": "round",
         "line-join": "round"
       },
-      "filter": ["==", ["get", "pmap:kind"], "major_road"]
+      "filter": ["==", ["get", "kind"], "major_road"]
     },
     {
       "id": "roads-motorway",
@@ -158,7 +158,7 @@ public enum ScenicLightStyle {
         "line-cap": "round",
         "line-join": "round"
       },
-      "filter": ["==", ["get", "pmap:kind"], "highway"]
+      "filter": ["==", ["get", "kind"], "highway"]
     },
     {
       "id": "boundaries",

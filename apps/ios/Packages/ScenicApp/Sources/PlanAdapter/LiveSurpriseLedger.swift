@@ -14,8 +14,7 @@ public enum LiveSurpriseLedger {
     public static func make() -> (any SurpriseLedgerSource)? { live }
 
     static func build() -> (any SurpriseLedgerSource)? {
-        guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
-              base.scheme == "https" else { return nil }
+        guard let base = LiveBaseURL.url else { return nil }
         guard let session = LiveSession.store else { return nil }
         return LedgerSurpriseSource(client: LedgerClient(base: base, transport: URLSessionPlanTransport(),
                                                          session: session),

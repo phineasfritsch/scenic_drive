@@ -88,7 +88,7 @@ for LOOK in ${{ matrix.look }}; do
         xcrun simctl location "$UDID" start --speed=15 34.0905,-118.6370 34.0880,-118.6250 34.0855,-118.6150 34.0830,-118.6050 ;;
       *) DETENT=$SHOT ROW=default SCREEN=home NAME=home-$LOOK-$SHOT ;;
     esac
-    LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN" "${DONE[@]}" "${SIZE[@]}")
+    LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN" -plan.base.url off "${DONE[@]}" "${SIZE[@]}")
     echo "$LAUNCHED"
     PID=${LAUNCHED##*: }
     case "$PID" in ''|*[!0-9]*) echo "ios-screenshot: simctl launch printed no pid: $LAUNCHED"; exit 1;; esac
@@ -170,7 +170,7 @@ CAPTURE = f"      - name: {CAPTURE_STEP}\n        run: |\n"
 GUARD = '          test -d "$DEVELOPER_DIR" || { echo "ios-screenshot: $DEVELOPER_DIR is not on this image"; exit 1; }\n'
 TEE = 'build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"\n'
 LAUNCH = ('              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW"'
-          ' -screen "$SCREEN" "${DONE[@]}" "${SIZE[@]}")\n')
+          ' -screen "$SCREEN" -plan.base.url off "${DONE[@]}" "${SIZE[@]}")\n')
 ALIVE = '              alive "$PID" "${WAIT}s after the $LOOK $SHOT launch"\n'
 PLAN_SETTLE = "          PLAN_SETTLE=6\n"
 PLAN_ARM = "NAME=plan-$SHOT-$LOOK WAIT=$PLAN_SETTLE ;;"
@@ -223,6 +223,8 @@ MUTATIONS = [
     ("CRASH UNSEEN: || true after the launch", LAUNCH, LAUNCH.rstrip("\n") + " || true\n"),
     ("T-0271: the -screen argument dropped (settings and paywall shots become home shots)", LAUNCH,
      LAUNCH.replace(' -screen "$SCREEN"', "")),
+    ("T-0394: the offline override dropped (every DEBUG shot calls the pilot Worker)", LAUNCH,
+     LAUNCH.replace(" -plan.base.url off", "")),
     ("T-0336: onboarding done for no shot (every shot but drive becomes onboarding)", LAUNCH,
      LAUNCH.replace(' "${DONE[@]}"', "")),
     ("T-0324: the drive shot dropped", SHOTS_LIST, SHOTS_LIST.replace(" drive onboarding", " onboarding")),
