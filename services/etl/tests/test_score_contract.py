@@ -20,7 +20,7 @@ import pathlib
 
 import pytest
 
-from etl import byways, score
+from etl import assemble, byways, score, way_record
 
 FIXTURE = (pathlib.Path(__file__).resolve().parents[3]
            / "Tests" / "Fixtures" / "scoring" / "segment_terms.json")
@@ -113,6 +113,53 @@ def test_every_fixture_row_scores_within_1e_6_of_the_oracle():
     assert not failures, ("%d of %d rows disagree with the oracle by >= %g; worst delta %.3e at %s\n%s"
                           % (len(failures), len(ROWS), TOLERANCE, worst[0], worst[1],
                              "\n".join(failures[:20])))
+
+
+def post_ceiling(row: dict) -> float:
+    """T-0218 R5: the ruled number for a row - the plan formula's `expected` under the class ceiling."""
+    ceiling = assemble.CLASS_SCORE_CEILING.get(row["highway"])
+    return row["expected"] if ceiling is None else min(row["expected"], ceiling)
+
+
+def shipped(row: dict):
+    """SHIPPING PATH: the fixture row as the record `assemble.assemble` hands `assemble.scored_row`.
+
+    Tags carry the class alone (T-0218 R6): gates are gate_parity.json's, and a gravel surface in the tags
+    would make 165 rows test the gate instead of the ceiling. The record's surface still feeds the score.
+    """
+    record = way_record.WayRecord(
+        way_id=1, highway=row["highway"], terms_state=way_record.NORMALISED, surface=row["surface"],
+        byway_status=STATUS_FOR_TIER[row["bywayTier"]], curvature=row["curvature"],
+        elevation_gain=row["elevationGain"], relief=row["relief"], sinuosity=row["sinuosity"],
+        furniture=row["furniture"], canopy=row["canopy"], impervious=row["impervious"], water=row["water"],
+        speed_fit=row["speedFit"], points_of_interest=row["pointsOfInterest"],
+        tunnel_meters=row["tunnelMeters"], meters_to_nearest_motorway=_metres(row["metersToNearestMotorway"]))
+    return assemble.scored_row(record, {"highway": row["highway"]})["score"]
+
+
+def test_every_fixture_row_ships_the_post_ceiling_score_within_1e_6():
+    """T-0218 R3: the POST-ceiling half of P-PROD-01's differential, ETL side.
+
+    `SegmentScoreContractTests` holds `SegmentScoreCeiling.score(for:)` to the same number, so the device
+    and the router agree to 1e-6 on every row - the 75 rows above their class ceiling among them.
+    """
+    failures = []
+    for row in ROWS:
+        got = shipped(row)
+        want = post_ceiling(row)
+        if got is None or not abs(got - want) < TOLERANCE:
+            failures.append("%s: shipped %r, ruled %r (highway=%s)" % (row["id"], got, want, row["highway"]))
+    assert not failures, "%d of %d rows\n%s" % (len(failures), len(ROWS), "\n".join(failures[:20]))
+
+
+def test_the_fixture_holds_rows_on_both_sides_of_every_class_ceiling():
+    """Coverage for the test above: a ceiling no row exceeds is a ceiling the differential never saw."""
+    assert assemble.CLASS_SCORE_CEILING
+    for highway, ceiling in assemble.CLASS_SCORE_CEILING.items():
+        rows = [r for r in ROWS if r["highway"] == highway]
+        assert any(r["expected"] > ceiling for r in rows), "%s: no row above %r" % (highway, ceiling)
+        if ceiling > 0:
+            assert any(0 < r["expected"] <= ceiling for r in rows), "%s: no row under %r" % (highway, ceiling)
 
 
 def test_the_two_byway_tiers_are_not_the_same_number():
