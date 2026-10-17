@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# T-0393: the corpus places -> idempotent, chunked upsert SQL for the Worker's D1 `places`.
+#   ops/seed-places [--corpus PATH] (--dry-run | --out DIR) [--chunk N]
+# The corpus defaults to the app's bundled fallback from THIS commit. It only writes SQL and prints the
+# `wrangler d1 execute --remote` lines; it never runs wrangler. Exit 0 written, 2 refused (nothing written).
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+P="${PYTHON:-$(command -v python3 || command -v python)}"
+corpus_given=0
+for arg in "$@"; do
+  case "$arg" in --corpus|--corpus=*) corpus_given=1 ;; esac
+done
+if [ "$corpus_given" = 0 ]; then
+  set -- --corpus "$root/apps/ios/ScenicDrive/Corpus/corpus-fallback.sqlite" "$@"
+fi
+PYTHONPATH="$root/services/etl${PYTHONPATH:+:$PYTHONPATH}" exec "$P" -m etl.seedplaces "$@"
