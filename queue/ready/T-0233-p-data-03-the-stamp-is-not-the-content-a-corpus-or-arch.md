@@ -1,7 +1,7 @@
 ---
 id: T-0233
 title: P-DATA-03 - the stamp is not the content: a corpus (or a PMTiles archive) stamped `la` whose ways are all in Marin passes both halves; compare meta.bbox against the region's own bbox
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
