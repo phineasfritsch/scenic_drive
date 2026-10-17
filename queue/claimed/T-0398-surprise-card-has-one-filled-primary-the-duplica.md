@@ -95,3 +95,28 @@ then green.
      queue-check.
   A10 ios-compile run on task/T-0398 concludes success; ios-screenshot run concludes success and holds
      surprise-ax5.png.
+- 2026-10-17T16:08:01Z agent/claude-opus-5: code a55f2d2f. Digest guard RED then GREEN: with the Swift edits and the old
+  rows, `bash ops/lib/check-safety-disclaimer` printed `P-SAFE-03: the pinned render surface changed: SurpriseCard.swift
+  content changed (sha256 ce4fa2fc..., approved 671c8124...)` and `SurpriseNotThis.swift content changed (sha256
+  77e50a48..., approved 05e8115a...)`; rows re-approved in ops/lib/check-safety-disclaimer-pinned (4 lines) -> exit=0.
+  ios-compile run 39046312312: completed success (2m56s). ios-screenshot run 39046317171: completed success (19m9s),
+  holds surprise-light.png, surprise-dark.png and the new surprise-ax5.png (downloaded to
+  .artifacts/shots-39046317171/ios-screenshots/). Looked at each:
+  surprise-light: card = mountain glyph + "Peak" (footnote), "Tongva Peak", hook "A high point with the basin
+    below." (body), clock glyph + "Round trip from Westwood" (gray footnote) over "About 84 min" (headline) with the
+    outlined "estimate · no traffic data" tag beside it on one line; ONE filled orange capsule "Open in Apple Maps"
+    with a trailing arrow.up.right; "Not this one?" over four pale-orange tonal capsules, no outlines, labels whole
+    (Too far / Not my thing / Been there / Wrong time). No golden-hour row (goldenHourLine nil at shot time - absent,
+    not hidden). Nothing clipped or overlapping on the card. Below the card, the home sheet's own filled "Open in
+    Apple Maps" for Saddle Peak is still there (R1 -> T-0399). Attribution box visible over the map.
+  surprise-dark: same order and content; primary is the light-orange capsule with dark label + arrow; the tonal
+    capsules are a dark brown-tinted fill with white labels, readable; estimate tag outlined; nothing clipped. Home
+    sheet's second "Open in Apple Maps" still present (T-0399).
+  surprise-ax5: the CARD renders whole - class, name, hook on one line, "Round trip from Westwood", "About 84 min" with
+    the estimate tag moved UNDER it (ViewThatFits fallback), the primary capsule "Open in Apple Maps ↗" on one line,
+    four tonal capsules with whole labels. OUTSIDE the card the home squeezes: drive chips clip vertically
+    ("West-wood loop", "SF Peninsu-la" cut), the collapsed sheet's route tiles overflow their borders, the sheet's
+    hand-off is pushed off-screen, the attribution box overlaps the map's (i) button. home-ax5-collapsed (run
+    39035404874, no card) has none of it. Those views are FeatureScenicHome (outside touches, T-0397's touches);
+    not fixed here - recorded as scope item 4 in T-0399. No re-run: no element inside touches is clipped,
+    overlapping or missing.

@@ -34,3 +34,10 @@ Scope:
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from T-0398 ruling R1/R6.
+- 2026-10-17 T-0398's surprise-ax5.png (run 39046317171, the first ax5 Surprise shot) adds scope item 4: with the
+  card open at AX5 the HOME's layout squeezes - the drive chips clip vertically ("West-wood loop" and
+  "SF Peninsu-la" cut top and bottom), the collapsed sheet's three route tiles overflow their borders ("Fastest",
+  "+13 min", "+18 min" drawn across the tile tops, "good road" below them), the sheet's Open in Apple Maps is pushed
+  off-screen, and the attribution box covers the map's (i) button. home-ax5-collapsed.png (run 39035404874, no card)
+  shows none of it, so the home gives the card its ideal height and compresses its own rows; fix in the home
+  (chips and tiles keep their vertical ideal size, or the card scrolls inside a bounded height).
