@@ -1,7 +1,7 @@
 ---
 id: T-0404
 title: The attribution footer grows to about 500pt and 6 lines at AX5, covering the map, the route and the drive controls - make it one caption line at default sizes and at most a 2-line strip at AX sizes, never a box over content
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T19:02:24Z
@@ -11,7 +11,7 @@ branch: task/T-0404
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/DesignSystem/, ops/lib/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-ATTR-01, P-A11Y-01]
-reviewer: null
+reviewer: agent/rv1-t0404
 depends_on: []
 verify: [ops/check-pins]
 acceptance: []
@@ -148,3 +148,20 @@ A5. ios-compile and ios-screenshot succeed on task/T-0404 (run ids quoted). In h
   at default size in light and dark on home, plan-preview and drive; at most two lines at AX sizes (plan-preview-ax5
   one line, single party; home-ax5 draws at the default caption size); no word broken; no box; covers the coastline
   only, never the route line, the (i), Start or the disclaimer line. Gap: no drive-ax5 capture on main.
+- 2026-10-17T22:43:53Z review PASS by agent/rv1-t0404 (not the owner), PR #297 at 2a535207. Bare gates on the
+  head: check-safety-disclaimer exit=0, check-mutate-population exit=0 (floor of 173 holds), check-mutate-only
+  exit=0 (248 of 248), check-pins-yaml exit=0 (pins=53 fields=426), check-exec-bits exit=0 (253 files),
+  queue-check exit=0 (396 tasks), check-map-attribution exit=0. gh pr checks 297: core pass, pins-source-only pass.
+  Two reviewer mutants, both CAUGHT: MA a module-local `struct AttributionFooter` (body EmptyView) added in
+  FeatureScenicHome to shadow DesignSystem's - check-map-attribution exit=1 and check-safety-disclaimer exit=1,
+  "FeatureScenicHome's file set is not the approved one: added AttributionFooter.swift"; MB MapView.swift
+  `logoViewPosition = .topLeft` -> `.bottomLeft` (the logo under the footer's new 12pt left spacer) -
+  check-map-attribution exit=1, "MapView.swift content changed (sha256 dfebf4e9..., approved 42c36245...)".
+  LOOKED at run 39066945425: plan-preview-ax5 one line "Route data (c) OpenStreetMap contributors" in the sheet inset
+  above the mode bar, over no content; home-ax5-medium and home-dark-medium one line above the sheet over the
+  coastline only, clear of the route and the (i); drive-light and drive-dark one line at the map's bottom edge,
+  clear of the route, the (i) and End drive, full CI credit, no word broken, no box. Recorded, not blocking: no
+  drive-ax5 capture exists on main, so the multi-party two-line strip has never been rendered in CI (every AX
+  capture here is single-party or not at an accessibility size); and the visible-text semantics (no party
+  dropped) are held by the footer digest alone, as the owner's M2 shows. origin/main is an ancestor of
+  origin/task/T-0404. Not merged.
