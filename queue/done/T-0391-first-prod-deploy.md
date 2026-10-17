@@ -1,7 +1,7 @@
 ---
 id: T-0391
 title: First production deploy of scenic-api from main (pilot backend) - ops/deploy, live /__version == HEAD, /__health quoted
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T10:49:37Z
@@ -11,7 +11,7 @@ branch: task/T-0391
 exclusive: [prod]
 touches: [ops/api-url, queue/, services/api/wrangler.jsonc]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-t0391
 depends_on: [T-0390]
 verify: [ops/sane]
 acceptance: []
@@ -32,3 +32,4 @@ A reviewer who is not the owner re-reads the live endpoints and confirms that /_
 - 2026-10-17T10:49:37Z claimed by agent/claude-opus-5; lease until 2026-10-18T10:49:37Z
 - 2026-10-17T11:35:24Z agent/claude-opus-5: DEPLOYED (owner-authorised, prod.lock held): `bash ops/deploy` -> 'DEPLOYED sha=2daea62cdc8247f29516dec88b47379b40bb51f4 live=2daea62cdc8247f29516dec88b47379b40bb51f4 built_at=2026-10-17T10:52:53Z url=https://scenic-api.phineas-fritsch.workers.dev'. /__version {git_sha 2daea62c, schema_version 4}; /__health 200 {ok:true, db:up, kill_switch:false, upstream_calls:0}; /config 200 (supported_regions [la]).
 - 2026-10-17T11:35:24Z agent/claude-opus-5: ROUTER (owner chose a local-machine tunnel, hostname scenic-router.phineasfritsch.com): LA graph imported with scenic-routing:t0392 (properties sha256 d802c10291f219e4fbeda1a5501a2c7863df15733231a69e69a94ef17e20acb9); compose project scenic-routing-pilot up in WSL docker with ROUTER_SECRET from an env file outside the repo; Cloudflare Tunnel scenic-router (2c83a32a-6e50-441d-80f2-c97ce7132706, own config file, the owner's jarvis tunnel untouched; a first DNS route mistakenly attached the CNAME to jarvis and was re-pointed with --overwrite-dns). Probes: https://scenic-router.phineasfritsch.com/info without the header 401, with the placeholder 401, with the secret 200 graph_hash d802c102...acb9. Touches widened to services/api/wrangler.jsonc: vars ROUTER_URL=https://scenic-router.phineasfritsch.com and GRAPH_VERSION=<that hash> (neither is a secret). Full Worker suite on this change: 100 files, 2690/2690 passed; the router saw no test traffic (docker logs 0 requests).
+- 2026-10-17T11:58:44Z agent/rv1-t0391: REVIEW PASS (PR #291). Diff vs origin/main is services/api/wrangler.jsonc vars (ROUTER_URL placeholder -> https://scenic-router.phineasfritsch.com, GRAPH_VERSION added) plus this task file (touches widened, Log appended, no earlier line edited); no secret in the diff. Live: /__version git_sha 2daea62cdc8247f29516dec88b47379b40bb51f4 equals the Log DEPLOYED sha; /__health 200 ok:true db:up kill_switch:false; router /info without the header 401. vitest wranglerBindings+productionDeps+closuresCron 3 files 65/65; full suite 100 files 2690/2690. Gates exit 0: check-safety-disclaimer, check-pins-yaml (pins=53 fields=426), check-exec-bits, queue-check (QUEUE OK 385 tasks). gh pr checks 291: core pass, pins-source-only pass. origin/main is an ancestor of origin/task/T-0391. Gap recorded, not blocking: the Brief asks for one /plan request and ops/sane --prod exit codes, and the Log quotes neither; the new vars take effect only at the next deploy. prod.lock released.
