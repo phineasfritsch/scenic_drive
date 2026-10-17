@@ -1,7 +1,7 @@
 ---
 id: T-0405
 title: The plan preview shows the chosen route on a map above the sheet (reference library, Biggest changes 1) instead of a full-height sheet with an empty lower half
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
