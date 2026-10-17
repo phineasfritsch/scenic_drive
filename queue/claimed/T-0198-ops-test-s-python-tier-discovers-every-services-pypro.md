@@ -211,3 +211,32 @@ pins-source-only. A regression in either directory is invisible to the one comma
     `Tests 43 passed (43)`. The python tier and the floor are green on this box; "exit 0" is NOT shown on this box
     for this head and rests on the PR's CI core job on the pushed head.
   - `wc -l`: ops/test 161, ops/lib/python_suites.py 112, ops/lib/python-suites.txt 10.
+- 2026-10-17T16:46:50Z ROUND 3 (rv2 FAIL: stale base with code drift in the measured populations) by
+  agent/claude-opus-5 (owner). `git fetch origin` in the main checkout; merged origin/main efbb58e9 (T-0196
+  services/tiles tests incl. test_publish_upload_keys.py + test_basemap_assets.py, T-0394 APIBaseURL Swift +
+  tests, T-0393 services/etl seedplaces tests, T-0400/T-0401 filings) into b9a43ae6 -> cd0329dd, pushed it so CI
+  measured the same head. Per R10 the ceilings and the floor are re-read, not carried.
+  - MEASURED, this box, bare `bash ops/test` on cd0329dd, rc=0 in 1017 s: `PYTEST services/etl=4160(skipped=1)
+    services/tiles=112 services/routing=52(skipped=4)` / `RO-GRAMMAR OK 30 cases` / `TESTS linux=7998/7910
+    ios=skipped failed=0 skipped=5` / `OK`. No vitest flake this run.
+  - MEASURED, CI core job, PR #285 run 39048522577 on cd0329dd (core pass 13m13s, pins-source-only pass 5m39s):
+    `PYTEST services/etl=4160(skipped=1) services/tiles=112 services/routing=52(skipped=23)` / `RO-GRAMMAR OK 30
+    cases` / `TESTS linux=8041/7910 ios=skipped failed=0 skipped=24` / `OK`; queue-check `QUEUE OK (391 tasks)`.
+  - The new services/tiles tests (82 -> 112) skip on NEITHER host: tiles skipped=0 on both, ceiling 0 holds.
+  - This box's etl skip is new (was 0): from .artifacts/pytest-junit-etl.xml, tests.test_seedplaces
+    `test_every_out_state_exits_0_or_2_with_exact_output_and_whole_tree[dir-with-a-symlink]` - `cannot create a
+    symlink here: [WinError 1314] A required privilege is not held by the client`. CI's etl skip stays 1
+    (test_fallback_committed). Max skipped over both hosts: etl 1 / tiles 0 / routing 23 - equal to the table, so
+    ops/lib/python-suites.txt is not edited (a ceiling rises only when a host skips more than it allows).
+  - A4 floor: BEFORE 7910 (both hosts above it: 7998 / 8041). The lower total is 7998 (this box), so
+    pins/floor_linux.txt 7910 -> 7998 (a raise; never to 8041, never lowered).
+  - Gates on cd0329dd, each bare, rc=0: check-safety-disclaimer (P-SAFE-03 ... `Not checked here: rendering
+    (T-0180), taps, whether that write RUNS, contrast, Dynamic Type, 44 pt.`); check-mutate-population.py
+    `P-PROC-06: 391 modules, 221 covered by 50 populations, 150 allowlisted, 0 added by this branch` / `P-PROC-06:
+    every added module is covered or allowlisted; the floor of 173 holds`; check-mutate-only.py `MUTATE-ONLY OK:
+    248 of 248 driver runs refused with exit 64 (67 drivers, 114 range probes: 25 digit, 47 name, 42 N-(N+1))` /
+    `NAME-PAIRS OK: 242318 pair tokens over 50 id populations, each refused in process by select_only in 4 modes
+    and by onlyIds (0 calls not refused, floor 201117 tokens)`; check-pins-yaml.py `PINS-YAML ok pins=53
+    fields=426`; check-exec-bits `P-OPS-01: 252 files, 23 required present, all modes correct`; queue-check
+    `QUEUE OK (391 tasks)`. check-pins --source-only: CI's pins-source-only job (pass 5m39s above).
+  - `wc -l`: ops/test 161, ops/lib/python_suites.py 112, ops/lib/python-suites.txt 10.
