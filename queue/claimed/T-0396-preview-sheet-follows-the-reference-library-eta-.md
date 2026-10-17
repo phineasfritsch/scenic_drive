@@ -146,3 +146,24 @@ the disclaimer line must both be reachable. Any new or changed guard is shown re
       the fold in the same ScrollView (reachable by scroll, R12), nothing floats over them. DEFECT: the 2-line tag's
       text runs into the capsule's rounded ends ("estimate" and "traffic" touch the curve). FIX: the tag background is
       a 8pt continuous rounded rectangle; card re-hashed in check-safety-disclaimer-pinned; one re-run below.
+- 2026-10-17T17:08:44Z RE-RUN (commit bdc8891c) and FINAL acceptance on the merged head f7c67df4 (origin/main merged last; main's
+  b865a822 renumbered its own T-0400/T-0401 to T-0402/T-0403, so this branch's T-0400/T-0401 stand).
+  - ios-compile 39050077285 completed success (3m10s); ios-screenshot 39050070882 completed success (16m32s).
+  - LOOKED at the re-run: plan-preview-light and -dark unchanged from the first pass, items 1-7 as recorded above
+    (title "Zuma Beach" + "..."; "55 min (17 mi)" with the gray tag on the line; "+20 min over fastest"; one amber
+    hazard row + "+1 more"; no outline; Start filled + Save tonal; "Conditions change. Verify locally." directly
+    under Start; no bottom trip/loop bar; attribution footer). plan-preview-ax5: the tag now wraps under the number
+    on an 8pt rounded rectangle and its two lines sit inside it - the clipping is gone; title, ETA, why line wrap,
+    no word broken; the hazard row, Start and the line are below the fold in the same ScrollView above the
+    DesignSystem attribution footer (R12).
+  - A1 `Test run with 24 tests in 4 suites passed` (exit 0).
+  - A2 `grep -c` -> 0; PlanRouteShape.swift gone.
+  - A3 `P-SAFE-03 hazard copy: ok - 13 sites, every one approved, in 5 files`; `PROVE-RED OK: 13 of 13 rows red by
+    name, control 0`.
+  - A4 check-safety-disclaimer exit 0; check-map-attribution exit 0; `P-PROC-06: every added module is covered or
+    allowlisted; the floor of 173 holds`; `MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64`;
+    `PINS-YAML ok pins=53 fields=426`; `P-OPS-01: 250 files, 23 required present, all modes correct`;
+    `QUEUE OK (393 tasks)`.
+  - A5 largest FeaturePlanSheet file PlanSheetScreen.swift 281 lines; PlanPreviewCard 140, PlanPreviewActions 80.
+  - A6 39050077285 success. A7 39050070882 success, shots as above. The CI runs are on bdc8891c, before the merge of
+    main; the merged head re-passed every local gate above.
