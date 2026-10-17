@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import math
 import struct
 import sys
 from datetime import datetime, timedelta, timezone
@@ -50,6 +51,12 @@ MIN_BYTES = 1_048_576
 # gap is NTP drift, which is seconds. One hour is three orders of magnitude under MAX_AGE_DAYS, so it cannot
 # mask a stale build, and it still refuses every wrong-DATE stamp - a year typed wrong, a host set ahead.
 MAX_FUTURE_SKEW = timedelta(hours=1)
+# T-0233 R2: the most the header may reach PAST the region bbox on any edge, in e7 units. `pmtiles extract
+# --bbox` writes the requested box verbatim - the measured LA build's header equals la's bbox to 0 e7 units -
+# so this is not slack for the build but the most an extractor snapping out to whole tiles at MIN_MAXZOOM
+# could add: one z14 tile, 360 / 2**14 = 0.02197265625 deg, rounded to e7. An archive wider than that carries
+# more than its region (the Bay Area, or all of California, under an `la` stamp) and is refused.
+MAX_BOUNDS_OVERHANG_E7 = 219727
 # Internal-compression enum from the PMTiles v3 spec; only these two are produced by go-pmtiles today.
 COMPRESSION_NONE = 1
 COMPRESSION_GZIP = 2
@@ -108,14 +115,14 @@ def read_metadata(path: Path) -> dict:
 
 def bbox_from_region(region_json: Path) -> tuple[float, float, float, float]:
     box = json.loads(region_json.read_text(encoding="utf-8"))["bbox"]
-    return (box["min_lon"], box["min_lat"], box["max_lon"], box["max_lat"])
+    return (float(box["min_lon"]), float(box["min_lat"]), float(box["max_lon"]), float(box["max_lat"]))
 
 
 def check(path: Path, bbox: tuple[float, float, float, float], *, region: str | None = None,
           budget: int = BUDGET_BYTES, max_age_days: int = MAX_AGE_DAYS,
           min_maxzoom: int = MIN_MAXZOOM, min_entries: int = MIN_TILE_ENTRIES,
           min_bytes: int = MIN_BYTES, max_future_skew: timedelta = MAX_FUTURE_SKEW,
-          now: datetime | None = None) -> list[str]:
+          max_overhang_e7: int = MAX_BOUNDS_OVERHANG_E7, now: datetime | None = None) -> list[str]:
     """Every failure, named. Empty list = the artifact is publishable.
 
     The floors are parameters rather than constants read from the module body so a second region can state
@@ -128,15 +135,26 @@ def check(path: Path, bbox: tuple[float, float, float, float], *, region: str | 
         return [f"not a PMTiles v3 archive: {exc}"]
 
     min_lon, min_lat, max_lon, max_lat = bbox
-    # Cover, not equal: an extract's bounds are snapped out to whole tiles, so they are always at least the
-    # requested box. Anything short of it is a hole in the map where the region says there are roads.
-    if header["min_lon"] > min_lon or header["min_lat"] > min_lat \
-            or header["max_lon"] < max_lon or header["max_lat"] < max_lat:
-        failures.append(
-            "header bounds ({:.6f},{:.6f},{:.6f},{:.6f}) do not cover the region bbox "
-            "({},{},{},{})".format(header["min_lon"], header["min_lat"], header["max_lon"],
-                                   header["max_lat"], min_lon, min_lat, max_lon, max_lat)
-        )
+    bounds = "({:.6f},{:.6f},{:.6f},{:.6f})".format(header["min_lon"], header["min_lat"], header["max_lon"],
+                                                    header["max_lat"])
+    # T-0233 R6: every comparison against NaN is False, so a NaN region would pass both bounds limbs below.
+    if not all(math.isfinite(v) for v in bbox) or not (min_lon < max_lon and min_lat < max_lat):
+        failures.append(f"region bbox {tuple(bbox)} is not a finite min < max box: no bounds can be judged "
+                        "against it (P-DATA-03)")
+    else:
+        # COVER: anything short of the region is a hole in the map where the region says there are roads.
+        if header["min_lon"] > min_lon or header["min_lat"] > min_lat \
+                or header["max_lon"] < max_lon or header["max_lat"] < max_lat:
+            failures.append(f"header bounds {bounds} do not cover the region bbox "
+                            f"({min_lon},{min_lat},{max_lon},{max_lat})")
+        # INSIDE (T-0233): the stamp is not the content - a box past the region is somebody else's map.
+        head = [round(header[key] * 1e7) for key in ("min_lon", "min_lat", "max_lon", "max_lat")]
+        edge = [round(v * 1e7) for v in bbox]
+        if head[0] < edge[0] - max_overhang_e7 or head[1] < edge[1] - max_overhang_e7 \
+                or head[2] > edge[2] + max_overhang_e7 or head[3] > edge[3] + max_overhang_e7:
+            failures.append(f"header bounds {bounds} extend past the region bbox ({min_lon},{min_lat},"
+                            f"{max_lon},{max_lat}) by more than {max_overhang_e7} e7 units on an edge: the "
+                            "archive carries more than its region (P-DATA-03)")
 
     if header["max_zoom"] < min_maxzoom:
         failures.append(
@@ -220,7 +238,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     region = json.loads(args.region_json.read_text(encoding="utf-8"))
-    failures = check(args.archive, bbox_from_region(args.region_json), region=region["id"],
+    try:
+        bbox = bbox_from_region(args.region_json)
+    except (KeyError, TypeError, ValueError) as exc:
+        print(f"PMTILES REFUSED: {args.archive}\n  - region bbox unreadable in {args.region_json}: {exc}")
+        return 1
+    failures = check(args.archive, bbox, region=region["id"],
                      budget=args.budget_bytes, max_age_days=args.max_age_days,
                      min_maxzoom=args.min_maxzoom)
     if failures:
