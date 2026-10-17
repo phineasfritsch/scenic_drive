@@ -27,10 +27,13 @@
       <artifactId>snakeyaml</artifactId>
       <version>2.2</version>
     </dependency>
+    <!-- T-0392: the served router. GraphHopper's own Dropwizard bundle (the /route, /isochrone and /info resources
+         the Worker calls), same version as core. It brings logback, which Dropwizard requires as the SLF4J
+         binding - so slf4j-simple is gone and src/main/resources/logback.xml keeps the CLI's log on stderr. -->
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
-      <version>2.0.13</version>
+      <groupId>com.graphhopper</groupId>
+      <artifactId>graphhopper-web-bundle</artifactId>
+      <version>${graphhopper.version}</version>
     </dependency>
     <!-- Pinned like every other coordinate here: the image build RUNS these tests (the Dockerfile no longer
          passes -DskipTests), so a moving test dependency would be a moving build. -->

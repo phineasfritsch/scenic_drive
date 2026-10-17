@@ -33,19 +33,19 @@ export interface Env {
   BUILT_AT: string;
   RO_TOKEN?: string; // secret: `wrangler secret put RO_TOKEN`
   KILL?: string; // "1" pauses /plan, /loop, /isochrone and /trip with zero upstream calls (P-COST-01)
-  KILL_SWITCH?: KillSwitchRead; // a KVNamespace; optional: its key KILL = "1" also pauses (T-0256 R5); not bound in wrangler.jsonc
+  KILL_SWITCH?: KillSwitchRead; // a KVNamespace; optional: its key KILL = "1" also pauses (T-0256 R5); bound in wrangler.jsonc (T-0390)
   QUOTA?: DurableObjectNamespace<QuotaCounter>; // per-device daily + global monthly counters (T-0256 R1)
   ROUTER_URL?: string; // our GraphHopper; https://router.invalid (the shipped placeholder) counts as absent
   ROUTER_SECRET?: string; // secret: `wrangler secret put ROUTER_SECRET`; sent as x-scenic-router-secret
   ASN_ALLOW_SANDBOX?: string; // "1" applies App Store Sandbox notifications too (T-0267 R7); unset = production only
-  CLOSURES?: KVNamespace; // the closures cron writes it, every planning route reads it (T-0276); not bound in wrangler.jsonc
+  CLOSURES?: KVNamespace; // the closures cron writes it, every planning route reads it (T-0276); bound in wrangler.jsonc (T-0390)
   SESSION_JWT_SECRET?: string; // secret: `wrangler secret put SESSION_JWT_SECRET`; absent, /attest is 503 (T-0278 R7)
   IDENTITY_HEADERS?: string; // "1" = the bare x-scenic-device / x-scenic-account-token migration window (T-0278 R6)
   APP_ATTEST_ALLOW_DEVELOP?: string; // "1" accepts the appattestdevelop aaguid (T-0278 R4); unset = production only
-  CONFIG?: KVNamespace; // T-0288: the remote config record config/v1 /config overlays on its defaults; not bound in wrangler.jsonc
+  CONFIG?: KVNamespace; // T-0288: the remote config record config/v1 /config overlays on its defaults; bound in wrangler.jsonc (T-0390)
   TELEMETRY?: AnalyticsEngineDataset; // T-0279: the Analytics Engine binding /telemetry writes to (declared, not created)
   APPLE_CLIENT_SECRET?: string; // owner secret (T-0287 R6): the pre-signed Sign in with Apple client-secret JWT; absent, revoke_pending
-  PLANS?: KVNamespace; // T-0319 R3: each /plan answer's pins + lambda under its plan_token for 43200 seconds; not bound in wrangler.jsonc
+  PLANS?: KVNamespace; // T-0319 R3: each /plan answer's pins + lambda under its plan_token for 43200 seconds; bound in wrangler.jsonc (T-0390)
   GRAPH_VERSION?: string; // the routing graph's version, in the /isochrone cache key (T-0262 R6); unset = "unversioned"
   SEARCH_URL?: string; // T-0359: our Photon's https front door; absent, /search is 503 search_unavailable
   SEARCH_SECRET?: string; // secret: `wrangler secret put SEARCH_SECRET`; sent as x-scenic-search-secret

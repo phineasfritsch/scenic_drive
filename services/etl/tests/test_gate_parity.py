@@ -155,3 +155,32 @@ def test_only_the_typed_classes_diverge():
 def test_the_profile_read_is_the_shipped_file():
     shipped = pathlib.Path(__file__).resolve().parents[2] / "routing" / "profiles" / "car_scenic_base.json"
     assert profilegate.PROFILE == shipped and shipped.is_file()
+
+
+def test_the_profile_read_is_the_file_config_yml_names():
+    """T-0387: PROFILE is the one file every routing profile in config.yml loads - the router's own list."""
+    routing = pathlib.Path(__file__).resolve().parents[2] / "routing"
+    lines = (routing / "config.yml").read_text(encoding="utf-8").splitlines()
+    named = [line.split(":", 1)[1].strip() for line in lines if line.strip().startswith("custom_model_files:")]
+    assert named and set(named) == {"[%s]" % profilegate.PROFILE.name}
+    assert profilegate.PROFILE == routing / "profiles" / profilegate.PROFILE.name
+
+
+def test_every_clause_of_the_shipped_profile_is_read():
+    """T-0387: a clause the evaluator refuses fails HERE, by name, not as a ValueError raised in profilegate."""
+    try:
+        data = profilegate.model()
+        values = profilegate.encode({"highway": "residential"})
+        for rule in data.get("priority", []) + data.get("speed", []):
+            profilegate.fires(rule["if"], values)
+    except ValueError as refusal:
+        pytest.fail("the shipped profile is not read whole: %s" % refusal)
+
+
+def test_a_numeric_speed_of_zero_excludes(tmp_path):
+    """T-0387: `limit_to: "0"` on a firing rule is an exclusion, asserted without a named-speed rule beside it."""
+    path = tmp_path / "model.json"
+    path.write_text(json.dumps({"speed": [{"if": "road_class == MOTORWAY", "limit_to": "0"}], "priority": []}),
+                    encoding="utf-8")
+    assert profilegate.speed_excludes({"highway": "motorway"}, path) is True
+    assert profilegate.speed_excludes({"highway": "primary"}, path) is False

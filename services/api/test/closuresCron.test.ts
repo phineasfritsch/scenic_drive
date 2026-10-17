@@ -1,7 +1,7 @@
 /**
  * T-0276 R6 through the shipped scheduled() entry point: the recorded feed becomes the oracle's record in KV, once;
  * every way the feed can fail writes NOTHING, so the last good record stays and ages into stale; the cron trigger is
- * the wrangler.jsonc one and CLOSURES is not bound there (the owner's step).
+ * the wrangler.jsonc one and CLOSURES is bound there to the scenic-closures namespace (T-0390).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import feedRaw from "../../../Tests/Fixtures/t0276/lcsStatusD07.json?raw";
@@ -137,8 +137,10 @@ describe("the cron's clock through scheduled(): R2 at floor(now in seconds) (R6)
 });
 
 describe("the trigger (R6)", () => {
-  it("wrangler.jsonc runs the cron every 15 minutes and binds no CLOSURES namespace", () => {
+  it("wrangler.jsonc runs the cron every 15 minutes and binds CLOSURES to the scenic-closures namespace", () => {
     const config = JSON.parse(wranglerRaw.split("\n").filter((line) => !line.trim().startsWith("//")).join("\n"));
-    expect([CLOSURES_CRON, config.triggers, config.kv_namespaces]).toEqual(["*/15 * * * *", { crons: ["*/15 * * * *"] }, undefined]);
+    const closures = ((config.kv_namespaces ?? []) as { binding: string }[]).filter((ns) => ns.binding === "CLOSURES");
+    expect([CLOSURES_CRON, config.triggers, closures]).toEqual(["*/15 * * * *", { crons: ["*/15 * * * *"] },
+      [{ binding: "CLOSURES", id: "5e3eb553f16c4e4ba4d5297e001ef5ea" }]]);
   });
 });

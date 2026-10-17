@@ -37,7 +37,9 @@ async function plan(headers: Headers, e: Partial<Env>) {
   quota = fakeQuotaNamespace();
   for (const [b, plan] of SEEDS) quota.seed(`device:${b}`, "daily", { day: "2026-10-05", plan });
   vi.stubGlobal("fetch", recordingRouter(SANTA_MONICA_TOPANGA, loopPath(squareLoop())).fetchImpl);
-  const env2 = { ...(env as unknown as Env), QUOTA: quota.ns, ROUTER_URL: "https://router.test", ROUTER_SECRET: "test-router-secret", ...e } as Env;
+  // T-0390: wrangler.jsonc now binds PLANS, so the pool's env carries a local one; this suite's oracle predates it.
+  const env2 = { ...(env as unknown as Env), PLANS: undefined, QUOTA: quota.ns, ROUTER_URL: "https://router.test",
+    ROUTER_SECRET: "test-router-secret", ...e } as Env;
   const req = new Request("https://scenic-api.test/plan", { method: "POST", headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(SANTA_MONICA_TOPANGA_BODY) });
   const response = await ROUTES["/plan"]!(req, env2, new URL(req.url));
