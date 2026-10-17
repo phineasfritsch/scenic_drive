@@ -103,6 +103,11 @@ MUTATIONS = [
     ("every existing out path refused", SUBJECT, OUT_DIR, "    if out is not None and out.exists() and True:"),
     ("an absent out path refused - the exists clause dropped", SUBJECT, OUT_DIR,
      "    if out is not None and (not out.is_dir() or any(out.iterdir())):"),
+    ("an out dir holding only subdirectories accepted", SUBJECT, OUT_DIR,
+     "    if out is not None and out.exists() and (not out.is_dir() or any(q.is_file() for q in out.iterdir())):"),
+    ("an out dir holding only dotfiles accepted", SUBJECT, OUT_DIR,
+     "    if out is not None and out.exists() and (not out.is_dir() or "
+     "any(not q.name.startswith('.') for q in out.iterdir())):"),
     ("chunk files numbered from 0", SUBJECT, "enumerate(texts, start=1)", "enumerate(texts)"),
     ("chunk file name changed", SUBJECT, FILE, '        path = out / f"places-{index}.sql"'),
     ("the wrangler line names another database", SUBJECT, 'D1_DATABASE = "scenic"', 'D1_DATABASE = "scenic-test"'),
@@ -120,7 +125,7 @@ EQUIVALENT = [
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 49
+MIN_MUTATIONS = 51
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
