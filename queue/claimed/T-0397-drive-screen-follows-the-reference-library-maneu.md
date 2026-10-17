@@ -99,3 +99,23 @@ and drive-dark and state, item by item, what each shot shows. Any new or changed
   - A8 drive-light: credit pill above the card; first card row "Conditions change. Verify locally."; "Arrive h:mm"; "N min · N.N mi"; the estimate caption; a short red "End" pill; no full-width orange button; nothing clipped.
   - A9 drive-dark: the same elements, legible on the dark surface.
   - A10 any AX shot of the drive (if the workflow produces one): the card stacked, End full width, strip above, nothing clipped; if the workflow has none, recorded as not shot.
+- 2026-10-17T16:06:00Z build log (agent/claude-opus-5).
+  - R10 touches gained ops/mutate/drive_mutations.py: the pre-commit hook refused it ("pre-commit:
+    ops/mutate/drive_mutations.py is outside T-0397 touches"); R8 needs it.
+  - R11 the screen no longer renders display.etaLine (minutes vs the fastest way): the library's data panel rules
+    "Minutes over fastest: low, hidden - already decided"; the field stays in DriveDisplay (tests, voice).
+  - Tests whose whole-equality now includes the glance carry typed literals, each checked by hand against the
+    fixture geometry (cos-lat x 111195 m per degree): DriveContinuedTests answer line 4 x 0.01 deg at 34.03 =
+    3684 m "15 min · 2.3 mi", preview line 5 x 0.01 deg at 34.05 = 4604 m "25 min · 2.9 mi"; DriveReplanTests
+    answer line (two diagonal segments) 4422 m "15 min · 2.7 mi"; PostDriveQuestionTests probe line 1112 m "0.7 mi".
+  - Root suites: `swift test --filter` over the 14 drive.py suites + DriveVoiceArrivalTests + PostDriveQuestionTests:
+    "Test run with 86 tests in 16 suites passed".
+  - Mutants: `python ops/mutate/drive.py --only 153,154,155,156,157` -> "caught by the test that names it: 5 of 5
+    (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)" / "MUTATE OK caught=5/5".
+  - Guard RED then GREEN (R9): on the new DriveScreen before APPROVED moved, `python ops/lib/check-drive-display.py`
+    exit=1: "P-SAFE-09: a line naming DriveDisplay, DriveSurface, DriveMode or display is not an approved whole line
+    (21 found, 23 approved)" listing the four new card/onChange lines unapproved and six old lines missing. After:
+    exit=0 "21 approved whole lines ... the drive screen renders the navigator's DriveDisplay."; `--prove-red`
+    "PROVE-RED OK: 9/9 refused by name", including the two new mutations (the End target at 44 pt while moving;
+    the confirm left up when the drive moves).
+  - Apple CI dispatched on e3723608: ios-compile 39047780264, ios-screenshot 39047784409.

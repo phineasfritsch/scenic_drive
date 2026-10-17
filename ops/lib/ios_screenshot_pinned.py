@@ -69,7 +69,7 @@ for LOOK in ${{ matrix.look }}; do
   LIST="collapsed medium fastest settings paywall surprise drive onboarding disclaimer preview nothingPretty waitlist offered loop trip saved paused update loopPaused tripPaused loopRegion tripRegion loopWaitlist tripWaitlist searchResults searchNotice legal"
   if [ "$LOOK" = ax5 ]; then
     SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)
-    LIST="collapsed medium preview nothingPretty offered loop trip saved"
+    LIST="collapsed medium preview nothingPretty offered loop trip saved drive"
     xcrun simctl ui "$UDID" appearance light
   else
     xcrun simctl ui "$UDID" appearance "$LOOK"
@@ -181,7 +181,7 @@ T0373_SHOTS = " loopRegion tripRegion loopWaitlist tripWaitlist searchResults se
 T0373_ARM = "|loopRegion|tripRegion|loopWaitlist|tripWaitlist|searchResults|searchNotice) DETENT=collapsed"
 LOOKS = "          for LOOK in ${{ matrix.look }}; do\n"
 AX5_SIZE = "              SIZE=(-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL)\n"
-AX5_LIST = '              LIST="collapsed medium preview nothingPretty offered loop trip saved"\n'
+AX5_LIST = '              LIST="collapsed medium preview nothingPretty offered loop trip saved drive"\n'
 LS = '          ls -l "$SHOTS"\n'
 
 
