@@ -1,7 +1,7 @@
 ---
 id: T-0398
 title: Surprise card has one filled primary - the duplicate Open in Apple Maps goes, secondary actions become tonal or text, and the hand-off button carries the external-link glyph
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null

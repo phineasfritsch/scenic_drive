@@ -1,7 +1,7 @@
 ---
 id: T-0397
 title: Drive screen follows the reference library - maneuver banner, bottom card with arrival, minutes, distance and the estimate caption, a short red End with a Keep-driving confirm, and the missing disclaimer line above the card
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null

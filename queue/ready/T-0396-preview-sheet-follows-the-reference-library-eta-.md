@@ -1,7 +1,7 @@
 ---
 id: T-0396
 title: Preview sheet follows the reference library - ETA (distance) with the estimate badge as a tag on it, why line, one hazard row, labelled climb and scenic-share line, Start + Save, the disclaimer line directly under Start
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
