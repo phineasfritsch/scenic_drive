@@ -1,13 +1,13 @@
 ---
 id: T-0386
 title: Re-measure the routed lambda runs (test_lambda_monotone BITE_FLOOR, test_route_details lambda-8) against the models production now sends
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T04:12:32Z
+lease_expires_at: 2026-10-18T04:12:32Z
+worktree: .worktrees/T-0386
+branch: task/T-0386
 exclusive: []
 touches: [services/routing/tests/, services/routing/measure_runs.py, Tests/Fixtures/custom-model/]
 pins_affected: [P-PROD-01]
@@ -24,3 +24,4 @@ Run the LA GraphHopper container (WSL docker, the committed LA graph build; no V
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from T-0190 stillOpen 1.
+- 2026-10-17T04:12:32Z claimed by agent/claude-opus-5; lease until 2026-10-18T04:12:32Z
