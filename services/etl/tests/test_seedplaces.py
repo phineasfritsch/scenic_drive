@@ -204,35 +204,60 @@ def test_chunk_1000_is_accepted_and_dry_run_with_out_refused(tmp_path):
     assert main("--corpus", corpus, "--dry-run", "--out", str(tmp_path / "o")).returncode == 2
 
 
-def state(path: pathlib.Path):
-    """What is at `path`: None if nothing, the bytes of a regular file, else the directory's files by name."""
+def tree(path: pathlib.Path):
+    """The whole entry at `path`, never following a link: None if nothing there, ("link", target), ("file", bytes),
+    or ("dir", {name: tree(child)}) recursing into every subdirectory. Any other entry type fails the test."""
+    if path.is_symlink():
+        return ("link", os.readlink(path))
     if not path.exists():
         return None
-    return path.read_bytes() if path.is_file() else written(path)
+    if path.is_file():
+        return ("file", path.read_bytes())
+    assert path.is_dir(), path
+    return ("dir", {child.name: tree(child) for child in sorted(path.iterdir())})
 
 
-# --out PATH before the run: (name, the relative path, what to create there, accepted). The expected exit code,
-# stdout, stderr and after-state are each computed from the row and its absolute path below, never typed per row.
+def build(path: pathlib.Path, spec) -> None:
+    """Create `spec` (tree()'s shape) at `path`; a link the box cannot create skips the row."""
+    if spec is None:
+        return
+    kind, body = spec
+    if kind == "link":
+        try:
+            os.symlink(body, path)
+        except OSError as error:
+            pytest.skip(f"cannot create a symlink here: {error}")
+    elif kind == "file":
+        path.write_bytes(body)
+    else:
+        path.mkdir()
+        for name, child in body.items():
+            build(path / name, child)
+
+
+DIR, FILE = (lambda entries: ("dir", entries)), (lambda data: ("file", data))
+# --out PATH before the run: (name, the relative path, the tree there, accepted). Only an absent path or an empty
+# directory is accepted; the expected exit code, stdout, stderr and whole after-tree are computed from the row.
 OUT_STATES = [
     ("absent", "out", None, True),
     ("absent-under-an-absent-parent", "a/b/out", None, True),
-    ("existing-empty-dir", "out", {}, True),
-    ("existing-non-empty-dir", "out", {"keep.txt": "x"}, False),
-    ("existing-regular-file", "out", b"x", False),
-    ("existing-empty-regular-file", "out", b"", False),
+    ("empty-dir", "out", DIR({}), True),
+    ("dir-with-a-regular-file", "out", DIR({"keep.txt": FILE(b"x")}), False),
+    ("dir-with-an-empty-file", "out", DIR({"keep.txt": FILE(b"")}), False),
+    ("dir-with-an-empty-subdir", "out", DIR({"sub": DIR({})}), False),
+    ("dir-with-a-non-empty-subdir", "out", DIR({"sub": DIR({"keep.txt": FILE(b"x")})}), False),
+    ("dir-with-a-hidden-dotfile", "out", DIR({".keep": FILE(b"x")}), False),
+    ("dir-with-a-symlink", "out", DIR({"link": ("link", "nowhere")}), False),
+    ("regular-file", "out", FILE(b"x"), False),
+    ("empty-regular-file", "out", FILE(b""), False),
 ]
 
 
 @pytest.mark.parametrize("rel,before,accepted", [r[1:] for r in OUT_STATES], ids=[r[0] for r in OUT_STATES])
-def test_every_out_state_exits_0_or_2_with_exact_output_and_files(tmp_path, rel, before, accepted):
+def test_every_out_state_exits_0_or_2_with_exact_output_and_whole_tree(tmp_path, rel, before, accepted):
     out = tmp_path / rel
-    if isinstance(before, bytes):
-        out.write_bytes(before)
-    elif before is not None:
-        out.mkdir()
-        for name, text in before.items():
-            (out / name).write_text(text, encoding="ascii")
-    snapshot = state(out)
+    build(out, before)
+    assert tree(out) == before
     corpus = full_corpus(tmp_path / "c.sqlite", FIXTURE_ROWS)
     done = main("--corpus", str(corpus), "--out", str(out), "--chunk", str(FIXTURE_CHUNK))
     head = (f"seed-places: schema_version={schema.SCHEMA_VERSION} region=fx corpus_version=20261017T000000Z rows=5 "
@@ -240,10 +265,10 @@ def test_every_out_state_exits_0_or_2_with_exact_output_and_files(tmp_path, rel,
     if accepted:
         expected = (0, "".join(f"{line}\n" for line in [head] + [
             f"npx wrangler d1 execute scenic --remote --file {out / name}" for name in sorted(EXPECTED_FILES)]),
-            "", EXPECTED_FILES)
+            "", DIR({name: FILE(text.encode("ascii")) for name, text in EXPECTED_FILES.items()}))
     else:
-        expected = (2, "", f"seed-places: REFUSED: --out {out} exists and is not an empty directory\n", snapshot)
-    assert (done.returncode, done.stdout, done.stderr, state(out)) == expected
+        expected = (2, "", f"seed-places: REFUSED: --out {out} exists and is not an empty directory\n", before)
+    assert (done.returncode, done.stdout, done.stderr, tree(out)) == expected
 
 
 BOUNDS = [
