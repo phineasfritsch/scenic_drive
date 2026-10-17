@@ -235,3 +235,32 @@ and drive-dark and state, item by item, what each shot shows. Any new or changed
     after the card's struct).
   - DriveScreen.swift digest re-approved in check-safety-disclaimer-pinned: cb64f759... -> 99119f0f... (the rename
     and the surface gate, nothing else).
+- 2026-10-17T20:29:37Z acceptance re-quoted on the merged head a96fb6bc (origin/main e91ac77e, which carries PR #294
+  T-0396, merged in). Apple CI on 3d3eafcc (the Swift of this round): ios-compile 39064027337 "completed success",
+  ios-screenshot 39064030272 "completed success".
+  - Merge ruling: T-0396 moved the plan preview's conditions line from PlanPreviewCard.swift into
+    PlanPreviewActions.swift, and the merged head went RED on this task's own whitelist (20:13:10Z):
+    "P-SAFE-09: a line naming conditions, ... is not an approved whole line (26 found, 23 approved)", unapproved
+    the five PlanPreviewActions lines, missing PlanPreviewCard's `Text(PlanPreview.conditions)` and
+    `.accessibilityIdentifier("plan.conditions")`. SAFETY_APPROVED now names those five whole lines at their new
+    file (two `conditions` call sites, the block's head, the Text, the identifier) and drops the two moved rows.
+    GREEN: [0] "26 approved whole lines name conditions, ..." Not covered (out of this task's scope, filed to the
+    reviewer's judgement): PlanPreviewActions is not frozen whole the way the drive views now are.
+  - A3 PASS [0] check-drive-display.py "22 approved whole lines ... display", "26 approved whole lines ...",
+    "P-SAFE-03/09 (drive views): 3 structs (243 kept lines) are their approved whole blocks, each its file's last
+    code."; --prove-red [0] "PROVE-RED OK: 20/20 refused by name".
+  - A4 PASS [0] check-safety-disclaimer "Frozen (-frozen, -preview); 39 feature file(s), shell, footer pinned
+    (-pinned); doors over 117 .swift (-doors); LAST all 117 app .swift, then 336 root + pbxproj file(s) (-linked).";
+    [0] check-store-links "P-STORE-01 source half: ... at exactly their approved sites, mounted, in a frozen
+    Entitlements module"; [0] check-pins-yaml "PINS-YAML ok pins=53 fields=426"; [0] check-exec-bits "P-OPS-01: 254
+    files, 23 required present, all modes correct"; [0] queue-check "QUEUE OK (395 tasks)".
+  - A2 PASS [0] check-mutate-population "P-PROC-06: every added module is covered or allowlisted; the floor of 173
+    holds"; [0] check-mutate-only "MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64 ..." and
+    "NAME-PAIRS OK: 244250 pair tokens over 50 id populations ...". (One earlier worktree run of check-mutate-only
+    printed nothing and exited 1 while three other gates ran beside it; run bare it was [0] both times since.)
+  - A1 unchanged: no Sources/ or Tests/ byte changed this round (DriveScreen.swift is apps/ios).
+  - A5 wc -l: DriveScreen 147, DriveCard 111, DriveEndConfirm 60, check-drive-display.py 288,
+    drive_display_frozen.py 261 (100644).
+  - NOT completed locally: `bash ops/check-pins --source-only` started 20:30:21Z on this head and was still inside
+    check-map-attribution after 35 min on a box running other agents' pin sets; each gate the touched pins name was
+    run bare above instead, and CI's pins-source-only job on the pushed head is the confirmation.

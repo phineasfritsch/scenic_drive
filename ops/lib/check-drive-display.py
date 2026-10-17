@@ -79,10 +79,14 @@ DISCLAIMER = S + "FeatureScenicHome/SafetyDisclaimer.swift"
 SAFETY_APPROVED = [
     (PLAN + "LoopPreviewCard.swift", "Text(PlanPreview.estimateBadge)"),
     (PLAN + "LoopPreviewCard.swift", "Text(PlanPreview.conditions)"),
+    # T-0396 (merged from main): the plan preview's conditions line moved into its action block.
+    (PLAN + "PlanPreviewActions.swift", "conditions"),
+    (PLAN + "PlanPreviewActions.swift", "conditions"),
+    (PLAN + "PlanPreviewActions.swift", "private var conditions: some View {"),
+    (PLAN + "PlanPreviewActions.swift", "Text(PlanPreview.conditions)"),
+    (PLAN + "PlanPreviewActions.swift", '.accessibilityIdentifier("plan.conditions")'),
     (PLAN + "PlanPreviewCard.swift", "if preview.showsEstimateBadge {"),
     (PLAN + "PlanPreviewCard.swift", "Text(PlanPreview.estimateBadge)"),
-    (PLAN + "PlanPreviewCard.swift", "Text(PlanPreview.conditions)"),
-    (PLAN + "PlanPreviewCard.swift", '.accessibilityIdentifier("plan.conditions")'),
     (PLAN + "TripItineraryCard.swift", "Text(PlanPreview.estimateBadge)"),
     (PLAN + "TripItineraryCard.swift", "Text(PlanPreview.conditions)"),
     (CARD, "let showsEstimate: Bool"),
