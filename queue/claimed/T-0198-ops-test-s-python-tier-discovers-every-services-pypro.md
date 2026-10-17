@@ -176,3 +176,38 @@ pins-source-only. A regression in either directory is invisible to the one comma
     check-exec-bits `P-OPS-01: 246 files, 23 required present, all modes correct`; queue-check `QUEUE OK (385
     tasks)`. check-pins --source-only not re-run (124 on this box, as at 07:08); CI's pins-source-only job.
     `wc -l`: ops/test 161, ops/lib/python_suites.py 112, ops/lib/python-suites.txt 10.
+- 2026-10-17T14:03:11Z ROUND 2 (rv1 B1, stale base with drift in the measured populations) by agent/claude-opus-5
+  (owner). Merged origin/main 2daea62c (T-0387, T-0390, T-0392: etl test_gate_parity +3, routing
+  test_deploy_routing_rehearsal +2, Worker wranglerBindings) -> 621f138a, pushed it so CI measured it, then
+  origin/main 5e4150a0 (T-0391 wrangler.jsonc ROUTER_URL/GRAPH_VERSION, queue files only otherwise) -> ab1f3763.
+  - R10 The ceilings and the floor are measurements over the populations main just changed, so they are re-read,
+    not carried: ceilings may only stay or rise if a host now skips more; the floor may only rise.
+  - MEASURED, this box, bare `bash ops/test` on 621f138a, rc=0 in 1581 s: `PYTEST services/etl=4112
+    services/tiles=82 services/routing=52(skipped=4)` / `TESTS linux=7910/7902 ios=skipped failed=0 skipped=4` /
+    `OK`.
+  - MEASURED, CI core job, PR #285 run 39029933315 on 621f138a (core pass 12m45s, pins-source-only pass 5m14s):
+    `PYTEST services/etl=4112(skipped=1) services/tiles=82 services/routing=52(skipped=23)` / `TESTS
+    linux=7953/7902 ios=skipped failed=0 skipped=24` / `OK`.
+  - Ceilings: the max skipped over both hosts is etl 1 (CI) / tiles 0 / routing 23 (CI) - unchanged, so
+    ops/lib/python-suites.txt is not edited. The two new rehearsal tests run (not skip) on both hosts.
+  - A4 floor: BEFORE 7902 (this box 7902, CI 7945 on 2042f960). AFTER this box 7910, CI 7953; the lower is 7910,
+    so pins/floor_linux.txt 7902 -> 7910 (a raise).
+  - M3a re-confirmed on the merged head (fm's note): services/tiles/tests/conftest.py planted, its
+    pytest_collection_modifyitems adding pytest.mark.skip to every item, floor 7910 in the working tree; bare
+    `bash ops/test` rc=1 in 2074 s: `FAIL: services/tiles: all 82 tests skipped - a suite that executes nothing is
+    not green` / `FAIL: services/tiles: 82 tests skipped, over its max-skipped=0 in ops/lib/python-suites.txt` /
+    `PYTEST services/etl=4112 services/tiles=82(skipped=82) services/routing=52(skipped=4)` / `TESTS
+    linux=7910/7910 ios=skipped failed=0 skipped=86`. The floor alone holds at 7910/7910 - only the per-row
+    max-skipped and executed>0 checks name tiles, which is the mechanism. conftest removed (`rm`, __pycache__
+    purged) before this commit; `git status` showed only pins/floor_linux.txt modified.
+  - A5 on ab1f3763 with floor 7910, this box, bare `bash ops/test` twice, both rc=1 on services/api vitest
+    STACK_TRACE_ERROR timeouts (no services/api file is in this diff; the box is loaded): run 1 in 1550 s
+    `PYTEST services/etl=4112 services/tiles=82 services/routing=52(skipped=4)` / `TESTS linux=7896/7910
+    ios=skipped failed=3 skipped=4` (authAppleFields, configAnswerPath, planCost: vitest reported 2676 tests, 14
+    fewer, after the timeouts); run 2 in 675 s `PYTEST services/etl=4112 services/tiles=82
+    services/routing=52(skipped=4)` / `TESTS linux=7910/7910 ios=skipped failed=1 skipped=4` (waitlist T-0296).
+    Alone, `npx vitest run` on ab1f3763: `Tests 1 failed | 2689 passed (2690)`, the failure configAnswerPath at
+    5017ms (the 5 s timeout); `npx vitest run test/configAnswerPath.test.ts test/sessionIdentity.test.ts`:
+    `Tests 43 passed (43)`. The python tier and the floor are green on this box; "exit 0" is NOT shown on this box
+    for this head and rests on the PR's CI core job on the pushed head.
+  - `wc -l`: ops/test 161, ops/lib/python_suites.py 112, ops/lib/python-suites.txt 10.
