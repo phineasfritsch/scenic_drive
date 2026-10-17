@@ -133,3 +133,18 @@ A5. ios-compile and ios-screenshot succeed on task/T-0404 (run ids quoted). In h
   so the footer's environment on home is not an accessibility size in that capture; one line is R3's answer there.
   plan-preview-ax5 (previous run) one line at about 19pt, single party. Digest re-approved (3373eb72 -> 0ea47037),
   `wc -l` 100, check-map-attribution exit=0. Re-dispatching for the dark look.
+- 2026-10-17T21:10:31Z LOOKED at ios-screenshot 39066945425 (compile 39066941463, both success, 12065615): home-dark-medium one
+  line, light-grey glyphs in a crisp navy outline, legible on the light demo tiles; home-light-medium one line, slate
+  in a white outline; plan-preview-dark one line in the sheet inset. (drive-dark/drive-light footer band not
+  re-cropped in this run; drive-light was one line in 39062709376.) FINAL, after git fetch + merge of origin/main
+  (b42d014e, origin/main is an ancestor), acceptance re-run on the merged head:
+  A1 `wc -l` AttributionFooter.swift = 100. A2 read in the diff: caption2, no background/RoundedRectangle, every
+  visible Text lineLimit(1), dynamicTypeSize(...accessibility2), accessibilityLabel(Text(text)), identifier
+  attribution.footer, accessibilityHidden(false). A3 check-map-attribution exit=0 ("37 feature file(s), the app
+  shell and AttributionFooter.swift pinned by sha256"); --prove-red as on main (T-0413). A4 check-safety-disclaimer
+  exit=0; check-mutate-population exit=0 ("the floor of 173 holds"); check-mutate-only exit=0 ("MUTATE-ONLY OK: 248
+  of 248"); check-pins-yaml exit=0 ("PINS-YAML ok pins=53 fields=426"); check-exec-bits exit=0 ("P-OPS-01: 253
+  files"); queue-check exit=0 ("QUEUE OK (396 tasks)"). A5 runs 39066941463 / 39066945425 success; footer one line
+  at default size in light and dark on home, plan-preview and drive; at most two lines at AX sizes (plan-preview-ax5
+  one line, single party; home-ax5 draws at the default caption size); no word broken; no box; covers the coastline
+  only, never the route line, the (i), Start or the disclaimer line. Gap: no drive-ax5 capture on main.
