@@ -200,3 +200,38 @@ street names is not shippable. The next tiles task, not a nicety.
     tree and a pin whose tree digest is that tree's), `curl` and `docker` stubbed first on PATH recording argv, and asserts
     the SET of curl upload URLs == `<endpoint>/<bucket>/<prefix>/` + basename of sidecar and both styles + every
     publish-list entry with spaces as %20, and the docker upload argv's key == `<prefix>/la.pmtiles` with the bucket URL.
+- 2026-10-17T13:32:52Z agent/claude-opus-5 rv1 B1/B2 CLOSED as ruled at 11:47:17Z (work commit a57b5e76; origin/main merged
+  as 41c977d1 before the gates below). Driver services/tiles/work/mutants_r2_t0196.py (gitignored; exact-once site,
+  __pycache__ purged and 1.1 s between runs, files restored byte-for-byte; `restored:` showed only the committed edits):
+  - GREEN 12:32:09Z `test_publish_upload_keys.py test_embedded_style_identity.py test_style_tokens.py`: exit 0,
+    `38 passed in 120.05s`.
+  - B2 mutant `"$ENDPOINT/$R2_BUCKET/$PREFIX/${rel// /%20}"` -> `"$ENDPOINT/$R2_BUCKET/${rel// /%20}"`: MISSED
+    12:39:45Z by the old tests (`test_publish_refusal.py test_basemap_assets.py`): exit 0, `23 passed in 438.57s`;
+    CAUGHT 12:41:51Z: exit 1, `FAILED services\tiles\tests\test_publish_upload_keys.py::test_every_upload_lands_under_the_prefix_at_the_key_the_styles_name`,
+    `1 failed in 119.75s`. The test's curl recorder is ALSO exported as a bash function (`BASH_FUNC_curl%%`): with only
+    the PATH stub the ~515 shell spawns timed out at 300 s on this box (`1 failed in 322.55s`, TimeoutExpired); the PATH
+    stub stays behind it so no real curl is ever reachable.
+  - B1 mutant (both Swift literals restored to 58e88ce4's labelled ones; that head's own suite was green, A1 above):
+    CAUGHT 12:42:02Z, exit 1, `FAILED ...::test_the_device_style_requests_nothing_the_app_does_not_rewrite[light-ScenicLightStyle]`
+    and `[dark-ScenicDarkStyle]`, `2 failed in 1.44s`. Its in-process RED twin,
+    test_the_published_labelled_style_as_the_device_style_is_refused, asserts the exact three problem lines.
+  - Device style now = main's style plus the R5 `kind` filters (diff vs origin/main of the Swift literals: four
+    `pmap:kind` -> `kind` lines and the doc line naming styles/embedded/). Published styles unchanged byte-for-byte.
+  - Digests re-approved in ops/lib/check-safety-disclaimer-pinned: ScenicLightStyle.swift b98c7a7c...0a6b74,
+    ScenicDarkStyle.swift 829ccc9b...eb9270.
+  - Apple CI on a57b5e76: ios-compile run 39035365905 `completed success`; ios-screenshot run 39035404874
+    `completed success`. LOOKED at home-light-collapsed.png and home-dark-medium.png: the map draws (land, coast, water,
+    route lines, attribution footer). That is the DEMO basemap (no la.pmtiles on the simulator, R8), so the shot shows the
+    app is not broken; it does not exercise the embedded protomaps style. The whitelist test is what covers that style.
+  - Gates on the merged head 41c977d1, BARE, EXIT 0 each: check-safety-disclaimer (`... LAST all 114 app .swift, then 335
+    root + pbxproj file(s) (-linked).`); check-mutate-population.py (`P-PROC-06: every added module is covered or
+    allowlisted; the floor of 171 holds`); check-mutate-only.py (`MUTATE-ONLY OK: 241 of 241 driver runs refused with exit
+    64 ...`, `NAME-PAIRS OK: 239389 pair tokens over 48 id populations ...`); check-pins-yaml.py (`PINS-YAML ok pins=53
+    fields=426`); check-exec-bits (`P-OPS-01: 245 files, 23 required present, all modes correct`); queue-check
+    (`QUEUE OK (386 tasks)`). Touched tests on the merged head: `38 passed in 42.27s`. check-line-cap not re-run (EXIT 124
+    at 600 s before); `wc -l`: make_styles.py 291, test_embedded_style_identity.py 196, test_style_tokens.py 224,
+    test_publish_upload_keys.py 116, README.md 101, styles/embedded/scenic-{light,dark}.json 194 each,
+    ScenicLightStyle.swift 221, ScenicDarkStyle.swift 221 - all <= 300.
+  - STILL OPEN: (1) R3 as corrected at 11:47:17Z - labels on device need ScenicStyleDocument to rewrite `basemap://` to
+    the archive's directory AND refuse when glyphs/ and sprites/ are absent there; until then the device style carries
+    none. (2) R8, (3) T-0198 floor, (4) check-line-cap timeout - unchanged.
