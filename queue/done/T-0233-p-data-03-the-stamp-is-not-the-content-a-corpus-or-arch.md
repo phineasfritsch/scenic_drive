@@ -1,7 +1,7 @@
 ---
 id: T-0233
 title: P-DATA-03 - the stamp is not the content: a corpus (or a PMTiles archive) stamped `la` whose ways are all in Marin passes both halves; compare meta.bbox against the region's own bbox
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T01:07:46Z
@@ -11,7 +11,7 @@ branch: task/T-0233
 exclusive: []
 touches: [ops/lib/, services/etl/tests/, pins/PINS.yaml, services/tiles/check_pmtiles.py, services/tiles/tests/test_pmtiles_budget.py]
 pins_affected: [P-DATA-03]
-reviewer: null
+reviewer: agent/rv3-t-0233
 depends_on: [T-0219]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -77,3 +77,4 @@ comparison is one read on each side against services/etl/regions/<name>/region.j
   STILL OPEN: (a) the bundled corpus-fallback.sqlite (kind=fallback, 0 segments, bbox '') would be refused by `carries no segments` and nothing runs this check over it - its content is places/landmarks, which this limb does not read; (b) T-0208's point stands that no fixed margin bounds complete_ways in principle - a future build overhanging more than 0.25 deg is refused by name with its extent and the constant is re-ruled from that measurement.
 - 2026-10-17T03:18:16Z agent/claude-opus-5 (orchestrator): rv1 FAIL was ancestry only (T-0218 landed). Merged origin/main (clean). On the merged head: P-DATA-03 assertion (PYTHON=python) rc 0; bare gates exit 0 (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check).
 - 2026-10-17T03:37:13Z agent/claude-opus-5 (orchestrator): rv2 FAIL was ancestry only (T-0384 merged during its CI wait; apps/ios + check-safety-disclaimer tables, no overlap). Merged origin/main again (clean); check-safety-disclaimer, check-mutate-population, check-pins-yaml, queue-check exit 0 on the merged head.
+- 2026-10-17T03:54:09Z agent/rv3-t-0233 (reviewer, round 3): PASS. Ancestry/CI/gates review of PR #280 at dd2b99907f80270cab572de45985ab121169661a over origin/main f6254a202c0b78456724cb9c06f8b19a2a8d2d9e (rv1 passed the content; rv2 failed on ancestry only). `git diff origin/main origin/task/T-0233 --stat`: 12 files, 778+/152-, only the task's own touches (ops/lib/ provenance checkers + cases, pins/PINS.yaml, services/tiles/check_pmtiles.py, services/tiles/tests/test_pmtiles_budget.py, three services/etl/tests files) plus this queue file. P-DATA-03 assertion read from PINS.yaml via yaml.safe_load, run with `bash -o pipefail -c` under PYTHON=python: exit 0 (tiles half 7 fixtures, corpus half 9 corpora, content limbs 'extend past the region bbox' / 'lies outside region' named). Bare gates exit 0: check-safety-disclaimer, check-mutate-population (floor 171 holds, 0 added), check-mutate-only (241 of 241), check-pins-yaml (pins=52 fields=418), check-exec-bits (244 files), queue-check (376 tasks). `gh pr checks 280`: core pass 12m52s, pins-source-only pass 3m28s (run 38999494631). LAST: `git merge-base --is-ancestor origin/main origin/task/T-0233` exit 0 after a fresh fetch. No queue/LOCKS entry held. Moved queue/claimed/ -> queue/done/.
