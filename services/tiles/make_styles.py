@@ -15,8 +15,8 @@ the label ids `LABEL_LAYERS` names and nothing else (T-0196 R6).
 
 LABELS. `glyphs` and `sprite` hang off ONE variable, `ASSETS_BASE`, a placeholder like the archive's
 `pmtiles://la.pmtiles`: the files live beside the archive under the same prefix (`basemap_assets.py`
-builds and checks them; `ops/publish-tiles` uploads them), and the app replaces the base with the
-directory holding la.pmtiles.
+builds and checks them; `ops/publish-tiles` uploads them). The app does NOT rewrite the base yet, so the
+EMBEDDED styles (`styles/embedded/`, the Swift literals) carry no glyphs, sprite or symbol layer at all.
 """
 
 from __future__ import annotations
@@ -72,6 +72,7 @@ KIND = "kind"
 ASSETS_BASE = "basemap://"
 GLYPHS = ASSETS_BASE + "glyphs/{fontstack}/{range}.pbf"
 LABEL_LAYERS = ("roads-label", "places-label")
+EMBEDDED_DIR = "embedded"
 
 
 def fill(layer_id: str, source_layer: str, role: str, opacity: float | None = None, **extra) -> dict:
@@ -107,9 +108,9 @@ def width(stops: list[tuple[int, float]]) -> list:
     return out
 
 
-def spec() -> list[dict]:
-    """The layer list, bottom to top, with roles where colours go."""
-    return [
+def spec(labels: bool = True) -> list[dict]:
+    """The layer list, bottom to top, with roles where colours go; `labels=False` drops `LABEL_LAYERS`."""
+    layers = [
         {"id": "background", "type": "background", "paint": {"background-color": {"role": "land"}}},
         fill("earth", "earth", "land"),
         fill("landcover", "landcover", "green", opacity=0.22),
@@ -149,6 +150,7 @@ def spec() -> list[dict]:
         {**label("places-label", "places", "Noto Sans Medium", width([(8, 11), (14, 15)])),
          "filter": ["match", ["get", KIND], ["locality", "neighbourhood"], True, False]},
     ]
+    return layers if labels else [layer for layer in layers if layer["id"] not in LABEL_LAYERS]
 
 
 def resolve(node, appearance: str):
@@ -165,8 +167,9 @@ def resolve(node, appearance: str):
     return node
 
 
-def style(appearance: str, archive_name: str) -> dict:
-    layers = resolve(spec(), appearance)
+def style(appearance: str, archive_name: str, labels: bool = True) -> dict:
+    """`labels=False` is the EMBEDDED style: no glyphs, no sprite, no symbol layer (T-0196 rv1 B1)."""
+    layers = resolve(spec(labels), appearance)
     for layer in layers:
         if layer.get("source-layer") and layer["source-layer"] not in SOURCE_LAYERS:
             raise KeyError(f"{layer['id']} names source-layer {layer['source-layer']!r}, not in the archive")
@@ -180,8 +183,7 @@ def style(appearance: str, archive_name: str) -> dict:
             "scenic:attribution_owner": "DesignSystem.AttributionFooter",
             "scenic:archive": archive_name,
         },
-        "glyphs": GLYPHS,
-        "sprite": f"{ASSETS_BASE}sprites/v4/{appearance}",
+        **({"glyphs": GLYPHS, "sprite": f"{ASSETS_BASE}sprites/v4/{appearance}"} if labels else {}),
         "sources": {
             # The app rewrites this to the on-device file URL after the first-run download. The committed
             # value is the artifact's own name so the style never ships pointing at a URL nobody built.
@@ -273,11 +275,15 @@ def main(argv: list[str] | None = None) -> int:
               f"in {args.archive.name}")
         return 0
 
-    args.out_dir.mkdir(parents=True, exist_ok=True)
-    for appearance in ("light", "dark"):
-        path = args.out_dir / f"scenic-{appearance}.json"
-        path.write_text(dumps(style(appearance, args.archive_name)) + "\n", encoding="utf-8", newline="\n")
-        print(f"make_styles: wrote {path}")
+    # The published styles carry the labels; the embedded ones (the Swift literals) carry none until the app
+    # rewrites `basemap://` - a glyph URL that resolves to nothing stalls tile layout in MapLibre native.
+    for directory, labels in ((args.out_dir, True), (args.out_dir / EMBEDDED_DIR, False)):
+        directory.mkdir(parents=True, exist_ok=True)
+        for appearance in ("light", "dark"):
+            path = directory / f"scenic-{appearance}.json"
+            text = dumps(style(appearance, args.archive_name, labels)) + "\n"
+            path.write_text(text, encoding="utf-8", newline="\n")
+            print(f"make_styles: wrote {path}")
     return 0
 
 

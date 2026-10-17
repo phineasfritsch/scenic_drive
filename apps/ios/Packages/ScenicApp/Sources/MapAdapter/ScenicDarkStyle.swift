@@ -1,6 +1,6 @@
 import Foundation
 
-/// The dark-appearance basemap style, byte-equal to `services/tiles/styles/scenic-dark.json`.
+/// The dark-appearance basemap style, byte-equal to `services/tiles/styles/embedded/scenic-dark.json`.
 ///
 /// **Why a string literal and not a bundle resource.** `MapAdapter`'s target in
 /// `apps/ios/Packages/ScenicApp/Package.swift` declares no `resources:`, so a `.json` dropped into
@@ -31,8 +31,6 @@ public enum ScenicDarkStyle {
     "scenic:attribution_owner": "DesignSystem.AttributionFooter",
     "scenic:archive": "la.pmtiles"
   },
-  "glyphs": "basemap://glyphs/{fontstack}/{range}.pbf",
-  "sprite": "basemap://sprites/v4/dark",
   "sources": {
     "protomaps": {
       "type": "vector",
@@ -216,42 +214,6 @@ public enum ScenicDarkStyle {
         "line-cap": "round",
         "line-join": "round"
       }
-    },
-    {
-      "id": "roads-label",
-      "type": "symbol",
-      "source": "protomaps",
-      "source-layer": "roads",
-      "layout": {
-        "text-field": ["get", "name"],
-        "text-font": ["Noto Sans Regular"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10, 16, 13],
-        "symbol-placement": "line"
-      },
-      "paint": {
-        "text-color": "#F8FAFC",
-        "text-halo-color": "#0F172A",
-        "text-halo-width": 1.5
-      },
-      "minzoom": 12,
-      "filter": ["match", ["get", "kind"], ["highway", "major_road", "minor_road"], true, false]
-    },
-    {
-      "id": "places-label",
-      "type": "symbol",
-      "source": "protomaps",
-      "source-layer": "places",
-      "layout": {
-        "text-field": ["get", "name"],
-        "text-font": ["Noto Sans Medium"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 8, 11, 14, 15]
-      },
-      "paint": {
-        "text-color": "#F8FAFC",
-        "text-halo-color": "#0F172A",
-        "text-halo-width": 1.5
-      },
-      "filter": ["match", ["get", "kind"], ["locality", "neighbourhood"], true, false]
     }
   ]
 }

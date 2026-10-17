@@ -156,6 +156,16 @@ def test_the_committed_file_is_what_the_generator_emits(appearance: str) -> None
     assert on_disk == dumps(style(appearance, "la.pmtiles")) + "\n"
 
 
+def test_main_emits_exactly_the_committed_published_and_embedded_styles(tmp_path: Path) -> None:
+    """Through the shipping entry point: the four files it writes ARE the committed four, byte for byte."""
+    assert make_styles_main(["--out-dir", str(tmp_path)]) == 0
+    emitted = sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file())
+    assert emitted == ["embedded/scenic-dark.json", "embedded/scenic-light.json",
+                       "scenic-dark.json", "scenic-light.json"]
+    for rel in emitted:
+        assert (tmp_path / rel).read_bytes() == (STYLES_DIR / rel).read_bytes(), rel
+
+
 @pytest.mark.parametrize("appearance", APPEARANCES)
 def test_the_route_line_is_six_over_a_two_point_casing(appearance: str) -> None:
     """DesignTokens describes the route as a 6 pt line over a 2 pt casing; the style is where that lives."""

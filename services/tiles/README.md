@@ -73,8 +73,11 @@ ground, so a label underneath cannot cover the credit. The symbol layers are exa
 `glyphs` and `sprite` hang off one variable, `make_styles.ASSETS_BASE = "basemap://"`, a placeholder like
 `pmtiles://la.pmtiles`: the files sit beside the archive under the same prefix
 (`glyphs/<fontstack>/<range>.pbf`, `sprites/v4/<appearance>{,@2x}.{json,png}`), never on a third-party CDN.
-The app must replace `basemap://` with the directory holding la.pmtiles; until `ScenicStyleDocument` does,
-labels do not draw on device.
+Only the PUBLISHED styles (`styles/scenic-<appearance>.json`) carry them. `ScenicStyleDocument` rewrites only
+`pmtiles://la.pmtiles`, and a glyph request MapLibre native cannot load leaves every labelled tile without ANY
+layer, so the EMBEDDED styles (`styles/embedded/`, byte-equal to the Swift literals in MapAdapter) carry no
+`glyphs`, no `sprite` and no symbol layer until the app rewrites `basemap://` to the archive's directory
+(`test_the_device_style_requests_nothing_the_app_does_not_rewrite`). `make_styles.py` writes all four.
 
     python services/tiles/basemap_assets.py build --work services/tiles/work [--archive TARBALL]
     python services/tiles/basemap_assets.py check --work services/tiles/work

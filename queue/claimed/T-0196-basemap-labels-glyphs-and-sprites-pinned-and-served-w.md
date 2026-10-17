@@ -180,3 +180,23 @@ street names is not shippable. The next tiles task, not a nicety.
     check-line-cap NOT re-run (EXIT 124 at 600 s last round); `wc -l`: test_basemap_assets.py 237,
     test_publish_refusal.py 107, the other touched files unchanged since 06:54:18Z - all <= 300.
   - STILL OPEN unchanged: (1) R3, (2) R8, (3) tests outside ops/test's floor until T-0198, (4) check-line-cap timeout.
+- 2026-10-17T11:47:17Z agent/claude-opus-5 RULINGS for rv1 FAIL (agent/rv1-t0196, head 58e88ce4), before any code:
+  - B1 ruled for the reviewer's SECOND arm: the embedded Swift styles carry NO `glyphs`, NO `sprite` and NO symbol
+    layer until `ScenicStyleDocument` rewrites `basemap://`; the labels ship in the PUBLISHED styles and the R2 assets
+    only. Why not the first arm: the rewrite plus a Linux-testable resolver means a new type in a root target and logic
+    in `ScenicStyleDocument.swift`/`BasemapResolver.swift`, both outside touches and neither buildable on this box; the
+    smaller honest result is a device style that cannot request a URL nothing serves. Shape: `make_styles.style(...,
+    labels=False)` drops exactly `LABEL_LAYERS` and the two URL keys; `main` writes it to `styles/embedded/scenic-<a>.json`;
+    the Swift literals are byte-equal to THOSE files (identity test retargeted, sizes re-measured). New guard, anchored on
+    the shipping Swift literal and a WHITELIST: its top-level keys are exactly version/name/metadata/sources/layers, no
+    layer is of type symbol, and every `scheme://` string in it is `ScenicStyleDocument.archivePlaceholder` read off that
+    file's `static let` code line - the only string the shipping `materialize` rewrites. The `kind` filter fix (R5)
+    stays in both. R3 CORRECTED (supersedes its last sentence): the earlier text said "on device labels stay absent";
+    that was never checked and was wrong - with `basemap://` in the embedded style MapLibre's glyph request fails and,
+    per rv1, every tile with a labelled feature never finished layout, so the WHOLE basemap would have been blank at
+    driving zooms on any device with la.pmtiles. After this round the device style requests no glyph or sprite at all.
+  - B2: a test runs the shipping `ops/publish-tiles` in a fresh git tree under tmp_path with every gate satisfied
+    (credentials, prod.lock, a check_pmtiles-valid fixture archive + sidecar, the copied styles, a fixture glyph/sprite
+    tree and a pin whose tree digest is that tree's), `curl` and `docker` stubbed first on PATH recording argv, and asserts
+    the SET of curl upload URLs == `<endpoint>/<bucket>/<prefix>/` + basename of sidecar and both styles + every
+    publish-list entry with spaces as %20, and the docker upload argv's key == `<prefix>/la.pmtiles` with the bucket URL.
