@@ -19,7 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from check_pmtiles import read_metadata  # noqa: E402
-from make_styles import SOURCE_LAYERS, TOKENS, dumps, style  # noqa: E402
+from make_styles import SOURCE_LAYERS, TOKENS, dumps, fields_named, style  # noqa: E402
+from make_styles import main as make_styles_main  # noqa: E402
 from test_pmtiles_budget import LA_BBOX, good_metadata, write_pmtiles  # noqa: E402
 
 STYLES_DIR = Path(__file__).resolve().parents[1] / "styles"
@@ -92,13 +93,15 @@ def test_nothing_claims_the_lower_right_corner(appearance: str) -> None:
     """AttributionFooter owns that corner; the style contributes nothing to it.
 
     A style cannot reserve screen space. What it can do is declare no source attribution (so the
-    renderer's own control draws nothing) and carry no symbol layer (so no label can be placed there).
+    renderer's own control draws nothing). The footer is SwiftUI drawn ABOVE the map on its own 85% ground,
+    so a label underneath cannot cover it (T-0196 R6); the symbol layers are exactly the two label layers,
+    so a new one - POI icons, shields - is a deliberate edit of this list.
     """
     document = load(appearance)
     for name, source in document["sources"].items():
         assert "attribution" not in source, f"{name} declares attribution; the footer already credits it"
     symbols = [layer["id"] for layer in document["layers"] if layer["type"] == "symbol"]
-    assert symbols == []
+    assert symbols == ["roads-label", "places-label"]
     assert document["metadata"]["scenic:attribution_owner"] == "DesignSystem.AttributionFooter"
 
 
@@ -153,6 +156,16 @@ def test_the_committed_file_is_what_the_generator_emits(appearance: str) -> None
     assert on_disk == dumps(style(appearance, "la.pmtiles")) + "\n"
 
 
+def test_main_emits_exactly_the_committed_published_and_embedded_styles(tmp_path: Path) -> None:
+    """Through the shipping entry point: the four files it writes ARE the committed four, byte for byte."""
+    assert make_styles_main(["--out-dir", str(tmp_path)]) == 0
+    emitted = sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file())
+    assert emitted == ["embedded/scenic-dark.json", "embedded/scenic-light.json",
+                       "scenic-dark.json", "scenic-light.json"]
+    for rel in emitted:
+        assert (tmp_path / rel).read_bytes() == (STYLES_DIR / rel).read_bytes(), rel
+
+
 @pytest.mark.parametrize("appearance", APPEARANCES)
 def test_the_route_line_is_six_over_a_two_point_casing(appearance: str) -> None:
     """DesignTokens describes the route as a 6 pt line over a 2 pt casing; the style is where that lives."""
@@ -167,6 +180,45 @@ def test_the_route_line_is_six_over_a_two_point_casing(appearance: str) -> None:
 
 
 @pytest.mark.parametrize("appearance", APPEARANCES)
-def test_no_glyphs_url_is_declared(appearance: str) -> None:
-    """The font PBFs are not built. A `glyphs` that 404s renders no labels while claiming it has them."""
-    assert "glyphs" not in load(appearance)
+def test_glyphs_and_sprite_are_served_beside_the_archive(appearance: str) -> None:
+    """One base, the archive's own prefix; never a third-party CDN (basemap_assets.py checks the files)."""
+    document = load(appearance)
+    assert document["glyphs"] == "basemap://glyphs/{fontstack}/{range}.pbf"
+    assert document["sprite"] == f"basemap://sprites/v4/{appearance}"
+
+
+# The fields the LA archive declares per source-layer (T-0196 M2, `name:xx` omitted), typed HERE for the same
+# reason as ARCHIVE_VECTOR_LAYERS. There is no `pmap:kind`: that was the v3 spelling.
+ARCHIVE_FIELDS = {
+    "earth": {"kind", "min_zoom", "name"}, "landcover": {"kind"}, "landuse": {"kind", "sort_rank"},
+    "water": {"kind", "kind_detail", "min_zoom", "name"}, "buildings": {"kind", "height"},
+    "roads": {"kind", "kind_detail", "min_zoom", "name", "ref"}, "places": {"kind", "min_zoom", "name"},
+    "boundaries": {"kind"}, "pois": {"kind", "name"},
+}
+
+
+def fields_fixture(tmp_path: Path, fields: dict[str, set[str]]) -> Path:
+    layers = [{"id": name, "fields": {f: "String" for f in sorted(fields.get(name, set()))}}
+              for name in ARCHIVE_VECTOR_LAYERS]
+    return write_pmtiles(tmp_path / "fields.pmtiles", LA_BBOX, good_metadata(vector_layers=layers))
+
+
+def test_every_field_a_layer_reads_is_in_the_archive(tmp_path: Path) -> None:
+    """Through `make_styles --check`, the entry point build-la.sh runs."""
+    assert make_styles_main(["--check", "--archive", str(fields_fixture(tmp_path, ARCHIVE_FIELDS))]) == 0
+
+
+def test_a_filter_on_the_v3_field_name_is_refused(tmp_path: Path) -> None:
+    """RED: an archive whose roads carry `pmap:kind` and no `kind` - the field today's filters read is absent."""
+    v3 = {**ARCHIVE_FIELDS, "roads": {"pmap:kind", "name"}}
+    assert make_styles_main(["--check", "--archive", str(fields_fixture(tmp_path, v3))]) == 1
+
+
+@pytest.mark.parametrize("appearance", APPEARANCES)
+def test_the_committed_layers_read_only_archive_fields(appearance: str) -> None:
+    named = {layer["id"]: fields_named(layer) for layer in load(appearance)["layers"]
+             if layer.get("source") == "protomaps"}
+    assert any(named.values()), "no layer reads a field; this would pass vacuously"
+    for layer_id, fields in named.items():
+        source_layer = next(x["source-layer"] for x in load(appearance)["layers"] if x["id"] == layer_id)
+        assert fields <= ARCHIVE_FIELDS[source_layer], f"{layer_id} reads {sorted(fields)}"

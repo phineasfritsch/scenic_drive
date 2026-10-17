@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publish the built PMTiles artifact, its sidecar and the two styles to Cloudflare R2.
+# Publish the built PMTiles artifact, its sidecar, the two styles and their glyphs/sprites to Cloudflare R2.
 #
 #   ops/publish-tiles [--artifact PATH] [--prefix tiles/v1]
 #
@@ -64,6 +64,12 @@ fi
   --region-json "services/etl/regions/$("${PYTHON:-python3}" -c \
     "import json,sys; print(json.load(open(sys.argv[1]))['region'])" "$SIDECAR")/region.json"
 
+# The label assets: every glyph range and sprite sheet the two styles request must be built beside the
+# archive and match the pinned tree, or the styles would go up pointing at files that 404.
+WORK="$(dirname "$ARTIFACT")"
+"${PYTHON:-python3}" services/tiles/basemap_assets.py check --work "$WORK"
+ASSET_LIST="$("${PYTHON:-python3}" services/tiles/basemap_assets.py publish-list --work "$WORK" | tr -d '\r')"
+
 ENDPOINT="https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
 BUCKET_URL="s3://$R2_BUCKET?endpoint=$ENDPOINT&region=auto&s3ForcePathStyle=true"
 echo "publishing $(basename "$ARTIFACT") to $R2_BUCKET/$PREFIX/"
@@ -83,5 +89,24 @@ for f in "$SIDECAR" services/tiles/styles/scenic-light.json services/tiles/style
     --upload-file "$f" "$ENDPOINT/$R2_BUCKET/$PREFIX/$(basename "$f")"
   echo "PUT $PREFIX/$(basename "$f")"
 done
+
+# The glyphs and sprites, under the SAME prefix as the archive: the styles name them relative to it.
+# A font stack is a directory with spaces in its name, so the key's spaces go up as %20.
+assets=0
+while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  case "$rel" in
+    *.pbf) type="application/x-protobuf" ;;
+    *.png) type="image/png" ;;
+    *.json) type="application/json" ;;
+    *) type="text/plain" ;;
+  esac
+  curl -fsS -X PUT --aws-sigv4 "aws:amz:auto:s3" \
+    --user "$R2_ACCESS_KEY_ID:$R2_SECRET_ACCESS_KEY" \
+    -H "Content-Type: $type" \
+    --upload-file "$WORK/$rel" "$ENDPOINT/$R2_BUCKET/$PREFIX/${rel// /%20}"
+  assets=$((assets + 1))
+done <<< "$ASSET_LIST"
+echo "PUT $assets label asset(s) under $PREFIX/glyphs and $PREFIX/sprites"
 
 echo "PUBLISHED $PREFIX/$(basename "$ARTIFACT") sha256=$actual"
