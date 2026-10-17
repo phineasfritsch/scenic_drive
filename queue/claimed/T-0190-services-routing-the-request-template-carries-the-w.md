@@ -17,7 +17,7 @@ verify: [ops/test, ops/check-pins]
 acceptance:
   - "(1) ONE RECORD. Tests/Fixtures/custom-model/lambda-<l>.json for l in {0, 1, 2, 2.5, 4, 7.75, 8} is the only copy of the per-request model outside the Worker: services/api/test/customModelGolden.test.ts asserts every file BYTE-EQUAL to JSON.stringify(buildCustomModel(l, null), null, 2) + newline through the shipped builder, and the recorded file set EQUAL to exactly those seven lambdas (whole-set equality, so a file added or deleted is red too). The Worker is the source of truth; the fixture is the oracle record. RED BY NAME first, each run through vitest and quoted: (a) MULTIPLIER_DECIMALS 6 -> 4 in customModel.ts; (b) the MINOR_CONDITION clause dropped from buildCustomModel; (c) the second clause of lambda-4.json written `if` instead of `else_if`; (d) lambda-2.json deleted - then green."
   - "(2) NO HAND COPY LEFT. services/routing/profiles/car_scenic_request.json and services/routing/profiles/scenic_lambda_bands.json are deleted; test_lambda_monotone.py, test_route_details.py and measure_runs.py write the recorded lambda-<l>.json files into the models directory as-is (no placeholder substitution) through one helper, services/routing/tests/request_models.py; `git grep -n -E 'car_scenic_request|scenic_lambda_bands' -- services Tests Sources` prints nothing."
-  - "(3) THE ORACLE'S VIEW. services/routing/tests/test_profiles_static.py reads the recorded models for the oracle lambdas {0, 1, 2, 4, 8} and asserts, each red by name first then green: the clause chain by KEY is exactly if, else_if x7, else (the old _condition() read `if` and `else_if` alike, so a band written `if` passed - (c) above must be red here too); every multiplier is \"1\" at lambda 0 and none grows with lambda clause by clause; no condition names MOTORWAY or TRUNK; every identifier a model reads is in config.yml graph.encoded_values; no model reads an encoded value the base profile's zero gates read, other than road_class."
+  - "(3) THE ORACLE'S VIEW. services/routing/tests/test_request_models_static.py (split from test_profiles_static.py for the 300-line cap; ruled 2026-10-17T01:27:05Z) reads the recorded models for the oracle lambdas {0, 1, 2, 4, 8} and asserts, each red by name first then green: the clause chain by KEY is one if, then else_if only, then one else - its length read off the record, not typed (a typed x7 would be a second copy of BAND_LADDER) - (the old _condition() read `if` and `else_if` alike, so a band written `if` passed - (c) above must be red here too); every multiplier is \"1\" at lambda 0 and none grows with lambda clause by clause; no condition names MOTORWAY or TRUNK; every identifier a model reads is in config.yml graph.encoded_values; no model reads an encoded value the base profile's zero gates read, other than road_class."
   - "(4) P-SAFE-01's JSON half. test_profiles_static.py compares car_scenic_base.json's priority list WHOLE to a typed literal of its nine zero clauses - RED BY NAME with `priority: []` (and with the TRACK clause dropped), then green."
   - "(5) ROUTED VERMONT RUN - UNVERIFIED IN THIS TASK, recorded as such: no GraphHopper run (workflow instruction; no graph in the worktree). The models now routed differ from the old template (9 clauses not 3, distance_influence 0 not the base's 30, slopes (7-s)/7 not 0/0.5/1), so the five T(lambda) durations and test_lambda_penalty_bites's measured +43% WILL move; the re-measure is named in stillOpen as its own task."
   - "(6) COUNTS AT THE FINAL COMMIT: services/routing pytest count line; the vitest count line for customModelGolden.test.ts; bash ops/check-pins --source-only, bash ops/queue-check and the bare gates, run on the merged head."
@@ -97,3 +97,27 @@ LA drive from the CLI) should run over the model production sends.
      by FileNotFoundError, not by a gate test). Out of this task's touches; named in stillOpen, not widened.
   R9 depends_on T-0209 (LA graph) is in queue/done. Not needed for this container-free task.
   Acceptance rewritten to (1)-(6) above; the filed bullets are superseded by R1-R7.
+- 2026-10-17T01:27:05Z RED BY NAME, then green, by agent/claude-opus-5 (driver .build/t0190/mutants.py: one mutant
+  applied, `npx vitest run test/customModelGolden.test.ts` and `pytest tests/test_profiles_static.py
+  tests/test_request_models_static.py` run, file restored; __pycache__ purged and 1.1 s python-sleep per run):
+    (1a) MULTIPLIER_DECIMALS 6 -> 4 in customModel.ts: vitest exit=1, 6 failed | 2 passed (8) - lambda-1, -2, -2.5,
+         -4, -7.75, -8 "is byte-equal to buildCustomModel(l, null)"; pytest 10 passed (it reads records, by design).
+    (1b) MINOR_CONDITION clause line dropped from buildCustomModel: vitest exit=1, 7 failed | 1 passed (8) - every
+         lambda-<l>.json byte-equality; pytest 10 passed (by design).
+    (1c)=(3) lambda-4.json second clause written `if`: vitest 1 failed (lambda-4.json is byte-equal...); pytest
+         2 failed - test_the_clause_chain_is_one_if_then_else_ifs_then_one_else,
+         test_no_clause_multiplier_grows_with_lambda.
+    (1d) lambda-2.json deleted: vitest 2 failed - "records exactly the seven lambdas the Swift port and the routing
+         oracle read", lambda-2.json byte-equality; pytest 5 failed (recorded() refuses the missing lambda).
+    (4)  base `priority: []`: vitest 8 passed; pytest 3 failed - test_base_profile_priority_is_the_nine_safety_gates,
+         test_the_t0381_gates_are_read_and_built, test_every_value_a_model_reads_is_built_and_none_is_a_gate_value.
+    (4)  base TRACK clause dropped: pytest 1 failed - test_base_profile_priority_is_the_nine_safety_gates.
+    (3)  lambda-8 dullest band 0.111111 -> 0.6: vitest 1 failed; pytest test_no_clause_multiplier_grows_with_lambda.
+    (3)  lambda-0 minor clause + `&& road_access == YES`: vitest 1 failed; pytest
+         test_every_value_a_model_reads_is_built_and_none_is_a_gate_value (+ the shared-shape check).
+    (3)  lambda-2 threshold 3 -> 6 (dead band): vitest 1 failed; pytest test_the_band_thresholds_strictly_descend.
+    RESTORED: vitest exit=0 8 passed (8); pytest exit=0 10 passed. Full routing suite: 43 passed, 3 skipped
+    (baseline 41 passed, 3 skipped: -4 template/band tests deleted with their files, +1 base pin, +5 record checks).
+  Also rewired, no assertion change: test_route_details.py / test_route_details_fixture.py (lambda-0, -8) and
+  measure_runs.py route the record through request_models.write_models. Tests/Fixtures/custom-model/PROVENANCE.txt
+  appended (no earlier line edited).

@@ -24,7 +24,7 @@ graph; a worktree does not carry gitignored work/, so it is copied in first and 
     cp -r ../../services/routing/work/t0213/graph-la-window services/routing/work/t0224/graph-la-window
     python services/routing/tests/measure_runs.py
 
-    # which runs, after substituting profiles/scenic_lambda_bands.json into profiles/car_scenic_request.json:
+    # which runs, over the Worker's recorded models (Tests/Fixtures/custom-model, T-0190):
     docker run --rm -e JAVA_TOOL_OPTIONS=-Xmx4g -v <graph>:/graph -v <models>:/models:ro scenic-routing:t0213 \
       --config /app/config.yml --graph /graph --mode route --from 34.0387,-118.5836 --to 34.0938,-118.6045 \
       --fast-profile car_fast --scenic-profile car_scenic --models /models
@@ -43,6 +43,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import request_models
+
 IMAGE = "scenic-routing:t0213"
 LAMBDAS = (0, 8)
 
@@ -55,8 +57,6 @@ T0213_TIME_MS = 507242
 ROUTING = Path(__file__).resolve().parents[1]
 REPO = ROUTING.parents[1]
 POM = ROUTING / "plugins" / "scenic-score-parser" / "pom.xml"
-TEMPLATE = ROUTING / "profiles" / "car_scenic_request.json"
-BANDS = ROUTING / "profiles" / "scenic_lambda_bands.json"
 WORK = ROUTING / "work" / "t0224"
 MODELS = WORK / "models"
 GRAPH_CANDIDATES = (
@@ -100,23 +100,12 @@ def graph() -> Path:
 
 
 def write_models() -> Path:
-    """Substitute each lambda's band multipliers into the shipped per-request model (committed profiles)."""
-    template = TEMPLATE.read_text(encoding="utf-8")
-    bands = json.loads(BANDS.read_text(encoding="utf-8"))
-    if MODELS.exists():
-        shutil.rmtree(MODELS)
-    MODELS.mkdir(parents=True)
+    """The Worker's recorded models (Tests/Fixtures/custom-model, T-0190), copied unchanged."""
+    models = request_models.write_models(MODELS, LAMBDAS)
     for value in LAMBDAS:
-        band = bands[str(value)]
-        model = template
-        for name in ("high", "mid", "low"):
-            model = model.replace("${" + name + "}", band[name])
-        if "${" in model:
-            raise SystemExit(f"unsubstituted placeholder left in the model for lambda={value}")
-        json.loads(model)
-        (MODELS / f"lambda-{value}.json").write_text(model, encoding="utf-8")
-        print(f"  lambda={value} model={json.dumps(json.loads(model)['priority'])}")
-    return MODELS
+        model = json.loads((models / f"lambda-{value}.json").read_text(encoding="utf-8"))
+        print(f"  lambda={value} model={json.dumps(model['priority'])}")
+    return models
 
 
 def route(graph_dir: Path, models: Path) -> dict:
@@ -169,7 +158,7 @@ def main() -> int:
     graph_dir = graph()
     print(f"ROUTED PAIR from={FROM_POINT} to={TO_POINT}  graph={graph_dir}")
     print(f"T-0213 recorded car_fast time_ms={T0213_TIME_MS} distance_m={T0213_DISTANCE_M} on this pair")
-    print("PER-REQUEST MODELS (profiles/scenic_lambda_bands.json into profiles/car_scenic_request.json):")
+    print("PER-REQUEST MODELS (the Worker's recorded models, Tests/Fixtures/custom-model):")
     models = write_models()
     print("ROUTE:")
     parsed = route(graph_dir, models)
