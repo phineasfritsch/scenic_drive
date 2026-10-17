@@ -146,3 +146,33 @@ then green.
   A10 PASS ios-compile 39046312312 completed success; ios-screenshot 39046317171 completed success, surprise-ax5.png
      present. (Runs were on a55f2d2f; the merge brought no FeatureSurpriseMe, workflow or DesignSystem change.)
   No root Swift test touched (Sources/ScenicKit and Tests/ unchanged), so no swift test run.
+- 2026-10-17T16:57:25Z agent/claude-opus-5: pre-review mutant pass (worktree mp-t-0398 at a8005bc6). SURVIVOR M1
+  (BLOCKING): both `estimateTag` lines deleted from SurpriseCard's ViewThatFits - the round trip reads "About N min"
+  with no "estimate · no traffic data" badge - red only on P-SAFE-03's sha256 digest, green after the routine digest
+  re-approval; it breaks the product invariant "ETAs show the badge until >= 5 learned samples". M2 (secondaries
+  filled) and M3 (44 pt dropped) were caught by digest only and break no invariant: not survivors, no change.
+  Ruling R-mp-1: close M1 by CLASS, not by spelling - "an ETA surface that stops drawing its estimate badge, or a new
+  surface that draws an ETA without one". No Swift edit (no digest to re-approve). New guard
+  ops/lib/check-estimate-badge.py (P-SAFE-07's screen half, wired into P-SAFE-07's assertion in pins/PINS.yaml),
+  approved data ops/lib/check-estimate-badge-approved.txt (generated once from the tree, then reviewed), two
+  WHITELISTS: (1) every apps/ios line naming estimate, estimateBadge, etaIsEstimate, showsEstimateBadge, estimateTag,
+  roundTripMinutes, roundTrip, roundTripValue, etaLine, etaSeconds, fastestEtaSeconds or durationSeconds is an approved
+  whole line in scan order (population measured: 36 lines in 8 files); (2) nine badge blocks frozen as whole lines
+  with their first non-blank line above and below: SurpriseCard's `roundTrip(minutes: pick.reason.roundTripMinutes)`
+  call, `roundTrip`, `roundTripValue`, `estimateTag` and the `Copy.estimate` literal; PlanPreviewCard, LoopPreviewCard,
+  TripItineraryCard and DriveScreen's badge `if` blocks. Lines trimmed, only `//`-leading lines dropped.
+  RED then GREEN on the real tree (bare runs):
+    before: `python ops/lib/check-estimate-badge.py` exit=0 "36 approved whole lines ... 9 badge blocks equal their
+      approved bodies and fences."
+    M1 applied (`sed -i '171d;175d'` SurpriseCard.swift, `git diff --stat` "2 deletions(-)"): exit=1 "P-SAFE-07: a line
+      naming an ETA or the estimate badge is not an approved whole line (34 found, 36 approved) ... missing:
+      SurpriseCard.swift: estimateTag / SurpriseCard.swift: estimateTag". The guard reads no digest, so the routine
+      digest re-approval that let M1 survive does not turn it green.
+    restored (`git checkout --`): exit=0, same green line.
+  `--prove-red`: "PROVE-RED OK: 9/9 refused by name" - M1, the AX branch alone losing the tag, the tag drawn with
+  `.opacity(0)`, its copy respelled `Text("estimate")`, `.hidden()` after the round-trip call, the call behind
+  `if false {`, the plan card's badge condition replaced, the drive screen's badge `.hidden()`, a new SurpriseEta.swift
+  drawing `etaSeconds`. P-SAFE-07's whole assertion run as written: exit=0 (named tests, guard, prove-red).
+  check-pins-yaml "PINS-YAML ok pins=53 fields=426" exit=0; check-exec-bits "P-OPS-01: 252 files, 23 required present,
+  all modes correct" exit=0 (the .py stays 100644 like check-drive-display.py; it runs through python).
+  CANNOT SEE: whether the badge renders (ios-screenshot), an ETA under a name none of the words spells.
