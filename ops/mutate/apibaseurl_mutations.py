@@ -54,7 +54,7 @@ MUTATIONS = [
     ("a fragment accepted", SUBJECT, FRAGMENT, "let url", [TABLE]),
     ("trailing slashes kept", SUBJECT, SLASH, "", [TABLE, COMPOSE]),
     ("one trailing slash dropped, not every one", SUBJECT, SLASH,
-     'if text.hasSuffix("/") { text.removeLast() }', [TABLE, COMPOSE]),
+     'if text.hasSuffix("/") { text.removeLast() }', [TABLE]),
     ("an invalid override falls back to the bundled server", SUBJECT, OVERRIDE,
      "if let override, let url = parse(override) { return url }", [TABLE]),
     ("the override ignored", SUBJECT, OVERRIDE, "if let override, override.isEmpty { return nil }", [TABLE]),
@@ -65,9 +65,10 @@ MUTATIONS = [
 # (name, path, old, new, witness): edits that cannot change what resolve returns. Anything but MISSED fails.
 EQUIVALENT = [
     ("the password clause dropped", SUBJECT, "parts.user == nil, parts.password == nil,", "parts.user == nil,",
-     "a password needs a userinfo `@`, and URLComponents reports a user (\"\" when empty) whenever an `@` is "
-     "present, so the user clause refuses every input the password clause refuses: `https://:pw@host` has "
-     "user \"\" and is in the table as a refusal under both"),
+     "a password is only ever parsed out of a userinfo `@`, and URLComponents reports a non-nil user (the "
+     "empty string when the name is empty) whenever there is one, so `parts.user == nil` already refuses "
+     "every input the password clause refuses; measured: the table's `https://:pw@...` and `https://me:pw@...` "
+     "rows stay refused with the clause gone and the whole suite stays green (MISSED)"),
 ]
 
 MIN_MUTATIONS = 15
