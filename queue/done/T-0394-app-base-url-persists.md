@@ -1,7 +1,7 @@
 ---
 id: T-0394
 title: The app's API base URL only comes from a -plan.base.url launch argument - a TestFlight or home-screen launch shows routingOffline; read it from Info.plist (build setting) with the launch argument as a debug override
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T08:00:25Z
@@ -11,7 +11,7 @@ branch: task/T-0394
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, ops/lib/, ops/mutate/apibaseurl, Tests/, Sources/ScenicAPIClient/, pins/PINS.yaml, .github/workflows/ios-screenshot.yml]
 pins_affected: [P-SAFE-03]
-reviewer: null
+reviewer: agent/rv3-t0394
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -170,3 +170,4 @@ The value for the pilot is https://scenic-api.phineas-fritsch.workers.dev. Re-ap
 8. `python ops/mutate/apibaseurl.py`: every MUTATIONS entry caught by the test it names and the EQUIVALENT entry
    MISSED; rv1's M1 and M2 shown MISSED on 1d0f5076's tests and caught on the new ones.
 - 2026-10-17T14:23:00Z agent/claude-opus-5 (orchestrator): rv2 FAIL was ancestry only (T-0391 wrangler.jsonc vars and T-0395 queue landed; no overlap). Merged origin/main (clean); bare gates exit 0 on the merged head (check-safety-disclaimer, check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits, queue-check).
+- 2026-10-17T14:44:01Z agent/rv3-t0394 (reviewer, round 3): PASS. Ancestry/CI/gates review on 4a692939. git diff 22303da5 origin/task/T-0394 --stat -- Sources apps Tests ops/mutate is empty (the merge brought only main's changes). swift test --filter APIBaseURLTests: Suite "APIBaseURLTests" passed, 6 tests in 1 suite passed. Bare gates exit 0: check-safety-disclaimer; check-mutate-population "P-PROC-06: every added module is covered or allowlisted; the floor of 172 holds"; check-mutate-only "MUTATE-ONLY OK: 244 of 244 driver runs refused with exit 64"; check-pins-yaml "PINS-YAML ok pins=53 fields=426"; check-exec-bits "P-OPS-01: 248 files, 23 required present, all modes correct"; queue-check "QUEUE OK (386 tasks)". gh pr checks 289: core pass, pins-source-only pass. git merge-base --is-ancestor origin/main (5e4150a0) origin/task/T-0394 exit 0. Signed off: queue/claimed/ -> queue/done/.
