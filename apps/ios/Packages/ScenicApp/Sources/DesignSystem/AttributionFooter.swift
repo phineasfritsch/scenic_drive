@@ -67,10 +67,13 @@ public struct AttributionFooter: View {
             .lineLimit(1)
             .minimumScaleFactor(0.5)
             .allowsTightening(true)
-            // No box: a tight halo in the surface colour keeps the glyphs legible on any tile and covers
-            // nothing beyond the letters.
-            .shadow(color: DesignTokens.surface, radius: 1)
-            .shadow(color: DesignTokens.surface, radius: 1)
+            // No box: a crisp one-point outline in `surface` - the ground `fgMuted` clears 4.5:1 against in both
+            // appearances - keeps the glyphs legible on any tile and covers nothing beyond the letters. Blurred
+            // shadows went translucent and muddy on the light demo tiles in dark mode (run 39065139596).
+            .shadow(color: DesignTokens.surface, radius: 0, x: 1, y: 0)
+            .shadow(color: DesignTokens.surface, radius: 0, x: -1, y: 0)
+            .shadow(color: DesignTokens.surface, radius: 0, x: 0, y: 1)
+            .shadow(color: DesignTokens.surface, radius: 0, x: 0, y: -1)
     }
 
     /// The credit split at its " · " separators into at most two lines with the most even lengths. The first

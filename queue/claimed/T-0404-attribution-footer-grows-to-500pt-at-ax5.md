@@ -122,3 +122,14 @@ A5. ios-compile and ios-screenshot succeed on task/T-0404 (run ids quoted). In h
   "else a two-line strip"); fixed by deciding the split instead of measuring it: at accessibility sizes the
   footer is always the strip (one line for a single party). Digest re-approved (9058c06d -> 3373eb72),
   `wc -l` 97, check-map-attribution exit=0. Re-dispatching.
+- 2026-10-17T20:28:52Z LOOKED at ios-screenshot 39065139596 (compile 39065132586, both success, b01c72bd). Light: home-light-medium
+  one line over the map just above the sheet, crossing only the coastline, clear of the route and the (i);
+  plan-preview-light one line "Route data © OpenStreetMap contributors" in the sheet's bottom inset above the mode
+  bar, clear of Start and the disclaimer line (both now above the fold). DARK: home-dark-medium and drive-dark one
+  line, but the blurred navy halo over the LIGHT demo tiles (CI's dark mode still draws the light demo style) went
+  translucent and muddy - grey text in grey fog, a legibility regression against the old box. Fixed: the halo is a
+  crisp one-point outline in `surface` (four radius-0 shadows), the ground fgMuted clears 4.5:1 against.
+  home-ax5-medium/collapsed: one line at the DEFAULT caption size, and the home sheet's own text is not at AX5 either,
+  so the footer's environment on home is not an accessibility size in that capture; one line is R3's answer there.
+  plan-preview-ax5 (previous run) one line at about 19pt, single party. Digest re-approved (3373eb72 -> 0ea47037),
+  `wc -l` 100, check-map-attribution exit=0. Re-dispatching for the dark look.
