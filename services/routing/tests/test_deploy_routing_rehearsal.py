@@ -95,7 +95,7 @@ def test_refuses_when_head_is_not_on_origin(transcript):
 def test_a_rehearsed_deploy_uploads_restarts_and_reports_what_is_live(transcript):
     section = _section(transcript, "rehearsed deploy 1")
     assert any(line.startswith("DEPLOY-ROUTING OK sha=") for line in section), section
-    assert "[stub] systemctl restart scenic-routing" in section, "the restart step did not run"
+    assert "[stub] docker compose up" in section, "the restart step did not run"
     assert "exit=0" in section, section
 
 
@@ -119,3 +119,15 @@ def test_three_deploys_keep_exactly_the_two_newest_releases(transcript):
     releases = sorted(_section(transcript, "releases on disk"))
     assert len(releases) == KEEP, f"after three deploys {len(releases)} releases are on disk, not {KEEP}: {releases}"
     assert oldest not in releases, f"the oldest release {oldest} was not pruned: {releases}"
+
+
+def test_refuses_a_box_without_the_secret_file(transcript):
+    section = _section(transcript, "refusal 4: the box has no secret file")
+    assert any("DEPLOY-ROUTING REFUSED" in line and "router.secret.env" in line for line in section), section
+    assert "exit=1" in section
+
+
+def test_a_release_carries_the_compose_bundle_and_restarts_through_compose(transcript):
+    assert sorted(_section(transcript, "the bundle under current")) == ["Caddyfile", "compose.yaml"]
+    assert _section(transcript, "the default restart command") == [
+        "docker compose -p scenic-routing --env-file '$SECRET_FILE' up -d --build --remove-orphans"]

@@ -10,14 +10,22 @@
   // ROUTER_URL: our GraphHopper. The shipped value is RFC 2606's reserved, non-routable .invalid, which
   // routerDepsFromEnv counts as ABSENT (T-0256 R8): /plan and /loop answer 503 planning_unavailable until the owner
   // sets the real URL here AND `wrangler secret put ROUTER_SECRET`. No secret value lives in this file.
-  // The closures cron (T-0276 R6): Caltrans LCS D7 into the CLOSURES KV namespace, which the owner creates and binds.
+  // The closures cron (T-0276 R6): Caltrans LCS D7 into the CLOSURES KV namespace (bound below, T-0390).
   "triggers": { "crons": ["*/15 * * * *"] },
   // IDENTITY_HEADERS "1": the bare x-scenic-device / x-scenic-account-token identity stays honoured for a caller with
   // no session JWT (T-0278 R6) - the app has no App Attest yet; the owner unsets it when the app's attest task ships.
-  "vars": { "GIT_SHA": "dev", "BUILT_AT": "dev", "ROUTER_URL": "https://router.invalid", "IDENTITY_HEADERS": "1" },
-  // Per-device daily and global monthly quota counters (T-0256 R1). The KILL_SWITCH KV namespace is NOT bound
-  // here: creating it is the owner's step; the Worker reads it when bound and the KILL var always (R5).
+  "vars": { "GIT_SHA": "dev", "BUILT_AT": "dev", "ROUTER_URL": "https://scenic-router.phineasfritsch.com", "GRAPH_VERSION": "d802c10291f219e4fbeda1a5501a2c7863df15733231a69e69a94ef17e20acb9", "IDENTITY_HEADERS": "1" },
+  // Per-device daily and global monthly quota counters (T-0256 R1). The KV KILL_SWITCH key KILL = "1" pauses like the
+  // KILL var (R5).
   "durable_objects": { "bindings": [{ "name": "QUOTA", "class_name": "QuotaCounter" }] },
+  // T-0390: the production KV namespaces the owner created on 2026-10-17 (ids are not secrets). The binding names are
+  // the ones src/index.ts's Env reads; test/wranglerBindings.test.ts compares the two sets whole.
+  "kv_namespaces": [
+    { "binding": "PLANS", "id": "33e411b3b03246a19cda166c0c05cfd6" },
+    { "binding": "CONFIG", "id": "8dd224a7fb554dc4a270f67162d28bb6" },
+    { "binding": "KILL_SWITCH", "id": "8946404cc991458196d195c65ea15d7b" },
+    { "binding": "CLOSURES", "id": "5e3eb553f16c4e4ba4d5297e001ef5ea" }
+  ],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuotaCounter"] }],
   // T-0279 R7: the telemetry data points. Declared only - Analytics Engine makes the dataset on its first write,
   // which no test and no agent performs; tests inject a recording binding.
