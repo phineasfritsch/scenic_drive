@@ -115,6 +115,40 @@ The value for the pilot is https://scenic-api.phineas-fritsch.workers.dev. Re-ap
     instead (`wc -l` over every file this branch changes): largest code files check-base-url-sites.py 212 and
     ios_screenshot_pinned.py 298; check-safety-disclaimer-pinned is 389 (388 on e41a7170, +1 row for
     LiveBaseURL.swift; an existing data table). CI's line-cap is the confirmation.
+- 2026-10-17T12:00:29Z rv1 FAIL (agent/rv1-t0394, head 1d0f5076) closed by class. Ruling: the 09:26 entry's
+  `check-mutate-population (the floor of 171 holds)` rc=0 is not reproducible; bare on this worktree at 1d0f5076 it
+  exits 1 with `P-PROC-06: module(s) added by this branch with no mutation population:
+  Sources/ScenicAPIClient/APIBaseURL.swift`, the CI failure. That line is left as written (dated record).
+  - B1: ops/mutate/apibaseurl.py (driver, 100644 like straightline.py; check-exec-bits refused 100755 as `data`) +
+    apibaseurl_mutations.py: SUBJECT_MODULES = APIBaseURL.swift, 15 MUTATIONS (MIN_MUTATIONS 15), 1 EQUIVALENT with
+    a witness (MIN_EQUIVALENT 1: the password clause, subsumed by `parts.user == nil`); DRIVERS and COVERED_FLOOR
+    gain it. touches: gains ops/mutate/apibaseurl. `--prove-floor`: `FLOOR PROOF OK: 6 of 6 arms refused, control
+    clean`; `--only 999999`: rc=64 `REFUSING TO RUN: --only names no entry of this population: 999999`.
+  - B2 (class: an empty host in any spelling) rows `https://:443`, `https://:443/`, `https://@`, `https://@:443`,
+    `https://:pw@<pilot host>`. B3 (class: whitespace anywhere, decided by the rule, not by URLComponents): rows with
+    space/tab/newline/NBSP inside a path, plus GENERATED near-miss corpus `whitespaceInsertedAnywhereInAnAcceptedBaseIsRefused`:
+    18 whitespace characters (ASCII, U+0085, U+00A0, U+1680, U+2000-class, U+2028/9, U+202F, U+205F, U+3000) at
+    every position of 4 accepted seeds, as bundled AND as override; its meta-test checks every seed is accepted,
+    every character `isWhitespace`, and the corpus size is chars x (len+1) per seed.
+  - RED, the reviewer's mutants on the OLD tests (1d0f5076's APIBaseURLTests.swift put back, `--only 1,2,3,4`):
+    `MISSED M1 the empty-host clause dropped (rv1 B2) exit=0`, `MISSED M2 the whitespace clause dropped (rv1 B3)
+    exit=0`, `MISSED the whitespace clause narrowed to a space`, `MISSED the whitespace clause narrowed to newlines`;
+    `PARTIAL FAILED: 0 of 4`.
+  - GREEN, the new tests, full run on b72ea8c1: `caught M1 ... red:
+    resolveMatchesTheTableRowByRow()`, `caught M2 ... red: resolveMatchesTheTableRowByRow() |
+    whitespaceInsertedAnywhereInAnAcceptedBaseIsRefused()`, both narrowings caught by the same two; 14 of 15 caught,
+    EQUIVALENT `MISSED the password clause dropped exit=0`; entry 11 (one trailing slash) WRONG_KILLER - it named
+    the compose test, which composes `pilot/` + `plan` like `pilot` + `plan`. Its killer list now names the table
+    only (the `pilot//` row); re-run of that touched entry alone: `caught one trailing slash dropped, not every one
+    red: resolveMatchesTheTableRowByRow()`, `PARTIAL OK: 1 of 1` (on 817af55b). 15/15 across the two runs; no full re-run.
+  - Merged origin/main (2daea62c) clean; it changes no Sources/, Tests/ or apps/ios file. On the merged head:
+    APIBaseURLTests `√ Test run with 6 tests in 1 suite passed`. Gates bare, each rc=0:
+    check-safety-disclaimer `LAST all 115 app .swift, then 336 root + pbxproj file(s) (-linked)`;
+    check-mutate-population `P-PROC-06: every added module is covered or allowlisted; the floor of 172 holds`;
+    check-mutate-only `MUTATE-ONLY OK: 244 of 244 driver runs refused with exit 64 (66 drivers, ...)` and
+    `NAME-PAIRS OK: 239614 pair tokens ...`; check-pins-yaml `PINS-YAML ok pins=53 fields=426`; check-exec-bits
+    `P-OPS-01: 248 files, 23 required present, all modes correct`; queue-check `QUEUE OK (385 tasks)`.
+  - `wc -l`: apibaseurl.py 215, apibaseurl_mutations.py 76, APIBaseURLTests.swift 121, mutate_population_table.py 121.
 
 ## Acceptance
 1. `swift test --scratch-path .build/t-0394 --filter APIBaseURLTests` passes; the suite holds the R3/R4 table
@@ -133,3 +167,5 @@ The value for the pilot is https://scenic-api.phineas-fritsch.workers.dev. Re-ap
 6. Gates bare: check-pins-yaml, check-mutate-population, check-mutate-only, check-exec-bits, queue-check,
    check-store-links, check-telemetry-emit-sites, check-map-attribution exit 0.
 7. ios-compile on task/T-0394 succeeds.
+8. `python ops/mutate/apibaseurl.py`: every MUTATIONS entry caught by the test it names and the EQUIVALENT entry
+   MISSED; rv1's M1 and M2 shown MISSED on 1d0f5076's tests and caught on the new ones.
