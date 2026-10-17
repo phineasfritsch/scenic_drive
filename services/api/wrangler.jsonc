@@ -14,7 +14,7 @@
   "triggers": { "crons": ["*/15 * * * *"] },
   // IDENTITY_HEADERS "1": the bare x-scenic-device / x-scenic-account-token identity stays honoured for a caller with
   // no session JWT (T-0278 R6) - the app has no App Attest yet; the owner unsets it when the app's attest task ships.
-  "vars": { "GIT_SHA": "dev", "BUILT_AT": "dev", "ROUTER_URL": "https://router.invalid", "IDENTITY_HEADERS": "1" },
+  "vars": { "GIT_SHA": "dev", "BUILT_AT": "dev", "ROUTER_URL": "https://scenic-router.phineasfritsch.com", "GRAPH_VERSION": "d802c10291f219e4fbeda1a5501a2c7863df15733231a69e69a94ef17e20acb9", "IDENTITY_HEADERS": "1" },
   // Per-device daily and global monthly quota counters (T-0256 R1). The KV KILL_SWITCH key KILL = "1" pauses like the
   // KILL var (R5).
   "durable_objects": { "bindings": [{ "name": "QUOTA", "class_name": "QuotaCounter" }] },
