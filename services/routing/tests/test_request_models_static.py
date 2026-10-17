@@ -22,7 +22,7 @@ import json
 import re
 from pathlib import Path
 
-from request_models import ORACLE_LAMBDAS, recorded
+from request_models import ORACLE_LAMBDAS, RECORD, recorded, write_models
 
 ROUTING = Path(__file__).resolve().parents[1]
 BASE = ROUTING / "profiles" / "car_scenic_base.json"
@@ -121,3 +121,34 @@ def test_every_value_a_model_reads_is_built_and_none_is_a_gate_value():
             f"lambda-{value}.json reads the base profile's gate values {sorted(read & gates)}: a request model "
             f"that names a gate value could relax it"
         )
+
+
+# The label sets the routed tests hand write_models: the oracle's five (test_lambda_monotone, measure_runs) and
+# test_route_details' pair.
+WRITTEN_LABEL_SETS = (ORACLE_LAMBDAS, (0, 8))
+
+
+def test_the_oracle_records_are_pairwise_distinct():
+    blobs = {value: (RECORD / f"lambda-{value}.json").read_bytes() for value in ORACLE_LAMBDAS}
+    shared = [(a, b) for a in ORACLE_LAMBDAS for b in ORACLE_LAMBDAS if a < b and blobs[a] == blobs[b]]
+    assert not shared, f"recorded models share bytes across lambdas {shared}: a label swap between them is invisible"
+
+
+def test_write_models_writes_each_label_its_own_record_bytes(tmp_path):
+    """T-0386 pre-review: write_models copying lambda-4's record under the lambda-8 label passed every test - the
+    routed lambda-8 still bit past the floor. The written directory is held by full equality: exactly the asked
+    labels, each byte-equal to its record read straight off Tests/Fixtures/custom-model (not through recorded()),
+    and a stale file left in the directory is gone."""
+    for labels in WRITTEN_LABEL_SETS:
+        directory = tmp_path / "models"
+        directory.mkdir(exist_ok=True)
+        (directory / "lambda-3.json").write_bytes(b"{}")
+        returned = write_models(directory, labels)
+        assert returned == directory, f"write_models returned {returned}, not {directory}"
+        written = {path.name: path.read_bytes() for path in directory.iterdir()}
+        expected = {f"lambda-{value}.json": (RECORD / f"lambda-{value}.json").read_bytes() for value in labels}
+        assert written.keys() == expected.keys(), (
+            f"write_models{labels} wrote {sorted(written)}, not {sorted(expected)}"
+        )
+        wrong = sorted(name for name in expected if written[name] != expected[name])
+        assert not wrong, f"write_models{labels} wrote {wrong} with bytes other than the record under that label"
