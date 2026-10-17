@@ -119,3 +119,46 @@ and drive-dark and state, item by item, what each shot shows. Any new or changed
     "PROVE-RED OK: 9/9 refused by name", including the two new mutations (the End target at 44 pt while moving;
     the confirm left up when the drive moves).
   - Apple CI dispatched on e3723608: ios-compile 39047780264, ios-screenshot 39047784409.
+- 2026-10-17T16:37:00Z shots (agent/claude-opus-5). ios-compile 39047780264 "completed success" (3m33s);
+  ios-screenshot 39047784409 "completed success" (22m10s). LOOKED at drive-light.png and drive-dark.png:
+  - drive-light (A8): map with the rehearsal's kinked road drawn (the reroute was taken); the credit pill
+    "© MapLibre · Natural Earth · Route data © OpenStreetMap contributors" bottom-right directly above the card,
+    two lines, not covered; card on white: first row "Conditions change. Verify locally." (.caption, full width);
+    "Arrive 4:41 PM" (.title2 semibold); "23 min · 1.9 mi" (muted); "estimate · no traffic data" (caption, muted);
+    trailing short red capsule "End", measured 200 x 135 px on the 920-px-wide preview (402 pt wide screen) =
+    ~87 x 59 pt, i.e. the 88 pt minimum width and the moving 60 pt height. No full-width orange button, no x glyph. Nothing clipped or overlapping.
+    23 min matches the rehearsal reroute's 1380 s with nothing past a vertex yet.
+  - drive-dark (A9): the same elements on the navy surface; text light, the End pill the dark-mode red (#F87171)
+    with the dark onPrimary label; the credit pill dark. Legible. The map tiles stay pale green (the demo tiles;
+    dark map style is out of scope).
+  - A10: run 39047784409 had NO drive-ax5 (the workflow's ax5 LIST omitted drive). Added drive to the ax5 LIST in
+    ios-screenshot.yml and its pin ops/lib/ios_screenshot_pinned.py. RED before the pin moved:
+    `python ops/lib/check-ios-compile-guardrails.py` -> "IOS-COMPILE-GUARDRAILS: workflow.jobs.simulator-screenshot.
+    steps[4].run: differs from the pinned value (compared by equality)" / "IOS-COMPILE-GUARDRAILS FAIL: 1
+    guardrail(s) gone in ios-screenshot.yml"; GREEN after: "IOS-COMPILE-GUARDRAILS OK: ios-screenshot.yml equals the
+    pinned workflow". Re-dispatched ios-screenshot 39050093003 on 1ead1091.
+- 2026-10-17T17:07:55Z ax5 shot and the final acceptance re-run on the merged head 3cddb61d (origin/main merged
+  last) (agent/claude-opus-5). ios-screenshot 39050093003 "completed success" (25m52s); LOOKED at drive-ax5.png:
+  - drive-ax5 (A10): the card is stacked: "Conditions change. Verify locally." wrapped onto 2 lines at the top,
+    "Arrive 5:23 PM" one line, "23 min · 1.9 mi", "estimate · no traffic data" wrapped onto 2 lines, then a
+    full-width red "End" capsule (~50 pt). Nothing in the card is clipped or overlapping; no word breaks.
+    FOUND, NOT FIXED HERE (outside touches): AttributionFooter (DesignSystem) at AX5 grows to a 6-line pill that
+    covers the upper map, the route line and MapLibre's (i) ornament, and hyphenates "OpenStreet-Map". The same
+    footer draws on home; it needs its own task (DesignSystem is not in T-0397's touches).
+  - drive-light / drive-dark of 39050093003 match 39047784409 (described above).
+  ACCEPTANCE re-quoted:
+  - A1 PASS "Test run with 86 tests in 16 suites passed" (the 14 drive.py suites + DriveVoiceArrivalTests +
+    PostDriveQuestionTests, including both new T-0397 R2 tests).
+  - A2 PASS mutants 153-157 "caught by the test that names it: 5 of 5 ... MISSED 0" (at 43ee2d10; DriveDisplay
+    unchanged since); [0] check-mutate-population "P-PROC-06: every added module is covered or allowlisted; the
+    floor of 173 holds"; [0] check-mutate-only "NAME-PAIRS OK: 243923 pair tokens over 50 id populations".
+  - A3 PASS [0] check-drive-display.py "21 approved whole lines ..."; --prove-red "PROVE-RED OK: 9/9 refused by name".
+  - A4 PASS [0] check-safety-disclaimer; [0] check-pins-yaml "PINS-YAML ok pins=53 fields=426"; [0] check-exec-bits
+    "P-OPS-01: 250 files, 23 required present, all modes correct"; [0] queue-check "QUEUE OK (391 tasks)";
+    [0] check-map-attribution; [0] check-map-attribution-sites; [0] check-ios-compile-guardrails "OK".
+  - A5 PASS wc -l: DriveScreen 147, DriveCard 111, DriveEndConfirm 60, DriveDisplay 89; one type per file.
+  - A6 PASS grep exit=1 (no fixed sizes, no type-size cap, no lineLimit).
+  - A7 PASS ios-compile 39047780264 completed success.
+  - A8 PASS drive-light; A9 PASS drive-dark; A10 PASS for the card (stacked, End full width, conditions above);
+    the AX5 credit-pill overlap is recorded above as a DesignSystem follow-up.
+  NOT SHOT: the End confirm (needs a stopped surface and a tap; the rehearsal moves at 15 m/s) - compiled only.
