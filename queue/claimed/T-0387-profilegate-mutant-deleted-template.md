@@ -65,3 +65,22 @@ T-0190 deleted services/routing/profiles/car_scenic_request.json. ops/mutate/pro
   A6 the two test files pass natively; `wc -l` of ops/mutate/profilegate.py and test_gate_parity.py <= 300;
      the bare gates (check-mutate-population, check-mutate-only, check-pins-yaml, check-exec-bits,
      check-safety-disclaimer, queue-check) exit 0.
+- 2026-10-17T05:54:05Z RESULTS (commits 80242ee1 acceptance, 02d05116 harness, ae28e603 tests, 02fe7f72 merge of origin/main).
+  A1 RED, run 2026-10-17T05:51:23Z on a detached 02d05116 (the harness commit, old tests; the first attempt at
+  05:41:09Z was refused by the pristine guard because the test edit was still in the worktree - not a result):
+  `VACUOUS 80 failures, every one raised outside the test files` / `MISSED SAND not a surface (exit 1)`, the same
+  pair for `profile: a top-level key the evaluator cannot read` (80), `a firing speed of 0 not an exclusion` (47),
+  `profile: ford read off road_environment` (80); `MUTATE FAILED  caught=0/4`; A1 exit=1.
+  A2 GREEN 05:41:27Z on ae28e603: SAND / top-level key / ford `<- tests.test_gate_parity::test_every_clause_of_the_
+  shipped_profile_is_read`; speed `<- tests.test_gate_parity::test_a_numeric_speed_of_zero_excludes`;
+  `MUTATE OK  caught=4/4 equivalent_caught=0`; A2 exit=0.
+  A3 05:45:30Z: `caught the recorded request model read instead <- tests.test_gate_parity::test_the_profile_read_
+  is_the_shipped_file`; `MUTATE OK  caught=1/1`; A3 exit=0.
+  Merge of origin/main 05:46Z: 02fe7f72, 0 conflicts. A6 on 02fe7f72: `1596 passed in 21.05s`;
+  `271 ops/mutate/profilegate.py`, `186 services/etl/tests/test_gate_parity.py`.
+  A5 05:46:51Z on 02fe7f72: `VACUITY: 0 caught, 84 missed, 0 skipped, of 84` / `VACUITY PROVED`; A5 exit=0.
+  A4 NOT OBSERVED: the full 84-mutant run started 05:49:56Z on 02fe7f72 and was stopped at 05:51Z by the
+  session's tool budget (~60 min run); its stdout was block-buffered and lost; the two subjects were restored with
+  `git checkout --` and `git status --short` was empty. Predicted green, not shown: MEASURE 2 put a test-site
+  failure on 80 of 84 rows, the old path row is replaced (A3) and the other three vacuous rows are A2's. The
+  reviewer or a follow-up session runs `python ops/mutate/profilegate.py` and quotes `MUTATE OK  caught=84/84`.
