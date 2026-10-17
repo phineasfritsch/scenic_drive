@@ -473,3 +473,12 @@
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-SAFE-09 && \"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-drive-display.py && \"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-drive-voice.py"
   owner: agent/claude-opus-5
   added: "2026-10-08"
+
+- id: P-COST-03
+  statement: "The routing box refuses every request without the Worker's x-scenic-router-secret - source half: the front door admits exactly the Worker's three calls behind the secret, and GraphHopper publishes no port"
+  why_no_test_catches_it: "services/routing/Caddyfile and compose.yaml are configuration no unit test loads, and every edit of them still serves routes: a dropped secret matcher, a catch-all reverse_proxy, a published GraphHopper port or a secret literal in compose all answer the Worker exactly as before while the box also answers anyone. ops/lib/check-routing-front-door.py holds both files to a WHITELIST: every reverse_proxy sits in a handle whose matcher is exactly the secret header from {env.ROUTER_SECRET}, the placeholder refusal, one method and one path, and the proxied (method, path) set equals POST /route, GET /isochrone, GET /info; the last handle is the 404 catch-all; no log directive; compose has exactly graphhopper (build ., no ports, internal network, the server main) and front (caddy by @sha256, ROUTER_SECRET only as ${ROUTER_SECRET:?...}). Seen RED on 2026-10-17 (T-0392): exit 2 before the files existed; --prove-red refuses nine one-line mutants (placeholder refusal dropped, route opened to GET, secret header dropped, catch-all proxies, secret forwarded upstream, access log on, graphhopper port published, secret literal in compose, caddy by tag only). The behaviour itself is proven end to end in WSL docker by services/routing/tests/front_door_e2e.sh (E2E 10/10; red by name with the placeholder refusal removed), which CI cannot run. NOT ASSERTED HERE: the live half - a direct probe of the deployed box gets 401/timeout - is an ops/sane probe of a host that does not exist yet."
+  anchor: config
+  runs_on: [linux]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-routing-front-door.py && \"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-routing-front-door.py --prove-red"
+  owner: agent/claude-opus-5
+  added: "2026-10-17"

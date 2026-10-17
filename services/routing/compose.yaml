@@ -1,0 +1,41 @@
+# Scenic Drive routing box (T-0392): GraphHopper 11.0 with our plugins, serving an IMPORTED graph, behind a Caddy
+# front door that refuses every request without the Worker's x-scenic-router-secret (Caddyfile). GraphHopper
+# publishes no port; only Caddy does. ROUTER_SECRET comes from the environment of `docker compose up` - on the box
+# from <root>/router.secret.env (README), never from a file in the tree.
+#
+#   ROUTER_SECRET=... docker compose up -d --build          (the graph at ./graph, the deploy layout)
+#   ROUTER_GRAPH=/abs/graph ROUTER_SECRET=... docker compose up -d --build
+services:
+  graphhopper:
+    build: .
+    restart: unless-stopped
+    # The SAME config.yml the import read: its graphhopper: node, plus the server: section only this reads.
+    entrypoint: ["java", "-cp", "/app/scenic-router.jar", "com.scenicdrive.routing.ScenicServerApplication", "server", "/app/config.yml"]
+    environment:
+      JAVA_TOOL_OPTIONS: ${ROUTER_HEAP:--Xmx1500m}
+    volumes:
+      - ${ROUTER_GRAPH:-./graph}:/graph
+    networks: [internal]
+
+  front:
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    restart: unless-stopped
+    environment:
+      ROUTER_SECRET: ${ROUTER_SECRET:?set ROUTER_SECRET to the value of the Worker secret ROUTER_SECRET}
+      ROUTER_SITE: ${ROUTER_SITE:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on: [graphhopper]
+    networks: [internal, edge]
+
+volumes:
+  caddy_data: {}
+
+networks:
+  internal:
+    internal: true
+  edge: {}
