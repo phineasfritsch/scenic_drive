@@ -101,10 +101,28 @@ This task lands first. T-0397 and T-0398 then merge main and need no shadowing g
   R9 WIRING: P-SAFE-03's assertion (anchor: source, so CI's pins-source-only runs it) gains `check-file-scope.py`
      and the population; P-SAFE-07, P-SAFE-09 and P-ATTR-01 name the guard and its residual in their statements.
 
+- 2026-10-17T23:44:44Z MEASURED and BUILT (agent/claude-opus-5).
+  Swift facts, native swiftc 6.3.3 -swift-version 6, plain Foundation, .build/t0406-shadow/main.swift: a member
+  `private var Tokens: Shadow.Type { Shadow.self }` added in an EXTENSION of `struct Card` makes Card's unchanged
+  `Tokens.c` print `member-in-extension: SHADOW` (R3's member class is real; a STATIC member instead is a compile
+  error from an instance context), and `let r = /a{2}/` compiles and matches `regex: true` (R2's bare-regex refusal
+  is needed). Population measured by `--print` on 281728c6: 59 files in 4 modules, 967 lines at depth 0-1, zero
+  lexer refusals (no bare `/`, no `#/`, no lone CR in today's tree) - seeded verbatim as the approved list.
+  RED ON MAIN, second probe: R4 (`fileprivate enum PostDriveQuestion {}` above `import SwiftUI` in a new
+  FeatureScenicHome/DriveCard.swift) + R5 (`extension Text { func fixedSize ... }` appended to PlanPreviewCard.swift)
+  in one copy through main's `check-safety-disclaimer --sources --app-tree`: rc=1 with one refusal, the digest
+  row `P-SAFE-03: the pinned render surface changed: FeatureScenicHome's file set is not the approved one: added
+  DriveCard.swift.` - nothing names either shadow, and approving the set/digest leaves none.
+  GREEN: `FILE-SCOPE ok  59 file(s) in 4 module(s), 967 approved line(s) at depth 0-1; ...`; population
+  `MUTATE ok  241/241 killed (floor 236, population 241)` in 1m42s (5 R + 221 G + 15 L), floor then set to the
+  measured 241. Ruling: --only takes ids, never ranges (mutate_only), so acceptance 3 is `--only R1,R2,R3,R4,R5`
+  (five rows: T-0397 rv2 is two mutants). P-OPS-01 classes an ops/lib .py as data: the guard is 100644 like
+  check-routing-front-door.py, and is run as `python <path>` from PINS.
+
 ## Acceptance
 1. `python ops/lib/check-file-scope.py` exits 0 and prints `FILE-SCOPE ok` with the measured file and line counts.
-2. `python ops/mutate/filescope.py` exits 0: `MUTATE ok  N/N killed (floor N ...)`, N the literal MIN_MUTATIONS.
-3. `python ops/mutate/filescope.py --only 1-4` (the four review mutants verbatim) exits 0, each killed by name.
+2. `python ops/mutate/filescope.py` exits 0: `MUTATE ok  241/241 killed (floor 241 ...)`.
+3. `python ops/mutate/filescope.py --only R1,R2,R3,R4,R5` (the review mutants verbatim) exits 0, each killed by name.
 4. The guard is in P-SAFE-03's assertion; `python ops/lib/check-pins-yaml.py` passes.
 5. Bare gates green: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py, check-pins-yaml.py,
    check-exec-bits, queue-check.
