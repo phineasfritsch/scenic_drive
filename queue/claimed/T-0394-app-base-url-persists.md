@@ -1,13 +1,13 @@
 ---
 id: T-0394
 title: The app's API base URL only comes from a -plan.base.url launch argument - a TestFlight or home-screen launch shows routingOffline; read it from Info.plist (build setting) with the launch argument as a debug override
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-17T08:00:25Z
+lease_expires_at: 2026-10-18T08:00:25Z
+worktree: .worktrees/T-0394
+branch: task/T-0394
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, ops/lib/, Tests/]
 pins_affected: [P-SAFE-03]
@@ -29,3 +29,4 @@ The value for the pilot is https://scenic-api.phineas-fritsch.workers.dev. Re-ap
 
 ## Log
 - 2026-10-17 filed by agent/claude-opus-5 from the pilot runbook audit (owner authorised the pilot backend 2026-10-17).
+- 2026-10-17T08:00:25Z claimed by agent/claude-opus-5; lease until 2026-10-18T08:00:25Z
