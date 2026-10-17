@@ -95,3 +95,33 @@ No deploy in this task. The deploy is T-0391, holding exclusive [prod].
   - A5 `python ops/lib/run-named-tests.py P-SAFE-08` and `... P-COST-01` - pass.
   - A6 bare gates: check-pins-yaml.py, queue-check, check-exec-bits, check-safety-disclaimer,
     check-mutate-population.py, check-mutate-only.py - each exit 0; on the merged head after `git merge origin/main`.
+- 2026-10-17T08:13:42Z RED first by name (tests written, wrangler.jsonc still unbound): `npx vitest run
+  test/wranglerBindings.test.ts test/closuresCron.test.ts` -> `Tests 3 failed | 27 passed (30)`, FAILED by name:
+  `the binding set of wrangler.jsonc equals the Env's non-string fields, each in its type's section` (expected
+  { QUOTA: 'durable_objects', ...(2) } to deeply equal { DB: 'd1_databases', ...(6) }), `the four KV namespaces are
+  bound by the shipped names to the owner's ids` (expected undefined), `wrangler.jsonc runs the cron every 15 minutes
+  and binds CLOSURES to the scenic-closures namespace`.
+- 2026-10-17T08:15:42Z GREEN: wrangler.jsonc binds the four; index.ts's four Env comments now say `bound in
+  wrangler.jsonc (T-0390)`; index.ts sha256 (CRLF-normalized) cad5390fc02d5f035f2802ed9318c590f176375ef1ff66838b66b1c82a67a5aa
+  re-approved in configAnswerPath.test.ts (R5). The three-file run once showed configAnswerPath's intrinsics test at
+  5015 ms (the 5 s timeout, cold pool); alone it passed 3/3 on the branch and on the base - a timing flake, not this diff.
+- 2026-10-17T08:18:43Z scratch mutants (scratchpad mutants.py, each restored): env-gains-r2-binding,
+  env-gains-kv-binding, env-drops-plans, env-plans-no-semicolon, env-kv-retyped-r2, wrangler-drops-config,
+  wrangler-adds-r2 each CAUGHT by `the binding set of wrangler.jsonc equals ...` (no-semicolon also by `every wrangler
+  var is a string field of Env`; drops-config also by `the four KV namespaces ...`). wrangler-closures-moved-to-r2
+  first used bucket_name "x", which the vitest pool's wrangler validation refused before any test ran (red, not by
+  name); with "scenic-data" it is CAUGHT by all three binding tests. 8/8.
+- 2026-10-17T08:24:34Z RULING R8 (found by A4): the full suite then read `Tests 29 failed | 2661 passed (2690)`, all
+  29 in sessionIdentity.test.ts: @cloudflare/vitest-pool-workers builds the test `env` from wrangler.jsonc, so the
+  pool's env now carries a local PLANS and each /plan answer mints a fresh plan_token, which that suite's
+  full-equality oracle compares between two calls. The suite is about identity, not plans: its env2 now sets
+  `PLANS: undefined`, the env it was written against. Then 40/40. No other suite changed (CONFIG, KILL_SWITCH,
+  CLOSURES bound locally are empty, and every test that needs one injects its own).
+- 2026-10-17T08:42:25Z named pins on 0c53e560: `NAMED P-SAFE-08 passed=836/836`, `NAMED P-COST-01 passed=55/55`,
+  `NAMED P-PRIV-04 passed=83/83`, `NAMED P-NAV-01 passed=44/44`.
+- 2026-10-17T09:06:24Z ACCEPTANCE re-run on the merged head e724ea79 (origin/main merged; it brought only 4 queue
+  files, no code): A1 `Test Files 3 passed (3)`, `Tests 33 passed (33)`. A2 above. A3 git grep exit 1 (empty).
+  A4 `Test Files 100 passed (100)`, `Tests 2690 passed (2690)`. A5 above (unchanged code since). A6: PINS-YAML ok
+  pins=52 fields=418; QUEUE OK (385 tasks); P-OPS-01 244 files, all modes correct; check-safety-disclaimer exit 0;
+  P-PROC-06 floor of 171 holds (check-mutate-population exit 0); queue-check and check-mutate-only re-run bare at
+  the push.
