@@ -121,3 +121,17 @@ LA drive from the CLI) should run over the model production sends.
   Also rewired, no assertion change: test_route_details.py / test_route_details_fixture.py (lambda-0, -8) and
   measure_runs.py route the record through request_models.write_models. Tests/Fixtures/custom-model/PROVENANCE.txt
   appended (no earlier line edited).
+- 2026-10-17T01:55:02Z FINAL PRE-REVIEW by agent/claude-opus-5. `git fetch origin` (main checkout): origin/main 45285278,
+  `git merge origin/main` on task/T-0190: Already up to date. Acceptance re-run on that head (dcbbb2a5 + this Log):
+    (1) `npx vitest run test/customModelGolden.test.ts`: Test Files 1 passed (1), Tests 8 passed (8). Red by name
+        for (1a)-(1d): the 01:27:05Z entry. Wider vitest (customModelGolden, customModel, customModelMinorClause,
+        customModelGate, customModelGateValues, asnRootPin): Test Files 6 passed (6), Tests 77 passed (77).
+    (2) `git grep -n -E 'car_scenic_request|scenic_lambda_bands' -- services Tests Sources`: nothing (exit 1). The one
+        hit left in the repo is ops/mutate/profilegate.py:88 (R8, outside touches, stillOpen).
+    (3)+(4) routing pytest: 43 passed, 3 skipped in 45.50s. Red by name: the 01:27:05Z entry.
+    (5) UNVERIFIED: no GraphHopper run (R5).
+    (6) bare gates: check-safety-disclaimer exit 0; check-mutate-population exit 0 (0 added by this branch);
+        check-mutate-only exit 0; check-pins-yaml exit 0 (pins=52); check-exec-bits exit 0; queue-check QUEUE OK
+        (375 tasks). check-line-cap: `timeout 600` exit 124 on the loaded box - CI core is relied on; the largest
+        file this branch touches is 182 lines (measure_runs.py), the new ones 123 (test_request_models_static.py) / 36 (request_models.py) / 41 (customModelGolden.test.ts), measured with wc -l. `bash ops/check-pins
+        --source-only`: `timeout 900` exit 143 with no output on this box - CI is relied on for it.
