@@ -194,3 +194,37 @@ then green.
   A11 PASS (M1 closed) `python ops/lib/check-estimate-badge.py` exit=0 "36 approved whole lines name an ETA or the
      estimate badge under apps/ios and no other line does; 9 badge blocks equal their approved bodies and fences.";
      red/green and `--prove-red` 9/9 quoted in the entry above.
+- 2026-10-17T19:42:26Z agent/claude-opus-5: fix round 2 for rv1 FAIL (agent/rv1-t0398) on ba2d8041.
+  RULING B1 (P-SAFE-07 failing open, buys the round): rv1 appended a file-scoped `private enum DesignTokens { fgMuted
+  = SwiftUI.Color.clear; border = SwiftUI.Color.clear }` to SurpriseCard.swift; the nine badge blocks stayed
+  byte-equal, check-estimate-badge.py exit 0 and --prove-red 9/9, only the digest went red. The CLASS is "the blocks
+  are frozen, the names they use are not". Closed by the whitelist rv1 preferred, not by a declared limit:
+  ops/lib/estimate_badge_decls.py (new, 105 lines) takes every identifier in the nine APPROVED badge bodies (string
+  literals dropped, `\( )` interpolations kept, Swift keywords removed: 59 names - DesignTokens, fgMuted, border, fg,
+  surface, primary, Copy, Text, Capsule, Label, Image, View, font, padding, fixedSize, foregroundStyle, overlay,
+  strokeBorder, accessibilityIdentifier, caption, caption2, ...). A line DECLARES a name when the name follows a type
+  keyword (enum struct class actor protocol typealias extension func associatedtype macro operator precedencegroup,
+  every component of a dotted path) or, on a let/var/case line, is not reached through `.` and is followed by
+  = : , ) or the line's end, or follows the binding keyword. Every declaration under apps/ios of a watched name must
+  equal an approved DECL record (whole line, file, scan order), and when the line opens a block and is not an
+  enum/struct/class/actor/protocol, the block to its matching close equals the approved DLINE records - so a token's
+  value (border's 4-line UIColor provider), an `extension Text { init }`, an `extension View` modifier overload are
+  all frozen. A line ENDING in a declaration keyword (the name on the next line) is refused outright.
+  Transitivity, measured before ruling: following every name in the frozen blocks to a fixed point watched 1593
+  names, 1104 declarations, 4376 lines (the whole app); following private names app-wide, 356 / 963. RULED: a frozen
+  block's names join only ITS OWN file's watched set, and only when that file declares them private/fileprivate (a
+  helper nothing else can reach): DesignTokens' dynamic(light:dark:) and srgb are frozen this way. Result: 72
+  declarations, 182 lines, as DECL/DLINE records in check-estimate-badge-approved.txt. Declared limit (guard header and
+  P-SAFE-07's row): a public or internal helper an approved declaration's body calls in another file is not followed.
+  RED on the real tree: rv1's exact enum appended to SurpriseCard.swift -> `python ops/lib/check-estimate-badge.py`
+  exit=1 "P-SAFE-07: a declaration of a name the badge blocks use is not approved (76 found, 72 approved) unapproved:
+  SurpriseCard.swift: private enum DesignTokens { / static let fgMuted = SwiftUI.Color.clear / static let border =
+  SwiftUI.Color.clear / static let fg = SwiftUI.Color.clear". GREEN: restored, exit=0 "36 approved whole lines ...;
+  9 badge blocks equal their approved bodies and fences; 72 declarations (182 lines) of the names they use are
+  approved." `--prove-red`: "PROVE-RED OK: 15/15 refused by name" - the nine above plus B1 (appended file-scoped
+  DesignTokens, "76 found, 72 approved"), an `extension Text { init(_ s: String) }` file (73/72), an `extension View {
+  func fixedSize(horizontal:vertical:) }` file (74/72), the border token's dark alpha 0.08 -> 0.0 (72/72, DLINE
+  differs), the private dynamic() helper answering `srgb(light, alpha: 0)` (72/72, DLINE differs), `public static let`
+  split from `fgMuted =` across lines ("a declaration keyword ends a line"). check-estimate-badge.py 270 lines.
+  B2: no Swift changed this round (`git diff --stat ba2d8041 -- apps/ios .github` empty), so ios-compile 39046312312 /
+  ios-screenshot 39046317171 still stand; origin/main merged as the last step (entry below).

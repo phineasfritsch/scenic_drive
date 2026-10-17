@@ -19,12 +19,20 @@ ops/lib/check-estimate-badge-approved.txt:
           { and } on whole lines, and compared line by line with the approved body, together with the first
           non-blank line ABOVE and BELOW it (an `if false {`, `.hidden()` or `.opacity(0)` around a block is a
           changed fence line, refused).
+  DECLS   (T-0398 R2, rv1's B1) every DECLARATION under apps/ios of a name the nine approved badge bodies use
+          (DesignTokens, fgMuted, border, Copy, Text, Capsule, font, padding, ...; string literals dropped) is an
+          approved whole line in scan order, with the block it opens when it is not a type declaration - so a
+          file-scoped `enum DesignTokens`, a token's value, an `extension Text` init or a View modifier overload is
+          refused by name. Rules and the private-helper fixed point in estimate_badge_decls.py; a declaration
+          keyword ending a line (the name on the next line) is refused outright.
 
 Lines are trimmed and a trailing CR stripped; a line is dropped only when its trimmed text STARTS with `//`; nothing
 is cut inside a line (source guards fail closed). An approved-file edit is the deliberate act; a digest is not one.
 
-WHAT IT CANNOT SEE: whether the badge RENDERS (the ios-screenshot shots), a modifier overloaded elsewhere in the
-module, an ETA reaching the screen under a name none of the words spells, `/* */` comments, Swift outside apps/ios.
+WHAT IT CANNOT SEE: whether the badge RENDERS (the ios-screenshot shots), an ETA reaching the screen under a name
+none of the words spells, `/* */` comments, Swift outside apps/ios (ScenicKit's PlanPreview.estimateBadge is bound by
+name in P-SAFE-07's row), and a public or internal helper that an approved declaration's body calls (only same-file
+private helpers are followed: following every name freezes the whole app - estimate_badge_decls.py).
 
     python ops/lib/check-estimate-badge.py                  # the tracked tree
     python ops/lib/check-estimate-badge.py --app-tree DIR   # a copy of apps/ios
@@ -37,6 +45,9 @@ import re
 import shutil
 import sys
 import tempfile
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import estimate_badge_decls as decls  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 APPROVED_FILE = ROOT / "ops" / "lib" / "check-estimate-badge-approved.txt"
@@ -71,15 +82,23 @@ def kept(path: pathlib.Path) -> list[str]:
     return [line for line in lines if not line.startswith("//")]
 
 
-def population(tree: pathlib.Path) -> list[tuple[str, str]]:
+def swift(tree: pathlib.Path) -> list[tuple[str, list[str]]]:
     files = sorted(tree.rglob("*.swift"), key=lambda p: p.relative_to(tree).as_posix())
     if len(files) < MIN_FILES:
         raise Refusal(f"only {len(files)} .swift files under {tree} (at least {MIN_FILES}): wrong tree")
-    found = []
-    for path in files:
-        rel = path.relative_to(tree).as_posix()
-        found.extend((rel, line) for line in kept(path) if WORD.search(line))
-    return found
+    return [(path.relative_to(tree).as_posix(), kept(path)) for path in files]
+
+
+def population(files: list[tuple[str, list[str]]]) -> list[tuple[str, str]]:
+    return [(rel, line) for rel, lines in files for line in lines if WORD.search(line)]
+
+
+def declarations(files: list[tuple[str, list[str]]], blocks: dict) -> list[tuple[str, tuple]]:
+    bare = decls.bare(files)
+    if bare:
+        raise Refusal("a declaration keyword ends a line (its name is on the next line, unseen):\n    " +
+                      "\n    ".join(bare[:5]))
+    return decls.declarations(files, decls.names([line for value in blocks.values() for line in value[1]]))
 
 
 def block(tree: pathlib.Path, rel: str, decl: str) -> tuple[str, list[str], str]:
@@ -103,7 +122,7 @@ def block(tree: pathlib.Path, rel: str, decl: str) -> tuple[str, list[str], str]
 
 
 def approved() -> tuple[list[tuple[str, str]], dict[tuple[str, str], tuple[str, list[str], str]]]:
-    sites, blocks, current = [], {}, None
+    sites, blocks, current, found = [], {}, None, []
     for raw in APPROVED_FILE.read_text(encoding="utf-8").split("\n"):
         if not raw:
             continue
@@ -111,6 +130,12 @@ def approved() -> tuple[list[tuple[str, str]], dict[tuple[str, str], tuple[str, 
         if kind == "SITE":
             rel, _, line = rest.partition("\t")
             sites.append((rel, line))
+        elif kind == "DECL":
+            rel, _, line = rest.partition("\t")
+            found.append((rel, [line]))
+            current = None
+        elif kind == "DLINE" and found and current is None:
+            found[-1][1].append(rest)
         elif kind == "BLOCK":
             rel, _, decl = rest.partition("\t")
             current = (rel, decl)
@@ -125,14 +150,15 @@ def approved() -> tuple[list[tuple[str, str]], dict[tuple[str, str], tuple[str, 
             raise Refusal(f"{APPROVED_FILE.name}: unreadable record {raw!r}")
     if sorted(blocks) != sorted(BLOCKS):
         raise Refusal(f"{APPROVED_FILE.name}: its BLOCK records are not this guard's {len(BLOCKS)} blocks")
-    return sites, {key: tuple(value) for key, value in blocks.items()}
+    return sites, {key: tuple(value) for key, value in blocks.items()}, [(r, tuple(b)) for r, b in found]
 
 
 def check(tree: pathlib.Path) -> None:
     if not tree.is_dir():
         raise Refusal(f"no such directory: {tree}")
-    sites, blocks = approved()
-    found = population(tree)
+    sites, blocks, approved_decls = approved()
+    files = swift(tree)
+    found = population(files)
     if found != sites:
         extra = [f"{f}: {l}" for f, l in found if (f, l) not in sites]
         missing = [f"{f}: {l}" for f, l in sites if (f, l) not in found]
@@ -150,6 +176,14 @@ def check(tree: pathlib.Path) -> None:
                 body.append(f"body: {len(got[1])} lines (approved {len(want[1])})")
             raise Refusal(f"the badge block `{decl}` changed\n  {rel}: " + "; ".join(diff + body)[:400] +
                           "\n  Every ETA shows the estimate · no traffic data badge.")
+    got = declarations(files, blocks)
+    if got != approved_decls:
+        extra = [f"{r}: {' / '.join(b)[:150]}" for r, b in got if (r, b) not in approved_decls]
+        missing = [f"{r}: {' / '.join(b)[:150]}" for r, b in approved_decls if (r, b) not in got]
+        raise Refusal(f"a declaration of a name the badge blocks use is not approved ({len(got)} found, "
+                      f"{len(approved_decls)} approved)\n  unapproved: " + ("\n    ".join([""] + extra[:6]) if extra
+                      else "none") + "\n  missing: " + ("\n    ".join([""] + missing[:6]) if missing else
+                      "none (the order differs)") + "\n  Every ETA shows the estimate · no traffic data badge.")
 
 
 MUTATIONS = [
@@ -170,6 +204,19 @@ MUTATIONS = [
     ("the plan card's badge block dropped", PLAN, "if preview.showsEstimateBadge {", "if false {"),
     ("the drive screen's badge cleared", DRIVE, '.accessibilityIdentifier("drive.estimate")',
      '.accessibilityIdentifier("drive.estimate")\n                        .hidden()'),
+    ("B1 a file-scoped DesignTokens shadows the tag's colours", CARD, None,
+     "\nprivate enum DesignTokens {\n    static let fgMuted = SwiftUI.Color.clear\n    static let border = SwiftUI.Color.clear"
+     "\n    static let fg = SwiftUI.Color.clear\n}\n"),
+    ("an extension Text init swallows the copy", None, S + "FeatureSurpriseMe/SurpriseText.swift",
+     "import SwiftUI\nextension Text {\n    init(_ s: String) { self.init(verbatim: \"\") }\n}\n"),
+    ("a View modifier overload hides the tag", None, S + "FeatureSurpriseMe/SurpriseStyle.swift",
+     "import SwiftUI\nextension View {\n    func fixedSize(horizontal: Bool, vertical: Bool) -> some View { hidden() }\n}\n"),
+    ("the border token's dark value cleared", S + "DesignSystem/DesignTokens.swift", "UIColor(white: 1.0, alpha: 0.08)",
+     "UIColor(white: 1.0, alpha: 0.0)"),
+    ("the private dynamic() helper answers clear", S + "DesignSystem/DesignTokens.swift",
+     "traits.userInterfaceStyle == .dark ? srgb(dark) : srgb(light)", "srgb(light, alpha: 0)"),
+    ("a declaration split across lines", S + "DesignSystem/DesignTokens.swift", "public static let fgMuted = ",
+     "public static let\n    fgMuted = "),
     ("a new surface draws an ETA", None, S + "FeatureSurpriseMe/SurpriseEta.swift",
      "import SwiftUI\nstruct SurpriseEta: View {\n    let etaSeconds: Int\n    var body: some View { Text(\"\\(etaSeconds)\") }\n}\n"),
 ]
@@ -184,6 +231,9 @@ def prove_red(tree: pathlib.Path) -> int:
             shutil.copytree(tree, copy, ignore=shutil.ignore_patterns("*.png", "*.pmtiles", ".build"))
             if rel is None:
                 (copy / old).write_text(new, encoding="utf-8")
+            elif old is None:
+                with (copy / rel).open("a", encoding="utf-8", newline="\n") as tail:
+                    tail.write(new)
             else:
                 text = (copy / rel).read_text(encoding="utf-8").replace("\r\n", "\n")
                 if text.count(old) != 1:
@@ -212,9 +262,10 @@ def main(argv: list[str]) -> int:
     except Refusal as refusal:
         print(f"P-SAFE-07: {refusal}")
         return 1
-    sites, _ = approved()
+    sites, _, found = approved()
     print(f"P-SAFE-07 (screen): {len(sites)} approved whole lines name an ETA or the estimate badge under apps/ios "
-          f"and no other line does; {len(BLOCKS)} badge blocks equal their approved bodies and fences.")
+          f"and no other line does; {len(BLOCKS)} badge blocks equal their approved bodies and fences; "
+          f"{len(found)} declarations ({sum(len(b) for _, b in found)} lines) of the names they use are approved.")
     return 0
 
 
