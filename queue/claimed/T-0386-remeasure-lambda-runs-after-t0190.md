@@ -119,3 +119,11 @@ Run the LA GraphHopper container (WSL docker, the committed LA graph build; no V
     6015807, lambda=2: 6785536, lambda=4: 7510022, lambda=8: 8122353` (byte-equal to stage 1), loop lambda-8
     `time_ms=2522680 distance_m=36576.6`, `9 passed in 21.38s`. Whole services/routing pytest: `46 passed in 46.24s`.
   - Acceptance (2) grep: no output, exit 1. `wc -l`: test_lambda_monotone.py 144, test_route_details.py 175.
+- 2026-10-17T04:36:57Z FINAL (acceptance 1-4 re-quoted). `git fetch origin` in the main checkout; origin/main is
+  f712f37c, already an ancestor of task/T-0386 (`git merge-base --is-ancestor` exit 0), so the merge is a no-op and
+  the head measured at 04:31:30Z (b02b1a9c, code unchanged since) is the merged head. (1) stage 1/2 entries above;
+  (2) grep empty, BITE_FLOOR 0.18; (3) red/green above: `9 passed in 21.38s`, services/routing `46 passed in
+  46.24s`. (4) gates, each bare, exit 0: check-safety-disclaimer 0; check-mutate-population.py 0 (`P-PROC-06: every
+  added module is covered or allowlisted; the floor of 171 holds`); check-mutate-only.py 0 (`NAME-PAIRS OK: 238997
+  pair tokens over 48 id populations`); check-pins-yaml.py 0 (`PINS-YAML ok pins=52 fields=418`); check-exec-bits 0
+  (`P-OPS-01: 244 files, 23 required present, all modes correct`); queue-check 0 (`QUEUE OK (379 tasks)`).
