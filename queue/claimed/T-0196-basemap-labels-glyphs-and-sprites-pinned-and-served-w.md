@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-18T06:04:45Z
 worktree: .worktrees/T-0196
 branch: task/T-0196
 exclusive: []
-touches: [services/tiles/, ops/publish-tiles, apps/ios/Packages/ScenicApp/Sources/MapAdapter/ScenicLightStyle.swift, apps/ios/Packages/ScenicApp/Sources/MapAdapter/ScenicDarkStyle.swift, ops/lib/check-safety-disclaimer-linked-digests.txt]
+touches: [services/tiles/, ops/publish-tiles, apps/ios/Packages/ScenicApp/Sources/MapAdapter/ScenicLightStyle.swift, apps/ios/Packages/ScenicApp/Sources/MapAdapter/ScenicDarkStyle.swift, ops/lib/check-safety-disclaimer-pinned]
 pins_affected: []
 reviewer: null
 depends_on: [T-0165]
@@ -85,7 +85,8 @@ street names is not shippable. The next tiles task, not a nicety.
     the assertion becomes: no source declares `attribution` (kept), owner metadata (kept), and the symbol layers are
     EXACTLY the whitelisted label ids (a new symbol layer is a deliberate edit of the test).
   - R7 (touches): regenerating the styles forces the two embedded Swift literals (byte-equal test) and their digest
-    rows; touches widened to those three paths. No Swift logic changes.
+    digest rows (`ops/lib/check-safety-disclaimer-pinned`, P-SAFE-03); touches widened to those three paths. No Swift
+    logic changes.
   - R8 (screenshot): ios-screenshot runs without la.pmtiles on the simulator, so the home shot draws the demo
     basemap, not this style, and R3 keeps labels off-device anyway: a home shot CANNOT show these street labels. Not run
     as evidence of labels; said so in STILL OPEN.

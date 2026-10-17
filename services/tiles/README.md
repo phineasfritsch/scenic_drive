@@ -63,18 +63,32 @@ of that appearance, and `tests/test_style_tokens.py` asserts it.
 above them — and asserts the transcription equals them per appearance. Without it, editing a hex digit in
 `TOKENS` and regenerating moves the whole suite with it and ships a colour the app does not have.
 
-The **lower-right corner is reserved for attribution** by contributing nothing to it: no source declares
-`attribution`, so the renderer's own control draws nothing, and there is no `symbol` layer, so no label can
-be placed there. `DesignSystem.AttributionFooter` owns that corner and draws the credit.
+The **lower-right corner belongs to attribution**: no source declares `attribution`, so the renderer's own
+control adds nothing, and `DesignSystem.AttributionFooter` is drawn above the map on its own 85% `surface`
+ground, so a label underneath cannot cover the credit. The symbol layers are exactly `roads-label` and
+`places-label`; the test lists them, so a new one is a deliberate edit.
 
-Not built here, and deliberately absent rather than faked: **glyphs and sprites**. There is no `glyphs` URL
-in either style, so the basemap draws no labels — a style pointing `glyphs` at a URL that 404s would render
-nothing while claiming it had them. `sources.protomaps.url` is `pmtiles://la.pmtiles`; the app rewrites it
-to the on-device file URL after the first-run download.
+## Labels: glyphs and sprites
+
+`glyphs` and `sprite` hang off one variable, `make_styles.ASSETS_BASE = "basemap://"`, a placeholder like
+`pmtiles://la.pmtiles`: the files sit beside the archive under the same prefix
+(`glyphs/<fontstack>/<range>.pbf`, `sprites/v4/<appearance>{,@2x}.{json,png}`), never on a third-party CDN.
+The app must replace `basemap://` with the directory holding la.pmtiles; until `ScenicStyleDocument` does,
+labels do not draw on device.
+
+    python services/tiles/basemap_assets.py build --work services/tiles/work [--archive TARBALL]
+    python services/tiles/basemap_assets.py check --work services/tiles/work
+
+`basemap_assets.json` pins the source: protomaps/basemaps-assets has no releases, so the pin is the commit
+archive (`028c18f`, 6,379,327 bytes, sha256 `57e40e8c…`) plus a digest of the extracted tree (521 files,
+9,962,457 bytes: Noto Sans Regular and Medium x 256 ranges, `OFL.txt`, the v4 light/dark sheets). Fonts are
+SIL OFL 1.1 (`glyphs/OFL.txt` ships with them); sprites derive from MIT-licensed tangrams/icons. `check`
+computes the font stacks and sheets from both committed styles and compares them WHOLE to what is on disk.
 
 ## Publishing
 
-`ops/publish-tiles` uploads the archive, its sidecar and both styles to R2. It **refuses** without
+`ops/publish-tiles` uploads the archive, its sidecar, both styles and exactly the files
+`basemap_assets.py publish-list` names (after `basemap_assets.py check`) to R2 under one prefix. It **refuses** without
 `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET`, without
 `queue/LOCKS/prod.lock`, and when the artifact's sha256 disagrees with its sidecar. It has never run: R2 is
 the human's account and a publish needs a task holding `exclusive: [prod]`.

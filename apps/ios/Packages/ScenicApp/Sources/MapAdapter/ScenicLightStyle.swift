@@ -31,6 +31,8 @@ public enum ScenicLightStyle {
     "scenic:attribution_owner": "DesignSystem.AttributionFooter",
     "scenic:archive": "la.pmtiles"
   },
+  "glyphs": "basemap://glyphs/{fontstack}/{range}.pbf",
+  "sprite": "basemap://sprites/v4/light",
   "sources": {
     "protomaps": {
       "type": "vector",
@@ -80,7 +82,7 @@ public enum ScenicLightStyle {
         "fill-color": "#15803D",
         "fill-opacity": 0.35
       },
-      "filter": ["match", ["get", "pmap:kind"], ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], true, false]
+      "filter": ["match", ["get", "kind"], ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], true, false]
     },
     {
       "id": "landuse-built",
@@ -91,7 +93,7 @@ public enum ScenicLightStyle {
         "fill-color": "#FCEAE1",
         "fill-opacity": 0.6
       },
-      "filter": ["match", ["get", "pmap:kind"], ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], false, true]
+      "filter": ["match", ["get", "kind"], ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], false, true]
     },
     {
       "id": "water",
@@ -127,7 +129,7 @@ public enum ScenicLightStyle {
         "line-cap": "round",
         "line-join": "round"
       },
-      "filter": ["match", ["get", "pmap:kind"], ["highway", "major_road"], false, true]
+      "filter": ["match", ["get", "kind"], ["highway", "major_road"], false, true]
     },
     {
       "id": "roads-major",
@@ -143,7 +145,7 @@ public enum ScenicLightStyle {
         "line-cap": "round",
         "line-join": "round"
       },
-      "filter": ["==", ["get", "pmap:kind"], "major_road"]
+      "filter": ["==", ["get", "kind"], "major_road"]
     },
     {
       "id": "roads-motorway",
@@ -158,7 +160,7 @@ public enum ScenicLightStyle {
         "line-cap": "round",
         "line-join": "round"
       },
-      "filter": ["==", ["get", "pmap:kind"], "highway"]
+      "filter": ["==", ["get", "kind"], "highway"]
     },
     {
       "id": "boundaries",
@@ -214,6 +216,42 @@ public enum ScenicLightStyle {
         "line-cap": "round",
         "line-join": "round"
       }
+    },
+    {
+      "id": "roads-label",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "layout": {
+        "text-field": ["get", "name"],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10, 16, 13],
+        "symbol-placement": "line"
+      },
+      "paint": {
+        "text-color": "#0F172A",
+        "text-halo-color": "#FFF7ED",
+        "text-halo-width": 1.5
+      },
+      "minzoom": 12,
+      "filter": ["match", ["get", "kind"], ["highway", "major_road", "minor_road"], true, false]
+    },
+    {
+      "id": "places-label",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "places",
+      "layout": {
+        "text-field": ["get", "name"],
+        "text-font": ["Noto Sans Medium"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 8, 11, 14, 15]
+      },
+      "paint": {
+        "text-color": "#0F172A",
+        "text-halo-color": "#FFF7ED",
+        "text-halo-width": 1.5
+      },
+      "filter": ["match", ["get", "kind"], ["locality", "neighbourhood"], true, false]
     }
   ]
 }

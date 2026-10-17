@@ -28,9 +28,10 @@ ADAPTER = ROOT / "apps/ios/Packages/ScenicApp/Sources/MapAdapter"
 STYLES = ROOT / "services/tiles/styles"
 OPEN_DELIMITER = '#"""\n'
 CLOSE_DELIMITER = '\n"""#'
-# Measured 2026-09-19 off the generated files. A floor with a name: an extractor that returned "" or the
+# Re-measured 2026-10-17 off the generated files (T-0196: label layers, glyphs, sprite). A floor with a
+# name: an extractor that returned "" or the
 # closing brace would satisfy every equality below against a file that was also emptied.
-SIZES = {"light": 4563, "dark": 4591}
+SIZES = {"light": 5751, "dark": 5778}
 APPEARANCES = [("light", "ScenicLightStyle"), ("dark", "ScenicDarkStyle")]
 
 

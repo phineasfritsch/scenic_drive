@@ -8,11 +8,15 @@ one is missing from the other and nobody sees it until somebody switches appeara
 a ROLE; the role resolves to a DesignTokens value per appearance, and `TOKENS` below is that table
 transcribed from apps/ios/Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift.
 
-THE LOWER-RIGHT CORNER. A MapLibre style has no construct that reserves screen space, so this style
-reserves it by contributing NOTHING there: no source declares `attribution` (so the renderer's own control
-has nothing to draw) and no layer is of type `symbol` (so no label can be placed there). The corner belongs
-to DesignSystem's `AttributionFooter`, which draws the credit the product invariant names. Two parties
-drawing attribution is the same credit twice, and the one we control is the one that must win.
+THE LOWER-RIGHT CORNER. No source declares `attribution`, so the renderer's own control has nothing to add;
+the corner belongs to DesignSystem's `AttributionFooter`, a SwiftUI view drawn ABOVE the map on its own 85%
+`surface` ground, so a label the renderer places underneath cannot cover the credit. The symbol layers are
+the label ids `LABEL_LAYERS` names and nothing else (T-0196 R6).
+
+LABELS. `glyphs` and `sprite` hang off ONE variable, `ASSETS_BASE`, a placeholder like the archive's
+`pmtiles://la.pmtiles`: the files live beside the archive under the same prefix (`basemap_assets.py`
+builds and checks them; `ops/publish-tiles` uploads them), and the app replaces the base with the
+directory holding la.pmtiles.
 """
 
 from __future__ import annotations
@@ -52,6 +56,8 @@ ROLES = {
     "route": {"light": "route", "dark": "route"},
     "routeCasing": {"light": "surface", "dark": "surface"},
     "scenicEpisode": {"light": "scenic", "dark": "scenic"},
+    "label": {"light": "fg", "dark": "fg"},
+    "labelHalo": {"light": "bg", "dark": "bg"},
 }
 
 # The vector layers the archive actually carries, from `pmtiles show --metadata` on the built LA extract
@@ -60,6 +66,12 @@ SOURCE_LAYERS = ("boundaries", "buildings", "earth", "landcover", "landuse", "pl
 
 SOURCE_ID = "protomaps"
 ROUTE_SOURCE_ID = "route"
+# Protomaps Basemap v4 names the class field `kind`; `pmap:kind` was v3's and the LA archive carries no such
+# field (T-0196 M2), so a filter on it matched nothing.
+KIND = "kind"
+ASSETS_BASE = "basemap://"
+GLYPHS = ASSETS_BASE + "glyphs/{fontstack}/{range}.pbf"
+LABEL_LAYERS = ("roads-label", "places-label")
 
 
 def fill(layer_id: str, source_layer: str, role: str, opacity: float | None = None, **extra) -> dict:
@@ -78,6 +90,14 @@ def line(layer_id: str, source_layer: str, role: str, width, opacity: float | No
             "paint": paint, "layout": {"line-cap": "round", "line-join": "round"}, **extra}
 
 
+def label(layer_id: str, source_layer: str, font: str, size, **layout) -> dict:
+    """Names in `fg` on a `bg` halo: the same two tokens every other piece of text in the app uses."""
+    return {"id": layer_id, "type": "symbol", "source": SOURCE_ID, "source-layer": source_layer,
+            "layout": {"text-field": ["get", "name"], "text-font": [font], "text-size": size, **layout},
+            "paint": {"text-color": {"role": "label"}, "text-halo-color": {"role": "labelHalo"},
+                      "text-halo-width": 1.5}}
+
+
 # Width by zoom, MapLibre interpolate form. Roads stay quiet: a driving map that shouts every residential
 # street is unreadable at the speed this app is used.
 def width(stops: list[tuple[int, float]]) -> list:
@@ -94,19 +114,19 @@ def spec() -> list[dict]:
         fill("earth", "earth", "land"),
         fill("landcover", "landcover", "green", opacity=0.22),
         fill("landuse-green", "landuse", "green", opacity=0.35,
-             filter=["match", ["get", "pmap:kind"],
+             filter=["match", ["get", KIND],
                      ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], True, False]),
         fill("landuse-built", "landuse", "built", opacity=0.6,
-             filter=["match", ["get", "pmap:kind"],
+             filter=["match", ["get", KIND],
                      ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], False, True]),
         fill("water", "water", "water"),
         fill("buildings", "buildings", "built", opacity=0.9, minzoom=13),
         line("roads-minor", "roads", "road", width([(11, 0.4), (14, 2.0)]), opacity=0.55,
-             filter=["match", ["get", "pmap:kind"], ["highway", "major_road"], False, True]),
+             filter=["match", ["get", KIND], ["highway", "major_road"], False, True]),
         line("roads-major", "roads", "road", width([(8, 0.6), (14, 4.0)]), opacity=0.85,
-             filter=["==", ["get", "pmap:kind"], "major_road"]),
+             filter=["==", ["get", KIND], "major_road"]),
         line("roads-motorway", "roads", "motorway", width([(6, 0.8), (14, 5.0)]),
-             filter=["==", ["get", "pmap:kind"], "highway"]),
+             filter=["==", ["get", KIND], "highway"]),
         line("boundaries", "boundaries", "boundary", width([(4, 0.5), (10, 1.2)]), opacity=0.5,
              layout={"line-cap": "butt", "line-join": "round"}),
         # The route rides on an EMPTY GeoJSON source the app replaces at runtime with setData. The 6 pt line
@@ -122,6 +142,12 @@ def spec() -> list[dict]:
          "filter": ["==", ["get", "scenic"], True],
          "paint": {"line-color": {"role": "scenicEpisode"}, "line-width": 6},
          "layout": {"line-cap": "round", "line-join": "round"}},
+        # Labels last, so a route never hides the name of the road it is on.
+        {**label("roads-label", "roads", "Noto Sans Regular", width([(12, 10), (16, 13)]),
+                 **{"symbol-placement": "line"}), "minzoom": 12,
+         "filter": ["match", ["get", KIND], ["highway", "major_road", "minor_road"], True, False]},
+        {**label("places-label", "places", "Noto Sans Medium", width([(8, 11), (14, 15)])),
+         "filter": ["match", ["get", KIND], ["locality", "neighbourhood"], True, False]},
     ]
 
 
@@ -154,8 +180,8 @@ def style(appearance: str, archive_name: str) -> dict:
             "scenic:attribution_owner": "DesignSystem.AttributionFooter",
             "scenic:archive": archive_name,
         },
-        # No `glyphs` and no symbol layer: the font PBFs are not built yet, and a style that points `glyphs`
-        # at a URL which 404s renders no labels while claiming it has them. Labels land with the glyph task.
+        "glyphs": GLYPHS,
+        "sprite": f"{ASSETS_BASE}sprites/v4/{appearance}",
         "sources": {
             # The app rewrites this to the on-device file URL after the first-run download. The committed
             # value is the artifact's own name so the style never ships pointing at a URL nobody built.
@@ -164,6 +190,26 @@ def style(appearance: str, archive_name: str) -> dict:
         },
         "layers": layers,
     }
+
+
+def fields_named(node, out: set | None = None) -> set[str]:
+    """Every feature property a layer reads with `["get", F]` - a field the archive must carry."""
+    out = set() if out is None else out
+    if isinstance(node, list):
+        if len(node) == 2 and node[0] == "get" and isinstance(node[1], str):
+            out.add(node[1])
+        for value in node:
+            fields_named(value, out)
+    elif isinstance(node, dict):
+        for value in node.values():
+            fields_named(value, out)
+    return out
+
+
+def missing_fields(layers: list[dict], have: dict[str, set[str]]) -> list[str]:
+    """`layer-id: field` for every field a protomaps layer reads that its source-layer does not declare."""
+    return sorted(f"{layer['id']}: {field}" for layer in layers if layer.get("source") == SOURCE_ID
+                  for field in fields_named(layer) - have.get(layer.get("source-layer"), set()))
 
 
 def inlineable(node) -> bool:
@@ -213,18 +259,24 @@ def main(argv: list[str] | None = None) -> int:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from check_pmtiles import read_metadata  # noqa: PLC0415 - same directory, no package
 
-        have = {layer["id"] for layer in read_metadata(args.archive)["vector_layers"]}
+        vector_layers = read_metadata(args.archive)["vector_layers"]
+        have = {layer["id"] for layer in vector_layers}
         missing = sorted(set(SOURCE_LAYERS) - have)
         if missing:
             print(f"make_styles: archive is missing source-layer(s): {missing}", file=sys.stderr)
             return 1
-        print(f"make_styles: all {len(SOURCE_LAYERS)} source-layers present in {args.archive.name}")
+        unread = missing_fields(spec(), {layer["id"]: set(layer.get("fields", {})) for layer in vector_layers})
+        if unread:
+            print(f"make_styles: layers read field(s) the archive does not carry: {unread}", file=sys.stderr)
+            return 1
+        print(f"make_styles: all {len(SOURCE_LAYERS)} source-layers and every field the layers read present "
+              f"in {args.archive.name}")
         return 0
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     for appearance in ("light", "dark"):
         path = args.out_dir / f"scenic-{appearance}.json"
-        path.write_text(dumps(style(appearance, args.archive_name)) + "\n", encoding="utf-8")
+        path.write_text(dumps(style(appearance, args.archive_name)) + "\n", encoding="utf-8", newline="\n")
         print(f"make_styles: wrote {path}")
     return 0
 
