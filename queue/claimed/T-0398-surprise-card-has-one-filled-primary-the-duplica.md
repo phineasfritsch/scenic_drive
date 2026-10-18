@@ -263,3 +263,42 @@ then green.
      and every other assertion verbatim: ok through P-SRC-01, P-SRC-02, check-sweep, --variants, queue-roundtrip,
      P-COST-02, check-safety-disclaimer, the solar oracle, check-guidance-gate; check-pipe-consumers (698 s ok on the
      first merged head, f94f11b5) was still running at push. CI's check-pins on the push is the confirmation.
+- 2026-10-18T05:00:24Z agent/claude-opus-5 - R3 (rv2 FAIL, R2-B1 a backtick shadow). Merged origin/main ab36b2bb
+  (T-0406, check-file-scope.py). One conflict, pins/PINS.yaml P-SAFE-07: RULED by recomputation - main's statement
+  (this branch's plus T-0406's sentence, a strict extension) and this branch's why (main's plus the T-0398 text, a
+  strict extension); both prefixes asserted by script, not picked. check-safety-disclaimer-pinned auto-merged; no
+  digest re-approval needed (check-safety-disclaimer exit 0 on the merged tree; no Swift edited this round).
+  check-file-scope on the merged head first REFUSED SurpriseCard.swift ("line 183 '1|    private func
+  roundTripValue(minutes: Int) -> some View {' is not the approved '1|    private var empty: some View {'"), since
+  main's approved list holds main's card; the blocks of the two files this PR changes were replaced with
+  `check-file-scope.py --print` output: SurpriseCard.swift 37 -> 41 lines (+roundTripValue, +estimateTag and their
+  closes), SurpriseNotThis.swift 13 -> 13 (unchanged). Then exit 0 "59 file(s) in 4 module(s), 985 approved line(s)".
+  rv2 mutants on a copy of apps/ios (.artifacts/rv2_mutants.py, untracked), BEFORE the scan fix:
+    R2-B1  (ShadowTokens enum of `fg`/`fgMuted`/`border` + `private let `DesignTokens` = ShadowTokens.self`)
+           check-file-scope exit=1 "line 253 '0|private enum ShadowTokens {' is not the approved ..."
+           check-estimate-badge exit=0 (SURVIVED - rv2 reproduced)
+    R2-B1b (the enum on one line)  check-file-scope exit=1 "line 253 '0|private enum ShadowTokens { static let `fg`
+           = Sw..."; check-estimate-badge exit=0 (SURVIVED)
+    R2-B1c (a member `private static let `DesignTokens`` inside SurpriseCard)  check-file-scope exit=1 "line 23
+           '1|    private static let `DesignTokens` = ShadowTok..."; check-estimate-badge exit=0 (SURVIVED)
+  RULED: T-0406's guard covers the class in DesignSystem and the three feature modules; the per-name scan is KEPT
+  (defence in depth, and the drive card's module is outside T-0406's four) and STRENGTHENED, not weakened:
+  estimate_badge_decls.code() drops every backtick after it drops string literals, so `name` declares name. AFTER:
+  R2-B1 exit=1 "(84 found, 79 approved)", R2-B1b exit=1 "(81 found, 79 approved)", R2-B1c exit=1 "(84 found, 79
+  approved)"; the real tree still "79 declarations (279 lines)" (the fix adds no declaration on the shipped tree).
+  R2-B1 is a seventeenth --prove-red row. P-SAFE-07's why records R3. wc -l check-estimate-badge.py 281,
+  estimate_badge_decls.py 106. No Swift changed this round, so no ios-compile re-dispatch (runs 39046312312 /
+  39046317171 cover the Surprise tree; main's AttributionFooter delta is T-0404's, compiled on main).
+  Gates on the merged tree, bare, in parallel:
+    check-safety-disclaimer exit=0 "37 feature file(s), shell, footer pinned (-pinned); doors over 115 .swift
+      (-doors); LAST all 115 app .swift, then 336 root + pbxproj file(s) (-linked)."
+    check-map-attribution exit=0 "37 feature file(s), the app shell and AttributionFooter.swift pinned by sha256"
+    check-file-scope.py exit=0 "59 file(s) in 4 module(s), 985 approved line(s)"
+    check-mutate-population.py exit=0 "P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds"
+    check-mutate-only.py exit=0 "MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64"; "NAME-PAIRS OK:
+      242318 pair tokens over 50 id populations"
+    check-pins-yaml.py exit=0 "PINS-YAML ok pins=53 fields=426"
+    check-exec-bits exit=0 "P-OPS-01: 261 files, 23 required present, all modes correct"
+    queue-check exit=0 "QUEUE OK (399 tasks)"
+    check-estimate-badge.py exit=0 "41 approved whole lines ...; 10 badge blocks ...; 79 declarations (279 lines)";
+      --prove-red exit=0 "PROVE-RED OK: 17/17 refused by name"; run-named-tests.py P-SAFE-07 "passed=23/23"

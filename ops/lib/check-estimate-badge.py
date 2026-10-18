@@ -212,6 +212,9 @@ MUTATIONS = [
     ("B1 a file-scoped DesignTokens shadows the tag's colours", CARD, None,
      "\nprivate enum DesignTokens {\n    static let fgMuted = SwiftUI.Color.clear\n    static let border = SwiftUI.Color.clear"
      "\n    static let fg = SwiftUI.Color.clear\n}\n"),
+    ("R2-B1 a backticked `DesignTokens` let over a shadow enum", CARD, None,
+     "\nprivate enum ShadowTokens {\n    static let `fg` = SwiftUI.Color.clear\n    static let `fgMuted` = SwiftUI.Color"
+     ".clear\n    static let `border` = SwiftUI.Color.clear\n}\nprivate let `DesignTokens` = ShadowTokens.self\n"),
     ("an extension Text init swallows the copy", None, S + "FeatureSurpriseMe/SurpriseText.swift",
      "import SwiftUI\nextension Text {\n    init(_ s: String) { self.init(verbatim: \"\") }\n}\n"),
     ("a View modifier overload hides the tag", None, S + "FeatureSurpriseMe/SurpriseStyle.swift",

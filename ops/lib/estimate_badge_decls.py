@@ -41,8 +41,9 @@ BARE = re.compile(r"(?<![A-Za-z0-9_.])(" + "|".join(TYPE_KW + BINDING_KW) + r")\
 
 
 def code(line: str) -> str:
-    """The line with every string literal replaced by its interpolations (a name inside \\( ) is code)."""
-    return STRING.sub(lambda m: " " + " ".join(INTERP.findall(m.group(0))) + " ", line)
+    """The line with every string literal replaced by its interpolations (a name inside \\( ) is code), and every
+    backtick dropped: `name` declares name (rv2's R2-B1, a `DesignTokens` let, read as no name before T-0398 R3)."""
+    return STRING.sub(lambda m: " " + " ".join(INTERP.findall(m.group(0))) + " ", line).replace("`", "")
 
 
 def names(lines: list[str]) -> set[str]:
