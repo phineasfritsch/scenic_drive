@@ -24,6 +24,8 @@ SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text("Arrive \
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text(glanceLine)
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text(PlanPreview.estimateBadge)
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	.accessibilityIdentifier("drive.estimate")
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	Text(PlanPreview.estimateBadge)
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	.accessibilityIdentifier("home.menu.estimate")
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	return PlanPreview(route: planned, etaSeconds: 1_500, fastestEtaSeconds: 1_200, etaIsEstimate: true,
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	RerouteReply(line: Self.line, waypoints: [], etaSeconds: 1_380, fastestEtaSeconds: 1_200, continued: true)
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	DriveCard(remainingSeconds: display.remainingSeconds, glanceLine: display.glanceLine,
