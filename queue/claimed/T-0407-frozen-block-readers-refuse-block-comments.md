@@ -191,3 +191,21 @@ line sequence catches a twin spelled byte-equal to the original, say so; if it d
     Through the shipping readers, `--only R2,T240,T244,T253,T262,T271,T277,C209,C238`: R2 and the seven T rows
     `MUTATE killed`, both controls `MUTATE passed`, `MUTATE silent  0 row(s)`, `MUTATE ok  9/9 killed or passed (floor
     292, population 292)`, exit 0. The full 292-row population runs in CI through P-SAFE-03's assertion.
+- 2026-10-18T16:22:46Z acceptance re-quoted on 10c427fa (git fetch origin: origin/main still da475b6c, merge `Already up to date`):
+  1. A1 python ops/lib/frozen_comments.py <the 13 frozen files>: `FROZEN-COMMENT ok  13 file(s), no block comment
+     outside the 0 approved, no stray */`, exit 0.
+  2. A2 the full 292-row population runs in CI through P-SAFE-03's assertion; locally every row through refusals
+     in-process (R 2/2, G 208/208, C 30/30, T 52/52, bad none) and the shipping-reader sample 9/9 (R10/R11 above).
+  3. A3 RED on HEAD's rule: T 0/52, R2 silent (above); the 27-row RED on main from 14:58:26Z is unchanged.
+  4. A4, A5 unchanged (R1's text and the swiftc twin are untouched; R2 adds the // tail spelling).
+  5. A6 check-pins-yaml `PINS-YAML ok pins=53 fields=426`.
+  6. A7 the gate list, bare, on 10c427fa: check-safety-disclaimer exit 0 (`Not checked here: rendering (T-0180),
+     taps, ...`); check-map-attribution exit 0 (`... every app .swift, pbxproj and root Sources (-linked).`);
+     check-file-scope `FILE-SCOPE ok  62 file(s) in 4 module(s), 1042 approved line(s)`; mutate/filescope.py
+     `MUTATE ok  618/618 killed (floor 615, population 618)`; check-drive-display `3 structs (243 kept lines) are
+     their approved whole blocks`; check-estimate-badge `45 approved whole lines ...; 10 badge blocks ...; 85
+     declarations (292 lines)`, --prove-red `PROVE-RED OK: 18/18 refused by name`; check-mutate-population
+     `the floor of 173 holds`; check-mutate-only `NAME-PAIRS OK: 245251 pair tokens over 50 id populations`;
+     check-mutate-anchors `17 drivers run from the repo root, 17 reached their population line`; check-exec-bits
+     `P-OPS-01: 265 files, 23 required present, all modes correct`; queue-check `QUEUE OK (403 tasks)`. All exit 0.
+     wc -l: ops/lib/frozen_comments.py 149, ops/mutate/frozencomments.py 273.
