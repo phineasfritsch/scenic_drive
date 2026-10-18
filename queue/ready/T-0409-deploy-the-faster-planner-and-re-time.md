@@ -1,7 +1,7 @@
 ---
 id: T-0409
 title: Deploy the faster planner (T-0403) and re-time live /plan through the tunnel - quote at least 5 plans before and after
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null

@@ -1,7 +1,7 @@
 ---
 id: T-0407
 title: Frozen-block readers fail open to a /* */ comment that hides the frozen body while a twin body draws instead - refuse block comments in every frozen file
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
