@@ -1,7 +1,7 @@
 ---
 id: T-0402
 title: ops/sane --prod exit 3 counts a services/api/test fixture change as a pending deploy - compare only the files the deployed Worker is built from
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T17:18:06Z
@@ -11,7 +11,7 @@ branch: task/T-0402
 exclusive: []
 touches: [ops/sane, ops/lib/, queue/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t0402
 depends_on: []
 verify: [ops/check-pins]
 acceptance: []
@@ -176,6 +176,28 @@ services/api that wrangler bundles -> exit 3 (fail closed). Each shown red on to
      `NAME-PAIRS OK: 242318 pair tokens ...`; check-pins-yaml.py exit 0 `PINS-YAML ok pins=53 fields=426`;
      check-exec-bits exit 0 `P-OPS-01: 255 files, 23 required present, all modes correct`; queue-check exit 0
      `QUEUE OK (397 tasks)`.
+
+- 2026-10-18T01:36:34Z review PASS (round 2, final) by agent/rv2-t0402 on b0dd285e (== origin/task/T-0402). Each
+  mutant applied to a COPY of ops/sane + ops/lib under a scratch dir and driven through the shipped
+  `bash ops/lib/check-sane-prod --sane <copy> --only <rows>` (v- rows only, owner-approved fast round):
+  - M0 shipped copy, 10 rows -> exit 0 `SANE-PROD ok 10/10 cases passed`.
+  - rv1 B1 (`path in imported`) -> exit 1, `SANE-PROD FAIL v-spell-static-bare: exit 0, want 3` and
+    `v-spell-dir-index: exit 0, want 3` (v-spell-static-ext pass); `2 of 3 cases failed`. Closed.
+  - rv1 B2 (IMPORT `(?:\bfrom)` only) -> exit 1, v-spell-dynamic, v-spell-dynamic-spaced, v-spell-side-effect,
+    v-spell-side-effect-single each `exit 0, want 3` (v-spell-export-from pass); `4 of 5 cases failed`. Closed.
+  - rv1 M3 (ops/sane `vrc -ne 1`) -> exit 1, `v-cannot-tell: exit 0, want 3; version line ["version   ok
+    cannot tell whether a deploy is pending: ..."]` (v-src pass); `1 of 2 cases failed`. Closed.
+  - Own mutant M4, imports() resolving every specifier against SRC instead of the importing file's directory
+    (`posixpath.join(posixpath.dirname(path), spec)` -> `posixpath.join(SRC, spec)`) -> SURVIVES all 36 v- rows
+    (`SANE-PROD ok 36/36`). Equivalent on today's tree (services/api/src has no subdirectory), but a future
+    src/sub/x.ts importing `../../../etl/...` would resolve one level too high and fail open (ok while a deploy is
+    pending). Not P-SAFE (pins_affected: []); round 2 is the last for harness PRs, so filed as T-0410 and merged
+    with this gap recorded.
+  - Gates bare on b0dd285e: check-safety-disclaimer rc=0; check-mutate-population.py rc=0 `P-PROC-06: every added
+    module is covered or allowlisted; the floor of 173 holds`; check-mutate-only.py rc=0 `MUTATE-ONLY OK: 248 of
+    248 ...`, `NAME-PAIRS OK: 242318 pair tokens ...`; check-pins-yaml.py rc=0 `PINS-YAML ok pins=53 fields=426`;
+    check-exec-bits rc=0 `P-OPS-01: 255 files, 23 required present, all modes correct`; queue-check rc=0
+    `QUEUE OK (397 tasks)`. `gh pr checks 296`: core pass 9m36s, pins-source-only pass 5m8s.
 
 ## Acceptance
 1. `bash ops/lib/check-sane-prod` -> `SANE-PROD ok N/N cases passed`, N including the v- rows, each compared on exit
