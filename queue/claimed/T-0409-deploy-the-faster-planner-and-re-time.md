@@ -34,3 +34,21 @@ Record in the Log anything that is still slow and why.
 ## Log
 - 2026-10-18 filed by agent/claude-opus-5 after PR #300 merged.
 - 2026-10-18T08:40:24Z claimed by agent/claude-opus-5; lease until 2026-10-19T08:40:24Z
+- 2026-10-18T09:03:38Z agent/claude-opus-5: BEFORE (live c6f2da75, keep-warm running, fresh x-scenic-device per request - the anon tier allows 3 plans/day/device; origin 34.07,-118.44, budget 25). A first pass hit a cold router: 18.71 s / 13.05 s / 10.44 s. Warm pass, 5 places:
+    place=710486223536647933 http/time=200 4.170411 eta=1844.435 fastest=1529.553 ceiling=3029.553 lambda=7.75 evals=6
+    place=161142772170980305 http/time=422 6.809649 {'error': 'no_scenic_alternative'}
+    place=597222322620230064 http/time=422 5.621798 {'error': 'nothing_pretty', 'budget_minutes': 25, 'more_time_minutes': 65, 'back_roads_eta_s': 3784.909, 'back_roads_budget_minutes': 36}
+    place=3980501968317559019 http/time=200 3.527579 eta=2429.114 fastest=1488.296 ceiling=2988.2960000000003 lambda=7.75 evals=6
+    place=174926121396169106 http/time=200 1.664557 eta=1080.283 fastest=721.528 ceiling=2221.5280000000002 lambda=7.75 evals=6
+- 2026-10-18T09:03:38Z agent/claude-opus-5: DEPLOYED sha=839220da581beccfc4505bb7ace74d42c3e36812 live=839220da581beccfc4505bb7ace74d42c3e36812 built_at=2026-10-18T08:50:35Z. AFTER, two passes:
+    place=710486223536647933 http/time=200 3.984493 eta=1844.435 fastest=1529.553 ceiling=3029.553 lambda=7.75 evals=6
+    place=161142772170980305 http/time=422 7.103097 {'error': 'no_scenic_alternative'}
+    place=597222322620230064 http/time=422 5.313332 {'error': 'nothing_pretty', 'budget_minutes': 25, 'more_time_minutes': 65, 'back_roads_eta_s': 3784.909, 'back_roads_budget_minutes': 36}
+    place=3980501968317559019 http/time=200 4.348784 eta=2429.114 fastest=1488.296 ceiling=2988.2960000000003 lambda=7.75 evals=6
+    place=174926121396169106 http/time=200 1.855260 eta=1080.283 fastest=721.528 ceiling=2221.5280000000002 lambda=7.75 evals=6
+    place=710486223536647933 http/time=200 2.412284 eta=1844.435 fastest=1529.553 ceiling=3029.553 lambda=7.75 evals=6
+    place=161142772170980305 http/time=422 4.055665 {'error': 'no_scenic_alternative'}
+    place=597222322620230064 http/time=422 5.249844 {'error': 'nothing_pretty', 'budget_minutes': 25, 'more_time_minutes': 65, 'back_roads_eta_s': 3784.909, 'back_roads_budget_minutes': 36}
+    place=3980501968317559019 http/time=200 3.183620 eta=2429.114 fastest=1488.296 ceiling=2988.2960000000003 lambda=7.75 evals=6
+    place=174926121396169106 http/time=200 1.802296 eta=1080.283 fastest=721.528 ceiling=2221.5280000000002 lambda=7.75 evals=6
+- 2026-10-18T09:03:38Z agent/claude-opus-5: every answer is identical before and after (same eta_s, fastest_eta_s, lambda 7.75, evaluations 6, same 422 bodies), and each 200 has eta_s <= ceiling_s. Latency moved from 1.7-6.8 s to 1.8-7.1 s (first pass) and 1.8-5.2 s (second): the 5-round schedule helps the 200 paths (Topanga 4.17 -> 2.41 s) but the honest-failure 422 paths still take 4-7 s, and every plan is still far over the plan's p95 1.5 s. Filed as T-0411. ops/sane --prod: 'backend ok ... db up', 'version ok live 839220da == Worker inputs at HEAD 839220da (0 not-bundled path(s) changed)', 'quota ok 231 of 225000'; exit 10 only from 'worktrees FAIL 2 of 94' (local in-progress worktrees), not production.
