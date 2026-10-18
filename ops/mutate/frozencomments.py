@@ -7,8 +7,9 @@
 The subject is a COPY of apps/ios at .build/mutate-frozencomments/ios (the tracked Swift must equal HEAD). Each row
 mutates one frozen file of the copy, runs the SHIPPING reader that reads it - `require_frozen_blocks` (-frozen),
 `require_preview_blocks` (-preview), `require_preview_wiring` (check-map-attribution's f4; `fail` records instead of
-exiting, as each entry point's other limbs would `exit` first on a twin's duplicate lines) or check-drive-display.py's
-`frozen()` - and restores the copy byte for byte. Before any row every reader must be silent on the pristine copy.
+exiting, as each entry point's other limbs would `exit` first on a twin's duplicate lines), check-drive-display.py's
+`frozen()` or check-estimate-badge.py's `check()` (its `{` blocks; its two one-line blocks live in SurpriseCard.swift,
+which its `{` blocks already cover) - and restores the copy byte for byte. Before any row every reader must be silent on the pristine copy.
 KILLED: a reader line names the mutated file with the block-comment reason. SILENT (printed, the main-red measure):
 the reader refused nothing at all. R1 is rv2-t0405's mutant verbatim (PR #298): `/*` at the end of PlanPreviewCard's
 typeSize line, `*/` at the start of titleRow's, a twin `var body: some View{` drawing title, ETA, why line and
@@ -38,7 +39,7 @@ import mutate_only  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORK = ROOT / ".build" / "mutate-frozencomments" / "ios"
-MIN_MUTATIONS = 165
+MIN_MUTATIONS = 239
 REASON = "a /* */ block comment in a frozen file"
 S = "Packages/ScenicApp/Sources/"
 H, P = S + "FeatureScenicHome/", S + "FeaturePlanSheet/"
@@ -79,7 +80,17 @@ def load_blocks() -> tuple[tuple[str, str, str], ...]:
     drive = tuple((rel, "drive", want[0]) for _, rel, _, want in mod.BLOCKS)
     if len(drive) != 3:
         raise CannotTell(f"drive_display_frozen.BLOCKS holds {len(drive)} blocks, this population was built for 3")
-    return tuple((rel, reader, first) for (rel, reader, _), first in zip(BLOCKS_BASH, firsts)) + drive
+    badge = tuple((rel, "estimate", decl) for rel, decl in estimate_reader().BLOCKS if decl.endswith(" {"))
+    if len(badge) != 8:
+        raise CannotTell(f"check-estimate-badge.py has {len(badge)} `{{` blocks, this population was built for 8")
+    return tuple((rel, reader, first) for (rel, reader, _), first in zip(BLOCKS_BASH, firsts)) + drive + badge
+
+
+def estimate_reader():
+    spec = importlib.util.spec_from_file_location("check_estimate_badge", ROOT / "ops/lib/check-estimate-badge.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 BASH = {"frozen": '. ops/lib/check-safety-disclaimer-frozen; fail() { printf "FAIL| %s\\n" "$@"; }; '
                   f'require_frozen_blocks "$W/{H.rstrip("/")}" "$W"',
         "preview": '. ops/lib/check-safety-disclaimer-frozen; . ops/lib/check-safety-disclaimer-preview; '
@@ -172,6 +183,13 @@ def run_reader(reader: str) -> str:
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         return "\n".join(mod.frozen(WORK))
+    if reader == "estimate":
+        mod = estimate_reader()
+        try:
+            mod.check(WORK)
+        except mod.Refusal as refusal:
+            return str(refusal)
+        return ""
     env = {**os.environ, "W": WORK.as_posix()}
     done = subprocess.run(["bash", "-c", BASH[reader]], cwd=ROOT, env=env, capture_output=True, text=True)
     if done.returncode != 0:
