@@ -216,6 +216,7 @@
 0|import SwiftUI
 0|struct PlanPreviewCard: View {
 1|    let preview: PlanPreview
+1|    let map: AnyView
 1|    let destination: String
 1|    let saveLine: String?
 1|    let onSave: () -> Void
@@ -224,6 +225,7 @@
 1|    let onLoop: () -> Void
 1|    let onTrip: () -> Void
 1|    @State private var showsAllHazards = false
+1|    @Environment(\.dynamicTypeSize) private var typeSize
 1|    @Environment(\.planMoments) private var moments
 1|    var body: some View {
 1|    }
@@ -366,6 +368,7 @@
 1|    private let surpriseGate: @MainActor () -> SurpriseGate
 1|    @State private var surprise = SurpriseGate.on
 1|    private let onDrive: (PlanPreview) -> Void
+1|    private let previewMap: @MainActor (PlanPreview) -> AnyView
 1|    @AppStorage("safety.disclaimer.acknowledged.v1") private var safetyNoteRead = false
 1|    @State private var sheet = PlanSheet(disclaimerAccepted: false)
 1|    @State private var query = ""
@@ -385,7 +388,7 @@
 1|                dayLinks: @escaping ([Coordinate]) -> [URL], loopPlanner: any LoopPlanning,
 1|                loopLink: @escaping (Coordinate, [Coordinate]) -> URL?,
 1|                surpriseGate: @escaping @MainActor () -> SurpriseGate, onDrive: @escaping (PlanPreview) -> Void,
-1|                onClose: @escaping () -> Void) {
+1|                previewMap: @escaping @MainActor (PlanPreview) -> AnyView, onClose: @escaping () -> Void) {
 1|    }
 1|    public var body: some View {
 1|    }
@@ -779,6 +782,26 @@
 1|    }
 0|}
 
+@file FeatureScenicHome/PlanPreviewMap.swift
+0|import DesignSystem
+0|import Handoff
+0|import MapAdapter
+0|import ScenicKit
+0|import SwiftUI
+0|public struct PlanPreviewMap: View {
+1|    @Environment(\.colorScheme) private var colorScheme
+1|    @State private var style = MapStyle.maplibreDemoTiles
+1|    @State private var route: MapRoute?
+1|    @State private var creditBandTop: CGFloat = 0
+1|    private let preview: PlanPreview
+1|    public init(preview: PlanPreview) {
+1|    }
+1|    public var body: some View {
+1|    }
+1|    private func resolveMap() {
+1|    }
+0|}
+
 @file FeatureScenicHome/PostDriveAnswersKey.swift
 0|import ScenicKit
 0|import SwiftUI
@@ -1101,5 +1124,3 @@
 1|    static func save(_ shown: [SurpriseHistory.Shown], today: CivilDate) {
 1|    }
 0|}
-
-
