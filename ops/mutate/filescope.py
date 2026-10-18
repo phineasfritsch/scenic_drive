@@ -39,7 +39,7 @@ GUARD = "ops/lib/check-file-scope.py"
 SOURCES = "apps/ios/Packages/ScenicApp/Sources"
 MODULES = ("DesignSystem", "FeaturePlanSheet", "FeatureScenicHome", "FeatureSurpriseMe")
 WORK = ROOT / ".build" / "mutate-filescope" / "Sources"
-MIN_MUTATIONS = 392
+MIN_MUTATIONS = 615
 
 FROZEN_FILES = ("FeatureScenicHome/SafetyDisclaimer.swift", "FeatureScenicHome/ScenicHomeScreen.swift",
                 "FeatureScenicHome/PostDriveCard.swift", "FeatureSurpriseMe/SurpriseCard.swift",
@@ -154,6 +154,33 @@ _D += [
     (_LOOP, "body", "        let x = 1; #if DEBUG\n        #endif", "not on a line of its own"),
 ]
 MUTATIONS += [(f"D{i}",) + m for i, m in enumerate(_D, 1)]
+
+# T-0406 rv2 B1: a bare regex literal opening with '/=' skews the depth. R8/R9 are MUT-C/MUT-D verbatim. X rows are
+# generated: each first character after the opening '/' x {statement, interpolation, closure, trailing comment}
+# x skew 1-3 x {file-scope, member} decoy; Y rows are the slash-line rule's other refusals.
+_BARE = "bare /regex/"
+MUTATIONS += [
+    ("R8", _LOOP, "skew", "        _ = /=\\{\\{/\n@@\n" + _FILE_DECOY + "\n        _ = /=\\}\\}/", _BARE),
+    ("R9", _LOOP, "skew", '        _ = "\\(/=\\{/ )"\n@@\n' + _MEMBER_DECOY + '\n        _ = "\\(/=\\}/ )"', _BARE),
+]
+FIRSTS = ("=", "= ", ")", "]", "}", "a", ".", '"', "")
+PLACES = (lambda r: f"_ = {r}", lambda r: f'_ = "\\({r} )"', lambda r: f"_ = {{ {r} }}", lambda r: f"_ = {r} // x")
+_X = []
+for _f in FIRSTS:
+    for _p in PLACES:
+        for _k in (1, 2, 3):
+            for _decoy in (_FILE_DECOY, _MEMBER_DECOY):
+                _X.append((_LOOP, "skew", "        " + _p(f"/{_f}" + "\\{" * _k + "/") + "\n@@\n" + _decoy + "\n        "
+                           + _p(f"/{_f}" + "\\}" * _k + "/"), _BARE))
+MUTATIONS += [(f"X{i}",) + m for i, m in enumerate(_X, 1)]
+_Y = [
+    (_LOOP, "body", "        var x = 6; x /= 2 // halve", _BARE),
+    (_LOOP, "body", "        _ = 12 / 3 / 2", _BARE),
+    (_LOOP, "body", '        _ = /\\{"/"\n        _ = 1', _BARE),
+    (_LOOP, "body", "        _ = /\\{/*x*/", _BARE),
+    (_CARD, "append", "let r = ##/a{/##", "an unknown raw-string delimiter"),
+]
+MUTATIONS += [(f"Y{i}",) + m for i, m in enumerate(_Y, 1)]
 
 
 def _body_site(lines: list[str]) -> int | None:

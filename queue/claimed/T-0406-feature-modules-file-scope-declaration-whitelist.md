@@ -121,9 +121,9 @@ This task lands first. T-0397 and T-0398 then merge main and need no shadowing g
 
 ## Acceptance
 1. `python ops/lib/check-file-scope.py` exits 0 and prints `FILE-SCOPE ok` with the measured file and line counts.
-2. `python ops/mutate/filescope.py` exits 0: `MUTATE ok  392/392 killed (floor 392 ...)`.
-3. `python ops/mutate/filescope.py --only R1,R2,R3,R4,R5,R6,R7` (the review mutants verbatim) exits 0, each killed
-   by name.
+2. `python ops/mutate/filescope.py` exits 0: `MUTATE ok  615/615 killed (floor 615 ...)`.
+3. `python ops/mutate/filescope.py --only R1,R2,R3,R4,R5,R6,R7,R8,R9` (the review mutants verbatim) exits 0, each
+   killed by name.
 4. The guard is in P-SAFE-03's assertion; `python ops/lib/check-pins-yaml.py` passes.
 5. Bare gates green: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py, check-pins-yaml.py,
    check-exec-bits, queue-check.
@@ -188,3 +188,27 @@ This task lands first. T-0397 and T-0398 then merge main and need no shadowing g
      fields=426`; `P-OPS-01: 256 files, 23 required present, all modes correct`; `QUEUE OK (397 tasks)`.
   `wc -l`: check-file-scope.py 300, filescope.py 252 (cap 300). rv1 B1 closed by class: directives whitelisted at
   every depth, non-flag conditions refused, branches brace-neutral; rv1's mutA/mutB files are refused by reason.
+- 2026-10-18T03:17:06Z FIX ROUND 3 RULING + RED/GREEN (agent/claude-opus-5). rv2 (agent/rv2-t0406) FAIL on 1399bb19,
+  B1: the lexer let a '/' followed by '=' through, and Swift 6 mode lexes `/=\{\{/` as a bare regex literal whose
+  braces the guard counted; MUT-C (file-scope enum, skew +2) and MUT-D (member shadow, the regex inside an
+  interpolation) exit 0. Ruled: the reviewer is right, and a per-character rule after '/' is another spelling race.
+  Ruled by class instead: a bare regex opens at a code '/' and closes at a '/' on the SAME line. swiftc -swift-version
+  6 twins (.build/t0406-r3): `let r = /=\{\{/` + `"\(/=\{/ )"` + `x /= 2` + `12 / 3` on one line each compiles and
+  prints `ONE-LINE Regex<Substring> false 3 4`; the same regex split over two lines (`split`, and inside a multi-line
+  interpolation `splitinterp`) fails with `error: unterminated regex literal`. GUARD: a code '/' (outside comments and
+  strings, inside interpolations too) with ANY '/' after it on its raw line - code, string or comment - is refused,
+  whatever character follows it; the old "'/' followed by whitespace or '='" rule is gone (one '/' per line cannot
+  hold a regex). `#/` and `##/` stay refused by the '#' rule. Measured before: 0 covered lines hold a code '/' at
+  all, so no exception list; the guard on the tree is unchanged `FILE-SCOPE ok  59 file(s) in 4 module(s), 981
+  approved line(s) ...` rc=0. Header states the threat model (careless edits AND the known lexer-skew constructs) and
+  the residual (a Swift lexer rule the guard does not model).
+  Population: R8/R9 = MUT-C/MUT-D verbatim; X1-X216 = first char after '/' {=, "= ", ), ], }, a, ., ", none} x
+  {statement, interpolation, closure, trailing `// x`} x skew 1-3 x {file, member} decoy; Y1-Y5 = `x /= 2 // halve`,
+  `12 / 3 / 2`, a regex holding a '"', a regex followed by `/*x*/`, `##/a{/##`.
+  RED on 1399bb19's guard (only filescope.py changed): `--only R8,R9,X1..X216,Y1..Y5` rc=1, `MUTATE SURVIVED R8 skew
+  FeatureScenicHome/LoopLinks.swift ... (exit 0, named 0, want 'bare /regex/')`, the same for R9; 52 of 223 survived
+  (R8, R9, the 48 X rows opening `/=`, Y1, Y2), 40 X survivors with exit 0.
+  GREEN: `MUTATE ok  615/615 killed (floor 615, population 615)` rc=0 (7+2 R, 221 G, 15 L, 149 D, 216 X, 5 Y); floor
+  raised 392 -> 615. rv2's own files on a Sources copy: mutC and mutD each `FILE-SCOPE refuse  FeatureScenicHome/
+  LoopLinks.swift: the lexer cannot read it - a code '/' with another '/' after it on its line, which may be a bare
+  /regex/ literal (line 10)` rc=1. `wc -l`: check-file-scope.py 300, filescope.py 279 (cap 300).

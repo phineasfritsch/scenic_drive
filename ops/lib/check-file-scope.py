@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 """T-0406 (P-SAFE-03, P-SAFE-07, P-SAFE-09, P-ATTR-01): no declaration can be added where it would shadow a name a
 frozen safety block uses. Every file-scope and member-level line of the feature modules is at an APPROVED site.
-
-    python ops/lib/check-file-scope.py                       # the tracked tree
-    python ops/lib/check-file-scope.py --sources DIR         # a copy of apps/ios/Packages/ScenicApp/Sources
-    python ops/lib/check-file-scope.py --print [MODULE/FILE] # the ready-to-paste approved block(s) of the tree
-
-THE CLASS. Five review rounds on 2026-10-17 each closed one spelling of the same hole: a declaration added outside
-every frozen block (`private enum DesignTokens`, a backticked `let`, a `fileprivate enum` above `import SwiftUI`,
-`extension Text { func fixedSize }`) changes what a byte-equal frozen line resolves to. The digest pins went red,
-and re-approving a digest is routine. This check is a WHITELIST by position, not a scan for names: each .swift file
+    python ops/lib/check-file-scope.py [--sources DIR] [--print [MODULE/FILE]]   # DIR: a copy of Sources; --print:
+    the ready-to-paste approved block(s). THE CLASS (five 2026-10-17 review rounds, one spelling each): a declaration
+outside every frozen block (`private enum DesignTokens`, a backticked `let`, a `fileprivate enum` above an import,
+`extension Text { func fixedSize }`) changes what a byte-equal frozen line resolves to, and re-approving a digest is
+routine. This check is a WHITELIST by position, not a scan for names: each .swift file
 is lexed (`//`, nested `/* */`, "...", multi-line and raw strings with interpolation, backtick identifiers), brace
 depth is tracked, and every line with a code character at depth 0 or 1 - imports, file-scope declarations of any
 kind and spelling, extensions, attributes, and the MEMBER declarations of every type and extension (a member
@@ -18,11 +14,14 @@ number, the approved lines for that file in ops/lib/check-file-scope-approved.tx
 returns to, a `{` at the depth it opens from. Depth >= 2 (member bodies) is free: a local shadows only its own body,
 and the frozen bodies are check-safety-disclaimer-frozen/-preview's whitelists. The FILE SET of the four modules is
 whitelisted too: a new file (any extension) is refused until its `@file` block is approved.
-
+THREAT MODEL: careless edits AND the known lexer-skew constructs (a regex or an unparsed #if whose braces the guard
+counts and swiftc does not, undone by a decoy). It is not a Swift compiler; RESIDUAL: a lexer rule it does not model.
 FAIL CLOSED, each a refusal by reason: an unterminated block comment, string, interpolation or backtick; a newline
-inside a single-line string; a `#` not followed by `#`, `"` or an identifier (`#/regex/#`); a `/` that is not `//`,
-`/*`, `/=` or followed by whitespace (Swift 6 mode enables bare `/regex/` literals, whose `{` would skew the depth);
-a lone CR; bytes that are not UTF-8; a depth that goes negative or ends != 0; a missing or malformed approved list.
+inside a single-line string; a `#` not followed by `#`, `"` or an identifier (`#/regex/#`); a lone CR; non-UTF-8;
+a depth that goes negative or ends != 0; a missing or malformed approved list. REGEX (rv2 B1, `/=\{\{/`): Swift 6
+mode lexes bare `/regex/` literals, which open at a code `/` and close at a `/` on the SAME line (swiftc: split, it
+is "unterminated"). So a code `/` (outside comments and strings, inside interpolations too) with any `/` after it on
+its raw line - code, string or comment - is refused whatever follows it; a line with one `/` cannot hold one.
 DIRECTIVES (rv1 B1: `{{` in an unparsed `#if compiler(>=99)` branch skewed the depth and a decoy undid it): every
 `#if/#elseif/#else/#endif` at ANY depth is an approved entry `#<depth>|<line>`, alone on its line outside strings;
 a condition is one bare build flag (`DEBUG`, `!DEBUG`), never compiler(/swift(/canImport(/os(; each branch is
@@ -126,8 +125,9 @@ def checked_lines(raw: bytes) -> list[tuple[int, str]]:
         elif text.startswith("/*", i):
             i, line = _block_comment(text, i, line)
         elif c == "/":
-            if i + 1 < n and text[i + 1] not in " \t\n=":
-                raise LexError(f"a '/' that may open a bare /regex/ literal (line {line + 1})")
+            if "/" in text[i + 1:(text.find("\n", i) + 1 or n + 1) - 1]:
+                raise LexError(f"a code '/' with another '/' after it on its line, which may be a bare /regex/ literal "
+                               f"(line {line + 1}): split the line, or write the division on a line of its own")
             code(depth)
             i += 1
         elif c == "#":
