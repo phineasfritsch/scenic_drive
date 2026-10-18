@@ -27,6 +27,7 @@ struct DriveRows: View {
                 row(for: DriveSelector.order[index].drive)
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
         .task {
             for entry in DriveSelector.order {
                 menus[entry.drive] = DriveRoute.menu(for: entry.drive)

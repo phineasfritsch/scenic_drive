@@ -63,6 +63,7 @@ CARD = S + "FeatureSurpriseMe/SurpriseCard.swift"
 PLAN, LOOP, TRIP = (S + "FeaturePlanSheet/PlanPreviewCard.swift", S + "FeaturePlanSheet/LoopPreviewCard.swift",
                     S + "FeaturePlanSheet/TripItineraryCard.swift")
 DRIVE = S + "FeatureScenicHome/DriveCard.swift"
+MENU = S + "FeatureScenicHome/DriveMenuChips.swift"
 BLOCKS = [
     (CARD, "roundTrip(minutes: pick.reason.roundTripMinutes)"),
     (CARD, "private func roundTrip(minutes: Int) -> some View {"),
@@ -74,6 +75,7 @@ BLOCKS = [
     (LOOP, "if preview.etaIsEstimate {"),
     (TRIP, "if itinerary.etaIsEstimate {"),
     (DRIVE, "if showsEstimate {"),
+    (MENU, "VStack(alignment: .leading, spacing: 0) {"),
 ]
 
 
@@ -210,6 +212,8 @@ MUTATIONS = [
      "spacing: 6) {\n                etaText\n"),
     ("the drive card's badge cleared", DRIVE, '.accessibilityIdentifier("drive.estimate")',
      '.accessibilityIdentifier("drive.estimate")\n                    .hidden()'),
+    ("the home menu's badge cleared on its own line", MENU, '.accessibilityIdentifier("home.menu.estimate")',
+     '.accessibilityIdentifier("home.menu.estimate")\n                .hidden()'),
     ("the drive card's arrival drawn under a new name", DRIVE, "addingTimeInterval(remainingSeconds)",
      "addingTimeInterval(secondsLeft)"),
     ("B1 a file-scoped DesignTokens shadows the tag's colours", CARD, None,
