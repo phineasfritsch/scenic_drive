@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sane_prod_fake import DEL, SEEN, STATE, Fake, edited, rows, snapshot, wire  # noqa: E402
 from sane_prod_tiles_cases import TILES_PATH, bound_problems, good, tiles_cases, tiles_meta_problems  # noqa: E402
 from sane_prod_checkout_cases import checkout_meta_problems, checkout_problems, checkout_rows  # noqa: E402
+from sane_version_cases import CASES as VERSION_CASES, version_case  # noqa: E402
 
 ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip()
 HEAD = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=ROOT).stdout.strip()
@@ -241,7 +242,8 @@ def main(argv: list[str]) -> int:
     for line in bound_failed:
         print(f"SANE-PROD FAIL     {line}")
     cases = [c for c in CASES if only is None or c[0] in only]
-    if not cases and not ran:
+    v_cases = [n for n in VERSION_CASES if only is None or n in only]
+    if not cases and not ran and not v_cases:
         print("SANE-PROD refuse   no case selected - the run would check nothing")
         return 2
     server = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
@@ -256,12 +258,19 @@ def main(argv: list[str]) -> int:
                 print(f"SANE-PROD FAIL     {case[0]}: " + "; ".join(problems))
             else:
                 print(f"SANE-PROD pass     {case[0]} exit={case[3]}")
+        for name in v_cases:  # T-0402: the version row over a fixture git history, sane run from a scratch repo
+            problems = version_case(ROOT, os.path.join(ROOT, sane), base, name, h())
+            if problems:
+                failed += 1
+                print(f"SANE-PROD FAIL     {name}: " + "; ".join(problems))
+            else:
+                print(f"SANE-PROD pass     {name} exit={VERSION_CASES[name][1]}")
     finally:
         server.shutdown()
     if failed:
-        print(f"SANE-PROD FAIL     {failed} of {len(cases) + ran} cases failed (sane={sane})")
+        print(f"SANE-PROD FAIL     {failed} of {len(cases) + len(v_cases) + ran} cases failed (sane={sane})")
         return 1
-    n = len(cases) + ran
+    n = len(cases) + len(v_cases) + ran
     print(f"SANE-PROD ok       {n}/{n} cases passed ({ran} b-/c- rows through sane_prod.tiles at a fixed clock; sane={sane}, fake={base})")
     return 0
 
