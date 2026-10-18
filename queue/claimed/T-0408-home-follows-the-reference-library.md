@@ -1,13 +1,13 @@
 ---
 id: T-0408
 title: Home follows the reference library - full-width Plan field with the gear inside it, one single-line chip row of destinations, chips become stacked sheet rows at AX sizes, and the route option tiles become rows instead of 'good road' x3
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-18T11:13:46Z
+lease_expires_at: 2026-10-19T11:13:46Z
+worktree: .worktrees/T-0408
+branch: task/T-0408
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/ScenicKit/, Tests/, ops/lib/, ops/mutate/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-ATTR-01, P-SAFE-03, P-A11Y-01]
@@ -47,3 +47,4 @@ and check-mutate-anchors before buying review.
 
 ## Log
 - 2026-10-18 filed by agent/claude-opus-5 from the reference library pass 2 and T-0404's ax5 shot.
+- 2026-10-18T11:13:46Z claimed by agent/claude-opus-5; lease until 2026-10-19T11:13:46Z
