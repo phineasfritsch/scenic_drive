@@ -212,3 +212,20 @@ This task lands first. T-0397 and T-0398 then merge main and need no shadowing g
   raised 392 -> 615. rv2's own files on a Sources copy: mutC and mutD each `FILE-SCOPE refuse  FeatureScenicHome/
   LoopLinks.swift: the lexer cannot read it - a code '/' with another '/' after it on its line, which may be a bare
   /regex/ literal (line 10)` rc=1. `wc -l`: check-file-scope.py 300, filescope.py 279 (cap 300).
+- 2026-10-18T03:39:30Z FINAL PRE-REVIEW, round 3 (agent/claude-opus-5). `git fetch origin` in the main checkout:
+  origin/main 0399dcea (PR #296's ops/sane changes + queue moves, no Sources or ops/mutate file) merged as e2c40315,
+  conflict-free. Acceptance re-run on the merged head e2c40315 (+ this Log):
+  1. `FILE-SCOPE ok  59 file(s) in 4 module(s), 981 approved line(s) at depth 0-1 or #if/#else/#endif; no file-scope
+     or member line outside the approved list` rc=0.
+  2. `MUTATE ok  615/615 killed (floor 615, population 615)` rc=0.
+  3. `MUTATE ok  9/9 killed (floor 615, population 615)` rc=0; R1-R9 each `MUTATE killed` naming its file (R8
+     `skew FeatureScenicHome/LoopLinks.swift: '        _ = /=\\{\\{/'`, R9 `... '        _ = "\\(/=\\{/ )"'`).
+  4. P-SAFE-03's assertion unchanged (ends `... ops/lib/check-file-scope.py && ... ops/mutate/filescope.py`);
+     `PINS-YAML ok pins=53 fields=426`.
+  5. Bare gates: check-safety-disclaimer rc=0 (`Frozen (-frozen, -preview); 37 feature file(s), shell, footer pinned
+     ...`); `P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds`; `MUTATE-ONLY OK: 248 of
+     248 driver runs refused with exit 64 (67 drivers, ...)` and `NAME-PAIRS OK` rc=0; `PINS-YAML ok pins=53
+     fields=426`; `P-OPS-01: 258 files, 23 required present, all modes correct`; `QUEUE OK (398 tasks)`.
+  `wc -l`: check-file-scope.py 300, filescope.py 279 (cap 300). rv2 B1 closed by class: no code '/' may share its
+  line with a later '/', so no bare regex can open; rv2's mutC/mutD files are refused by reason. Residual named in
+  the guard header: a Swift lexer rule the guard does not model.
