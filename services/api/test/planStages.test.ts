@@ -85,10 +85,10 @@ const GOLDEN: Record<string, { status: number; length: number; sha256: string }>
 const ROUNDS: Record<string, number> = {
   "santa-monica-topanga +25 (200)": 4,
   "westwood-woodland-hills +25 (200)": 4,
-  "westwood-malibu +25 (422 nothing_pretty)": 4,
+  "westwood-malibu +25 (422 nothing_pretty)": 5,
   "every scenic route on the fastest's ways (422 no_scenic_alternative)": 4,
   "every scenic route overshoots (502)": 5,
-  "dull at every lambda (422 nothing_pretty, no offer)": 4,
+  "dull at every lambda (422 nothing_pretty, no offer)": 5,
   "westwood-malibu back roads 32 (200)": 1,
   "dull back roads 40 (422 nothing_pretty)": 1,
 };

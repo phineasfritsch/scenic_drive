@@ -56,13 +56,13 @@ interface Row {
 const plan = (minutes: number, extra: Record<string, unknown> = {}) => ({ ...SANTA_MONICA_TOPANGA_BODY, budget_minutes: minutes, ...extra });
 
 const ROWS: Row[] = [
-  { name: "santa-monica-topanga +25", router: SANTA_MONICA_TOPANGA, body: plan(25), rounds: 5 },
-  { name: "westwood-woodland-hills +25", router: WESTWOOD_WOODLAND_HILLS, body: plan(25), rounds: 5 },
-  { name: "westwood-malibu +25", router: WESTWOOD_MALIBU, body: plan(25), rounds: 6 },
+  { name: "santa-monica-topanga +25", router: SANTA_MONICA_TOPANGA, body: plan(25), rounds: 4 },
+  { name: "westwood-woodland-hills +25", router: WESTWOOD_WOODLAND_HILLS, body: plan(25), rounds: 4 },
+  { name: "westwood-malibu +25", router: WESTWOOD_MALIBU, body: plan(25), rounds: 5 },
   { name: "westwood-malibu back roads 32", router: WESTWOOD_MALIBU, body: plan(32, { back_roads: true }), rounds: 1 },
   { name: "westwood-malibu back roads 31", router: WESTWOOD_MALIBU, body: plan(31, { back_roads: true }), rounds: 1 },
   { name: "step at lambda 4", router: curveRouter(1_000_000, (l) => (l >= 4 ? 9_000_000 : 1_000_000 + l * 100_000), FAST_WAYS, SCENIC_WAYS),
-    body: plan(25), rounds: 5 },
+    body: plan(25), rounds: 4 },
   { name: "every scenic route overshoots", router: curveRouter(1_000_000, () => 1_000_000 + 25 * 60_000 + 1, FAST_WAYS, SCENIC_WAYS),
     body: plan(25), rounds: 5 },
   { name: "exactly at the ceiling", router: curveRouter(1_000_000, () => 1_000_000 + 25 * 60_000, FAST_WAYS, SCENIC_WAYS), body: plan(25) },
@@ -178,13 +178,13 @@ describe("POST /plan over a router that takes T ms per request (T-0403 acceptanc
     });
   }
 
-  it("a full plan keeps 2 requests in flight in its first two rounds: car_fast || lambda 4, then lambda 0 || midpoint 2", async () => {
+  it("a full plan keeps 2 requests in flight in every round (T-0411): fast || 4, 0 || 6, 7 || 7.5 (the guess), then 7.75", async () => {
     const h = harness(SANTA_MONICA_TOPANGA);
     const timed = timedRouter(h, T);
     await timed.drive(() => handlePlan(planRequest(plan(25)), {}, h.deps));
     const lambdaOf = (model: unknown) => [0, 4, 6, 7, 7.5, 7.75].find((l) => JSON.stringify(model) === JSON.stringify(buildCustomModel(l, null)));
     expect(h.sent.map((s) => s.body.profile === "car_fast" ? "fast" : lambdaOf(s.body.custom_model))).toEqual(["fast", 4, 0, 6, 7, 7.5, 7.75]);
-    expect(timed.calls.map((c) => c.start)).toEqual([0, 0, T, T, 2 * T, 3 * T, 4 * T]);
+    expect(timed.calls.map((c) => c.start)).toEqual([0, 0, T, T, 2 * T, 2 * T, 3 * T]);
     expect(timed.peakInFlight()).toBe(2);
   });
 });
