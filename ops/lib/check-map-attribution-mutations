@@ -64,6 +64,9 @@ APP_TREE="apps/ios"
 MA="Packages/ScenicApp/Sources/MapAdapter"
 FS="Packages/ScenicApp/Sources/FeatureScenicHome"
 DS="Packages/ScenicApp/Sources/DesignSystem"
+PS="Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift"
+# rv1-t0405 B1's shadow arm verbatim, one sed replacement (`\1` is the matched line's indent).
+SHADOW_ARM='case .preview(let shadowTicket, let shadowPreview):\n\1    PlanPreviewCard(preview: shadowPreview, map: AnyView(EmptyView()), destination: sheet.destination?.name ?? "",\n\1        saveLine: saveLine,\n\1        onSave: { save(shadowPreview, budgetMinutes: shadowTicket.budgetMinutes) },\n\1        onChangePlace: { searchFor(.destination) }, onDrive: { onDrive(shadowPreview) },\n\1        onLoop: { showingLoop = true }, onTrip: { showingTrip = true })'
 
 [[ -f "$CHECK" ]] || { echo "P-ATTR-01: $CHECK is missing; the table has nothing to prove red."; exit 1; }
 [[ -d "$APP_TREE/$MA" ]] || { echo "P-ATTR-01: $APP_TREE/$MA is missing; nothing to mutate."; exit 1; }
@@ -137,6 +140,17 @@ rows=(
   "F4c the preview card hidden in its arm|Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift|s/^\( *\)\(onLoop: { showingLoop = true }, onTrip: { showingTrip = true })\)\$/\1\2\n\1.hidden()/|the plan preview's map is not wired and drawn as approved"
   "F4d rv0 M-B the map drawn over the preview credit|$FS/PlanPreviewMap.swift|/^ *MapView(\$/,/^ *)\$/{H;d};/onGeometryChange(for: CGFloat.self) { \$0.frame(in: .global)/{p;x;s/^\n//}|the plan preview's map is not wired and drawn as approved"
   "F4e the preview credit faded out|$FS/PlanPreviewMap.swift|s/^\( *\)\(\.onGeometryChange(for: CGFloat.self) { \$0.frame.*\)\$/\1\2\n\1.opacity(0)/|the plan preview's map is not wired and drawn as approved"
+  # F4f-F4m rv1-t0405 B1/B2 and their class: swiftc compiles a duplicate arm with a warning and the FIRST wins, so a
+  # shadow arm above the frozen one draws a card with no map and no credit. (f4) now freezes body, content and
+  # planContent WHOLE and whitelists every line naming PlanPreviewCard / planContent or passing `map:` in apps/ios.
+  "F4f rv1 B1 a shadow .preview arm above the frozen|$PS|s/^\( *\)\(case \.preview(let ticket, let preview):\)\$/\1$SHADOW_ARM\n\1\2/|the plan preview's map is not wired and drawn as approved"
+  "F4g a shadow .preview arm above the first arm|$PS|s/^\( *\)\(case \.idle, \.chosen:\)\$/\1$SHADOW_ARM\n\1\2/|the plan preview's map is not wired and drawn as approved"
+  "F4h a shadow .preview arm below the last arm|$PS|s/^\( *\)\(onAction: act)\)\$/\1\2\n\1$SHADOW_ARM/|the plan preview's map is not wired and drawn as approved"
+  "F4i a default: arm closing the switch|$PS|s/^\( *\)\(onAction: act)\)\$/\1\2\n\1default:\n\1    EmptyView()/|the plan preview's map is not wired and drawn as approved"
+  "F4j an if case .preview before the switch|$PS|s/^\( *\)\(switch sheet\.state {\)\$/\1if case .preview(_, let shadow) = sheet.state { PlanPreviewCard(preview: shadow, map: AnyView(EmptyView()), destination: \"\", saveLine: saveLine, onSave: {}, onChangePlace: {}, onDrive: { onDrive(shadow) }, onLoop: {}, onTrip: {}) }\n\1\2/|the plan preview's map is not wired and drawn as approved"
+  "F4k a second PlanPreviewCard( in a new file|+${PS%/*}/PlanPreviewShadow.swift|extension PlanSheetScreen { func shadowCard(_ p: PlanPreview) -> some View { PlanPreviewCard(preview: p, map: AnyView(EmptyView()), destination: \"\", saveLine: \"\", onSave: {}, onChangePlace: {}, onDrive: {}, onLoop: {}, onTrip: {}) } }|the plan preview's map is not wired and drawn as approved"
+  "F4l rv1 B2 planContent faded in content|$PS|s/^\( *\)planContent\$/\1planContent\n\1    .opacity(onPreview ? 0 : 1)/|the plan preview's map is not wired and drawn as approved"
+  "F4m content faded in body on the preview|$PS|s/^\( *\)content\$/\1content\n\1    .opacity(onPreview ? 0 : 1)/|the plan preview's map is not wired and drawn as approved"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies

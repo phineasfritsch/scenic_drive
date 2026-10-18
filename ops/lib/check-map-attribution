@@ -74,7 +74,7 @@ cd "$(git rev-parse --show-toplevel)"
 LIB="ops/lib/check-map-attribution-lib"
 SITES="ops/lib/check-map-attribution-sites"
 SHEET="ops/lib/check-map-attribution-sheet"
-for L in "$LIB" "$SITES" "$SHEET" ops/lib/check-safety-disclaimer-{frozen,pinned}; do
+for L in "$LIB" "$SITES" "$SHEET" ops/lib/check-map-attribution-preview ops/lib/check-safety-disclaimer-{frozen,pinned}; do
   if [[ ! -f "$L" ]]; then
     echo "P-ATTR-01: $L is missing; the check cannot read Swift source without its readers."
     exit 1
