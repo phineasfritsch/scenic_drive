@@ -610,6 +610,7 @@
 0|import DesignSystem
 0|import Foundation
 0|import Handoff
+0|import ScenicKit
 0|import SwiftUI
 0|struct DriveMenuChips: View {
 1|    let menu: DriveMenu
@@ -619,7 +620,23 @@
 1|    }
 1|    var body: some View {
 1|    }
-1|    private func chip(_ index: Int) -> some View {
+1|    private var fastestRoads: [String] {
+1|    }
+1|    private func option(_ index: Int) -> some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveOptionMeta.swift
+0|import DesignSystem
+0|import Handoff
+0|import ScenicKit
+0|import SwiftUI
+0|struct DriveOptionMeta: View {
+1|    let menu: DriveMenu
+1|    let row: DriveMenuRow
+1|    var body: some View {
+1|    }
+1|    private var line: String {
 1|    }
 0|}
 
@@ -659,6 +676,20 @@
 1|    static func resolve(for drive: HandoffDrive, menu: DriveMenu?, selected: Int?) -> MapRoute? {
 1|    }
 1|    static func menu(for drive: HandoffDrive, bundle: Bundle = .main) -> DriveMenu? {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveRows.swift
+0|import DesignSystem
+0|import Handoff
+0|import ScenicKit
+0|import SwiftUI
+0|struct DriveRows: View {
+1|    @Binding var selection: HandoffDrive
+1|    @State private var menus: [HandoffDrive: DriveMenu] = [:]
+1|    var body: some View {
+1|    }
+1|    private func row(for drive: HandoffDrive) -> some View {
 1|    }
 0|}
 
@@ -707,9 +738,14 @@
 0|import SwiftUI
 0|struct DriveSelector: View {
 1|    @Binding var selection: HandoffDrive
+1|    static let order: [(drive: HandoffDrive, identifier: String)] = [
+1|        (.saddlePeak, "home.drive.saddlePeak"),
+1|        (.santaMonicaMountains, "home.drive.la"),
+1|        (.skyline, "home.drive.skyline"),
+1|    ]
 1|    var body: some View {
 1|    }
-1|    private func row(for drive: HandoffDrive, identifier: String) -> some View {
+1|    private func chip(for drive: HandoffDrive, identifier: String) -> some View {
 1|    }
 0|}
 
@@ -949,7 +985,7 @@
 1|    }
 1|    private var chips: some View {
 1|    }
-1|    private var surpriseButton: some View {
+1|    private var mapControls: some View {
 1|    }
 1|    private var settingsButton: some View {
 1|    }

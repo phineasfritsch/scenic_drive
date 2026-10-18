@@ -96,6 +96,8 @@ SAFETY_APPROVED = [
     (CARD, "Text(PlanPreview.estimateBadge)"),
     (CONFIRM, "Text(PlanPreview.conditions)"),
     (CONFIRM, '.accessibilityIdentifier("drive.conditions")'),
+    # T-0408 R4: the home menu's one estimate caption under its option rows (home holds no learned samples).
+    (S + "FeatureScenicHome/DriveMenuChips.swift", "Text(PlanPreview.estimateBadge)"),
     (SCREEN, "showsEstimate: preview.showsEstimateBadge,"),
     (DISCLAIMER, "Text(Copy.conditions)"),
     (DISCLAIMER, 'static let conditions = "Conditions change. Verify locally."'),

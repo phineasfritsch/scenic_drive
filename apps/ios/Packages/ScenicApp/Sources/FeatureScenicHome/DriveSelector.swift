@@ -2,46 +2,46 @@ import DesignSystem
 import Handoff
 import SwiftUI
 
-/// Which of the two hard-coded drives the screen is showing: two rows in one band, above the title.
+/// The home's ONE chip row (T-0408, Google Maps #001): the drives, and nothing else - no Surprise, no gear - as
+/// single-line capsules in a horizontal scroll under the Plan field.
 ///
-/// ## Why two buttons and not `Picker(.segmented)`
+/// ## The look
 ///
-/// A segmented control renders with `UISegmentedControl`'s own colours - the system tint, the system
-/// selected-segment fill - and those are not `DesignTokens`. The one rule this package holds about
-/// colour is that every surface states its contrast through that table, on both appearances; a control
-/// that paints itself is a hole in it that no review of this file would see. Two buttons cost eleven
-/// lines and are `primary`/`onPrimary` when selected, `surface`/`fg` with a `border` hairline when
-/// not, which is the same pairing `GatedHandoffButton` and `HandoffFailureCard` already use.
+/// Each chip is a 36 pt capsule inside a 44 pt hit area. Its name never wraps: one line, and a name longer than the
+/// chip's widest is cut with an ellipsis, so no word ever breaks across lines ('West-wood' at AX5 was T-0404's shot).
+/// The selected chip is tonal - `surface` with a 2 pt `primary` border and semibold - not a `primary` fill, so the
+/// sheet's handoff button stays the only filled control on the screen. Colour is never the only signal: VoiceOver
+/// hears `isSelected`.
 ///
-/// ## Targets and type
+/// ## Accessibility sizes
 ///
-/// Each row is `frame(maxWidth: .infinity, minHeight: 44)` with the label INSIDE the frame, so the
-/// 44 pt target holds at the smallest Dynamic Type setting rather than being sized by the text -
-/// `HandoffFailureCard`'s two buttons are built the same way and for the same reason. Text styles
-/// only, no point sizes, and `fixedSize` vertically so accessibility sizes wrap instead of truncating.
-///
-/// The identifiers are `home.drive.skyline` and `home.drive.la`, one per row, stable whatever the
-/// label says, so a UI test selects a drive by what it is and not by the words on it.
-///
-/// - Note: never rendered and never tapped on a device. This package has no test target and no
-///   simulator on the authoring box; the compiler is the only proof this file has.
+/// At AX1+ the screen does not build this row; the same drives are `DriveRows`, stacked at the top of the sheet.
+/// `order` is the one table both read, so the two can never list different drives.
 struct DriveSelector: View {
-    /// The current selection, owned by `ScenicHomeScreen`.
+    /// Which drive the home shows.
     @Binding var selection: HandoffDrive
 
+    /// The drives in the order the home lists them, each with the identifier its chip carries.
+    static let order: [(drive: HandoffDrive, identifier: String)] = [
+        (.saddlePeak, "home.drive.saddlePeak"),
+        (.santaMonicaMountains, "home.drive.la"),
+        (.skyline, "home.drive.skyline"),
+    ]
+
     var body: some View {
-        HStack(spacing: 8) {
-            row(for: .saddlePeak, identifier: "home.drive.saddlePeak")
-            row(for: .santaMonicaMountains, identifier: "home.drive.la")
-            row(for: .skyline, identifier: "home.drive.skyline")
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Self.order.indices, id: \.self) { index in
+                    chip(for: Self.order[index].drive, identifier: Self.order[index].identifier)
+                }
+            }
+            .padding(.horizontal, 16)
         }
+        .scrollClipDisabled()
         .accessibilityIdentifier("home.drivePicker")
     }
 
-    /// One row. Saddle Peak is written first because it is the default (`HandoffDrive.defaultDrive`,
-    /// T-0236), then the Westwood loop, then the Peninsula; reading order is the one signal a row's
-    /// position carries.
-    private func row(for drive: HandoffDrive, identifier: String) -> some View {
+    private func chip(for drive: HandoffDrive, identifier: String) -> some View {
         let isSelected = selection == drive
         return Button {
             selection = drive
@@ -49,21 +49,24 @@ struct DriveSelector: View {
             Text(DriveCopy.shortName(for: drive))
                 .font(.subheadline)
                 .fontWeight(isSelected ? .semibold : .regular)
-                .foregroundStyle(isSelected ? DesignTokens.onPrimary : DesignTokens.fg)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(isSelected ? DesignTokens.primary : DesignTokens.surface)
-                )
+                .foregroundStyle(DesignTokens.fg)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 220)
+                .padding(.horizontal, 14)
+                .frame(height: 36)
+                .background(Capsule().fill(DesignTokens.surface))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(DesignTokens.border, lineWidth: isSelected ? 0 : 1)
+                    Capsule().strokeBorder(isSelected ? DesignTokens.primary : DesignTokens.border,
+                                           lineWidth: isSelected ? 2 : 1)
                 )
+                .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 1)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // Stated rather than left to the default: a selected row is not just a differently coloured
-        // one, and VoiceOver has to say which drive is on screen. Colour alone is never the signal.
+        // Stated rather than left to the default: a selected chip is not just a differently drawn one, and
+        // VoiceOver has to say which drive is on screen. Colour alone is never the signal.
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         .accessibilityIdentifier(identifier)
     }
