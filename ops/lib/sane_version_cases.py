@@ -1,0 +1,229 @@
+"""check-sane-prod's v- rows (T-0402): ops/sane --prod's version row over a FIXTURE git history.
+
+Each row builds a scratch repo: a live commit (BASE, plus this checkout's ops/lib/sane_prod.py so the quota row can
+answer) and one commit on top applying the row's changes. The fake Worker answers /__version with the live commit;
+the SHIPPED ops/sane (check-sane-prod's --sane, default this checkout's) runs with its cwd in the scratch repo, so it
+judges the scratch history with its own rules. A row compares the exit code and the WHOLE `version` line to what is
+typed here - the expected counts are written per row, never read back through ops/lib/sane_version.py.
+v-real-tree commits every path this checkout tracks under services/api (empty) and must leave 0 unclassified.
+v-near-miss commits generated siblings of every list entry (TYPED_*, typed here; a meta check requires them to equal
+the shipped lists, so a new entry gets siblings): none is listed, so each is unclassified - or outside, off services/api.
+v-spell-KIND rows are generated from SPELLINGS (one import spelling each); v-cannot-tell drives sane_version.py's exit 2.
+"""
+from __future__ import annotations
+
+import os
+import posixpath
+import shutil
+import subprocess
+import tempfile
+
+from sane_prod_fake import STATE, rows, wire
+
+BASE = {
+    "services/api/src/index.ts": 'import la from "../../etl/regions/la/region.json";\n'
+                                 'import shared from "../test/fixtures/shared.json";\nexport default { la, shared };\n',
+    "services/api/src/util.ts": "export const x = 1;\n",
+    "services/api/wrangler.jsonc": '{\n  "name": "scenic-api",\n  "main": "src/index.ts",\n'
+                                   '  "vars": { "ROUTER_URL": "https://a.invalid" }\n}\n',
+    "services/api/package.json": '{"name": "scenic-api"}\n',
+    "services/api/package-lock.json": '{"lockfileVersion": 3}\n',
+    "services/api/tsconfig.json": '{"compilerOptions": {}}\n',
+    "services/api/vitest.config.ts": "export default {};\n",
+    "services/api/test/a.test.ts": "// a\n",
+    "services/api/test/fixtures/shared.json": "{}\n",
+    "services/api/migrations/0001_places.sql": "create table p (id int);\n",
+    "services/etl/regions/la/region.json": '{"id": "la"}\n',
+    "services/etl/other.py": "x = 1\n",
+    "ops/deploy": "#!/usr/bin/env bash\n",
+}
+SEED = "services/api/test/fixtures/seed-places/places-0001.sql"
+A = "services/api/"
+# name -> (changes on top of BASE, want exit, counted paths in git's order, bundle, unclassified, not bundled)
+CASES: dict[str, tuple[dict[str, str], int, list[str], int, int, int]] = {
+    "v-none": ({}, 0, [], 0, 0, 0),
+    "v-fixture": ({SEED: "insert into p values (1);\n"}, 0, [], 0, 0, 1),
+    "v-test": ({A + "test/a.test.ts": "// b\n"}, 0, [], 0, 0, 1),
+    "v-vitest": ({A + "vitest.config.ts": "export default { x: 1 };\n"}, 0, [], 0, 0, 1),
+    "v-outside": ({"services/etl/other.py": "x = 2\n"}, 0, [], 0, 0, 0),
+    "v-src": ({A + "src/util.ts": "export const x = 2;\n"}, 3, [A + "src/util.ts"], 1, 0, 0),
+    "v-src-new": ({A + "src/new.ts": "export {};\n"}, 3, [A + "src/new.ts"], 1, 0, 0),
+    "v-wrangler-var": ({A + "wrangler.jsonc": BASE[A + "wrangler.jsonc"].replace("a.invalid", "b.invalid")}, 3,
+                       [A + "wrangler.jsonc"], 1, 0, 0),
+    "v-package": ({A + "package.json": '{"name": "scenic-api", "version": "1"}\n'}, 3, [A + "package.json"], 1, 0, 0),
+    "v-lock": ({A + "package-lock.json": '{"lockfileVersion": 4}\n'}, 3, [A + "package-lock.json"], 1, 0, 0),
+    "v-tsconfig": ({A + "tsconfig.json": '{"compilerOptions": {"strict": true}}\n'}, 3, [A + "tsconfig.json"], 1, 0, 0),
+    "v-deploy": ({"ops/deploy": "#!/usr/bin/env bash\nexit 0\n"}, 3, ["ops/deploy"], 1, 0, 0),
+    "v-migration": ({A + "migrations/0002_x.sql": "select 1;\n"}, 3, [A + "migrations/0002_x.sql"], 1, 0, 0),
+    "v-fixture-and-src": ({SEED: "-- s\n", A + "src/util.ts": "export const x = 3;\n"}, 3, [A + "src/util.ts"], 1, 0, 1),
+    "v-region": ({"services/etl/regions/la/region.json": '{"id": "la2"}\n'}, 3,
+                 ["services/etl/regions/la/region.json"], 1, 0, 0),
+    "v-imported-test": ({A + "test/fixtures/shared.json": '{"a": 1}\n'}, 3, [A + "test/fixtures/shared.json"], 1, 0, 0),
+    "v-newdir": ({A + "lib/x.ts": "export {};\n"}, 3, [A + "lib/x.ts"], 0, 1, 0),
+    "v-newfile": ({A + "worker-configuration.d.ts": "export {};\n"}, 3, [A + "worker-configuration.d.ts"], 0, 1, 0),
+    "v-real-tree": ({}, 3, [], 0, 0, 0),  # changes and counts computed from this checkout's tracked paths
+    "v-import-added": ({A + "src/index.ts": 'import n from "../test/fixtures/new.json";\n' + BASE[A + "src/index.ts"],
+                        A + "test/fixtures/new.json": "{}\n"}, 3,
+                       [A + "src/index.ts", A + "test/fixtures/new.json"], 2, 0, 0),
+    "v-import-dropped": ({A + "src/index.ts": 'import la from "../../etl/regions/la/region.json";\nexport default { la };\n',
+                          A + "test/fixtures/shared.json": '{"a": 2}\n'}, 3, [A + "src/index.ts"], 1, 0, 1),
+    "v-near-miss": ({}, 3, [], 0, 0, 0),  # changes and counts generated by near_misses()
+    "v-cannot-tell": ({}, 3, [], 0, 0, 0),  # HEAD built by bad_name_head(): sane_version.py exits 2
+}
+# Every import spelling src may use, one per row: BASE's src/spell.ts carries them all, each naming its own directory
+# under services/etl/spell/ (no target is a prefix of another's), and row v-spell-KIND changes only KIND's target - a
+# path outside services/api, so the row is red unless that spelling is read. {s} is the specifier without extension.
+# Declared limit, not covered: a specifier on a later line than its `from`/`import(` keyword, and require().
+SPELLINGS = (
+    ("static-ext", 'import a from "{s}.json";', ".json"),
+    ("static-bare", 'import a from "{s}";', ".ts"),
+    ("single-quote", "import a from '{s}';", ".ts"),
+    ("dir-index", 'import a from "{s}";', "/index.ts"),
+    ("dynamic", 'const a = await import("{s}");', ".ts"),
+    ("dynamic-spaced", 'const a = await import ( "{s}" );', ".ts"),
+    ("side-effect", 'import "{s}";', ".ts"),
+    ("side-effect-single", "import '{s}';", ".ts"),
+    ("export-from", 'export {{ a }} from "{s}";', ".ts"),
+    ("export-star", 'export * from "{s}";', ".ts"),
+    ("type-import", 'import type {{ A }} from "{s}";', ".ts"),
+    ("multi-line", 'import {{\n  a,\n  b,\n}} from "{s}";', ".ts"),
+    ("dot-slash", 'import a from "./{s}";', ".ts"),
+)
+BASE[A + "src/spell.ts"] = "".join(
+    t.format(s=f"../../etl/spell/{k}/m") + "\n" for k, t, _ in SPELLINGS)
+for _k, _t, _ext in SPELLINGS:
+    _target = f"services/etl/spell/{_k}/m{_ext}"
+    CASES[f"v-spell-{_k}"] = ({_target: "export const changed = 1;\n"}, 3, [_target], 1, 0, 0)
+BAD_NAME = b"bad-\xff.txt"  # not UTF-8: git diff -z prints it raw, sane_version.py cannot decode it and exits 2
+CANNOT_TELL = ("cannot tell whether a deploy is pending: 'utf-8' codec can't decode byte 0xff in position 4: "
+               "invalid start byte")
+TYPED_BUNDLE = ("services/api/src/", "services/api/wrangler.jsonc", "services/api/package.json",
+                "services/api/package-lock.json", "services/api/tsconfig.json", "services/api/migrations/", "ops/deploy")
+TYPED_NOT_BUNDLE = ("services/api/test/", "services/api/vitest.config.ts")
+
+
+def near_misses() -> tuple[dict[str, str], list[str], int]:
+    """Prefix/suffix/plural siblings of every typed entry: (changes, counted in git's order, outside count)."""
+    paths = set()
+    for e in TYPED_BUNDLE + TYPED_NOT_BUNDLE:
+        stem = e.rstrip("/")
+        head, base = posixpath.split(stem)
+        tail = "/x.ts" if e.endswith("/") else ""
+        paths |= {stem + "-old/x.ts", stem + "s/x.ts", stem + ".bak", stem + "-util.ts", f"{head}/x{base}{tail}"}
+    counted = sorted(p for p in paths if p.startswith(A))
+    return {p: "x\n" for p in paths}, counted, len(paths) - len(counted)
+
+
+def near_miss_meta(root: str) -> list[str]:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("sane_version", os.path.join(root, "ops", "lib", "sane_version.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    out = []
+    if set(TYPED_BUNDLE) != set(mod.WORKER_BUNDLE) or set(TYPED_NOT_BUNDLE) != set(mod.WORKER_NOT_BUNDLE):
+        out.append(f"typed lists {TYPED_BUNDLE + TYPED_NOT_BUNDLE} != shipped {mod.WORKER_BUNDLE + mod.WORKER_NOT_BUNDLE}")
+    changes = near_misses()[0]
+    hits = sorted(p for p in changes if any(p.startswith(e) if e.endswith("/") else p == e
+                                            for e in TYPED_BUNDLE + TYPED_NOT_BUNDLE + tuple(BASE)))
+    if hits:
+        out.append(f"near-misses that are list entries or BASE paths {hits}")
+    return out
+
+
+def git_env(home: str) -> dict:
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    cfg = os.path.join(home, "gitconfig")
+    open(cfg, "w").close()
+    env.update({"GIT_CONFIG_GLOBAL": cfg, "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "fixture",
+                "GIT_AUTHOR_EMAIL": "fixture@invalid", "GIT_COMMITTER_NAME": "fixture",
+                "GIT_COMMITTER_EMAIL": "fixture@invalid"})
+    return env
+
+
+def write_tree(repo: str, files: dict[str, str]) -> None:
+    for rel, text in files.items():
+        path = os.path.join(repo, *rel.split("/"))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(text)
+
+
+def commit(repo: str, env: dict, msg: str) -> str:
+    def g(*a: str) -> str:
+        return subprocess.run(["git", *a], cwd=repo, env=env, capture_output=True, text=True, check=True).stdout.strip()
+    g("add", "-A", ".")
+    g("commit", "-q", "--allow-empty", "-m", msg)
+    return g("rev-parse", "HEAD")
+
+
+def bad_name_head(repo: str, env: dict, live: str) -> str:
+    """A commit on LIVE adding BAD_NAME at the root, built with plumbing (no worktree on Windows can hold the name)."""
+    def g(*a: str, data: bytes = b"") -> bytes:
+        return subprocess.run(["git", *a], cwd=repo, env=env, input=data, capture_output=True, check=True).stdout.strip()
+    blob = g("hash-object", "-w", "--stdin", data=b"x\n")
+    tree = g("mktree", data=g("ls-tree", live) + b"\n100644 blob " + blob + b"\t" + BAD_NAME + b"\n")
+    head = g("commit-tree", tree.decode(), "-p", live, "-m", "v-cannot-tell").decode()
+    g("update-ref", "refs/heads/main", head)
+    return head
+
+
+def real_tree(root: str) -> tuple[dict[str, str], list[str], int, int]:
+    """Every tracked services/api path, emptied; expected (changes, counted, bundle, not bundled), typed here."""
+    paths = subprocess.run(["git", "ls-files", "-z", "services/api"], cwd=root, capture_output=True,
+                           text=True, check=True).stdout.split("\0")
+    paths = sorted(p for p in paths if p)
+    ignored = [p for p in paths if p.startswith(A + "test/") or p == A + "vitest.config.ts"]
+    counted = [p for p in paths if p not in ignored]
+    return {p: "" for p in paths}, counted, len(counted), len(ignored)
+
+
+def expected_line(case: tuple, live: str, head: str) -> str:
+    _, rc, counted, nb, nu, ni = case
+    if rc == 0:
+        msg = f"live {live} == Worker inputs at HEAD {head} ({ni} not-bundled path(s) changed)"
+        return f"{'version':<9} {'ok':<6} {msg}"
+    msg = (f"Worker inputs changed since live {live} -> deploy pending: {' '.join(counted[:3])} "
+           f"({nb} bundle, {nu} unclassified, {ni} not bundled)")
+    return f"{'version':<9} {'FAIL':<6} {msg}"
+
+
+def version_case(root: str, sane: str, base: str, name: str, health: dict) -> list[str]:
+    case = CASES[name]
+    with tempfile.TemporaryDirectory(prefix="t0402-v-") as d:
+        repo = os.path.join(d, "repo")
+        os.makedirs(repo)
+        env = git_env(d)
+        subprocess.run(["git", "init", "-q", "-b", "main", repo], env=env, check=True)
+        write_tree(repo, BASE)
+        os.makedirs(os.path.join(repo, "ops", "lib"))
+        shutil.copyfile(os.path.join(root, "ops", "lib", "sane_prod.py"), os.path.join(repo, "ops", "lib", "sane_prod.py"))
+        live = commit(repo, env, "live")
+        if name == "v-real-tree":
+            changes, counted, nb, ni = real_tree(root)
+            case = (changes, 3, counted, nb, 0, ni)
+        if name == "v-near-miss":
+            changes, counted, _ = near_misses()
+            case = (changes, 3, counted, 0, len(counted), 0)
+        write_tree(repo, case[0])
+        head = bad_name_head(repo, env, live) if name == "v-cannot-tell" else commit(repo, env, name)
+        short = [subprocess.run(["git", "rev-parse", "--short", s], cwd=repo, env=env, capture_output=True,
+                                text=True, check=True).stdout.strip() for s in (live, head)]
+        STATE.clear()
+        STATE["/__health"] = (200, wire(health))
+        STATE["/__version"] = (200, wire({"git_sha": live, "built_at": "2026-10-17T00:00:00Z"}))
+        run_env = {k: v for k, v in env.items() if k not in ("CORPUS_MANIFEST_URL", "TILES_MANIFEST_URL", "SANE_CORPUS")}
+        run_env.update({"SANE_SCOPE": "prod", "API_URL": base})
+        p = subprocess.run(["bash", sane, "--prod"], cwd=repo, env=run_env, capture_output=True, text=True)
+    lines = [ln.rstrip("\r") for ln in p.stdout.splitlines() if ln.startswith("version ")]
+    want = f"{'version':<9} {'FAIL':<6} {CANNOT_TELL}" if name == "v-cannot-tell" else expected_line(case, *short)
+    problems = near_miss_meta(root) if name == "v-near-miss" else []
+    if p.returncode != case[1]:
+        problems.append(f"exit {p.returncode}, want {case[1]}")
+    if lines != [want]:
+        problems.append(f"version line {lines!r}, want [{want!r}]")
+    stray = sorted(r for r, st in rows(p.stdout).items() if "FAIL" in st and r != "version")
+    if stray:
+        problems.append(f"unexpected FAIL rows {stray}")
+    if problems:
+        problems.append("ops/sane printed: " + " | ".join(ln for ln in p.stdout.splitlines() if ln.strip()))
+    return problems

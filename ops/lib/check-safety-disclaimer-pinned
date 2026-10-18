@@ -87,7 +87,7 @@ PINNED_SURPRISE=(
   'SurpriseNotThis.swift 05e8115a07c0e5864a311d10089155adf2937960c9edd3f38eec877a6c952bdd'
   'SurpriseShownLog.swift fedf97c79354fa82f9c83d08c5a6da3734c5dd0c91ff0e8368c3f79a4e45d489'
 )
-PINNED_FOOTER_DIGEST='8f07bec7abe9690183813b79af08d404add796088bf497781b560d7e4bc7c0b7'
+PINNED_FOOTER_DIGEST='0ea47037ab2fc1ffc3f6d6b38510a68e879c7f023269193cffb0c2f03a8aa81e'
 # T-0273 pre-review M1: THE APP SHELL, pinned as well. It composes the card, and a module-local type wins over an
 # imported one, so a `struct SurpriseCard` declared anywhere in the shell - appended below the frozen ScenicDriveApp
 # block, or in a new file (ScenicDrive/ is an Xcode 26 buildable folder: every source in it compiles) - is what the
@@ -242,7 +242,7 @@ require_pinned_surface() {
 # line below is typed again in the same commit, with the reason in the task's Log. Run LAST, after -doors.
 PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Package.swift 23bae2e8451caddb0fc43ad276dd3f1e068d645accfb97abddf184d0077304f1'
-  'Packages/ScenicApp/Sources/DesignSystem/AttributionFooter.swift 8f07bec7abe9690183813b79af08d404add796088bf497781b560d7e4bc7c0b7'
+  'Packages/ScenicApp/Sources/DesignSystem/AttributionFooter.swift 0ea47037ab2fc1ffc3f6d6b38510a68e879c7f023269193cffb0c2f03a8aa81e'
   'Packages/ScenicApp/Sources/DesignSystem/Clipboard.swift 190ab3a7c0091a8c769bd297e4f0a55c61633e190d4752232f0bed2376c98716'
   'Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift 8a39ca69f0094fa24d7e034449dd4fcab880be0fa895bf71a5c6a51ecc1fef39'
   'Packages/ScenicApp/Sources/Entitlements/CorpusDownloadSheet.swift bc33c482313a9298051359b6233de2416be2c0f1f4dd0eaca822c2c9988427f4'

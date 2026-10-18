@@ -1,20 +1,20 @@
 import SwiftUI
 
-/// The map attribution line, bottom-right, on every map surface at every sheet detent.
+/// The map attribution line, bottom-right, on every map surface at every sheet detent (P-ATTR-01).
 ///
-/// The plan's P-ATTR-01, not yet filed in PINS.yaml (`grep -c P-ATTR-01 pins/PINS.yaml` -> 0); it is
-/// written when the real PMTiles basemap lands, and nothing mechanical enforces this file until then.
-/// The basemap licences are not decoration: OSM's ODbL and Protomaps both require visible
-/// credit, and the demo basemap this skeleton ships against credits different parties again. That is
-/// why `text` is a **required** initialiser parameter with no default. A default would be a string
-/// baked in here that stays put when the tiles underneath it change, and the first thing anybody would
-/// do with it is leave it - which is how a map ends up crediting OpenStreetMap for data that is not
-/// theirs. Whoever mounts the map states what the map is made of.
+/// The basemap licences are not decoration: OSM's ODbL and Protomaps both require visible credit, and the demo
+/// basemap credits different parties again. That is why `text` is a **required** initialiser parameter with no
+/// default: whoever mounts the map states what the map is made of, and this type never names a party.
 ///
-/// - Note: the plan's `© OpenStreetMap contributors · Protomaps` string arrives with the real PMTiles
-///   basemap. This type pins the *visibility* now and takes no view on the wording.
+/// T-0404: a caption, not a box. At every non-accessibility Dynamic Type size it is ONE line that shrinks rather
+/// than wraps; at accessibility sizes it is a strip of at most TWO lines split at the credit's own " · "
+/// separator (one line when the text is a single party). Every visible line has `lineLimit(1)`, so no break can fall inside a word
+/// ("OpenStreet-Map" at AX5 on T-0397's drive screen), and Dynamic Type is clamped at `.accessibility2` so the
+/// strip's height is bounded and it never grows over the route, MapLibre's (i) or the sheet's controls. The text is
+/// rendered verbatim and nothing is dropped; VoiceOver reads `text` whole, whatever the visible split or scale.
 public struct AttributionFooter: View {
     private let text: String
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// - Parameter text: the credit for the tiles actually on screen. Required; see the type note.
     public init(text: String) {
@@ -23,51 +23,78 @@ public struct AttributionFooter: View {
 
     public var body: some View {
         HStack(spacing: 0) {
-            // The lower-LEFT corner is the renderer's: MapLibre draws its logo there, measured at 9-94 pt
-            // from the map's left edge on T-0236's round-2 screenshots, where the composed credit (basemap
-            // plus the drawn line's OpenStreetMap credit) grew to the full width and sat on the logo. The
-            // pill never grows into that corner - it wraps onto a second line instead (no `lineLimit`).
-            Spacer(minLength: 104)
-            Text(text)
-                .font(.footnote)
-                // `fgMuted`, not `fg`: attribution is secondary text and must not compete with the
-                // map. Both appearances of the pair clear 4.5:1 against `surface`, which is why the
-                // chip below is opaque enough to be a surface rather than a tint over the tiles.
-                .foregroundStyle(DesignTokens.fgMuted)
-                .multilineTextAlignment(.trailing)
-                // Dynamic Type can wrap this onto two lines on the largest sizes. Wrapping is correct;
-                // truncating would drop a licence term, so there is no `lineLimit` here.
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    // Readable on both appearances because it carries its own ground rather than
-                    // trusting the tiles: `surface` at 0.85 over anything the renderer draws, plus a
-                    // hairline so the chip has an edge on a busy basemap.
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(DesignTokens.surface.opacity(0.85))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .strokeBorder(DesignTokens.border, lineWidth: 1)
-                        )
-                )
+            // MapLibre's logo hangs from the top-left (MapView.swift, `logoViewPosition = .topLeft`), so the
+            // lower-left is free and the caption may use the full width rather than wrap.
+            Spacer(minLength: 12)
+            if typeSize.isAccessibilitySize {
+                // Always the strip at accessibility sizes: run 39062709376 showed a ViewThatFits here accepting
+                // the one-line child at half scale (about 12 pt at AX5), so the split is decided, not measured.
+                VStack(alignment: .trailing, spacing: 0) {
+                    ForEach(Array(AttributionFooter.strip(text).enumerated()), id: \.offset) { item in
+                        line(item.element)
+                    }
+                }
+            } else {
+                line(text)
+            }
         }
-        // Bottom-right, and at least 44 pt tall so it is a real target when it becomes tappable
-        // (licence links) and so nothing lays out on top of it by accident.
+        // Bounded height: two caption2 lines at about 24 pt is the most this ever draws.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+        // At least 44 pt tall so it is a real target when it becomes tappable (licence links); bottom-aligned, so
+        // the extra height is empty, not drawn.
         .frame(minHeight: 44, alignment: .bottomTrailing)
         .padding(.trailing, 12)
         .padding(.bottom, 8)
-        .accessibilityElement(children: .combine)
-        // Load-bearing identifier, reserved rather than used: no XCUITest exists yet - this package
-        // has no test targets, because an XCTest bundle authored on a box with no Apple toolchain
-        // could never be seen red. The XCUITest that proves attribution survives every sheet detent
-        // arrives with the first green Xcode Cloud run, and it will anchor on this identifier rather
-        // than on the text, because the text changes with the basemap.
+        // One element, labelled with the whole credit verbatim, so a VoiceOver user hears every party even when
+        // the visible caption is split over two lines or scaled down.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(text))
+        // Load-bearing identifier for the XCUITest that proves attribution survives every sheet detent (T-0180);
+        // it anchors here rather than on the text, because the text changes with the basemap.
         .accessibilityIdentifier("attribution.footer")
-        // NEVER hidden from accessibility. Stated as an explicit `false` rather than left to the
-        // default so that removing it is a visible deletion in a diff: a screen reader user is
-        // entitled to the same credit line as everybody else, and `.accessibilityHidden(true)` here
-        // would be a licence breach that renders identically in every screenshot.
+        // NEVER hidden from accessibility. Stated as an explicit `false` so removing it is a visible deletion in a
+        // diff: `.accessibilityHidden(true)` here is a licence breach that renders identically in every screenshot.
         .accessibilityHidden(false)
+    }
+
+    /// One visible line: caption2, muted, never wrapped. It shrinks to fit instead of breaking or truncating; the
+    /// longest line the CI credit produces needs about 0.65 at xxxLarge, inside the 0.5 floor.
+    private func line(_ string: String) -> some View {
+        Text(string)
+            .font(.caption2)
+            // `fgMuted`: attribution is secondary text and must not compete with the map.
+            .foregroundStyle(DesignTokens.fgMuted)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .allowsTightening(true)
+            // No box: a crisp one-point outline in `surface` - the ground `fgMuted` clears 4.5:1 against in both
+            // appearances - keeps the glyphs legible on any tile and covers nothing beyond the letters. Blurred
+            // shadows went translucent and muddy on the light demo tiles in dark mode (run 39065139596).
+            .shadow(color: DesignTokens.surface, radius: 0, x: 1, y: 0)
+            .shadow(color: DesignTokens.surface, radius: 0, x: -1, y: 0)
+            .shadow(color: DesignTokens.surface, radius: 0, x: 0, y: 1)
+            .shadow(color: DesignTokens.surface, radius: 0, x: 0, y: -1)
+    }
+
+    /// The credit split at its " · " separators into at most two lines with the most even lengths. The first
+    /// line keeps the trailing " ·" so the reader sees the credit continue. One party stays one line.
+    static func strip(_ caption: String) -> [String] {
+        let separator = " · "
+        let parties = caption.components(separatedBy: separator)
+        guard parties.count > 1 else { return [caption] }
+        var best = 1
+        var bestWidth = Int.max
+        for cut in 1..<parties.count {
+            let head = parties[..<cut].joined(separator: separator).count + 2
+            let tail = parties[cut...].joined(separator: separator).count
+            if max(head, tail) < bestWidth {
+                bestWidth = max(head, tail)
+                best = cut
+            }
+        }
+        return [
+            parties[..<best].joined(separator: separator) + " ·",
+            parties[best...].joined(separator: separator),
+        ]
     }
 }

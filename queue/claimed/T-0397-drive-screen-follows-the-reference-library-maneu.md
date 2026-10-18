@@ -264,3 +264,64 @@ and drive-dark and state, item by item, what each shot shows. Any new or changed
   - NOT completed locally: `bash ops/check-pins --source-only` started 20:30:21Z on this head and was still inside
     check-map-attribution after 35 min on a box running other agents' pin sets; each gate the touched pins name was
     run bare above instead, and CI's pins-source-only job on the pushed head is the confirmation.
+- 2026-10-18T05:00:08Z agent/claude-opus-5 - round 3 (rv2 FAIL on 83443fb2: N1 a `fileprivate enum DesignTokens
+  { static let fg = Color.clear ... }` above `import SwiftUI` in DriveCard.swift / DriveEndConfirm.swift draws the
+  drive disclaimer clear, P-SAFE-03; N2 a `fileprivate enum PostDriveQuestion { static func asks(...) -> Bool { true }
+  ... }` above the import in DriveScreen.swift opens the post-drive question for a moving driver, P-SAFE-09).
+  - Ruling: this is the file-scope/member shadowing class T-0406 (PR #299, main ab36b2bb) closed with
+    ops/lib/check-file-scope.py, a whitelist of every depth-0/1 line and #if directive of every .swift file in
+    DesignSystem, FeaturePlanSheet, FeatureScenicHome and FeatureSurpriseMe. The fix is to merge main and approve
+    this PR's three FeatureScenicHome files in its list, not to grow check-drive-display.py one name at a time.
+  - Merged origin/main ab36b2bb into 83443fb2. One conflict, pins/PINS.yaml P-SAFE-06 (statement and
+    why_no_test_catches_it), resolved against the merge base: the branch left `statement` unchanged and main appended
+    its T-0406 sentence, so main's statement; main left `why_no_test_catches_it` unchanged and the branch rewrote it,
+    so the branch's. ops/lib/check-safety-disclaimer-linked-digests.txt and check-safety-disclaimer-pinned merged
+    without a conflict, and check-safety-disclaimer is [0] on the merged tree (below), so no digest row changes.
+  - Merged head before approval: check-file-scope.py [1] "FILE-SCOPE refuse  FeatureScenicHome/DriveCard.swift: a
+    file the module's approved file set does not list", the same for DriveEndConfirm.swift, and "DriveScreen.swift:
+    ... line 31 '1|    @State private var confirming = false' is not the approved '1|    private let preview:
+    PlanPreview'"; "FILE-SCOPE FAIL  3 refusal(s)". Pasted the `--print FeatureScenicHome/<File>` block of exactly
+    those three files into ops/lib/check-file-scope-approved.txt (DriveCard 22 lines, DriveEndConfirm 15, DriveScreen
+    +confirming, -endButton, +endDrive, +closeOnMoving); no other block changed. GREEN: [0] "FILE-SCOPE ok  61
+    file(s) in 4 module(s), 1017 approved line(s) at depth 0-1 or #if/#else/#endif; no file-scope or member line
+    outside the approved list".
+  - rv2 mutants RED by name (.build/t0397r3/rv2_mutants.py: each declaration inserted in place above `import
+    SwiftUI`, both guards run, the file restored and checked byte-equal by sha256):
+    - N1 DriveCard `fileprivate enum DesignTokens { static let fg = Color.clear ... }`: check-file-scope.py [1]
+      "FILE-SCOPE refuse  FeatureScenicHome/DriveCard.swift: a file-scope or member line not at an approved site:
+      line 3 '0|fileprivate enum DesignTokens {' is not the approved '0|import SwiftUI'"; check-drive-display.py [0]
+      (the gap rv2 found, unchanged).
+    - N1 DriveEndConfirm, same declaration: check-file-scope.py [1] "FILE-SCOPE refuse
+      FeatureScenicHome/DriveEndConfirm.swift: ... line 3 '0|fileprivate enum DesignTokens {' is not the approved
+      '0|import SwiftUI'"; check-drive-display.py [0].
+    - N2 DriveScreen `fileprivate enum PostDriveQuestion { static func asks(after display: DriveDisplay,
+      alreadyAsked: Bool) -> Bool { true } ... }`: check-file-scope.py [1] "FILE-SCOPE refuse
+      FeatureScenicHome/DriveScreen.swift: ... line 5 '0|fileprivate enum PostDriveQuestion {' is not the approved
+      '0|import SwiftUI'"; check-drive-display.py [1] as well (its P-SAFE-09 display whitelist refuses the
+      `display: DriveDisplay` parameter line), which rv2's spelling did not hit.
+    - Restored tree: check-file-scope.py [0], check-drive-display.py [0]; driver exit 0.
+  - Decision on this PR's own per-declaration guard: check-drive-display.py's frozen() (each drive view's whole
+    block, under its approved line `import SwiftUI`, its file's last code) stays as it is, defence in depth over the
+    three drive views; it is not weakened and not extended. The above-import door is closed by T-0406's whitelist,
+    which P-SAFE-03's assertion runs. No `estimate_badge_decls` scan exists on this branch (grep over ops/lib: no
+    match), so there is nothing to drop or keep under that name.
+  - Swift: no file under apps/ios or Sources/ changed in this round's commits beyond what the merge brings from main
+    (AttributionFooter.swift, T-0404). ios-compile dispatched once on the pushed merged head as the confirmation.
+  - Gates on the merged head, run bare, each in its own background shell, waited once:
+    [0] check-safety-disclaimer "Frozen (-frozen, -preview); 39 feature file(s), shell, footer pinned (-pinned);
+    doors over 117 .swift (-doors); LAST all 117 app .swift, then 336 root + pbxproj file(s) (-linked)."
+    [0] check-map-attribution "39 feature file(s), the app shell and AttributionFooter.swift pinned by sha256
+    (-pinned); every app .swift, pbxproj and root Sources (-linked)."
+    [0] check-file-scope.py "FILE-SCOPE ok  61 file(s) in 4 module(s), 1017 approved line(s) ..."
+    [0] check-mutate-population.py "P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds"
+    [0] check-mutate-only.py "MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64 (67 drivers, 114 range
+    probes: 25 digit, 47 name, 42 N-(N+1))", "NAME-PAIRS OK: 244250 pair tokens over 50 id populations ..."
+    [0] check-pins-yaml.py "PINS-YAML ok pins=53 fields=426"
+    [0] check-exec-bits "P-OPS-01: 259 files, 23 required present, all modes correct"
+    [0] queue-check "QUEUE OK (398 tasks)"
+    [0] check-drive-display.py "P-SAFE-09 (screen): 22 approved whole lines ...", "P-SAFE-03/07 (screens): 26
+    approved whole lines ...", "P-SAFE-03/09 (drive views): 3 structs (243 kept lines) are their approved whole
+    blocks, each its file's last code."; --prove-red [0] "PROVE-RED OK: 20/20 refused by name"
+    [0] check-drive-voice.py "P-SAFE-09 (voice): 7 approved whole lines speak under apps/ios, and no other line does"
+    [0] check-store-links.py "P-STORE-01 source half: ... at exactly their approved sites, mounted, in a frozen
+    Entitlements module"

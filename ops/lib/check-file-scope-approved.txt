@@ -1,0 +1,1145 @@
+# T-0406's approved list, read by ops/lib/check-file-scope.py. One block per file of DesignSystem, FeaturePlanSheet,
+# FeatureScenicHome and FeatureSurpriseMe: `@file <module>/<path>`, then every line with code at brace depth 0 or 1,
+# in order, as `<depth>|<the line, byte-equal>`, and every #if/#elseif/#else/#endif at any depth as
+# `#<depth>|<the line>`. A refusal prints the file's new block; paste it here deliberately.
+
+@file DesignSystem/AttributionFooter.swift
+0|import SwiftUI
+0|public struct AttributionFooter: View {
+1|    private let text: String
+1|    @Environment(\.dynamicTypeSize) private var typeSize
+1|    public init(text: String) {
+1|    }
+1|    public var body: some View {
+1|    }
+1|    private func line(_ string: String) -> some View {
+1|    }
+1|    static func strip(_ caption: String) -> [String] {
+1|    }
+0|}
+
+@file DesignSystem/Clipboard.swift
+0|import UIKit
+0|@MainActor
+0|public enum Clipboard {
+1|    public static func copy(_ text: String) {
+1|    }
+0|}
+
+@file DesignSystem/DesignTokens.swift
+0|import SwiftUI
+0|import UIKit
+0|public enum DesignTokens {
+1|    public static let bg = dynamic(light: 0xFFF7ED, dark: 0x0F172A)
+1|    public static let surface = dynamic(light: 0xFFFFFF, dark: 0x192134)
+1|    public static let fg = dynamic(light: 0x0F172A, dark: 0xF8FAFC)
+1|    public static let fgMuted = dynamic(light: 0x64748B, dark: 0x94A3B8)
+1|    public static let primary = dynamic(light: 0xEA580C, dark: 0xFB923C)
+1|    public static let onPrimary = dynamic(light: 0xFFFFFF, dark: 0x0F172A)
+1|    public static let route = dynamic(light: 0x2563EB, dark: 0x3B82F6)
+1|    public static let scenic = dynamic(light: 0x15803D, dark: 0x4ADE80)
+1|    public static let hazard = dynamic(light: 0xB45309, dark: 0xFBBF24)
+1|    public static let destructive = dynamic(light: 0xDC2626, dark: 0xF87171)
+1|    public static let border = Color(uiColor: UIColor { traits in
+1|    })
+1|    private static func dynamic(light: UInt32, dark: UInt32) -> Color {
+1|    }
+1|    private static func srgb(_ hex: UInt32, alpha: CGFloat = 1) -> UIColor {
+1|    }
+0|}
+
+@file FeaturePlanSheet/LoopPreviewCard.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct LoopPreviewCard: View {
+1|    let preview: LoopPreview
+1|    let minutes: Int
+1|    let start: String
+1|    let link: URL?
+1|    let onChange: () -> Void
+1|    @Environment(\.planMoments) private var moments
+1|    var body: some View {
+1|    }
+1|    static func retraceLine(_ fraction: Double) -> String {
+1|    }
+1|    static func duration(_ seconds: Double) -> String {
+1|    }
+1|    static func miles(_ meters: Double) -> String {
+1|    }
+0|}
+
+@file FeaturePlanSheet/LoopScreen.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct LoopScreen: View {
+1|    @Binding var loop: LoopSheet
+1|    let planner: any LoopPlanning
+1|    let mapsURL: (Coordinate, [Coordinate]) -> URL?
+1|    let waitlist: any WaitlistJoining
+1|    @State private var query = ""
+1|    @State private var showingWaitlist = false
+1|    @State private var waitlistAnswer: WaitlistAnswer?
+1|    init(loop: Binding<LoopSheet>, planner: any LoopPlanning, waitlist: any WaitlistJoining,
+1|         mapsURL: @escaping (Coordinate, [Coordinate]) -> URL?) {
+1|    }
+1|    var body: some View {
+1|    }
+1|    private func joinWaitlist() {
+1|    }
+1|    private func changeStart() {
+1|    }
+1|    private var form: some View {
+1|    }
+1|    private func planLoop() {
+1|    }
+0|}
+
+@file FeaturePlanSheet/PlanCardExit.swift
+0|import SwiftUI
+0|struct PlanCardExit: View {
+1|    let title: String
+1|    let action: () -> Void
+1|    init(_ title: String, action: @escaping () -> Void) {
+1|    }
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeaturePlanSheet/PlanDriveButton.swift
+0|import DesignSystem
+0|import SwiftUI
+0|public struct PlanDriveButton: View {
+1|    private let action: () -> Void
+1|    public init(action: @escaping () -> Void) {
+1|    }
+1|    public var body: some View {
+1|    }
+0|}
+
+@file FeaturePlanSheet/PlanFailureCard.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct PlanFailureCard: View {
+1|    let copy: PlanFailureCopy
+1|    let onAction: (PlanFailureAction) -> Void
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeaturePlanSheet/PlanMomentsKey.swift
+0|import ScenicKit
+0|import SwiftUI
+0|struct PlanMomentsKey: EnvironmentKey {
+1|    static let defaultValue: (any AppMomentReporting)? = nil
+0|}
+0|extension EnvironmentValues {
+1|    public var planMoments: (any AppMomentReporting)? {
+1|    }
+0|}
+
+@file FeaturePlanSheet/PlanOfferCard.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct PlanOfferCard: View {
+1|    let copy: PlanOfferCopy
+1|    let onMoreTime: () -> Void
+1|    let onBackRoads: () -> Void
+1|    let onAction: (PlanFailureAction) -> Void
+1|    var body: some View {
+1|    }
+1|    private func filled(_ title: String, action: @escaping () -> Void) -> some View {
+1|    }
+0|}
+
+@file FeaturePlanSheet/PlanPlaceList.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct PlanPlaceList: View {
+1|    let field: PlanField
+1|    @Binding var query: String
+1|    var search: PlaceSearchSubmit?
+1|    var start: PlanPlace?
+1|    var destination: PlanPlace?
+1|    var rehearsed: PlaceSearchAnswer? = nil
+1|    let onPick: (PlanPlace) -> Void
+1|    let onCancel: () -> Void
+1|    @State private var answer: PlaceSearchAnswer?
+1|    @State private var asking = false
+1|    var body: some View {
+1|    }
+1|    @ViewBuilder private var addresses: some View {
+1|    }
+1|    private func submit() {
+1|    }
+0|}
+
+@file FeaturePlanSheet/PlanPlaceSearch.swift
+0|import Foundation
+0|import PlaceStore
+0|import ScenicKit
+0|enum PlanPlaceSearch {
+1|    static let corpusName = "corpus-fallback"
+1|    static let limit = 20
+1|    static let store: PlaceStore? = {
+1|    }()
+1|    static func find(_ query: String) -> [PlanPlace] {
+1|    }
+0|}
+
+@file FeaturePlanSheet/PlanPreviewActions.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct PlanPreviewActions: View {
+1|    let saveLine: String?
+1|    let onDrive: () -> Void
+1|    let onSave: () -> Void
+1|    @Environment(\.dynamicTypeSize) private var typeSize
+1|    var body: some View {
+1|    }
+1|    private var start: some View {
+1|    }
+1|    @ViewBuilder private var save: some View {
+1|    }
+1|    private var conditions: some View {
+1|    }
+0|}
+
+@file FeaturePlanSheet/PlanPreviewCard.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct PlanPreviewCard: View {
+1|    let preview: PlanPreview
+1|    let destination: String
+1|    let saveLine: String?
+1|    let onSave: () -> Void
+1|    let onChangePlace: () -> Void
+1|    let onDrive: () -> Void
+1|    let onLoop: () -> Void
+1|    let onTrip: () -> Void
+1|    @State private var showsAllHazards = false
+1|    @Environment(\.planMoments) private var moments
+1|    var body: some View {
+1|    }
+1|    private var titleRow: some View {
+1|    }
+1|    private var etaRow: some View {
+1|    }
+1|    private var etaText: Text {
+1|    }
+1|    @ViewBuilder private var estimateTag: some View {
+1|    }
+1|    @ViewBuilder private var hazardStrip: some View {
+1|    }
+1|    private func hazardRow(_ line: String) -> some View {
+1|    }
+0|}
+
+@file FeaturePlanSheet/PlanRehearsal.swift
+0|import Foundation
+0|import ScenicKit
+0|public struct PlanRehearsal {
+1|    enum Tab {
+1|    }
+1|    let tab: Tab
+1|    let sheet: PlanSheet
+1|    let loop: LoopSheet
+1|    let trip: TripSheet
+1|    let savedRows: [SavedRow]
+1|    var waitlist: WaitlistAnswer? = nil
+1|    var searchQuery = ""
+1|    var searchAnswer: PlaceSearchAnswer? = nil
+1|    static var atLaunch: PlanRehearsal? {
+#2|        #if DEBUG
+#2|        #else
+#2|        #endif
+1|    }
+1|    public static var opensSheet: Bool {
+1|    }
+0|}
+
+@file FeaturePlanSheet/PlanRehearsalFixtures.swift
+#0|#if DEBUG
+0|import Foundation
+0|import ScenicKit
+0|enum PlanRehearsalFixtures {
+1|    static let topanga = PlanPlace(id: 710_486_223_536_647_933, name: "Topanga",
+1|                                   coordinate: Coordinate(latitude: 34.0897, longitude: -118.6029649))
+1|    static let zuma = PlanPlace(id: 161_142_772_170_980_305, name: "Zuma Beach",
+1|                                coordinate: Coordinate(latitude: 34.0188704, longitude: -118.8273532))
+1|    static let griffith = PlanPlace(id: 3_980_501_968_317_559_019, name: "Griffith Observatory",
+1|                                    coordinate: Coordinate(latitude: 34.1182471, longitude: -118.3003659))
+1|    static let leoCarrillo = PlanPlace(id: 8_813_832_245_607_821_419, name: "Leo Carrillo State Beach",
+1|                                       coordinate: Coordinate(latitude: 34.0441745, longitude: -118.939262))
+1|    static let preview = PlanPreview(
+1|        route: [
+1|            Coordinate(latitude: 34.0897, longitude: -118.6030),
+1|            Coordinate(latitude: 34.09435, longitude: -118.60129),
+1|            Coordinate(latitude: 34.06864, longitude: -118.6128),
+1|            Coordinate(latitude: 34.07396, longitude: -118.65191),
+1|            Coordinate(latitude: 34.07291, longitude: -118.68708),
+1|            Coordinate(latitude: 34.03652, longitude: -118.68706),
+1|            Coordinate(latitude: 34.0300, longitude: -118.7500),
+1|            Coordinate(latitude: 34.0200, longitude: -118.8000),
+1|            Coordinate(latitude: 34.0189, longitude: -118.8274),
+1|        ],
+1|        etaSeconds: 3_300, fastestEtaSeconds: 2_100, etaIsEstimate: true,
+1|        hazards: [PlanHazardRun(kind: "road_access", value: "destination", fromIndex: 2, toIndex: 3)],
+1|        closures: ClosuresHazard(state: .fresh, crosses: true))
+1|    static let offer = PlanOffer(budgetMinutes: 25, moreTimeMinutes: 65, backRoadsEtaSeconds: 3_600,
+1|                                 backRoadsBudgetMinutes: 32)
+1|    static let loopPreview = LoopPreview(
+1|        path: [
+1|            Coordinate(latitude: 34.0897, longitude: -118.6030),
+1|            Coordinate(latitude: 34.06864, longitude: -118.6128),
+1|            Coordinate(latitude: 34.07396, longitude: -118.65191),
+1|            Coordinate(latitude: 34.07291, longitude: -118.68708),
+1|            Coordinate(latitude: 34.1000, longitude: -118.6900),
+1|            Coordinate(latitude: 34.1160, longitude: -118.6500),
+1|            Coordinate(latitude: 34.1100, longitude: -118.6200),
+1|            Coordinate(latitude: 34.0897, longitude: -118.6030),
+1|        ],
+1|        waypoints: [Coordinate(latitude: 34.07, longitude: -118.65), Coordinate(latitude: 34.12, longitude: -118.65)],
+1|        durationSeconds: 3_480, distanceMeters: 52_000, retraceFraction: 0.04, etaIsEstimate: true,
+1|        closures: ClosuresHazard(state: .unavailable),
+1|        hazards: [PlanHazardRun(kind: "road_access", value: "destination", fromIndex: 4, toIndex: 5)])
+1|    static let itinerary = TripItinerary(
+1|        isFull: true, etaSeconds: 9_000, fastestEtaSeconds: 6_600, etaIsEstimate: true,
+1|        days: [
+1|            TripItineraryDay(day: 1, driveSeconds: 5_400, distanceMeters: 70_000, overnight: true, path: nil),
+1|            TripItineraryDay(day: 2, driveSeconds: 3_600, distanceMeters: 50_000, overnight: false, path: nil,
+1|                             hazards: [PlanHazardRun(kind: "surface", value: "gravel", fromIndex: 3, toIndex: 6)]),
+1|        ], closures: ClosuresHazard(state: .stale))
+1|    static let savedRows = [
+1|        SavedRow(id: 1, name: "Zuma Beach", createdAt: 1_790_000_000, needsReplan: false,
+1|                 start: topanga.coordinate, end: zuma.coordinate, budgetMinutes: 30),
+1|        SavedRow(id: 2, name: "Top of Topanga Overlook", createdAt: 1_790_100_000, needsReplan: false,
+1|                 start: Coordinate(latitude: 34.09, longitude: -118.60),
+1|                 end: Coordinate(latitude: 34.1397762, longitude: -118.6009737), budgetMinutes: 45),
+1|        SavedRow(id: 3, name: "Mulholland Scenic Overlook", createdAt: 1_790_200_000, needsReplan: true,
+1|                 start: Coordinate(latitude: 34.09, longitude: -118.60),
+1|                 end: Coordinate(latitude: 34.1303863, longitude: -118.502505), budgetMinutes: 60),
+1|    ]
+1|    static let addressQuery = "Pacific Coast Hwy Malibu"
+1|    static let addresses = [
+1|        PlanPlace(id: 900_000_001, name: "29500 Pacific Coast Hwy, Malibu, CA 90265",
+1|                  coordinate: Coordinate(latitude: 34.0213, longitude: -118.8101)),
+1|        PlanPlace(id: 900_000_002, name: "30000 Pacific Coast Hwy, Malibu, CA 90265",
+1|                  coordinate: Coordinate(latitude: 34.0197, longitude: -118.8226)),
+1|    ]
+1|    static let notPlannable = "Address search found places but can't plan to them right now."
+1|    static func rehearsal(named name: String) -> PlanRehearsal? {
+1|    }
+1|    private static func degraded(_ degrade: ConfigDegrade) -> PlanRehearsal {
+1|    }
+1|    private static func loopDegraded(_ degrade: ConfigDegrade) -> PlanRehearsal {
+1|    }
+1|    private static func tripDegraded(_ degrade: ConfigDegrade) -> PlanRehearsal {
+1|    }
+1|    private static func plan(_ outcome: PlanOutcome, budgetMinutes: Int = 30,
+1|                             waitlist: WaitlistAnswer? = nil) -> PlanRehearsal? {
+1|    }
+1|    private static func addressSearch(_ answer: PlaceSearchAnswer) -> PlanRehearsal {
+1|    }
+1|    private static func loop(_ outcome: LoopOutcome, waitlist: WaitlistAnswer? = nil) -> PlanRehearsal? {
+1|    }
+1|    private static func trip(_ outcome: TripOutcome, waitlist: WaitlistAnswer? = nil) -> PlanRehearsal? {
+1|    }
+0|}
+#0|#endif
+
+@file FeaturePlanSheet/PlanSheetScreen.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|public struct PlanSheetScreen: View {
+1|    private let planner: any RoutePlanning & WaitlistJoining & PlaceSearching
+1|    @State private var showingWaitlist = false
+1|    @State private var waitlistAnswer: WaitlistAnswer?
+1|    private let onClose: () -> Void
+1|    private let surpriseGate: @MainActor () -> SurpriseGate
+1|    @State private var surprise = SurpriseGate.on
+1|    private let onDrive: (PlanPreview) -> Void
+1|    @AppStorage("safety.disclaimer.acknowledged.v1") private var safetyNoteRead = false
+1|    @State private var sheet = PlanSheet(disclaimerAccepted: false)
+1|    @State private var query = ""
+1|    @State private var showingSaved = false
+1|    @State private var saved = SavedList()
+1|    @State private var saveLine: String?
+1|    @State private var showingTrip = false
+1|    @State private var trip = TripSheet(disclaimerAccepted: false)
+1|    private let tripPlanner: any TripPlanning
+1|    private let dayLinks: ([Coordinate]) -> [URL]
+1|    @State private var showingLoop = false
+1|    @State private var loop = LoopSheet(disclaimerAccepted: false)
+1|    private let loopPlanner: any LoopPlanning
+1|    private let loopLink: (Coordinate, [Coordinate]) -> URL?
+1|    private var rehearsedSearch: PlaceSearchAnswer?
+1|    public init(planner: any RoutePlanning & WaitlistJoining & PlaceSearching, tripPlanner: any TripPlanning,
+1|                dayLinks: @escaping ([Coordinate]) -> [URL], loopPlanner: any LoopPlanning,
+1|                loopLink: @escaping (Coordinate, [Coordinate]) -> URL?,
+1|                surpriseGate: @escaping @MainActor () -> SurpriseGate, onDrive: @escaping (PlanPreview) -> Void,
+1|                onClose: @escaping () -> Void) {
+1|    }
+1|    public var body: some View {
+1|    }
+1|    private var onPreview: Bool {
+1|    }
+1|    @ViewBuilder private var content: some View {
+1|    }
+1|    @ViewBuilder private var planContent: some View {
+1|    }
+1|    private var form: some View {
+1|    }
+1|    private func searchFor(_ field: PlanField) {
+1|    }
+1|    private func act(_ action: PlanFailureAction) {
+1|    }
+1|    private func joinWaitlist() {
+1|    }
+1|    private func endWaitlist() {
+1|    }
+1|    private func planDrive() {
+1|    }
+1|    private func replay(_ drive: SavedReplay) {
+1|    }
+1|    private func save(_ preview: PlanPreview, budgetMinutes: Int) {
+1|    }
+1|    private func run(_ ticket: PlanTicket) {
+1|    }
+0|}
+
+@file FeaturePlanSheet/RoadTripScreen.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct RoadTripScreen: View {
+1|    @Binding var trip: TripSheet
+1|    let planner: any TripPlanning
+1|    let dayLinks: ([Coordinate]) -> [URL]
+1|    let waitlist: any WaitlistJoining
+1|    @State private var query = ""
+1|    @State private var showingWaitlist = false
+1|    @State private var waitlistAnswer: WaitlistAnswer?
+1|    init(trip: Binding<TripSheet>, planner: any TripPlanning, waitlist: any WaitlistJoining,
+1|         dayLinks: @escaping ([Coordinate]) -> [URL]) {
+1|    }
+1|    var body: some View {
+1|    }
+1|    private func joinWaitlist() {
+1|    }
+1|    private var form: some View {
+1|    }
+1|    private func searchFor(_ field: PlanField) {
+1|    }
+1|    private func planTrip() {
+1|    }
+0|}
+
+@file FeaturePlanSheet/SavedDriveShelf.swift
+0|import Foundation
+0|import PlaceStore
+0|import ScenicKit
+0|enum SavedDriveShelf {
+1|    static let fileName = "user.sqlite"
+1|    static let store: SavedDriveStore? = {
+1|    }()
+1|    static func save(_ draft: SavedDraft) -> Bool {
+1|    }
+1|    static func rows() -> [SavedRow] {
+1|    }
+1|    static func apply(_ edit: SavedEdit) {
+1|    }
+1|    static func places(near point: Coordinate) -> [PlanPlace] {
+1|    }
+0|}
+
+@file FeaturePlanSheet/SavedDrivesList.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct SavedDrivesList: View {
+1|    @Binding var list: SavedList
+1|    let onReplay: (SavedReplay) -> Void
+1|    var body: some View {
+1|    }
+1|    @ViewBuilder private func rowView(_ row: SavedRow) -> some View {
+1|    }
+1|    private func replay(_ row: SavedRow) {
+1|    }
+0|}
+
+@file FeaturePlanSheet/TripItineraryCard.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct TripItineraryCard: View {
+1|    let itinerary: TripItinerary
+1|    let destination: String
+1|    let dayLinks: ([Coordinate]) -> [URL]
+1|    let onChange: () -> Void
+1|    @Environment(\.planMoments) private var moments
+1|    var body: some View {
+1|    }
+1|    static func label(day: Int, part: Int, of parts: Int) -> String {
+1|    }
+1|    static func duration(_ seconds: Double) -> String {
+1|    }
+1|    static func miles(_ meters: Double) -> String {
+1|    }
+0|}
+
+@file FeaturePlanSheet/WaitlistCard.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct WaitlistCard: View {
+1|    let answer: WaitlistAnswer?
+1|    let onChangeStart: () -> Void
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveBasemap.swift
+0|import Foundation
+0|import Handoff
+0|import MapAdapter
+0|enum DriveBasemap {
+1|    static func resolve(for drive: HandoffDrive, appearance: MapAppearance) -> MapStyle {
+1|    }
+1|    static func planned(appearance: MapAppearance) -> MapStyle {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveCard.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct DriveCard: View {
+1|    @Environment(\.dynamicTypeSize) private var typeSize
+1|    let remainingSeconds: Double
+1|    let glanceLine: String
+1|    let showsEstimate: Bool
+1|    let caption: String?
+1|    let note: String?
+1|    let endTitle: String
+1|    let endMinHeight: Double
+1|    let onEnd: () -> Void
+1|    var body: some View {
+1|    }
+1|    private var facts: some View {
+1|    }
+1|    private func endPill(fullWidth: Bool) -> some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveCopy.swift
+0|import Foundation
+0|import Handoff
+0|import MapAdapter
+0|enum DriveCopy {
+1|    static func title(for drive: HandoffDrive) -> String {
+1|    }
+1|    static func route(for drive: HandoffDrive) -> String {
+1|    }
+1|    static func shortName(for drive: HandoffDrive) -> String {
+1|    }
+1|    static func mapCaption(for drive: HandoffDrive, style: MapStyle) -> String {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveDetails.swift
+0|import DesignSystem
+0|import Handoff
+0|import SwiftUI
+0|struct DriveDetails: View {
+1|    let drive: HandoffDrive
+1|    let roads: String
+1|    let caption: String
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveEndConfirm.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct DriveEndConfirm: View {
+1|    let onKeep: () -> Void
+1|    let onEnd: () -> Void
+1|    static let title = "End this drive?"
+1|    static let sentence = "Your drive stops here."
+1|    static let keep = "Keep driving"
+1|    static let end = "End"
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveFacts.swift
+0|import DesignSystem
+0|import Handoff
+0|import SwiftUI
+0|struct DriveFacts: View {
+1|    let drive: HandoffDrive
+1|    static func straightLine(for drive: HandoffDrive) -> String {
+1|    }
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveMapLine.swift
+0|import DesignSystem
+0|import Foundation
+0|import MapAdapter
+0|import ScenicKit
+0|enum DriveMapLine {
+1|    static func route(for line: [Coordinate]) -> MapRoute? {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveMenuChips.swift
+0|import DesignSystem
+0|import Foundation
+0|import Handoff
+0|import SwiftUI
+0|struct DriveMenuChips: View {
+1|    let menu: DriveMenu
+1|    @Binding var selection: Int?
+1|    static let launchArgumentKey = "menuRow"
+1|    static var rowAtLaunch: Int? {
+1|    }
+1|    var body: some View {
+1|    }
+1|    private func chip(_ index: Int) -> some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveRehearsal.swift
+0|import Foundation
+0|import ScenicKit
+0|public struct DriveRehearsal: RerouteSending {
+1|    static let line = [
+1|        Coordinate(latitude: 34.0905, longitude: -118.6370),
+1|        Coordinate(latitude: 34.0880, longitude: -118.6250),
+1|        Coordinate(latitude: 34.0855, longitude: -118.6150),
+1|        Coordinate(latitude: 34.0830, longitude: -118.6050),
+1|    ]
+1|    static let planned = [line[0], line[line.count - 1]].map {
+1|    }
+1|    public static var atLaunch: PlanPreview? {
+#2|        #if DEBUG
+#2|        #else
+#2|        #endif
+1|    }
+1|    public static var rerouter: (any RerouteSending)? {
+#2|        #if DEBUG
+#2|        #else
+#2|        #endif
+1|    }
+1|    public func reroute(_ request: RerouteRequest) async throws -> RerouteReply {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveRoute.swift
+0|import DesignSystem
+0|import Foundation
+0|import Handoff
+0|import MapAdapter
+0|enum DriveRoute {
+1|    static let mutedOpacity = 0.35
+1|    static func resolve(for drive: HandoffDrive, menu: DriveMenu?, selected: Int?) -> MapRoute? {
+1|    }
+1|    static func menu(for drive: HandoffDrive, bundle: Bundle = .main) -> DriveMenu? {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveScreen.swift
+0|import DesignSystem
+0|import Handoff
+0|import MapAdapter
+0|import ScenicKit
+0|import SwiftUI
+0|public struct DriveScreen: View {
+1|    @Environment(\.colorScheme) private var colorScheme
+1|    @Environment(\.postDriveAnswers) private var answers
+1|    @State private var style = MapStyle.maplibreDemoTiles
+1|    @State private var route: MapRoute?
+1|    @State private var bannerBottom: CGFloat = 0
+1|    @State private var creditBandTop: CGFloat = 0
+1|    @State private var asked = false
+1|    @State private var isAsking = false
+1|    @State private var confirming = false
+1|    private let preview: PlanPreview
+1|    private let display: DriveDisplay
+1|    private let onEnd: () -> Void
+1|    public init(preview: PlanPreview, display: DriveDisplay, onEnd: @escaping () -> Void) {
+1|    }
+1|    public var body: some View {
+1|    }
+1|    @ViewBuilder private var banner: some View {
+1|    }
+1|    private var controls: some View {
+1|    }
+1|    private func endTapped() {
+1|    }
+1|    private func endDrive() {
+1|    }
+1|    private func closeOnMoving() {
+1|    }
+1|    private func answer(_ answer: PostDriveAnswer) {
+1|    }
+1|    private func resolveMap() {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveSelector.swift
+0|import DesignSystem
+0|import Handoff
+0|import SwiftUI
+0|struct DriveSelector: View {
+1|    @Binding var selection: HandoffDrive
+1|    var body: some View {
+1|    }
+1|    private func row(for drive: HandoffDrive, identifier: String) -> some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/GatedHandoffButton.swift
+0|import DesignSystem
+0|import Handoff
+0|import OSLog
+0|import ScenicKit
+0|import SwiftUI
+0|struct GatedHandoffButton: View {
+1|    let isSafetyDisclaimerAcknowledged: Bool
+1|    let drive: HandoffDrive
+1|    let row: DriveMenuRow?
+1|    var place: Coordinate? = nil
+1|    let onBlocked: () -> Void
+1|    let onFailure: (String?) -> Void
+1|    private static let log = Logger(subsystem: "com.phineasfritsch.scenicdrive",
+1|                                    category: "GatedHandoffButton")
+1|    var body: some View {
+1|    }
+1|    func attempt() {
+1|    }
+1|    private enum Copy {
+1|    }
+0|}
+
+@file FeatureScenicHome/HandoffFailureCard.swift
+0|import DesignSystem
+0|import Handoff
+0|import SwiftUI
+0|struct HandoffFailureCard: View {
+1|    let message: String
+1|    let roadList: String
+1|    let drive: HandoffDrive
+1|    let row: DriveMenuRow?
+1|    let onRetry: () -> Void
+1|    @State private var hasCopied = false
+1|    var clipboardText: String {
+1|    }
+1|    var body: some View {
+1|    }
+1|    private var copyButton: some View {
+1|    }
+1|    private var retryButton: some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/HomeMomentsKey.swift
+0|import ScenicKit
+0|import SwiftUI
+0|struct HomeMomentsKey: EnvironmentKey {
+1|    static let defaultValue: (any AppMomentReporting)? = nil
+0|}
+0|extension EnvironmentValues {
+1|    public var homeMoments: (any AppMomentReporting)? {
+1|    }
+0|}
+
+@file FeatureScenicHome/HomeSheet.swift
+0|import DesignSystem
+0|import SwiftUI
+0|struct HomeSheet<Summary: View, Details: View>: View {
+1|    @Binding var detent: HomeSheetDetent
+1|    @ViewBuilder let summary: () -> Summary
+1|    @ViewBuilder let details: () -> Details
+1|    @Environment(\.dynamicTypeSize) private var typeSize
+1|    private static var dragThreshold: CGFloat { 40 }
+1|    var body: some View {
+1|    }
+1|    private var grabber: some View {
+1|    }
+1|    private var drag: some Gesture {
+1|    }
+0|}
+
+@file FeatureScenicHome/HomeSheetDetent.swift
+0|import Foundation
+0|enum HomeSheetDetent: String, CaseIterable, Sendable {
+1|    case collapsed
+1|    case medium
+1|    static let launchArgumentKey = "homeDetent"
+1|    static var atLaunch: HomeSheetDetent {
+1|    }
+1|    var toggled: HomeSheetDetent {
+1|    }
+0|}
+
+@file FeatureScenicHome/HomeTypeSize.swift
+0|import SwiftUI
+0|public enum HomeTypeSize {
+1|    public static let cap = DynamicTypeSize.xxxLarge
+0|}
+
+@file FeatureScenicHome/LoopLinks.swift
+0|import Foundation
+0|import Handoff
+0|import ScenicKit
+0|public enum LoopLinks {
+1|    public static func url(_ start: Coordinate, _ waypoints: [Coordinate]) -> URL? {
+1|    }
+0|}
+
+@file FeatureScenicHome/OnboardingRehearsal.swift
+0|import Foundation
+0|import ScenicKit
+0|enum OnboardingRehearsal {
+1|    static var atLaunch: Onboarding {
+#2|        #if DEBUG
+#2|        #endif
+1|    }
+0|}
+
+@file FeatureScenicHome/PostDriveAnswersKey.swift
+0|import ScenicKit
+0|import SwiftUI
+0|struct PostDriveAnswersKey: EnvironmentKey {
+1|    static let defaultValue: (any PostDriveAnswering)? = nil
+0|}
+0|extension EnvironmentValues {
+1|    public var postDriveAnswers: (any PostDriveAnswering)? {
+1|    }
+0|}
+
+@file FeatureScenicHome/PostDriveCard.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct PostDriveCard: View {
+1|    let onAnswer: (PostDriveAnswer) -> Void
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/PostDriveOpenModel.swift
+0|import Observation
+0|import ScenicKit
+0|@MainActor @Observable
+0|public final class PostDriveOpenModel {
+1|    public private(set) var isAsking = false
+1|    @ObservationIgnored private let marker: any HandoffMarkerStoring
+1|    @ObservationIgnored private let fix: any OpenFixReading
+1|    @ObservationIgnored private let answers: (any PostDriveAnswering)?
+1|    public init(fix: any OpenFixReading, answers: (any PostDriveAnswering)?) {
+1|    }
+1|    public func marking(_ inner: any AppMomentReporting) -> any AppMomentReporting {
+1|    }
+1|    public func opened() {
+1|    }
+1|    func answered(_ answer: PostDriveAnswer) {
+1|    }
+0|}
+
+@file FeatureScenicHome/PostDriveOpenSlot.swift
+0|import ScenicKit
+0|import SwiftUI
+0|struct PostDriveOpenSlot: View {
+1|    @Environment(PostDriveOpenModel.self) private var model: PostDriveOpenModel?
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/SafetyDisclaimer.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct SafetyDisclaimer: View {
+1|    let onAccept: () -> Void
+1|    @State private var onboarding = OnboardingRehearsal.atLaunch
+1|    @AppStorage(VehicleProfile.storageKey) private var storedVehicle = ""
+1|    var body: some View {
+1|    }
+1|    private var disclaimer: some View {
+1|    }
+1|    private var back: some View {
+1|    }
+1|    private var accept: some View {
+1|    }
+1|    private enum Copy {
+1|    }
+0|}
+
+@file FeatureScenicHome/ScenicHomeScreen.swift
+0|import DesignSystem
+0|import Handoff
+0|import MapAdapter
+0|import ScenicKit
+0|import SwiftUI
+0|public struct ScenicHomeScreen: View {
+1|    @State private var style = MapStyle.maplibreDemoTiles
+1|    @State private var route: MapRoute?
+1|    @Environment(\.colorScheme) private var colorScheme
+1|    @AppStorage("safety.disclaimer.acknowledged.v1")
+1|    private var isSafetyDisclaimerAcknowledged = false
+1|    @State private var isShowingDisclaimer = false
+1|    @State private var handoffFailure: String?
+1|    @State private var selectedDrive = HandoffDrive.defaultDrive
+1|    @State private var menu: DriveMenu?
+1|    @State private var menuRow = DriveMenuChips.rowAtLaunch
+1|    @State private var sheetDetent = HomeSheetDetent.atLaunch
+1|    @Environment(\.dynamicTypeSize) private var userTypeSize
+1|    @State private var isShowingSurprise = SurpriseSlot.atLaunch
+1|    @State private var surpriseFailure: String?
+1|    @Environment(\.homeMoments) private var moments
+1|    @State private var chipBandBottom: CGFloat = 0
+1|    @State private var creditBandTop: CGFloat = 0
+1|    private let onSettings: () -> Void
+1|    private let surprise: SurpriseSlot.Builder
+1|    private let surpriseGate: SurpriseGate
+1|    public init(onSettings: @escaping () -> Void, surpriseGate: SurpriseGate, surprise: @escaping SurpriseSlot.Builder) { self.onSettings = onSettings; self.surpriseGate = surpriseGate; self.surprise = surprise }
+1|    public var body: some View {
+1|    }
+1|    private func resolveBasemap() {
+1|    }
+1|    private var gatedHandoff: GatedHandoffButton {
+1|    }
+1|    private func openSurprise(_ place: Coordinate) {
+1|    }
+1|    private var chips: some View {
+1|    }
+1|    private var surpriseButton: some View {
+1|    }
+1|    private var settingsButton: some View {
+1|    }
+1|    private var selectedRow: DriveMenuRow? {
+1|    }
+1|    private var roadList: String {
+1|    }
+1|    @ViewBuilder
+1|    private var sheetSummary: some View {
+1|    }
+1|    private var sheetDetails: some View {
+1|    }
+1|    private var conditions: some View {
+1|    }
+1|    private enum Copy {
+1|    }
+0|}
+
+@file FeatureScenicHome/SkylineHandoff.swift
+0|import Foundation
+0|import Handoff
+0|import ScenicKit
+0|import UIKit
+0|public enum SkylineHandoff {
+1|    public static func destination(for drive: HandoffDrive) -> Coordinate { drive.destination }
+1|    public static func waypoints(for drive: HandoffDrive) -> [Coordinate] { drive.waypoints }
+1|    public static func directions(for drive: HandoffDrive) -> AppleMapsDirections {
+1|    }
+1|    public static func url(for drive: HandoffDrive, row: DriveMenuRow?) throws -> URL {
+1|    }
+1|    @MainActor
+1|    public static func open(_ drive: HandoffDrive, row: DriveMenuRow?, place: Coordinate? = nil) throws {
+1|    }
+0|}
+
+@file FeatureScenicHome/SurpriseGateSlot.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct SurpriseGateSlot: View {
+1|    let gate: SurpriseGate
+1|    let card: () -> AnyView
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/SurpriseSlot.swift
+0|import Foundation
+0|import ScenicKit
+0|import SwiftUI
+0|public enum SurpriseSlot {
+1|    public typealias Builder = @MainActor (_ open: @escaping @MainActor (Coordinate) -> Void,
+1|                                           _ failure: String?) -> AnyView
+1|    static let launchArgumentKey = "screen"
+1|    static let launchValue = "surprise"
+1|    static var atLaunch: Bool {
+#2|        #if DEBUG
+#2|        #else
+#2|        #endif
+1|    }
+0|}
+
+@file FeatureScenicHome/SurpriseToggle.swift
+0|import DesignSystem
+0|import SwiftUI
+0|struct SurpriseToggle: View {
+1|    @Binding var isShowing: Bool
+1|    let onToggle: () -> Void
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/TripDayLinks.swift
+0|import Foundation
+0|import Handoff
+0|import ScenicKit
+0|public enum TripDayLinks {
+1|    public static func urls(_ path: [Coordinate]) -> [URL] {
+1|    }
+0|}
+
+@file FeatureScenicHome/VehicleChoice.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct VehicleChoice: View {
+1|    let chosen: VehicleProfile
+1|    let onChoose: (VehicleProfile) -> Void
+1|    let onContinue: () -> Void
+1|    var body: some View {
+1|    }
+1|    private func row(_ profile: VehicleProfile) -> some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/VehicleSetting.swift
+0|import Foundation
+0|import ScenicKit
+0|public enum VehicleSetting {
+1|    public static var name: String {
+1|    }
+1|    public static var isChosen: Bool {
+1|    }
+0|}
+
+@file FeatureSurpriseMe/SurpriseCard.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|public struct SurpriseCard: View {
+1|    private let failure: String?
+1|    private let onOpenInMaps: @MainActor (Coordinate) -> Void
+1|    @State private var state = SurpriseCardHistory()
+1|    @State private var ledgerPlaces: [SurpriseLedgerPlace]?
+1|    @State private var ledgerRead = false
+1|    @Environment(\.surpriseLedger) private var ledger
+1|    @Environment(\.surpriseMoments) private var moments
+1|    @State private var now = Date()
+1|    public init(failure: String?, onOpenInMaps: @escaping @MainActor (Coordinate) -> Void) {
+1|    }
+1|    public var body: some View {
+1|    }
+1|    private func merged(_ deck: SurpriseDeck) -> SurpriseHistory {
+1|    }
+1|    private var shownID: String? {
+1|    }
+1|    private func recordShown(_ id: String?) async {
+1|    }
+1|    private func content(pick: SurprisePick, candidate: SurpriseCandidate,
+1|                         placeClass: SurprisePlaceClass) -> some View {
+1|    }
+1|    private func roundTrip(minutes: Int) -> some View {
+1|    }
+1|    private var empty: some View {
+1|    }
+1|    private func notThis(_ reason: SurpriseFeedback.Reason, pick: SurprisePick, candidate: SurpriseCandidate) {
+1|    }
+1|    static func symbol(_ placeClass: SurprisePlaceClass) -> String {
+1|    }
+1|    private enum Copy {
+1|    }
+0|}
+
+@file FeatureSurpriseMe/SurpriseDeck.swift
+0|import Foundation
+0|import PlaceStore
+0|import ScenicKit
+0|struct SurpriseDeck: Sendable {
+1|    let candidates: [SurpriseCandidate]
+1|    let byID: [String: SurpriseCandidate]
+1|    let classes: [String: SurprisePlaceClass]
+1|    let reach: SurpriseReach
+1|    static let corpusName = "corpus-fallback"
+1|    static let everywhere = BoundingBox(minLon: -180, minLat: -90, maxLon: 180, maxLat: 90)
+1|    static let userId = "on-device"
+1|    static let bundled: SurpriseDeck? = load(bundle: .main)
+1|    static func load(bundle: Bundle) -> SurpriseDeck? {
+1|    }
+1|    static func context(at now: Date, calendar: Calendar = .current) -> SurpriseContext {
+1|    }
+1|    func pick(history: SurpriseHistory, at now: Date) -> SurprisePick? {
+1|    }
+0|}
+
+@file FeatureSurpriseMe/SurpriseLedgerKey.swift
+0|import ScenicKit
+0|import SwiftUI
+0|struct SurpriseLedgerKey: EnvironmentKey {
+1|    static let defaultValue: (any SurpriseLedgerSource)? = nil
+0|}
+0|extension EnvironmentValues {
+1|    public var surpriseLedger: (any SurpriseLedgerSource)? {
+1|    }
+0|}
+
+@file FeatureSurpriseMe/SurpriseMomentsKey.swift
+0|import ScenicKit
+0|import SwiftUI
+0|struct SurpriseMomentsKey: EnvironmentKey {
+1|    static let defaultValue: (any AppMomentReporting)? = nil
+0|}
+0|extension EnvironmentValues {
+1|    public var surpriseMoments: (any AppMomentReporting)? {
+1|    }
+0|}
+
+@file FeatureSurpriseMe/SurpriseNotThis.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct SurpriseNotThis: View {
+1|    let onReason: @MainActor (SurpriseFeedback.Reason) -> Void
+1|    var body: some View {
+1|    }
+1|    private func button(_ reason: SurpriseFeedback.Reason) -> some View {
+1|    }
+1|    static func label(_ reason: SurpriseFeedback.Reason) -> String {
+1|    }
+0|}
+
+@file FeatureSurpriseMe/SurpriseShownLog.swift
+0|import Foundation
+0|import PlaceStore
+0|import ScenicKit
+0|@MainActor
+0|enum SurpriseShownLog {
+1|    static let fileName = "user.sqlite"
+1|    static let store: SurpriseShownStore? = {
+1|    }()
+1|    static func load() -> [SurpriseHistory.Shown] {
+1|    }
+1|    static func save(_ shown: [SurpriseHistory.Shown], today: CivilDate) {
+1|    }
+0|}
+
+
