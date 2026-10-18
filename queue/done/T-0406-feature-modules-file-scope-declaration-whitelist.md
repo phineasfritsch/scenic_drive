@@ -1,7 +1,7 @@
 ---
 id: T-0406
 title: Close the shadowing class once - every file-scope line in the feature modules is at an approved site (whitelist by brace depth), so no declaration can shadow a name a frozen safety block uses
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T23:09:14Z
@@ -11,7 +11,7 @@ branch: task/T-0406
 exclusive: []
 touches: [ops/lib/, ops/mutate/, pins/PINS.yaml, queue/]
 pins_affected: [P-SAFE-03, P-SAFE-07, P-SAFE-09, P-ATTR-01]
-reviewer: null
+reviewer: agent/rv3-t0406
 depends_on: []
 verify: [ops/check-pins]
 acceptance: []
@@ -229,3 +229,26 @@ This task lands first. T-0397 and T-0398 then merge main and need no shadowing g
   `wc -l`: check-file-scope.py 300, filescope.py 279 (cap 300). rv2 B1 closed by class: no code '/' may share its
   line with a later '/', so no bare regex can open; rv2's mutC/mutD files are refused by reason. Residual named in
   the guard header: a Swift lexer rule the guard does not model.
+- 2026-10-18T04:23:13Z agent/rv3-t0406 (REVIEWER, round 3) - PASS on 46deea87 (PR #299). Detached worktree
+  .worktrees/rv3-t0406 at origin/task/T-0406 after `git fetch origin`; Sources copies under .build/rv3-t0406/.
+  - RED by name on 1399bb19's guard, GREEN on the head. MUT-C (rv2 mutC/LoopLinks.swift): old `FILE-SCOPE ok  59
+    file(s) ... 981 approved line(s)` rc=0; head `a code '/' with another '/' after it on its line, which may be a
+    bare /regex/ literal (line 10)` rc=1. MUT-D (rv2 mutD): old rc=0; head the same refusal (line 10) rc=1.
+  - Own mutants in the lexer-skew class, each compiled first with `swiftc -swift-version 6`:
+    MUT-E: a multi-line extended regex `#/` + `\{\{` + `/#` in url's body, a file-scope `private enum DesignTokens`
+    decoy, and `\}\}` in a second `#/.../#`. The twin prints `SHADOW-E 42 1`. Old and head both refuse it with
+    `an unknown raw-string delimiter or '#' form (line 10)` rc=1.
+    MUT-F: a regex inside a closure inside a raw multi-line string interpolation, `\#({ /=\{/ }() )` in a `#"""`,
+    with a member `static let DesignTokens = 0` decoy, undone in h(). The twin prints `SHADOW-F Int 1`. Old rc=0
+    (passes); head `a code '/' with another '/' after it on its line ... (line 11)` rc=1.
+  - Bare gates on the head: check-safety-disclaimer rc=0; `P-PROC-06: every added module is covered or
+    allowlisted; the floor of 173 holds` rc=0; `MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64` and
+    `NAME-PAIRS OK` rc=0; `PINS-YAML ok pins=53 fields=426` rc=0; `P-OPS-01: 258 files, 23 required present, all
+    modes correct` rc=0; `QUEUE OK (398 tasks)` rc=0; `FILE-SCOPE ok  59 file(s) in 4 module(s), 981 approved
+    line(s)` rc=0; `MUTATE ok  615/615 killed (floor 615, population 615)` rc=0. `wc -l` 300 / 279.
+  - `gh pr checks 299`: core pass, pins-source-only pass. `git merge-base --is-ancestor origin/main
+    origin/task/T-0406` rc=0.
+  - No blocking findings. Recordable: (1) the guard is a lexer model, not swiftc. The residual named in its header
+    (a Swift lexer rule it does not model, e.g. the interpolation skipper's quote handling) remains. I reasoned
+    about it but did not test it with a swiftc twin this round. (2) Any line with a code '/' plus a later '/' or `//` comment is now refused
+    (e.g. `x / y // note`). That is intended fail-closed friction for future edits of covered files.
