@@ -126,3 +126,21 @@ This task lands first. T-0397 and T-0398 then merge main and need no shadowing g
 4. The guard is in P-SAFE-03's assertion; `python ops/lib/check-pins-yaml.py` passes.
 5. Bare gates green: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py, check-pins-yaml.py,
    check-exec-bits, queue-check.
+- 2026-10-18T00:06:49Z FINAL PRE-REVIEW (agent/claude-opus-5). `git fetch origin` in the main checkout: origin/main is
+  still 281728c6, an ancestor of this head, so no merge commit. Acceptance re-run on head 8260ad78 (+ this Log):
+  1. `FILE-SCOPE ok  59 file(s) in 4 module(s), 967 approved line(s) at depth 0-1; no file-scope or member line
+     outside the approved list` rc=0.
+  2. `MUTATE ok  241/241 killed (floor 241, population 241)` rc=0.
+  3. `MUTATE ok  5/5 killed (floor 241, population 241)` rc=0 (R1-R5 each `MUTATE killed` naming its file).
+  4. P-SAFE-03's assertion ends `... ops/lib/check-file-scope.py && ... ops/mutate/filescope.py`;
+     `PINS-YAML ok pins=53 fields=426`.
+  5. Bare gates: check-safety-disclaimer rc=0 (`Frozen (-frozen, -preview); 37 feature file(s), shell, footer
+     pinned ...`); `P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds`;
+     `MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64 (67 drivers, ...)` and `NAME-PAIRS OK` rc=0;
+     `PINS-YAML ok pins=53 fields=426`; `P-OPS-01: 256 files, 23 required present, all modes correct`;
+     `QUEUE OK (397 tasks)`. Line counts (`wc -l`): check-file-scope.py 279, filescope.py 186 (cap 300).
+  FOR T-0397 / T-0398 after they merge main: a new or edited feature file is refused with its whole
+  `@file` block printed; paste it into ops/lib/check-file-scope-approved.txt (or run
+  `python ops/lib/check-file-scope.py --print FeatureScenicHome/DriveCard.swift`) in the same commit, deliberately.
+  No follow-up filed: the residuals (other modules, frozen blocks nested at depth >= 1, approved `#if` text) are
+  named in the guard header and the four pin rows.
