@@ -280,7 +280,7 @@ run_check() {
   print_verdict "$an" "$pline" "$dline" "$FOOTER_ARG" "$recv" "$FOOTER_ROUTE"
   print_credit_sites_verdict
   print_sheet_verdict
-  echo "  Then HomeSheet, the screen's body, chips, sheetDetails, conditions and the app shell frozen whole; LAST"
+  echo "  Then HomeSheet, the screen's body, chips, sheetDetails, conditions, the right-edge column and the app shell frozen whole; LAST"
   echo "  $PINNED_FILES feature file(s), the app shell and AttributionFooter.swift pinned by sha256 (-pinned); every app .swift, pbxproj and root Sources (-linked)."
 }
 

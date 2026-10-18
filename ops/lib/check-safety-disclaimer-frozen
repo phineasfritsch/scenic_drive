@@ -17,12 +17,15 @@
 # is dropped. Two fences around each block, both whitelists:
 #   ABOVE      the first non-blank kept line above the declaration is the approved one (an `}` or an import): an
 #              attribute there - a result builder, which may rewrite the whole block - is refused;
-#   DIRECTIVES no kept line of the three files starts with `#`: an `#if` around a frozen block can compile an
+#   DIRECTIVES no kept line of the four files starts with `#`: an `#if` around a frozen block can compile an
 #              unfrozen twin instead. The approved set is EMPTY; a `#Preview` added here is added below first.
 #
 # The blocks (a superset of the direction, ruled in T-0237's Log as R-rv2-2): HomeSheet.swift's whole struct;
 # ScenicHomeScreen.swift's `public var body` (the ZStack and its whole modifier chain), `chips`, `sheetDetails`
-# and `conditions`; the app shell's `struct ScenicDriveApp`. sheetSummary is frozen by -sheet's (s2).
+# and `conditions`; the app shell's `struct ScenicDriveApp`. sheetSummary is frozen by -sheet's (s2). T-0408's
+# right-edge column rides the credit's top edge, so its whole view tree is frozen too: `mapControls`,
+# `settingsButton` and SurpriseToggle.swift's struct (a negative padding plus `.zIndex(1)` laid Surprise over the
+# credit's trailing end with every limb green - the 2026-10-18 pre-review pass, survivor M2).
 #
 # WHAT IT CANNOT SEE: whether any of it RENDERS - visible, hittable and not covered at BOTH detents is a runtime
 # property, filed on T-0180 (main 558e154, its both-detents runtime clause); a modifier these blocks call
@@ -185,6 +188,59 @@ FROZEN_CONDITIONS=(
   '.accessibilityHidden(false)'
   '}'
 )
+FROZEN_MAP_CONTROLS=(
+  'private var mapControls: some View {'
+  '(sheetDetent == .medium ? AnyLayout(HStackLayout(spacing: 10)) : AnyLayout(VStackLayout(spacing: 10))) {'
+  'settingsButton'
+  'SurpriseToggle(isShowing: $isShowingSurprise, onToggle: { surpriseFailure = nil })'
+  '}'
+  '.frame(maxWidth: .infinity, alignment: .trailing)'
+  '.padding(.horizontal, 16)'
+  '.padding(.top, 64).padding(.bottom, 8)'
+  '}'
+)
+FROZEN_SETTINGS_BUTTON=(
+  'private var settingsButton: some View {'
+  'Button(action: onSettings) {'
+  'Image(systemName: "gearshape")'
+  '.font(.body.weight(.semibold))'
+  '.foregroundStyle(DesignTokens.fg)'
+  '.frame(width: 44, height: 44)'
+  '.background(Circle().fill(DesignTokens.surface))'
+  '.overlay(Circle().strokeBorder(DesignTokens.border, lineWidth: 1))'
+  '.shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 2)'
+  '}'
+  '.buttonStyle(.plain)'
+  '.accessibilityLabel("Settings")'
+  '.accessibilityIdentifier("home.settings")'
+  '}'
+)
+FROZEN_SURPRISE_TOGGLE=(
+  'struct SurpriseToggle: View {'
+  '@Binding var isShowing: Bool'
+  ''
+  'let onToggle: () -> Void'
+  ''
+  'var body: some View {'
+  'Button {'
+  'onToggle()'
+  'isShowing.toggle()'
+  '} label: {'
+  'Image(systemName: isShowing ? "sparkles.rectangle.stack.fill" : "sparkles")'
+  '.font(.title3.weight(.semibold))'
+  '.foregroundStyle(DesignTokens.primary)'
+  '.frame(width: 56, height: 56)'
+  '.background(Circle().fill(DesignTokens.surface))'
+  '.overlay(Circle().strokeBorder(DesignTokens.border, lineWidth: 1))'
+  '.shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 2)'
+  '}'
+  '.buttonStyle(.plain)'
+  '.accessibilityLabel("Surprise me")'
+  '.accessibilityAddTraits(isShowing ? .isSelected : [])'
+  '.accessibilityIdentifier("home.surprise")'
+  '}'
+  '}'
+)
 FROZEN_APP_SHELL=(
   'struct ScenicDriveApp: App {'
   '@State private var isShowingSettings = LaunchScreen.atLaunch != .home'
@@ -301,10 +357,10 @@ frozen_directives() {
   done < <(frozen_code_lines "$file")
 }
 
-# require_frozen_blocks FEATURE_DIR APP_TREE: the six blocks and the directive fence, or `fail` naming each break.
+# require_frozen_blocks FEATURE_DIR APP_TREE: the nine blocks and the directive fence, or `fail` naming each break.
 require_frozen_blocks() {
   local feature="$1" app_tree="$2" f
-  local sheet="$feature/HomeSheet.swift" screen="$feature/ScenicHomeScreen.swift"
+  local sheet="$feature/HomeSheet.swift" screen="$feature/ScenicHomeScreen.swift" toggle="$feature/SurpriseToggle.swift"
   local shell="$app_tree/ScenicDrive/ScenicDriveApp.swift"
   FROZEN_BAD=()
   frozen_block "$sheet" "HomeSheet's struct" FROZEN_HOME_SHEET "import SwiftUI"
@@ -312,8 +368,11 @@ require_frozen_blocks() {
   frozen_block "$screen" "ScenicHomeScreen's chips" FROZEN_CHIPS "}"
   frozen_block "$screen" "ScenicHomeScreen's sheetDetails" FROZEN_SHEET_DETAILS "}"
   frozen_block "$screen" "ScenicHomeScreen's conditions" FROZEN_CONDITIONS "}"
+  frozen_block "$screen" "ScenicHomeScreen's mapControls" FROZEN_MAP_CONTROLS "}"
+  frozen_block "$screen" "ScenicHomeScreen's settingsButton" FROZEN_SETTINGS_BUTTON "}"
+  frozen_block "$toggle" "SurpriseToggle's struct" FROZEN_SURPRISE_TOGGLE "import SwiftUI"
   frozen_block "$shell" "the app shell ScenicDriveApp" FROZEN_APP_SHELL "@main"
-  for f in "$sheet" "$screen" "$shell"; do [[ -f "$f" ]] && frozen_directives "$f"; done
+  for f in "$sheet" "$screen" "$toggle" "$shell"; do [[ -f "$f" ]] && frozen_directives "$f"; done
   [[ "${#FROZEN_BAD[@]}" -eq 0 ]] || fail "$FROZEN_REASON:" "${FROZEN_BAD[@]}" \
     "These blocks draw the sheet, the conditions line and the credit at BOTH detents; each is a whole-line whitelist" \
     "(ops/lib/check-safety-disclaimer-frozen). An edit inside one - a wrapper, a modifier, an overlay, a moved line -" \
