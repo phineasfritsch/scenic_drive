@@ -42,29 +42,44 @@ MIN_MUTATIONS = 165
 REASON = "a /* */ block comment in a frozen file"
 S = "Packages/ScenicApp/Sources/"
 H, P = S + "FeatureScenicHome/", S + "FeaturePlanSheet/"
-# (file under apps/ios, reader, the block's approved first line, its approved ABOVE line), as the readers type them.
-BLOCKS = (
-    (H + "HomeSheet.swift", "frozen", "struct HomeSheet: View {", "import SwiftUI"),
-    (H + "ScenicHomeScreen.swift", "frozen", "public var body: some View {", None),
-    (H + "ScenicHomeScreen.swift", "frozen", "private var chips: some View {", "}"),
-    (H + "ScenicHomeScreen.swift", "frozen", "private var sheetDetails: some View {", "}"),
-    (H + "ScenicHomeScreen.swift", "frozen", "private var conditions: some View {", "}"),
-    ("ScenicDrive/ScenicDriveApp.swift", "frozen", "struct ScenicDriveApp: App {", "@main"),
-    (P + "PlanPreviewCard.swift", "preview", "var body: some View {", "@Environment(\\.planMoments) private var moments"),
-    (P + "PlanPreviewCard.swift", "preview", "private var etaRow: some View {", "}"),
-    (P + "PlanPreviewCard.swift", "preview", "@ViewBuilder private var estimateTag: some View {", "}"),
-    (P + "PlanPreviewActions.swift", "preview", "var body: some View {",
-     "@Environment(\\.dynamicTypeSize) private var typeSize"),
-    (P + "PlanPreviewActions.swift", "preview", "private var conditions: some View {", "}"),
-    (H + "PlanPreviewMap.swift", "f4", "struct PlanPreviewMap: View {", "import SwiftUI"),
-    (P + "PlanSheetScreen.swift", "f4", "var body: some View {", "}"),
-    (P + "PlanSheetScreen.swift", "f4", "@ViewBuilder private var content: some View {", "}"),
-    (P + "PlanSheetScreen.swift", "f4", "@ViewBuilder private var planContent: some View {", "}"),
-    (H + "DriveCard.swift", "drive", "struct DriveCard: View {", "import SwiftUI"),
-    (H + "DriveEndConfirm.swift", "drive", "struct DriveEndConfirm: View {", "import SwiftUI"),
-    (H + "DriveScreen.swift", "drive", "struct DriveScreen: View {", "import SwiftUI"),
+# (file under apps/ios, reader, the reader's approved array). The first line of each block is READ from that array
+# (bash) or from drive_display_frozen.BLOCKS, never retyped here, so the population follows the readers' whitelists.
+BLOCKS_BASH = (
+    (H + "HomeSheet.swift", "frozen", "FROZEN_HOME_SHEET"),
+    (H + "ScenicHomeScreen.swift", "frozen", "FROZEN_SCREEN_BODY"),
+    (H + "ScenicHomeScreen.swift", "frozen", "FROZEN_CHIPS"),
+    (H + "ScenicHomeScreen.swift", "frozen", "FROZEN_SHEET_DETAILS"),
+    (H + "ScenicHomeScreen.swift", "frozen", "FROZEN_CONDITIONS"),
+    ("ScenicDrive/ScenicDriveApp.swift", "frozen", "FROZEN_APP_SHELL"),
+    (P + "PlanPreviewCard.swift", "preview", "FROZEN_PREVIEW_CARD_BODY"),
+    (P + "PlanPreviewCard.swift", "preview", "FROZEN_PREVIEW_ETA_ROW"),
+    (P + "PlanPreviewCard.swift", "preview", "FROZEN_PREVIEW_ESTIMATE_TAG"),
+    (P + "PlanPreviewActions.swift", "preview", "FROZEN_PREVIEW_ACTIONS_BODY"),
+    (P + "PlanPreviewActions.swift", "preview", "FROZEN_PREVIEW_CONDITIONS"),
+    (H + "PlanPreviewMap.swift", "f4", "FROZEN_PREVIEW_MAP"),
+    (P + "PlanSheetScreen.swift", "f4", "FROZEN_PLAN_BODY"),
+    (P + "PlanSheetScreen.swift", "f4", "FROZEN_PLAN_CONTENT"),
+    (P + "PlanSheetScreen.swift", "f4", "FROZEN_PLAN_SWITCH"),
 )
-FILES = tuple(dict.fromkeys((rel, reader) for rel, reader, _, _ in BLOCKS))
+LIBS = ("ops/lib/check-safety-disclaimer-frozen", "ops/lib/check-safety-disclaimer-preview",
+        "ops/lib/check-map-attribution-preview")
+
+
+def load_blocks() -> tuple[tuple[str, str, str], ...]:
+    """(file, reader, first line) for every frozen block, the bash ones read from the sourced arrays."""
+    script = "".join(f". {lib}; " for lib in LIBS) + 'for a in "$@"; do declare -n r="$a"; printf "%s\\n" "${r[0]}"; done'
+    names = [a for _, _, a in BLOCKS_BASH]
+    done = subprocess.run(["bash", "-c", script, "blocks", *names], cwd=ROOT, capture_output=True, text=True)
+    firsts = done.stdout.split("\n")[:len(names)]
+    if done.returncode != 0 or len(firsts) != len(names) or not all(firsts):
+        raise CannotTell(f"cannot read the readers' arrays: exit {done.returncode} {done.stderr.strip()[:200]}")
+    spec = importlib.util.spec_from_file_location("drive_display_frozen", ROOT / "ops/lib/drive_display_frozen.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    drive = tuple((rel, "drive", want[0]) for _, rel, _, want in mod.BLOCKS)
+    if len(drive) != 3:
+        raise CannotTell(f"drive_display_frozen.BLOCKS holds {len(drive)} blocks, this population was built for 3")
+    return tuple((rel, reader, first) for (rel, reader, _), first in zip(BLOCKS_BASH, firsts)) + drive
 BASH = {"frozen": '. ops/lib/check-safety-disclaimer-frozen; fail() { printf "FAIL| %s\\n" "$@"; }; '
                   f'require_frozen_blocks "$W/{H.rstrip("/")}" "$W"',
         "preview": '. ops/lib/check-safety-disclaimer-frozen; . ops/lib/check-safety-disclaimer-preview; '
@@ -123,13 +138,13 @@ def generated(rel: str, first: str, lines: list[str], place: str, twin_at: str) 
     return out[:opener] + twin + out[opener:]
 
 
-def rows() -> list[tuple[str, str, str, object]]:
+def rows(blocks, files) -> list[tuple[str, str, str, object]]:
     out = [("R1", P + "PlanPreviewCard.swift", "preview", "r1")]
-    for n, (rel, reader, first, _) in enumerate(BLOCKS):
+    for rel, reader, first in blocks:
         for place in ("eol", "own", "first", "nested"):
             for twin_at in ("before", "after"):
                 out.append((f"G{len(out)}", rel, reader, (first, place, twin_at)))
-    for rel, reader in FILES:
+    for rel, reader in files:
         for k, add in enumerate(('let frozenCommentControl = "/* not a comment */"', "// /* a line comment, not a block")):
             out.append((f"C{len(out)}", rel, reader, ("control", add)))
     return out
@@ -166,7 +181,13 @@ def run_reader(reader: str) -> str:
 
 def main(argv: list[str]) -> int:
     sys.stdout.reconfigure(newline="\n")
-    population = rows()
+    try:
+        blocks = load_blocks()
+    except CannotTell as e:
+        print(f"MUTATE cannot tell  {e}")
+        return 2
+    files = tuple(dict.fromkeys((rel, reader) for rel, reader, _ in blocks))
+    population = rows(blocks, files)
     only = mutate_only.select_only(argv, [r[0] for r in population])
     if len(argv) > 1 and only is None:
         print("MUTATE refuse  usage: python ops/mutate/frozencomments.py [--only R1,G7,C3]")
@@ -180,7 +201,7 @@ def main(argv: list[str]) -> int:
     picked = [r for r in population if only is None or r[0] in only]
     survivors, silent = [], []
     try:
-        for reader in dict.fromkeys(r for _, r in FILES):
+        for reader in dict.fromkeys(r for _, r in files):
             if out := run_reader(reader):
                 raise CannotTell(f"the {reader} reader is not silent on the pristine copy:\n{out}")
         for row in picked:
