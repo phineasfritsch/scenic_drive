@@ -22,7 +22,10 @@ PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declar
                             "driver's literal MIN_MUTATIONS",
           "filescope.py": "ops/lib/check-file-scope.py's population (T-0406): its subject is an ops/lib guard, "
                           "outside MODULE_ROOTS, and its mutants are copies of the feature sources; its floor is "
-                          "the driver's literal MIN_MUTATIONS"}
+                          "the driver's literal MIN_MUTATIONS",
+          "frozencomments.py": "ops/lib/frozen_comments.py's population (T-0407): its subject is an ops/lib rule "
+                               "called inside the frozen-block readers, outside MODULE_ROOTS, and its mutants are "
+                               "copies of apps/ios; its floor is the driver's literal MIN_MUTATIONS"}
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (

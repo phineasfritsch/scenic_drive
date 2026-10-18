@@ -16,7 +16,8 @@
 #
 # WHAT IT CANNOT SEE: whether the card renders, is covered, or is presented at all (PlanSheetScreen mounts it -
 # the digest pin covers that file); what PlanPreview.showsEstimateBadge computes (P-SAFE-07's learner tests and
-# PlanPreview's own tests); an overload of a modifier elsewhere in the module; `/* */` comments.
+# PlanPreview's own tests); an overload of a modifier elsewhere in the module. A `/* */` comment is refused by
+# frozen_block itself (T-0407, ops/lib/frozen_comments.py).
 PREVIEW_REASON="a frozen preview render block changed"
 
 FROZEN_PREVIEW_CARD_BODY=(
