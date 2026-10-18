@@ -173,3 +173,18 @@ This task lands first. T-0397 and T-0398 then merge main and need no shadowing g
   LoopLinks.swift: the lexer cannot read it - a #if condition that is not one bare build flag ... (line 10)` rc=1.
   Population `MUTATE ok  392/392 killed (floor 241, population 392)` rc=0 in 2m21s (7 R + 221 G + 15 L + 149 D);
   floor set to the measured 392. `wc -l`: check-file-scope.py 300, filescope.py 252 (cap 300).
+- 2026-10-18T01:33:46Z FINAL PRE-REVIEW, round 2 (agent/claude-opus-5). `git fetch origin` in the main checkout: origin/main is
+  still 281728c6, an ancestor of this head, so no merge commit. Acceptance re-run on head deb32e34 (+ this Log):
+  1. `FILE-SCOPE ok  59 file(s) in 4 module(s), 981 approved line(s) at depth 0-1 or #if/#else/#endif; no file-scope
+     or member line outside the approved list` rc=0.
+  2. `MUTATE ok  392/392 killed (floor 392, population 392)` rc=0.
+  3. `MUTATE ok  7/7 killed (floor 392, population 392)` rc=0; R1-R7 each `MUTATE killed` naming its file (R6/R7
+     `skew FeatureScenicHome/LoopLinks.swift`).
+  4. P-SAFE-03's assertion unchanged (ends `... ops/lib/check-file-scope.py && ... ops/mutate/filescope.py`);
+     `PINS-YAML ok pins=53 fields=426`.
+  5. Bare gates: check-safety-disclaimer rc=0 (`Frozen (-frozen, -preview); 37 feature file(s), shell, footer pinned
+     ...`); `P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds`; `MUTATE-ONLY OK: 248 of
+     248 driver runs refused with exit 64 (67 drivers, ...)` and `NAME-PAIRS OK` rc=0; `PINS-YAML ok pins=53
+     fields=426`; `P-OPS-01: 256 files, 23 required present, all modes correct`; `QUEUE OK (397 tasks)`.
+  `wc -l`: check-file-scope.py 300, filescope.py 252 (cap 300). rv1 B1 closed by class: directives whitelisted at
+  every depth, non-flag conditions refused, branches brace-neutral; rv1's mutA/mutB files are refused by reason.
