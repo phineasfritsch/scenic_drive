@@ -1,7 +1,7 @@
 ---
 id: T-0403
 title: A live /plan takes 12.1 s (6 router evaluations across the tunnel) against the plan's p95 1.5 s - measure where the time goes and cut it
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-18T01:56:19Z
@@ -11,7 +11,7 @@ branch: task/T-0403
 exclusive: []
 touches: [services/api/src/, services/api/test/, ops/lib/, pins/PINS.yaml, queue/]
 pins_affected: [P-COST-04, P-SAFE-04]
-reviewer: null
+reviewer: agent/rv2-t0403
 depends_on: []
 verify: [ops/test]
 acceptance: []
@@ -63,6 +63,7 @@ budget) must hold through any change.
   - Driver run `node services/api/test/mutate/planMutants.mjs --only <the 9>`: `baseline green tests=221`; MISSED search-bracket-strict (no row put a midpoint exactly on the ceiling - the bracket moved differently but the best stayed lambda 4); CAUGHT search-one-extra by "/plan, empty, clear path, router honours: ..."; alongside-bracket-strict by "a scenic route exactly at the ceiling is returned (the ceiling is inclusive)"; alongside-first-after-fastest, alongside-unusable-successor, alongside-bad-budget-launches by "over 400 generated rows: ..."; alongside-floor-after-next by "a midpoint whose answer is unusable launches no successor: ..."; alongside-mid-recorded-first by "every pair of failing requests among the first three surfaces searchLambda's error, never the other one"; alongside-floor-every-round by "/plan, empty, clear path, ...". `RESULT caught=8 missed=1 trap=0 of 9`.
   - Survivor closed: test/lambdaSearch.test.ts gains "a midpoint exactly at the ceiling moves the bracket up, in both schedules: 0, 4, 6, 5, 4.5, 4.25" (curve 100 + 25 l, fastest 100, budget 100: lambda 4 answers exactly 200 = the ceiling; exact visited order for searchLambda, the /trip entry point, exact sorted set and toEqual outcome for searchLambdaAlongside). Re-run `--only search-bracket-strict`: `baseline green tests=222`, `CAUGHT search-bracket-strict by "a midpoint exactly at the ceiling moves the bracket up, in both schedules: 0, 4, 6, 5, 4.5, 4.25"`, `RESULT caught=1 missed=0 trap=0 of 1`. `--prove-floor`: four arms REFUSED, real population quiet.
   - `git fetch origin` in the main checkout; origin/main ab36b2bb merged -> fca08290. On that head: check-mutate-anchors `17 drivers, 1303 anchors, 0 stale`, exit 0; `npx vitest run` `Test Files 102 passed (102)`, `Tests 2759 passed (2759)`; gates bare exit 0: check-safety-disclaimer, check-mutate-population.py (`P-PROC-06: ... 0 added by this branch ... the floor of 173 holds`), check-mutate-only.py (`MUTATE-ONLY OK: 248 of 248`), check-pins-yaml.py (`pins=53 fields=426`), check-exec-bits (`258 files ... all modes correct`), queue-check (`QUEUE OK (398 tasks)`), run-named-tests.py P-COST-04 `passed=27/27`. Acceptance 1-4's files are inside that suite run.
+- 2026-10-18T06:24:42Z agent/rv2-t0403 (review round 2, PASS on 29a4b8f8 == origin/task/T-0403): rv1 B1 closed. Detached worktree at origin/task/T-0403: check-mutate-anchors `17 drivers, 1303 anchors, 0 stale`, exit 0. `node services/api/test/mutate/planMutants.mjs --only` over the 9 re-anchored/new ids: `population mutations=75 (floor 75) equivalent=3`, `baseline green tests=222`, CAUGHT by name search-bracket-strict, search-one-extra, alongside-bracket-strict, alongside-first-after-fastest, alongside-floor-after-next, alongside-mid-recorded-first, alongside-unusable-successor, alongside-floor-every-round, alongside-bad-budget-launches; `RESULT caught=9 missed=0 trap=0 of 9`. EQUIVALENT search-cap-floor / alongside-cap-floor witnesses checked against src: cap is read only by nextMidpoint's `1 + steps < cap` (steps >= 0), false for cap 0 and 1 alike. Full Worker suite `Test Files 102 passed (102)`, `Tests 2759 passed (2759)`. Gates bare exit 0: check-safety-disclaimer, check-mutate-population.py (`0 added by this branch ... the floor of 173 holds`), check-mutate-only.py (`248 of 248`), check-pins-yaml.py (`pins=53 fields=426`), check-exec-bits (`258 files ... all modes correct`), queue-check (`QUEUE OK (398 tasks)`). `gh pr checks 300`: core pass, pins-source-only pass. `git merge-base --is-ancestor origin/main origin/task/T-0403` exit 1: the only drift is b9b7b33f (queue: file T-0407, one queue/ file) - queue-only, accepted.
 
 ## Acceptance
 1. `cd services/api && npx vitest run test/planSchedule.test.ts` - the byte-equal table: for every row the WHOLE answer (`status` + sha256 and length of the exact response text) equals the value captured from main 0399dcea's code before any src change (capture quoted in the Log). Rows: santa-monica-topanga +25, westwood-woodland-hills +25, westwood-malibu +25 (422 nothing_pretty, with its lambda-8 back-roads ETA), westwood-malibu back roads 32 (200) and 31 (500 ceiling_breached), the step-at-lambda-4 curve (infeasible branch), the all-overshoot curve (502 no_route), the exactly-at-ceiling curve, a router refusing car_fast, a router refusing every scenic model, and 40 seeded random curves incl. non-monotone ones.
