@@ -517,6 +517,28 @@
 1|    }
 0|}
 
+@file FeatureScenicHome/DriveCard.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct DriveCard: View {
+1|    @Environment(\.dynamicTypeSize) private var typeSize
+1|    let remainingSeconds: Double
+1|    let glanceLine: String
+1|    let showsEstimate: Bool
+1|    let caption: String?
+1|    let note: String?
+1|    let endTitle: String
+1|    let endMinHeight: Double
+1|    let onEnd: () -> Void
+1|    var body: some View {
+1|    }
+1|    private var facts: some View {
+1|    }
+1|    private func endPill(fullWidth: Bool) -> some View {
+1|    }
+0|}
+
 @file FeatureScenicHome/DriveCopy.swift
 0|import Foundation
 0|import Handoff
@@ -540,6 +562,21 @@
 1|    let drive: HandoffDrive
 1|    let roads: String
 1|    let caption: String
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveEndConfirm.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct DriveEndConfirm: View {
+1|    let onKeep: () -> Void
+1|    let onEnd: () -> Void
+1|    static let title = "End this drive?"
+1|    static let sentence = "Your drive stops here."
+1|    static let keep = "Keep driving"
+1|    static let end = "End"
 1|    var body: some View {
 1|    }
 0|}
@@ -637,6 +674,7 @@
 1|    @State private var creditBandTop: CGFloat = 0
 1|    @State private var asked = false
 1|    @State private var isAsking = false
+1|    @State private var confirming = false
 1|    private let preview: PlanPreview
 1|    private let display: DriveDisplay
 1|    private let onEnd: () -> Void
@@ -648,9 +686,11 @@
 1|    }
 1|    private var controls: some View {
 1|    }
-1|    private var endButton: some View {
-1|    }
 1|    private func endTapped() {
+1|    }
+1|    private func endDrive() {
+1|    }
+1|    private func closeOnMoving() {
 1|    }
 1|    private func answer(_ answer: PostDriveAnswer) {
 1|    }

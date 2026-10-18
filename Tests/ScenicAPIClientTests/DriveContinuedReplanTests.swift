@@ -35,11 +35,12 @@ import Testing
     static func expected(_ v: Variant) -> Seen {
         guard v.taken else {
             return Seen(mode: .rejoining, continued: true, display: DriveDisplay(
-                surface: .full, mode: .rejoining, line: R.line, etaLine: "25 min · 5 min longer than the fastest way"))
+                surface: .full, mode: .rejoining, line: R.line, etaLine: "25 min · 5 min longer than the fastest way",
+                remainingSeconds: 1_500, remainingMeters: 4_604))
         }
         return Seen(mode: .guiding, continued: v.continued, display: DriveDisplay(
             surface: .full, mode: .guiding, line: R.answerLine, etaLine: "15 min · 2 min longer than the fastest way",
-            continued: v.continued))
+            continued: v.continued, remainingSeconds: 900, remainingMeters: 4_422))
     }
 
     static func run(_ v: Variant) async -> Seen {
