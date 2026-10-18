@@ -268,3 +268,14 @@ and check-mutate-anchors before buying review.
   Verification this round re-runs only the touched rows (owner-approved): frozencomments.py whole (it is the red
   one), check-safety-disclaimer, check-map-attribution, check-file-scope + mutate/filescope, check-estimate-badge,
   check-drive-display; P-SAFE-03's assertion and `bash ops/check-pins --source-only` BARE on the final head.
+- 2026-10-18T22:05:00Z agent/claude-opus-5 - round 3, B2 first fix seen RED on screen, re-ruled.
+  ios-screenshot 39167985545 on 7a0a832a (the `isAccessibilitySize` fix) green, LOOKED at home-ax5-medium: the
+  'Fastest' row still reads "via North Topanga Canyon / Boulevard · South Topanga Canyo..." - unchanged. Cause:
+  ScenicHomeScreen's body ends in `.dynamicTypeSize(...HomeTypeSize.cap)` (cap = .xxxLarge, T-0384), so inside the
+  sheet the environment never holds an accessibility size and `isAccessibilitySize` is always false. RE-RULED: the
+  via line's limit keys on the capped scale the sheet actually sees, `typeSize > .large ? nil : 2` - HomeSheet's
+  own threshold for its larger-text layout. home-ax5-collapsed on the same run: the meta line whole on two lines,
+  button, conditions directly under it, credit on the sheet edge, gear and Surprise above it (draws no option rows).
+  Digest 10151035... -> 20e93964... re-approved in -pinned (two rows); the changed line in -frozen-views.txt and
+  check-estimate-badge-approved.txt. T-0436 filed (M1 + M2); id checked unused on origin/main (max T-0426 on main)
+  and every open task branch (T-0432 on task/T-0408, T-0433 on task/T-0411, nothing higher).

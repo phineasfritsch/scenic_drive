@@ -321,7 +321,7 @@ DLINE	if !via.isEmpty {
 DLINE	Text(via)
 DLINE	.font(.subheadline)
 DLINE	.foregroundStyle(DesignTokens.fgMuted)
-DLINE	.lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+DLINE	.lineLimit(typeSize > .large ? nil : 2)
 DLINE	.fixedSize(horizontal: false, vertical: true)
 DLINE	}
 DLINE	}

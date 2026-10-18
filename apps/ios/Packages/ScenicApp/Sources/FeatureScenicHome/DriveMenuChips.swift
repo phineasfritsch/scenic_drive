@@ -75,7 +75,7 @@ struct DriveMenuChips: View {
                         Text(via)
                             .font(.subheadline)
                             .foregroundStyle(DesignTokens.fgMuted)
-                            .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                            .lineLimit(typeSize > .large ? nil : 2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
