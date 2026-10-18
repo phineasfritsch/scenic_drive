@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+# P-ATTR-01 limb (f4), sourced by ops/lib/check-map-attribution (split from -sites for CLAUDE.md's 300-line cap).
+#
+# T-0405 rv0 M-A, M-B: THE PREVIEW'S MAP IS THE ONE DRAWN, AND IT IS DRAWN UNDER ITS CREDIT. (f3) reads the footer's
+# argument and the mount, never what the plan sheet hands the card nor the ZStack's order: the `.preview` arm handing
+# the card `AnyView(EmptyView())` (M-A, no map and no credit) and the footer moved before MapView (M-B, the map drawn
+# over the credit) were both green on it with every digest re-approved.
+# T-0405 rv1 B1, B2: freezing the `.preview` ARM as a run was not enough. swiftc compiles a duplicate arm with a
+# warning and the FIRST wins, so a shadow `case .preview` ABOVE the frozen one handed the card an empty view; and a
+# `.opacity(...)` on `planContent` in `content` hid the whole preview. So PlanPreviewMap's struct and PlanSheetScreen's
+# body, content and planContent are each frozen WHOLE (check-safety-disclaimer-frozen's frozen_block: no arm can be
+# added, reordered or re-bound, no modifier added, no line moved), and every line under apps/ios naming previewMap,
+# PlanPreviewMap, PlanPreviewCard or planContent, or passing a `map:` argument - and every line of
+# PlanPreviewCard.swift naming `map` - is an approved whole line, in scan order: a second card construction site, a
+# shadowing declaration, a second closure or a replaced argument is refused by name, wherever it is typed.
+PLAN_SHEET_REL="Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift"
+FROZEN_PREVIEW_MAP=(
+  'public struct PlanPreviewMap: View {'
+  '@Environment(\.colorScheme) private var colorScheme'
+  '@State private var style = MapStyle.maplibreDemoTiles'
+  '@State private var route: MapRoute?'
+  '@State private var creditBandTop: CGFloat = 0'
+  ''
+  'private let preview: PlanPreview'
+  ''
+  'public init(preview: PlanPreview) {'
+  'self.preview = preview'
+  '}'
+  ''
+  'public var body: some View {'
+  'ZStack(alignment: .bottom) {'
+  'MapView('
+  'styleURL: style.url,'
+  'centerLatitude: preview.route.first?.latitude ?? 0,'
+  'centerLongitude: preview.route.first?.longitude ?? 0,'
+  'zoomLevel: 11,'
+  'coveredBelowY: creditBandTop,'
+  'route: route'
+  ')'
+  'AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))'
+  '.onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { creditBandTop = $0 }'
+  '}'
+  '.clipped()'
+  '.dynamicTypeSize(...HomeTypeSize.cap)'
+  '.accessibilityIdentifier("plan.map")'
+  '.task { resolveMap() }'
+  '.onChange(of: colorScheme) { resolveMap() }'
+  '.onChange(of: preview.route) { resolveMap() }'
+  '}'
+  ''
+  'private func resolveMap() {'
+  'route = DriveMapLine.route(for: preview.route)'
+  'style = DriveBasemap.planned(appearance: colorScheme == .dark ? .dark : .light)'
+  '}'
+  '}'
+)
+# PlanSheetScreen's body, content and planContent, each whole (rv1-t0405 B1, B2): the switch's every arm.
+FROZEN_PLAN_BODY=(
+  'public var body: some View {'
+  'NavigationStack {'
+  'content'
+  '.navigationTitle(showingLoop ? "Just drive a loop" : showingTrip ? "Plan a road trip"'
+  ': onPreview ? "" : "Plan a drive")'
+  '.navigationBarTitleDisplayMode(.inline)'
+  '.toolbar {'
+  'ToolbarItem(placement: .cancellationAction) {'
+  'Button("Close", action: onClose)'
+  '}'
+  'ToolbarItem(placement: .primaryAction) {'
+  'Button(showingSaved ? "Plan" : "Saved") {'
+  'showingSaved.toggle()'
+  'showingTrip = false'
+  'showingLoop = false'
+  '}'
+  '.accessibilityIdentifier("plan.savedTab")'
+  '}'
+  'ToolbarItem(placement: .bottomBar) {'
+  'Button(showingTrip ? "Plan a drive" : "Plan a road trip") {'
+  'showingTrip.toggle()'
+  'showingSaved = false'
+  'showingLoop = false'
+  '}'
+  '.accessibilityIdentifier("plan.tripTab")'
+  '}'
+  'ToolbarItem(placement: .bottomBar) {'
+  'Button(showingLoop ? "Plan a drive" : "Just drive a loop") {'
+  'showingLoop.toggle()'
+  'showingSaved = false'
+  'showingTrip = false'
+  '}'
+  '.accessibilityIdentifier("plan.loopTab")'
+  '}'
+  '}'
+  '.toolbar(onPreview ? .hidden : .automatic, for: .bottomBar)'
+  '}'
+  '.onAppear {'
+  'sheet.setDisclaimerAccepted(safetyNoteRead)'
+  'trip.setDisclaimerAccepted(safetyNoteRead)'
+  'loop.setDisclaimerAccepted(safetyNoteRead)'
+  '}'
+  '.task {'
+  'guard PlanRehearsal.atLaunch == nil else { return }'
+  'sheet.setDegrade(await planner.degrade())'
+  'surprise = surpriseGate()'
+  '}'
+  '.onChange(of: safetyNoteRead) { _, accepted in'
+  'sheet.setDisclaimerAccepted(accepted)'
+  'trip.setDisclaimerAccepted(accepted)'
+  'loop.setDisclaimerAccepted(accepted)'
+  '}'
+  '}'
+)
+FROZEN_PLAN_CONTENT=(
+  '@ViewBuilder private var content: some View {'
+  'if showingLoop {'
+  'LoopScreen(loop: $loop, planner: loopPlanner, waitlist: planner, mapsURL: loopLink)'
+  '} else if showingTrip {'
+  'RoadTripScreen(trip: $trip, planner: tripPlanner, waitlist: planner, dayLinks: dayLinks)'
+  '} else if showingSaved {'
+  'SavedDrivesList(list: $saved, onReplay: replay)'
+  '} else {'
+  'planContent'
+  '}'
+  '}'
+)
+FROZEN_PLAN_SWITCH=(
+  '@ViewBuilder private var planContent: some View {'
+  'switch sheet.state {'
+  'case .idle, .chosen:'
+  'form'
+  'case .searching(let field, _):'
+  'PlanPlaceList(field: field, query: $query, search: PlaceSearchSubmit(searcher: planner), start: sheet.start,'
+  'destination: sheet.destination, rehearsed: rehearsedSearch, onPick: { sheet.choose($0) },'
+  'onCancel: { sheet.endSearch() })'
+  'case .planning:'
+  'ProgressView("Finding a calmer way there")'
+  '.frame(maxWidth: .infinity, maxHeight: .infinity)'
+  'case .preview(let ticket, let preview):'
+  'PlanPreviewCard(preview: preview, map: previewMap(preview), destination: sheet.destination?.name ?? "",'
+  'saveLine: saveLine,'
+  'onSave: { save(preview, budgetMinutes: ticket.budgetMinutes) },'
+  'onChangePlace: { searchFor(.destination) }, onDrive: { onDrive(preview) },'
+  'onLoop: { showingLoop = true }, onTrip: { showingTrip = true })'
+  'case .failed(_, let failure):'
+  'if showingWaitlist {'
+  'WaitlistCard(answer: waitlistAnswer, onChangeStart: { searchFor(.start) })'
+  '} else {'
+  'PlanFailureCard(copy: PlanFailureCopy.of(failure, surprise: surprise), onAction: act)'
+  '}'
+  'case .offered(_, let offer):'
+  'PlanOfferCard(copy: PlanOfferCopy.of(offer),'
+  'onMoreTime: { if let ticket = sheet.takeMoreTime() { run(ticket) } },'
+  'onBackRoads: { if let ticket = sheet.takeBackRoads() { run(ticket) } },'
+  'onAction: act)'
+  '}'
+  '}'
+)
+PREVIEW_WIRING=(
+  "Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift: struct PlanPreviewCard: View {"
+  "Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift: let map: AnyView"
+  "Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift: map"
+  "Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift: Button(\"Plan a road trip\", systemImage: \"map\", action: onTrip)"
+  "Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift: let distance = preview.distanceLabel.map { Text(\" \" + \$0).foregroundStyle(DesignTokens.fgMuted) }"
+  "Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift: return (distance.map { hero + \$0 } ?? hero).font(.title2)"
+  "$PLAN_SHEET_REL: private let previewMap: @MainActor (PlanPreview) -> AnyView"
+  "$PLAN_SHEET_REL: previewMap: @escaping @MainActor (PlanPreview) -> AnyView, onClose: @escaping () -> Void) {"
+  "$PLAN_SHEET_REL: self.previewMap = previewMap"
+  "$PLAN_SHEET_REL: planContent"
+  "$PLAN_SHEET_REL: @ViewBuilder private var planContent: some View {"
+  "$PLAN_SHEET_REL: PlanPreviewCard(preview: preview, map: previewMap(preview), destination: sheet.destination?.name ?? \"\","
+  "$PREVIEW_MAP_REL: public struct PlanPreviewMap: View {"
+  "ScenicDrive/ScenicDriveApp.swift: PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, surpriseGate: { LivePlanner.surpriseGate() }, onDrive: { isPlanning = false; drive = \$0 }, previewMap: { AnyView(PlanPreviewMap(preview: \$0)) }, onClose: { isPlanning = false })"
+)
+# Trimmed whole lines naming previewMap / PlanPreviewMap / PlanPreviewCard / planContent or passing `map:` anywhere,
+# or naming `map` in the card; only a line STARTING with // and holding no backslash is dropped (B1 rv1-t0295: a //
+# line with a backslash can be code inside a string).
+preview_wiring_lines() {
+  awk -v root="$APP_TREE/" '
+    {
+      line = $0; sub(/\r$/, "", line); sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+      if (substr(line, 1, 2) == "//" && index(line, "\\") == 0) next
+      if (line !~ /(^|[^A-Za-z0-9_])(previewMap|PlanPreviewMap|PlanPreviewCard|planContent)([^A-Za-z0-9_]|$)/ &&
+          line !~ /(^|[^A-Za-z0-9_])map[ \t]*:/ &&
+          !(FILENAME ~ /FeaturePlanSheet\/PlanPreviewCard\.swift$/ && line ~ /(^|[^A-Za-z0-9_])map([^A-Za-z0-9_]|$)/)) next
+      rel = FILENAME
+      if (index(FILENAME, root) == 1) rel = substr(FILENAME, length(root) + 1)
+      printf "%s: %s\n", rel, line
+    }
+  ' "$@"
+}
+require_preview_wiring() {
+  [[ "${1:-}" == "--" ]] && shift
+  FROZEN_BAD=()
+  frozen_block "$APP_TREE/$PREVIEW_MAP_REL" "PlanPreviewMap's struct (the map, then its credit over it)" \
+    FROZEN_PREVIEW_MAP "import SwiftUI"
+  frozen_block "$APP_TREE/$PLAN_SHEET_REL" "PlanSheetScreen's body (content and its modifiers)" FROZEN_PLAN_BODY "}"
+  frozen_block "$APP_TREE/$PLAN_SHEET_REL" "PlanSheetScreen's content (planContent on the plan tab)" \
+    FROZEN_PLAN_CONTENT "}"
+  frozen_block "$APP_TREE/$PLAN_SHEET_REL" "PlanSheetScreen's planContent (the whole switch, every arm)" \
+    FROZEN_PLAN_SWITCH "}"
+  local found=() w
+  mapfile -t found < <(preview_wiring_lines "$@")
+  if [[ "$(printf '%s\n' "${found[@]}")" != "$(printf '%s\n' "${PREVIEW_WIRING[@]}")" ]]; then
+    FROZEN_BAD+=("${#found[@]} line(s) name previewMap / PlanPreviewMap / PlanPreviewCard / planContent, pass \`map:\` (or name \`map\` in PlanPreviewCard.swift), ${#PREVIEW_WIRING[@]} approved; found, in scan order:")
+    for w in "${found[@]}"; do FROZEN_BAD+=("  $w"); done
+  fi
+  [[ "${#FROZEN_BAD[@]}" -eq 0 ]] || fail "the plan preview's map is not wired and drawn as approved (f4):" \
+    "${FROZEN_BAD[@]}" \
+    "The preview's ONLY credit is PlanPreviewMap's footer: the shell builds it, PlanSheetScreen's ONE .preview arm" \
+    "hands it to the ONE PlanPreviewCard construction as \`map\`, and the footer is drawn AFTER MapView in its ZStack," \
+    "so over it. rv0-t0405 M-A handed the card an empty view, M-B drew the map over the credit, rv1 B1 shadowed the" \
+    "arm with a duplicate above it and B2 faded planContent out; every other limb was green on each. Each block is a" \
+    "whole-line whitelist - an edit is refused until this list is edited in the same commit."
+  echo "P-ATTR-01 (f4): PlanPreviewMap's struct and PlanSheetScreen's body, content and planContent frozen whole;" \
+    "${#found[@]} approved line(s) name previewMap, PlanPreviewMap, PlanPreviewCard, planContent or pass \`map:\`."
+}
