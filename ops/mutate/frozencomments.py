@@ -163,7 +163,7 @@ def apply(row, lines: list[str]) -> list[str]:
         return out[:ts[0]] + TWIN_R1 + out[ts[0]:]
     if spec[0] == "control":
         return lines[:-1] + [spec[1]] + lines[-1:] if lines and lines[-1] == "" else lines + [spec[1]]
-    return generated(rel, *spec, lines)
+    return generated(rel, spec[0], lines, spec[1], spec[2])
 
 
 def run_reader(reader: str) -> str:

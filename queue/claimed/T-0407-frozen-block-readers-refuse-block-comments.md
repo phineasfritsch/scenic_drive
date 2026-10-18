@@ -98,3 +98,23 @@ line sequence catches a twin spelled byte-equal to the original, say so; if it d
 5. A native swiftc Foundation-only twin with the commented-out body plus the twin body compiles and runs the twin.
 6. P-SAFE-03's assertion runs ops/mutate/frozencomments.py; check-pins-yaml ok; the file-scope answer recorded.
 7. The whole gate list, bare, plus check-mutate-anchors, quoted on the merged head.
+- 2026-10-18T13:07:28Z measured so far (agent/claude-opus-5); NOT review-ready, the session hit its tool budget:
+  - A1: python ops/lib/frozen_comments.py over the 10 frozen files: FROZEN-COMMENT ok  10 file(s), no block comment
+    outside the 0 approved (exit 0). python ops/lib/check-drive-display.py on the branch: exit 0, 3 structs (243 kept
+    lines) are their approved whole blocks.
+  - A3 RED on main: frozencomments.py --only R1 with main readers (7cf55fb1): MUTATE SURVIVED  R1 PlanPreviewCard.swift
+    r1 (reader silent). A4 on main: R1 applied to the real tree, bash ops/lib/check-safety-disclaimer exit 1 and its
+    ONLY refusal is the sha256 row (PlanPreviewCard.swift content changed, sha256 9f3acc3d..., approved 925ffe2d...),
+    which is rv2-t0405's finding reproduced. GREEN on the branch: MUTATE killed  R1 PlanPreviewCard.swift r1.
+  - A5: swiftc 6.3.3 Foundation-only twin (.build/t0407-twin/Twin.swift, same shape: /* at the end of the typeSize
+    line, */ before titleRow, the frozen body between, a twin body above): compiled, printed title | eta | why | hazards
+    (no map, no conditions line).
+  - R6 file-scope answer: R1 copy, check-file-scope exit 1 (line 25 1|    var body: some View{ is not the approved
+    typeSize line). A byte-equal twin with /* and */ on lines of their own: FILE-SCOPE ok  62 file(s), exit 0 - so
+    check-file-scope does NOT refuse a byte-equal twin; on main the frozen readers refuse that shape only because the
+    approved first line then occurs twice. Outside the four modules (ScenicDriveApp.swift) nothing but frozen_block
+    reads it, and the new rule refuses any block comment there.
+  - G and C rows: the first two runs stopped at cannot tell (G rows passed their arguments to generated() out of
+    order); fixed in the commit below, NOT yet run. Still open before review: the G/C rows RED on main and GREEN here,
+    the whole gate list on a merged head, fetch + merge origin/main, push, PR. Local runs are slow on this box
+    (python start 12 s, one preview reader 34-48 s), so the full 165-row population is expected to run in CI.
