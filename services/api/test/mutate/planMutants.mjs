@@ -24,13 +24,14 @@ import { onlyIds } from "./onlyIds.mjs";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-plan");
 
-export const MIN_MUTATIONS = 75;
+export const MIN_MUTATIONS = 81;
 export const SUBJECTS = ["src/lambdaSearch.ts", "src/planRequest.ts", "src/routePath.ts", "src/planWaypoints.ts",
   "src/appleMaps.ts", "src/hazards.ts", "src/scenicPlanner.ts", "src/plan.ts",
   "src/planToken.ts", "src/reroutePlanner.ts"];
 const TESTS = ["test/lambdaSearch.test.ts", "test/appleMaps.test.ts", "test/planRecorded.test.ts",
   "test/planPrivacy.test.ts", "test/planCost.test.ts", "test/planCeiling.test.ts", "test/planWaypoints.test.ts",
-  "test/planReroute.test.ts", "test/closuresCrossing.test.ts", "test/planContinued.test.ts"];
+  "test/planReroute.test.ts", "test/closuresCrossing.test.ts", "test/planContinued.test.ts", "test/planStages.test.ts",
+  "test/planSchedule.test.ts", "test/lambdaSearchLanding.test.ts"];
 
 const NL = String.fromCharCode(10);
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
@@ -47,13 +48,19 @@ export const MUTATIONS = [
   m("search-mono-equal", "lambdaSearch.ts", "b.duration < a.duration", "b.duration <= a.duration"),
   m("search-zero-fastest", "lambdaSearch.ts", "!(fastest > 0)", "!(fastest >= 0)"),
   m("search-max-lambda", "lambdaSearch.ts", "MAX_LAMBDA = 8;", "MAX_LAMBDA = 7;"),
-  m("alongside-bracket-strict", "lambdaSearch.ts", "answer.value <= ceiling : null", "answer.value < ceiling : null"),
-  m("alongside-first-after-fastest", "lambdaSearch.ts", "pending === null ? null : settle(() => measure(pending as number))]);", "pending === null ? null : fastest.then(() => settle(() => measure(pending as number)), () => null)]);"),
-  m("alongside-floor-after-next", "lambdaSearch.ts", "const floorRun = floorRecorded ? null : settle(() => measure(0));" + NL + "    const nextRun = next === null ? null : settle(() => measure(next));", "const nextRun = next === null ? null : settle(() => measure(next));" + NL + "    const floorRun = floorRecorded ? null : (nextRun ?? Promise.resolve(null)).then(() => settle(() => measure(0)));"),
-  m("alongside-mid-recorded-first", "lambdaSearch.ts", "    if (floorRun !== null) {" + NL + "      floorRecorded = true;" + NL + "      const [floor] = await Promise.all([floorRun, nextRun]);" + NL + "      samples.record(0, unwrap(floor));" + NL + "    }" + NL + "    const nextSettled = nextRun === null ? null : await nextRun;" + NL + "    samples.record(mid, unwrap(answer));", "    samples.record(mid, unwrap(answer));" + NL + "    if (floorRun !== null) {" + NL + "      floorRecorded = true;" + NL + "      const [floor] = await Promise.all([floorRun, nextRun]);" + NL + "      samples.record(0, unwrap(floor));" + NL + "    }" + NL + "    const nextSettled = nextRun === null ? null : await nextRun;"),
-  m("alongside-unusable-successor", "lambdaSearch.ts", "answer.ok && usable(answer.value) ? answer.value", "answer.ok ? answer.value"),
-  m("alongside-floor-every-round", "lambdaSearch.ts", "floorRecorded = true;", "floorRecorded = false;"),
-  m("alongside-bad-budget-launches", "lambdaSearch.ts", "budgetOk ? nextMidpoint(0, MAX_LAMBDA, 0, cap) : null", "nextMidpoint(0, MAX_LAMBDA, 0, cap)"),
+  m("alongside-bracket-strict", "lambdaSearch.ts", "if (a.value <= ceiling) lo = pending as number;", "if (a.value < ceiling) lo = pending as number;"),
+  m("alongside-ceiling-plus", "lambdaSearch.ts", "fastestNow.ok ? fastestNow.value + budget : 0", "fastestNow.ok ? fastestNow.value + budget + 1 : 0"),
+  m("alongside-three-in-flight", "lambdaSearch.ts", "while (box.inFlight < 2 &&", "while (box.inFlight < 3 &&"),
+  m("alongside-guess-unbounded", "lambdaSearch.ts", "guesses < MAX_SPECULATIVE)", "guesses < MAX_SPECULATIVE + 1)"),
+  m("alongside-guess-lower", "lambdaSearch.ts", ": nextMidpoint(pending, hi, steps + 1, cap);", ": nextMidpoint(lo, pending, steps + 1, cap);"),
+  m("alongside-floor-after-guess", "lambdaSearch.ts", "else if (!runs.has(0)) launch(0);", "else if (!runs.has(0) && (guess === null || runs.has(guess))) launch(0);"),
+  m("alongside-guess-past-blocked", "lambdaSearch.ts", "pending === null || blocked ? null : nextMidpoint", "pending === null ? null : nextMidpoint"),
+  m("alongside-unusable-walks", "lambdaSearch.ts", "if (!a.ok || !usable(a.value)) {", "if (!a.ok) {"),
+  m("alongside-no-drain", "lambdaSearch.ts", "await Promise.all(runs.values());", "void runs;"),
+  m("alongside-bad-budget-launches", "lambdaSearch.ts", "while (box.inFlight < 2 && budgetOk) {", "while (box.inFlight < 2) {"),
+  m("alongside-guess-resent", "lambdaSearch.ts", "guess !== null && !runs.has(guess) && guesses", "guess !== null && guesses"),
+  m("alongside-pending-resent", "lambdaSearch.ts", "!blocked && !runs.has(pending)) launch(pending);", "!blocked) launch(pending);"),
+  m("planner-back-roads-resent", "scenicPlanner.ts", "const held = allBackRoads ? measured.get(formatMultiplier(MAX_LAMBDA)) ?? null : null;", "const held = null as RoutePath | null;"),
   m("request-four-dp", "planRequest.ts", "ORIGIN_DECIMALS = 2;", "ORIGIN_DECIMALS = 4;"),
   m("request-any-key", "planRequest.ts", "if (!allowed.includes(key))", "if (!allowed.includes(key) && false)"),
   m("request-budget-181", "planRequest.ts", "MAX_BUDGET_MINUTES = 180;", "MAX_BUDGET_MINUTES = 181;"),
