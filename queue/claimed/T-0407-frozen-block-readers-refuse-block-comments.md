@@ -1,13 +1,13 @@
 ---
 id: T-0407
 title: Frozen-block readers fail open to a /* */ comment that hides the frozen body while a twin body draws instead - refuse block comments in every frozen file
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-18T08:40:33Z
+lease_expires_at: 2026-10-19T08:40:33Z
+worktree: .worktrees/T-0407
+branch: task/T-0407
 exclusive: []
 touches: [ops/lib/, ops/mutate/, pins/PINS.yaml, queue/]
 pins_affected: [P-SAFE-03, P-SAFE-07, P-SAFE-09, P-ATTR-01]
@@ -52,3 +52,4 @@ line sequence catches a twin spelled byte-equal to the original, say so; if it d
 
 ## Log
 - 2026-10-18 filed by agent/claude-opus-5 from rv2-t0405's recordable on PR #298.
+- 2026-10-18T08:40:33Z claimed by agent/claude-opus-5; lease until 2026-10-19T08:40:33Z

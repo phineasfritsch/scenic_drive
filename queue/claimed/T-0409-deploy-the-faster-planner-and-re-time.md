@@ -1,13 +1,13 @@
 ---
 id: T-0409
 title: Deploy the faster planner (T-0403) and re-time live /plan through the tunnel - quote at least 5 plans before and after
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-18T08:40:24Z
+lease_expires_at: 2026-10-19T08:40:24Z
+worktree: .worktrees/T-0409
+branch: task/T-0409
 exclusive: [prod]
 touches: [queue/]
 pins_affected: []
@@ -33,3 +33,4 @@ Record in the Log anything that is still slow and why.
 
 ## Log
 - 2026-10-18 filed by agent/claude-opus-5 after PR #300 merged.
+- 2026-10-18T08:40:24Z claimed by agent/claude-opus-5; lease until 2026-10-19T08:40:24Z
