@@ -203,3 +203,45 @@ and check-mutate-anchors before buying review.
   not scrollable at `.large`) is HomeSheet.swift - inside touches, but a P-SAFE-03 frozen layout change the reviewer
   did not raise; RULED OUT of this round and filed as T-0432.
   Item 4: check-estimate-badge.py's docstring says "nine approved badge bodies"; corrected to the real count.
+- 2026-10-18T19:40:00Z agent/claude-opus-5 - round 2 landed (9c091c36, ae69b599, merge e64cba35).
+  B1 GREEN of the refusal. RA/RB/RC verbatim on ae69b599, each digest re-approved in -pinned as the reviewer did
+  (.artifacts/t0408-rv1-b1.sh): RA "ac5feab3... -> a613b8cf...", RB "1d680cef... -> 323cdaff...", RC "a1f37bd7... ->
+  b58cac76..."; each check-safety-disclaimer EXIT=1 "P-SAFE-03: a frozen render block changed:" and
+  check-map-attribution EXIT=1 (was EXIT=0 / EXIT=0 on 44168d3b). Touched prove-red rows only (owner-approved rule),
+  on 9c091c36's tree: "H16 rv1 RA DriveOptionMeta pushed 3000 tall 1 yes", "H17 rv1 RB DriveRows padded 3000 below
+  1 yes", "H18 rv1 RC DriveSelector framed 2000 tall 1 yes", "H19 an unfrozen view mounted in sheetSummary 1 yes";
+  the 12 generated G-<type> rows: first run RED on the driver itself ("sed: -e expression #1, char 32: unterminated
+  address regex" - a `\|` in the sed script is the row's field separator), fixed, then "prove-red: 12/12 mutations
+  refused by name" (G-DriveRows ... G-SurpriseToggle). The closure alone (frozen_views.py on a copy): a new
+  DriveTallNote() mounted in sheetSummary -> "`DriveTallNote`, named in the roots, is neither frozen whole nor an
+  approved non-view" EXIT=1; `extension DriveCopy: View` -> "an approved non-view may not be a View" EXIT=1; a
+  file-scope `struct Text` -> "shadows the system name the frozen views call" EXIT=1; clean copy EXIT=0.
+  B2 and A11. ios-compile 39154226669 and ios-screenshot 39154233557 on 9c091c36 green, LOOKED at: home-light-medium
+  showed a NEW DEFECT - each option row's via line ran two lines but the row did not grow, so the second line was drawn
+  under the next row's minutes ("+13 min" over "Topanga Canyon Boulevard · +2 more"); ax5-medium: the meta line whole
+  on two lines, button and conditions on screen; ax5-collapsed: DriveRows, title, meta on two lines, button,
+  conditions directly under it, credit on the sheet edge, gear and Surprise above it. ae69b599 fixes the row stack
+  vertically. ios-compile 39156547422 and ios-screenshot 39156550905 on ae69b599 green, LOOKED at:
+  home-light-medium - meta "+18 min · via Fernwood Pacific Drive · Tuna Canyon Road · +9 more" on two lines; button;
+  conditions directly under it; option rows Fastest / +13 min / +18 min (check) each with BOTH via lines whole
+  ("... South Topanga Canyon Boulevard · +2 more", "... Mulholland Highway · +6 more", "... Tuna Canyon Road · +9
+  more"), no overlap, no ellipsis; one "estimate · no traffic data"; credit whole on the sheet edge, gear and
+  Surprise above it; DriveDetails' paragraph continues below the screen edge (T-0432). home-dark-medium mirrors it
+  in dark. home-ax5-medium - DriveRows, title, the meta line WHOLE on two lines (was cut to one), button, conditions
+  under it, then the details scroll; its first via line ends "South Topanga Canyo..." at its two-line limit
+  (`.lineLimit(2)` by design, a three-line road list, not the clip). home-ax5-collapsed was looked at on 39154233557
+  (above); ae69b599 changed only DriveMenuChips, which collapsed does not draw.
+  T-0432 filed (medium content taller than the screen; HomeSheet scrolls details only above `.large`); id checked
+  unused on origin/main and every task branch first.
+  ACCEPTANCE re-run on the merged head e64cba35 (origin/main 279152bb, T-0407 #303 included, an ancestor; one
+  conflict in -frozen's header comment, resolved by keeping both rulings): A1 check-safety-disclaimer EXIT=0; A2
+  check-map-attribution EXIT=0; A3 check-file-scope "FILE-SCOPE ok 64 file(s) in 4 module(s), 1074 approved line(s)"
+  EXIT=0, mutate/filescope "MUTATE ok 618/618 killed (floor 615, population 618)" EXIT=0; A4 check-drive-display "3
+  structs (243 kept lines)" EXIT=0; A5 check-drive-copy NOT MEASURED (still running under `timeout 1500` at this
+  entry on the loaded box; not in CI); A6 check-store-links EXIT=0; A7 check-estimate-badge "47 approved whole lines
+  ... 11 badge blocks ... 121 declarations (448 lines)" EXIT=0; A8 check-mutate-population "the floor of 173 holds",
+  check-mutate-only "NAME-PAIRS OK", check-mutate-anchors "17 drivers ... 17 reached", check-pins-yaml "ok pins=53",
+  check-exec-bits "267 files, 23 required present, all modes correct", queue-check "QUEUE OK (405 tasks)" - all
+  EXIT=0; frozen_views.py EXIT=0; A9 swift test --filter OptionViaTests "5 tests in 1 suite passed" EXIT=0; A10 wc -l
+  DriveMenuChips 97, DriveOptionMeta 30, DriveRows 90, DriveSelector 73, ScenicHomeScreen 300, SurpriseToggle 31;
+  A11 as above.
