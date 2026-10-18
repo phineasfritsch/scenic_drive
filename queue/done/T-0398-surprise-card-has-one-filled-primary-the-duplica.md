@@ -327,3 +327,32 @@ then green.
     (queue: file T-0407, one queue/ file) - queue-only drift, accepted. Not merged by the reviewer.
   Residual (not blocking, documented in check-estimate-badge.py WHAT IT CANNOT SEE): a sibling view painting over the
     tag (rendering) is not statically checked; ios-screenshot captures shots, it does not compare them.
+- 2026-10-18T09:41:37Z agent/claude-opus-5 (owner): merged origin/main 839220da (PR #300 T-0403, #295 T-0397, #298 T-0405) as 8c23c1b9; GitHub reported PR #293 CONFLICTING.
+  Conflicts, resolved by recomputation: .github/workflows/ios-screenshot.yml and ops/lib/ios_screenshot_pinned.py (ax5 LIST and AX5_LIST) -> union "... trip saved surprise drive" (each side added one shot to the same base line).
+  Digests: all 507 rows of check-safety-disclaimer-pinned and check-safety-disclaimer-linked-digests.txt recomputed against the merged files: 507 ok, 0 mismatched. File-scope: check-file-scope.py --print FeatureSurpriseMe/SurpriseCard.swift and SurpriseNotThis.swift equal their merged approved blocks (41, 13 lines). PINS.yaml: every added line of both sides present in the merge, no shared line touched. No ops/mutate population changed on either side (floor 173 holds).
+  Ruling: the merged head failed P-SAFE-07 RED (check-estimate-badge.py exit 1, 40 found, 41 approved: DriveCard.swift badge lines unapproved, DriveScreen.swift badge block missing) because T-0397 moved the drive badge into DriveCard.swift. Fix: DRIVE = DriveCard.swift with block `if showsEstimate {`; remainingSeconds and glanceLine join WORD so the drive ETA stays a site; approved file regenerated from the merged tree (diff vs pre-merge = only DriveCard/DriveScreen/PlanPreviewMap/PlanSheetScreen lines); --prove-red 18/18 (two new drive-card rows); P-SAFE-07 row extended.
+  Gates on 8c23c1b9, run bare:
+    P-SAFE-03: 34 Swift file(s) under apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome; SafetyDisclaimer declared once in its own file;
+    EXIT 0
+    P-ATTR-01 (g): every line under apps/ios naming dataCredit, routeGeometryCredit or the word credit
+    P-ATTR-01 (h): HomeSheet declared at Packages/ScenicApp/Sources/FeatureScenicHome/HomeSheet.swift(1), built at Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift(1), directly under
+    EXIT 0
+    FILE-SCOPE ok  62 file(s) in 4 module(s), 1042 approved line(s) at depth 0-1 or #if/#else/#endif; no file-scope or member line outside the approved list
+    EXIT 0
+    P-SAFE-07 (screen): 45 approved whole lines name an ETA or the estimate badge under apps/ios and no other line does; 10 badge blocks equal their approved bodies and fences; 85 declarations (292 lines) of the names they use are approved.
+    EXIT 0
+    P-PROC-06: 391 modules, 221 covered by 50 populations, 150 allowlisted, 0 added by this branch
+    P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds
+    EXIT 0
+    MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64 (67 drivers, 114 range probes: 25 digit, 47 name, 42 N-(N+1))
+    NAME-PAIRS OK: 245251 pair tokens over 50 id populations, each refused in process by select_only in 4 modes and by onlyIds (0 calls not refused, floor 201117 tokens)
+    EXIT 0
+    check-mutate-anchors: 17 drivers, 1303 anchors, 0 stale
+    check-mutate-anchors: cwd arm: 17 drivers run from the repo root, 17 reached their population line
+    EXIT 0
+    PINS-YAML ok pins=53 fields=426 path=C:\Users\phineasf\Documents\GitHub\scenic_drive\.worktrees\T-0398\pins\PINS.yaml
+    EXIT 0
+    P-OPS-01: 263 files, 23 required present, all modes correct
+    EXIT 0
+    QUEUE OK (402 tasks)
+    EXIT 0
