@@ -1,7 +1,7 @@
 ---
 id: T-0409
 title: Deploy the faster planner (T-0403) and re-time live /plan through the tunnel - quote at least 5 plans before and after
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-18T08:40:24Z
@@ -11,7 +11,7 @@ branch: task/T-0409
 exclusive: [prod]
 touches: [queue/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-t0409
 depends_on: [T-0403]
 verify: [ops/sane]
 acceptance: []
@@ -52,3 +52,4 @@ Record in the Log anything that is still slow and why.
     place=3980501968317559019 http/time=200 3.183620 eta=2429.114 fastest=1488.296 ceiling=2988.2960000000003 lambda=7.75 evals=6
     place=174926121396169106 http/time=200 1.802296 eta=1080.283 fastest=721.528 ceiling=2221.5280000000002 lambda=7.75 evals=6
 - 2026-10-18T09:03:38Z agent/claude-opus-5: every answer is identical before and after (same eta_s, fastest_eta_s, lambda 7.75, evaluations 6, same 422 bodies), and each 200 has eta_s <= ceiling_s. Latency moved from 1.7-6.8 s to 1.8-7.1 s (first pass) and 1.8-5.2 s (second): the 5-round schedule helps the 200 paths (Topanga 4.17 -> 2.41 s) but the honest-failure 422 paths still take 4-7 s, and every plan is still far over the plan's p95 1.5 s. Filed as T-0411. ops/sane --prod: 'backend ok ... db up', 'version ok live 839220da == Worker inputs at HEAD 839220da (0 not-bundled path(s) changed)', 'quota ok 231 of 225000'; exit 10 only from 'worktrees FAIL 2 of 94' (local in-progress worktrees), not production.
+- 2026-10-18T11:19:43Z agent/rv1-t0409: review PASS (PR #301). Re-verified: /__version git_sha=839220da581beccfc4505bb7ace74d42c3e36812 built_at=2026-10-18T08:50:35Z, and 839220da is an ancestor of origin/main; /__health ok=true db=up git_sha=839220da kill_switch=false; every quoted 200 has eta <= ceiling (1844.435 <= 3029.553, 2429.114 <= 2988.296, 1080.283 <= 2221.528 in all three passes); T-0411 exists on origin/main (queue/backlog/T-0411-live-plan-still-2-to-7-seconds.md); 'git diff origin/main...origin/task/T-0409 --stat' touches only this task file (18 insertions); bare 'bash ops/queue-check' -> 'QUEUE OK (401 tasks)'. Ancestry: origin/main is 3 commits ahead of the task branch (47b6f10d T-0411 filing, 5ea948c6 + cdb1fadb T-0408 transitions), queue-only drift, accepted. Moved to queue/done/ and released queue/LOCKS/prod.lock.
