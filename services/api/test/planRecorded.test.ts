@@ -95,7 +95,7 @@ describe("POST /plan over the t0221 santa-monica-topanga recording (R3)", () => 
     const fast = h.sent.filter((s) => s.body.profile === "car_fast");
     expect(fast).toHaveLength(1);
     expect(fast[0]!.body.custom_model).toBeUndefined();
-    expect(scenic.map((s) => s.body.custom_model)).toEqual([0, 4, 6, 7, 7.5, 7.75].map((l) => buildCustomModel(l, null)));
+    expect(scenic.map((s) => s.body.custom_model)).toEqual([4, 0, 6, 7, 7.5, 7.75].map((l) => buildCustomModel(l, null)));
     for (const request of scenic) {
       const model = JSON.stringify(request.body.custom_model);
       expect(model.includes("road_access")).toBe(false);
