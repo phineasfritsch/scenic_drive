@@ -1,7 +1,7 @@
 ---
 id: T-0408
 title: Home follows the reference library - full-width Plan field with the gear inside it, one single-line chip row of destinations, chips become stacked sheet rows at AX sizes, and the route option tiles become rows instead of 'good road' x3
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
