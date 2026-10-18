@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-18T15:13:47Z
 worktree: .worktrees/T-0397
 branch: task/T-0397
 exclusive: []
-touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/ScenicKit/, Tests/, ops/lib/, ops/mutate/drive_mutations.py, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
+touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/ScenicKit/, Tests/, ops/lib/, ops/mutate/drive_mutations.py, ops/mutate/filescope.py, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-SAFE-03, P-SAFE-06, P-SAFE-07, P-A11Y-01]
 reviewer: null
 depends_on: []
@@ -325,3 +325,24 @@ and drive-dark and state, item by item, what each shot shows. Any new or changed
     [0] check-drive-voice.py "P-SAFE-09 (voice): 7 approved whole lines speak under apps/ios, and no other line does"
     [0] check-store-links.py "P-STORE-01 source half: ... at exactly their approved sites, mounted, in a frozen
     Entitlements module"
+- 2026-10-18T05:34:04Z agent/claude-opus-5 - round 3, CI on deaba12b: pins-source-only FAILED on P-SAFE-03 (its
+  output was cut before the failing step). Running each step of P-SAFE-03's assertion bare on the merged head:
+  [0] check-screen-rehearsals.py, [0] check-hazard-copy-sites.py, [0] check-base-url-sites.py and its --prove-red,
+  [0] check-file-scope.py, [2] ops/mutate/filescope.py "MUTATE refuse  R3: the new file
+  FeatureScenicHome/DriveCard.swift already exists". Ruling: T-0406's population wrote its new-file rows R3/R4 at
+  `FeatureScenicHome/DriveCard.swift`, the file this PR adds, so on the merged tree the new-file mutant has no new
+  file to create. My earlier local gate list did not run P-SAFE-03's assertion end to end, so it missed this.
+  - Fix (ops/mutate/filescope.py, added to this task's touches): R3/R4 now create `FeatureScenicHome/DriveShadow.swift`,
+    a file that does not exist, so they still test the new-file case. Three rows bind rv2's mutants to the shipped
+    files: R3b prepends `fileprivate enum DesignTokens { static let fg = Color.clear }` to DriveCard.swift, R3c does
+    the same to DriveEndConfirm.swift, and R4b prepends `fileprivate enum PostDriveQuestion { static func asks(...)
+    -> Bool { true } }` to DriveScreen.swift. RED, each by name: "MUTATE killed  R3 new
+    FeatureScenicHome/DriveShadow.swift", "MUTATE killed  R4 new FeatureScenicHome/DriveShadow.swift", "MUTATE killed
+    R3b prepend FeatureScenicHome/DriveCard.swift", "MUTATE killed  R3c prepend
+    FeatureScenicHome/DriveEndConfirm.swift", "MUTATE killed  R4b prepend FeatureScenicHome/DriveScreen.swift".
+    GREEN: [0] "MUTATE ok  618/618 killed (floor 615, population 618)". MIN_MUTATIONS is unchanged.
+  - Re-run after the edit: [0] check-mutate-only "MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64 ...",
+    "NAME-PAIRS OK: 244250 pair tokens over 50 id populations ..."; [0] check-mutate-population "P-PROC-06: every
+    added module is covered or allowlisted; the floor of 173 holds"; [0] queue-check "QUEUE OK (398 tasks)";
+    [0] check-exec-bits "P-OPS-01: 259 files, 23 required present, all modes correct". ios-compile run 39099914205
+    on deaba12b: completed success. This commit changes no Swift file, so that run still covers the Swift tree.
