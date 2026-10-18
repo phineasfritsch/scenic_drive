@@ -118,3 +118,50 @@ line sequence catches a twin spelled byte-equal to the original, say so; if it d
     order); fixed in the commit below, NOT yet run. Still open before review: the G/C rows RED on main and GREEN here,
     the whole gate list on a merged head, fetch + merge origin/main, push, PR. Local runs are slow on this box
     (python start 12 s, one preview reader 34-48 s), so the full 165-row population is expected to run in CI.
+- 2026-10-18T14:58:26Z merged origin/main da475b6c (T-0398 #293, T-0409 #301; merge 4b37101b, no conflict) and
+  ruled what it changed before more code (agent/claude-opus-5, author):
+  - R7 (supersedes R4) main's T-0398 added ops/lib/check-estimate-badge.py, a FIFTH frozen-block reader (10 badge
+    blocks read from their declaration line, ABOVE/BELOW fenced) whose docstring listed `/* */` comments under WHAT
+    IT CANNOT SEE. R2 binds the rule inside every reader, so this one is bound too: check() first runs
+    frozen_comments.refusals on every file a badge block is read from (CannotRun is a refusal). Its SITES whitelist
+    already refuses a twin that repeats an ETA word, but a twin that hides a badge block and draws its ETA without
+    the badge needs no new word. Frozen files 10 -> 13 (+ SurpriseCard, LoopPreviewCard, TripItineraryCard).
+  - R8 the population gains the reader: its eight `{` blocks x 8 generated rows, two controls on each of its five
+    files; MIN_MUTATIONS 165 -> 239 (1 R1 + 26 blocks x 8 + 30 controls). Its two one-line blocks (the round-trip
+    call and the Copy literal) generate no twin (no ` {`); both sit in SurpriseCard.swift, covered by its `{` rows.
+  - R9 a generator defect, found by the first branch run: where a block's ABOVE line is a lone `}` closing the
+    previous member, the eol/own/nested openers hid that `}` while the twin held only the block, so the mutant had
+    unbalanced braces (swiftc would reject it) and the reader refused it as `the lexer cannot read it` - refused,
+    but not by the block-comment reason, so 9 sample rows printed SURVIVED (G19 G28 G64 G65 G83 G119 G147 G156 G183).
+    The twin now repeats every line the comment hides before the respaced block. Measured over all 208 G rows with
+    frozen_comments.refusals directly: 208/208 named with the block-comment reason, none `cannot read`.
+- 2026-10-18T14:58:26Z acceptance re-quoted on the merged head (791b2e9a + the R9 fix, committed with this entry):
+  1. A1 python ops/lib/frozen_comments.py <the 13 frozen files>: `FROZEN-COMMENT ok  13 file(s), no block comment
+     outside the 0 approved`, exit 0.
+  2. A2 the full 239-row population was NOT run locally (one row costs 20-45 s on this box); it runs in CI through
+     P-SAFE-03's assertion. Local sample, `--only` R1 + one G row per block (row 1+8i+(i%8), all eight
+     place/twin shapes across the 26 blocks), after R9: `MUTATE ok  27/27 killed or passed (floor 239, population
+     239)`, `MUTATE silent  0 row(s)`, exit 0. Controls C209-C238 (30 rows, unchanged by R9) on 791b2e9a: 30 passed.
+  3. A3 RED on main: the same 27 rows with origin/main's four readers (-frozen, -preview, check-drive-display.py,
+     check-estimate-badge.py) restored in a copy: `MUTATE FAIL  survivors [all 27]`, `MUTATE silent  10 row(s) no
+     reader refused at all: R1 G1 G10 G19 G28 G55 G64 G65 G74 G83`, exit 1. The other 17 are refused on main by
+     other limbs (a changed fence or the f4/drive/SITES whole-line lists), never by a block-comment reason.
+     GREEN on the branch: 27/27 killed (A2).
+  4. A4 R1 applied to the tracked PlanPreviewCard.swift, `bash ops/lib/check-safety-disclaimer`: exit 1, `P-SAFE-03:
+     a frozen preview render block changed: PlanPreviewCard's body: PlanPreviewCard.swift line 33: a /* */ block
+     comment in a frozen file (lines 33-62, opening `@Environment(\.dynamicTypeSize) private var typeSize /*`), none
+     approved`; restored with git checkout, `git status --porcelain -- apps/ios` empty.
+  5. A5 unchanged since 13:07:28Z (swiftc twin compiled and drew title | eta | why | hazards).
+  6. A6 P-SAFE-03's assertion ends `ops/mutate/frozencomments.py`; check-pins-yaml `PINS-YAML ok pins=53
+     fields=426`; the file-scope answer is R6 above.
+  7. A7 the gate list, bare, on 791b2e9a (each limb's last line): check-safety-disclaimer exit 0 (`Not checked
+     here: rendering (T-0180), taps, ...`); check-map-attribution exit 0 (`... every app .swift, pbxproj and root
+     Sources (-linked).`); check-file-scope `FILE-SCOPE ok  62 file(s) in 4 module(s), 1042 approved line(s)`;
+     mutate/filescope.py `MUTATE ok  618/618 killed (floor 615, population 618)`; check-drive-display `3 structs
+     (243 kept lines) are their approved whole blocks`; check-estimate-badge `45 approved whole lines ...; 10 badge
+     blocks equal their approved bodies and fences; 85 declarations (292 lines)`, --prove-red `PROVE-RED OK: 18/18`;
+     check-mutate-population `P-PROC-06: ... the floor of 173 holds`; check-mutate-only `NAME-PAIRS OK: 245251 pair
+     tokens over 50 id populations`; check-mutate-anchors `17 drivers run from the repo root, 17 reached their
+     population line`; check-pins-yaml ok; check-exec-bits `P-OPS-01: 265 files, 23 required present, all modes
+     correct`; queue-check `QUEUE OK (403 tasks)`. All exit 0. The R9 commit touches only ops/mutate/frozencomments.py
+     (generator + docstring), frozen_comments.py's docstring and this file; the gates reading them are re-run on it.

@@ -17,7 +17,8 @@ hazards above it, no map and no PlanPreviewActions; swiftc compiles that shape (
 each frozen block x {eol: `/*` at the end of the code line above the approved ABOVE line (rv2's shape); own: `/*` on a
 line of its own above ABOVE; first: `/*` opening on the block's first line; nested: `/* /* */` at the end of that
 line, which a non-nesting reader would think closed} x {twin before the opener, twin after the closer}; the twin is
-the block with its first line respaced (` {` -> `{`) so the reader's count of the approved line stays 1. Generated
+the block with its first line respaced (` {` -> `{`) so the reader's count of the approved line stays 1,
+preceded by every other line the comment hides (an ABOVE `}` among them) so braces balance and the lexer reads it. Generated
 rows exercise the guard, not the compiler. C rows are CONTROLS on each frozen file: `"/*"` in a string and `/*` in a
 // line are not block comments and must NOT be refused by this rule. The floor is the literal MIN_MUTATIONS.
 Exit 0 every row killed (controls passed) and at least MIN_MUTATIONS ran; 1 a survivor; 2 cannot tell; 64 --only.
@@ -131,7 +132,10 @@ def generated(rel: str, first: str, lines: list[str], place: str, twin_at: str) 
     a, b, p, q = locate(lines, first)
     if not lines[a].endswith(" {"):
         raise CannotTell(f"`{first}` does not end in ` {{`, so no twin spelling is generated for it")
-    twin = [lines[a][:-2] + "{"] + lines[a + 1:b + 1]
+    # The twin repeats every line the comment hides: the lines between the opener and the block (an ABOVE line
+    # `}` closing the member before it among them) and the block, its first line respaced - so braces still balance.
+    hidden = a if place == "first" else p if place == "own" or q is None else q + 1
+    twin = lines[hidden:a] + [lines[a][:-2] + "{"] + lines[a + 1:b + 1]
     out = list(lines)
     out.insert(b + 1, "*/")
     if place == "own" or (place in ("eol", "nested") and q is None):

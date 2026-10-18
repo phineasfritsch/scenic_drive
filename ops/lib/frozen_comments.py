@@ -7,9 +7,9 @@ comment the block out while every approved line is still there to read; a twin d
 differently then draws instead, and the only refusal left was the file's sha256 row (re-approved routinely).
 The rule closes the class the way frozen_directives closes `#if`: ANY block comment in such a file is refused unless
 it is an APPROVED entry `basename|whole opening line|whole closing line` (the set is empty: none existed on
-2026-10-18). It is called INSIDE the readers - check-safety-disclaimer-frozen's frozen_block and
-check-drive-display.py's frozen() - on the file each block is read from, so the frozen-file set is whatever the
-readers read, never a second list.
+2026-10-18). It is called INSIDE the readers - check-safety-disclaimer-frozen's frozen_block,
+check-drive-display.py's frozen() and check-estimate-badge.py's check() - on the file each block is read from, so the
+frozen-file set is whatever the readers read, never a second list.
 THE LEXER is check-file-scope.py's (T-0406), loaded from that file: its `_block_comment` is wrapped so every block
 comment the shipping lexer opens is recorded, and `checked_lines` runs unchanged - strings, raw strings,
 interpolation, nesting and // are read exactly as that guard reads them. FAIL CLOSED: the wrap is proved on a canary
