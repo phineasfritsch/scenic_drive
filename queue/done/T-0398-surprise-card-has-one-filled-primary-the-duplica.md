@@ -11,7 +11,7 @@ branch: task/T-0398
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureSurpriseMe/, Sources/ScenicKit/, Tests/, ops/lib/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-A11Y-01]
-reviewer: agent/rv3-t-0398
+reviewer: agent/rv4-t0398
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -356,3 +356,26 @@ then green.
     EXIT 0
     QUEUE OK (402 tasks)
     EXIT 0
+- 2026-10-18T10:38:12Z agent/rv4-t0398 - rv4 (ancestry/CI/gates) PASS on a88c9a94, the merge of origin/main 839220da
+  (8c23c1b9) plus its Log commit. Not the owner. Detached worktree .worktrees/rv4-t0398 at origin/task/T-0398 after
+  git fetch origin in the main checkout. git diff origin/main origin/task/T-0398 --stat: 14 files, all T-0398's own -
+  FeatureSurpriseMe SurpriseCard.swift and SurpriseNotThis.swift, its new ops/lib/check-estimate-badge.py,
+  check-estimate-badge-approved.txt and estimate_badge_decls.py, its two SurpriseCard/SurpriseNotThis rows in
+  check-safety-disclaimer-pinned (each twice), its four check-file-scope-approved.txt lines (roundTripValue,
+  estimateTag), its ax5 "surprise" shot in ios-screenshot.yml and ios_screenshot_pinned.py, its P-SAFE-07 row in
+  PINS.yaml, its task file and T-0399 filing; plus the queue-only drift below. No change to main's drive/preview
+  guards or the Worker. Gates bare on the review worktree, each exit 0:
+    check-safety-disclaimer [0]; check-map-attribution [0]
+    FILE-SCOPE ok  62 file(s) in 4 module(s), 1042 approved line(s) ...
+    P-SAFE-07 (screen): 45 approved whole lines ...; 10 badge blocks ...; 85 declarations (292 lines) ... are approved.
+    PROVE-RED OK: 18/18 refused by name
+    P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds
+    MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64 ...
+    check-mutate-anchors: 17 drivers, 1303 anchors, 0 stale
+    PINS-YAML ok pins=53 fields=426
+    P-OPS-01: 263 files, 23 required present, all modes correct
+    QUEUE OK (402 tasks)
+  gh pr checks 293: core pass 14m25s, pins-source-only pass 3m56s. gh pr view 293: mergeStateStatus CLEAN, MERGEABLE,
+  head a88c9a94. LAST, after a second fetch: git merge-base --is-ancestor origin/main origin/task/T-0398 exit 1; the
+  only commit on main past the merge base 839220da is 47b6f10d "queue: file T-0411", one queue/backlog file (44
+  insertions) - queue-only drift, accepted. Reviewer set to agent/rv4-t0398; state stays done. Not merged.
