@@ -24,6 +24,8 @@ SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text("Arrive \
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text(glanceLine)
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text(PlanPreview.estimateBadge)
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	.accessibilityIdentifier("drive.estimate")
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	Text(PlanPreview.estimateBadge)
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	.accessibilityIdentifier("home.menu.estimate")
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	return PlanPreview(route: planned, etaSeconds: 1_500, fastestEtaSeconds: 1_200, etaIsEstimate: true,
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	RerouteReply(line: Self.line, waypoints: [], etaSeconds: 1_380, fastestEtaSeconds: 1_200, continued: true)
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	DriveCard(remainingSeconds: display.remainingSeconds, glanceLine: display.glanceLine,
@@ -158,6 +160,23 @@ BODY	.fixedSize(horizontal: false, vertical: true)
 BODY	.accessibilityIdentifier("drive.estimate")
 BODY	}
 BELOW	if let caption {
+BLOCK	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	VStack(alignment: .leading, spacing: 0) {
+ABOVE	var body: some View {
+BODY	VStack(alignment: .leading, spacing: 0) {
+BODY	ForEach(menu.rows.indices, id: \.self) { index in
+BODY	if index > 0 {
+BODY	Rectangle().fill(DesignTokens.border).frame(height: 1)
+BODY	}
+BODY	option(index)
+BODY	}
+BODY	Text(PlanPreview.estimateBadge)
+BODY	.font(.footnote)
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.fixedSize(horizontal: false, vertical: true)
+BODY	.padding(.top, 6)
+BODY	.accessibilityIdentifier("home.menu.estimate")
+BODY	}
+BELOW	.accessibilityElement(children: .contain)
 DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	public enum DesignTokens {
 DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	public static let fg = dynamic(light: 0x0F172A, dark: 0xF8FAFC)
 DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	public static let fgMuted = dynamic(light: 0x64748B, dark: 0x94A3B8)
@@ -214,6 +233,10 @@ DLINE	.accessibilityIdentifier("plan.estimate")
 DLINE	}
 DLINE	}
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	let lines = HazardCopy.lines(for: preview)
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	static let topanga = PlanPlace(id: 710_486_223_536_647_933, name: "Topanga",
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	static let zuma = PlanPlace(id: 161_142_772_170_980_305, name: "Zuma Beach",
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	static let griffith = PlanPlace(id: 3_980_501_968_317_559_019, name: "Griffith Observatory",
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	static let leoCarrillo = PlanPlace(id: 8_813_832_245_607_821_419, name: "Leo Carrillo State Beach",
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	static let preview = PlanPreview(
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	static let itinerary = TripItinerary(
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	case "preview": return plan(.preview(preview))
@@ -249,6 +272,20 @@ DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	private l
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	case .preview(let ticket, let preview):
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	let draft = SavedDraft.of(preview, budgetMinutes: budgetMinutes, name: name,
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/RoadTripScreen.swift	case .itinerary(_, let itinerary):
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/SavedDriveShelf.swift	static func rows() -> [SavedRow] {
+DLINE	guard let store, let drives = try? store.list() else { return [] }
+DLINE	return drives.compactMap { drive in
+DLINE	guard let id = drive.id else { return nil }
+DLINE	let ends = drive.segments.map { Coordinate(latitude: $0.midpoint.latitude, longitude: $0.midpoint.longitude) }
+DLINE	return SavedRow(id: id, name: drive.name, createdAt: drive.createdAt, needsReplan: drive.needsReplan,
+DLINE	start: ends.first, end: ends.last, budgetMinutes: drive.budgetMinutes)
+DLINE	}
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/SavedDriveShelf.swift	guard let id = drive.id else { return nil }
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/SavedDriveShelf.swift	case .rename(let id, let name): try? store.rename(id: id, to: name)
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/SavedDriveShelf.swift	case .delete(let id): try? store.delete(id: id)
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/SavedDrivesList.swift	case .renaming(let id, let text) where id == row.id:
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/SavedDrivesList.swift	case .confirmDelete(let id) where id == row.id:
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	let itinerary: TripItinerary
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	let minutes = Int((seconds / 60).rounded())
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	let showsEstimate: Bool
@@ -262,6 +299,126 @@ DLINE	.fixedSize(horizontal: false, vertical: true)
 DLINE	.accessibilityIdentifier("drive.caption")
 DLINE	}
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveDetails.swift	let caption: String
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	let menu: DriveMenu
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	@Environment(\.dynamicTypeSize) private var typeSize
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	private var fastestRoads: [String] {
+DLINE	(menu.rows.first { $0.displayedMinutes == 0 } ?? menu.rows[0]).roads
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	private func option(_ index: Int) -> some View {
+DLINE	let row = menu.rows[index]
+DLINE	let isSelected = menu.index(selected: selection) == index
+DLINE	let via = OptionVia.line(roads: row.roads, fastest: fastestRoads)
+DLINE	return Button {
+DLINE	selection = index
+DLINE	} label: {
+DLINE	HStack(alignment: .center, spacing: 12) {
+DLINE	VStack(alignment: .leading, spacing: 2) {
+DLINE	Text(row.chipLabel)
+DLINE	.font(.title3)
+DLINE	.fontWeight(isSelected ? .semibold : .regular)
+DLINE	.foregroundStyle(DesignTokens.fg)
+DLINE	if !via.isEmpty {
+DLINE	Text(via)
+DLINE	.font(.subheadline)
+DLINE	.foregroundStyle(DesignTokens.fgMuted)
+DLINE	.lineLimit(typeSize > .large ? nil : 2)
+DLINE	.fixedSize(horizontal: false, vertical: true)
+DLINE	}
+DLINE	}
+DLINE	.frame(maxWidth: .infinity, alignment: .leading)
+DLINE	Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+DLINE	.font(.title3)
+DLINE	.foregroundStyle(isSelected ? DesignTokens.fg : DesignTokens.fgMuted)
+DLINE	.accessibilityHidden(true)
+DLINE	}
+DLINE	.padding(.vertical, 8)
+DLINE	.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+DLINE	.fixedSize(horizontal: false, vertical: true)
+DLINE	.contentShape(Rectangle())
+DLINE	}
+DLINE	.buttonStyle(.plain)
+DLINE	.accessibilityLabel(via.isEmpty ? row.chipLabel : "\(row.chipLabel), \(via)")
+DLINE	.accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+DLINE	.accessibilityIdentifier("home.menu.row\(index)")
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	let isSelected = menu.index(selected: selection) == index
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	let via = OptionVia.line(roads: row.roads, fastest: fastestRoads)
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveOptionMeta.swift	let menu: DriveMenu
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRoute.swift	guard let menu else { return route }
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRoute.swift	static func menu(for drive: HandoffDrive, bundle: Bundle = .main) -> DriveMenu? {
+DLINE	guard let name = drive.menuResource else { return nil }
+DLINE	let url = bundle.url(forResource: name, withExtension: HandoffDrive.menuExtension,
+DLINE	subdirectory: HandoffDrive.routeGeometrySubdirectory)
+DLINE	?? bundle.url(forResource: name, withExtension: HandoffDrive.menuExtension)
+DLINE	guard let url, let data = try? Data(contentsOf: url) else { return nil }
+DLINE	return try? DriveMenu(data: data)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRows.swift	@Binding var selection: HandoffDrive
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRows.swift	@State private var menus: [HandoffDrive: DriveMenu] = [:]
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRows.swift	private func row(for drive: HandoffDrive) -> some View {
+DLINE	let isSelected = selection == drive
+DLINE	let pick = menus[drive].map { $0.row(selected: nil) }
+DLINE	let fastest = menus[drive].flatMap { menu in menu.rows.first { $0.displayedMinutes == 0 } }
+DLINE	let via = pick.map { OptionVia.line(roads: $0.roads, fastest: fastest?.roads ?? []) } ?? ""
+DLINE	return Button {
+DLINE	selection = drive
+DLINE	} label: {
+DLINE	HStack(alignment: .center, spacing: 12) {
+DLINE	VStack(alignment: .leading, spacing: 2) {
+DLINE	Text(DriveCopy.shortName(for: drive))
+DLINE	.font(.headline)
+DLINE	.fontWeight(isSelected ? .bold : .semibold)
+DLINE	.foregroundStyle(DesignTokens.fg)
+DLINE	.fixedSize(horizontal: false, vertical: true)
+DLINE	if !via.isEmpty {
+DLINE	Text(via)
+DLINE	.font(.subheadline)
+DLINE	.foregroundStyle(DesignTokens.fgMuted)
+DLINE	.lineLimit(2)
+DLINE	.fixedSize(horizontal: false, vertical: true)
+DLINE	}
+DLINE	}
+DLINE	.frame(maxWidth: .infinity, alignment: .leading)
+DLINE	if let pick, pick.displayedMinutes > 0 {
+DLINE	VStack(alignment: .trailing, spacing: 0) {
+DLINE	Text("+\(pick.displayedMinutes)")
+DLINE	.font(.title2)
+DLINE	.fontWeight(.semibold)
+DLINE	.monospacedDigit()
+DLINE	.foregroundStyle(DesignTokens.fg)
+DLINE	Text("min")
+DLINE	.font(.caption)
+DLINE	.foregroundStyle(DesignTokens.fgMuted)
+DLINE	}
+DLINE	.fixedSize()
+DLINE	}
+DLINE	}
+DLINE	.padding(.vertical, 8)
+DLINE	.padding(.leading, 10)
+DLINE	.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+DLINE	.overlay(alignment: .leading) {
+DLINE	Capsule().fill(isSelected ? DesignTokens.primary : Color.clear).frame(width: 4)
+DLINE	}
+DLINE	.contentShape(Rectangle())
+DLINE	}
+DLINE	.buttonStyle(.plain)
+DLINE	.accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+DLINE	.accessibilityIdentifier("home.driveRow.\(drive.rawValue)")
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRows.swift	let pick = menus[drive].map { $0.row(selected: nil) }
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRows.swift	if let pick, pick.displayedMinutes > 0 {
+DLINE	VStack(alignment: .trailing, spacing: 0) {
+DLINE	Text("+\(pick.displayedMinutes)")
+DLINE	.font(.title2)
+DLINE	.fontWeight(.semibold)
+DLINE	.monospacedDigit()
+DLINE	.foregroundStyle(DesignTokens.fg)
+DLINE	Text("min")
+DLINE	.font(.caption)
+DLINE	.foregroundStyle(DesignTokens.fgMuted)
+DLINE	}
+DLINE	.fixedSize()
+DLINE	}
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	@State private var style = MapStyle.maplibreDemoTiles
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	private let preview: PlanPreview
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/GatedHandoffButton.swift	private enum Copy {
@@ -269,6 +426,17 @@ DECL	Packages/ScenicApp/Sources/FeatureScenicHome/PlanPreviewMap.swift	@State pr
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/PlanPreviewMap.swift	private let preview: PlanPreview
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/SafetyDisclaimer.swift	private enum Copy {
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift	@State private var style = MapStyle.maplibreDemoTiles
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift	@State private var menu: DriveMenu?
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift	@State private var menuRow = DriveMenuChips.rowAtLaunch
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift	private var selectedRow: DriveMenuRow? {
+DLINE	menu?.row(selected: menuRow)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift	if let menu, let selectedRow {
+DLINE	DriveOptionMeta(menu: menu, row: selectedRow)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift	if let menu {
+DLINE	DriveMenuChips(menu: menu, selection: $menuRow)
+DLINE	}
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift	private enum Copy {
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/VehicleChoice.swift	if let reason = profile.disabledReason {
 DLINE	Text(reason)
@@ -285,6 +453,7 @@ DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private fun
 DLINE	SurpriseHistoryMerge.merged(device: state.basis, ledger: ledgerPlaces, candidates: deck.candidates)
 DLINE	}
 DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	let today = SurpriseDeck.context(at: now).date
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	guard let id, let deck = SurpriseDeck.bundled, let candidate = deck.byID[id],
 DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTrip(minutes: Int) -> some View {
 DLINE	VStack(alignment: .leading, spacing: 2) {
 DLINE	Label {
@@ -333,11 +502,17 @@ DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseDeck.swift	func pick(h
 DLINE	Surprise.pick(candidates: candidates, reach: reach, history: history, context: Self.context(at: now), seed: 0)
 DLINE	}
 DECL	Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift	public static let lineWidth = 6.0
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	var aboveY: CGFloat
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	var belowY: CGFloat
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	var top: CGFloat
 DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	private var route: MapRoute?
 DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	private var paintedStyle: UIUserInterfaceStyle?
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	private var chrome = Chrome(aboveY: 0, belowY: 0)
 DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	if let style = mapView.style {
 DLINE	install(on: style, in: mapView)
 DLINE	}
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	let top = CGPoint(x: 8, y: max(8, covered.top - safe.top + 8))
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	let top = chrome.aboveY > 0 ? mapView.convert(CGPoint(x: 0, y: chrome.aboveY), from: nil).y : 0
 DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	let padding = UIEdgeInsets(top: covered.top + Self.margin,
 DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	private func install(on style: MLNStyle, in mapView: MLNMapView) {
 DLINE	let shape = route.flatMap { try? MLNShape(data: $0.geoJSON, encoding: String.Encoding.utf8.rawValue) }
@@ -403,6 +578,7 @@ DLINE	let layer = MLNLineStyleLayer(identifier: Self.mutedIdentifier, source: so
 DLINE	style.insertLayer(layer, below: casing)
 DLINE	return layer
 DLINE	}
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapView.swift	let mapView = MLNMapView(frame: .zero, styleURL: styleURL)
 DECL	Packages/ScenicApp/Sources/NavAdapter/DriveNavigator.swift	private var reroutes: [Int: Task<Void, Never>] = [:]
 DECL	Packages/ScenicApp/Sources/NavAdapter/DriveNavigator.swift	guard let session = DriveSession(preview: preview, online: true) else { return nil }
 DECL	Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	case let .surpriseDeclined(reason):

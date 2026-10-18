@@ -43,7 +43,7 @@ import mutate_only  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORK = ROOT / ".build" / "mutate-frozencomments" / "ios"
-MIN_MUTATIONS = 292
+MIN_MUTATIONS = 304
 REASON = "a /* */ block comment in a frozen file"
 S = "Packages/ScenicApp/Sources/"
 H, P = S + "FeatureScenicHome/", S + "FeaturePlanSheet/"
@@ -85,8 +85,8 @@ def load_blocks() -> tuple[tuple[str, str, str], ...]:
     if len(drive) != 3:
         raise CannotTell(f"drive_display_frozen.BLOCKS holds {len(drive)} blocks, this population was built for 3")
     badge = tuple((rel, "estimate", decl) for rel, decl in estimate_reader().BLOCKS if decl.endswith(" {"))
-    if len(badge) != 8:
-        raise CannotTell(f"check-estimate-badge.py has {len(badge)} `{{` blocks, this population was built for 8")
+    if len(badge) != 9:
+        raise CannotTell(f"check-estimate-badge.py has {len(badge)} `{{` blocks, this population was built for 9")
     return tuple((rel, reader, first) for (rel, reader, _), first in zip(BLOCKS_BASH, firsts)) + drive + badge
 
 

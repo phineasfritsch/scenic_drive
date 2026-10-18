@@ -1,8 +1,10 @@
 import DesignSystem
 import SwiftUI
 
-/// The chip band's 44 pt "Surprise me" square (T-0273 R5): opens and closes the card under the drive picker. Its own
-/// file so ScenicHomeScreen stays under CLAUDE.md's 300-line cap.
+/// Surprise (T-0408): a 56 pt circle on the map's right edge, riding the top of the credit and the sheet, under the
+/// gear (Google Maps #001's right-edge column; Apple Maps #008). Tonal - `surface` ground, `primary` sparkle, a
+/// `border` hairline - so the sheet's handoff button stays the only filled control. A tap shows or hides the
+/// Surprise card under the chip row.
 struct SurpriseToggle: View {
     @Binding var isShowing: Bool
 
@@ -14,17 +16,12 @@ struct SurpriseToggle: View {
             isShowing.toggle()
         } label: {
             Image(systemName: isShowing ? "sparkles.rectangle.stack.fill" : "sparkles")
-                .font(.body.weight(.semibold))
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(DesignTokens.primary)
-                .frame(width: 44, height: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(DesignTokens.surface)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(DesignTokens.border, lineWidth: 1)
-                )
+                .frame(width: 56, height: 56)
+                .background(Circle().fill(DesignTokens.surface))
+                .overlay(Circle().strokeBorder(DesignTokens.border, lineWidth: 1))
+                .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 2)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Surprise me")

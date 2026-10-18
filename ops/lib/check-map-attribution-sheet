@@ -38,7 +38,7 @@ SHEET_MOUNT=(
 )
 # The enclosing whole lines, blank ones included: the outer stack opens, the chips, the spacer; after the mount the
 # outer stack closes, the ZStack closes, and its first modifier. A wrapper round the mount adds a line to one side.
-SHEET_OPEN=("VStack(spacing: 0) {" "chips" "" "Spacer(minLength: 0)" "")
+SHEET_OPEN=("VStack(spacing: 0) {" "chips" "" "Spacer(minLength: 0)" "" "mapControls" "")
 SHEET_CLOSE=("}" "}" ".background(DesignTokens.bg)")
 SHEET_PRESENTATION='.sheet(isPresented: $isShowingDisclaimer) {'
 SHELL_REL="ScenicDrive/ScenicDriveApp.swift"

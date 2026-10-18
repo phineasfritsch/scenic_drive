@@ -3,6 +3,7 @@
   "modules": {
     "Sources/PlaceStore/CorpusLaunch.swift": "a two-field value LaunchCorpus.choose returns (T-0305); no code - the choice is LaunchCorpus.swift's, which corpusfetch.py mutates",
     "Sources/ScenicAPIClient/CorpusFetchError.swift": "a four-case error enum (T-0305); no code - which case is thrown and what it deletes is URLSessionCorpusFetcher's and CorpusDownloadDelegate's, which corpusfetch.py mutates",
+    "Sources/ScenicKit/Menu/OptionVia.swift": "copy, never a score, route or tags (T-0408 R4): the home option row's 'via' line - the roads an option adds over the fastest, first two, then '+N more'; the one number is that count of names left over, a display string; every branch (dedupe, added vs own roads, empty, exactly two, the count) is held by OptionViaTests' whole-string equalities",
     "Sources/ScenicKit/PlanSheet/PlanField.swift": "a two-case enum naming which search field is open (T-0294); no code",
     "Sources/ScenicKit/Moments/AppMoment.swift": "the closed enum of the moments features report (T-0361 R1): six cases, two carrying a reason or (Bool, Double, Int) built elsewhere; no code, no arithmetic",
     "Sources/ScenicKit/Moments/AppMomentReporting.swift": "a one-method protocol, the sink a feature's moments go to (T-0361 R1); no code",

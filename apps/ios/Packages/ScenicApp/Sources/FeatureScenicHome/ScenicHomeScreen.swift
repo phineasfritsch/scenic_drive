@@ -4,9 +4,8 @@ import MapAdapter
 import ScenicKit
 import SwiftUI
 
-/// The walking skeleton's only screen, map-first (T-0237): the map fills the screen, the drive chips float over it
-/// below the status bar, and a sheet that cannot be dismissed carries the drive - the title, a line about
-/// conditions that never leaves, and one gated button, with the roads and the timing one detent up.
+/// The home, map-first (T-0237, T-0408): the map fills the screen, one chip row of drives under the Plan field, a
+/// right-edge column (gear, Surprise), and a sheet that cannot be dismissed carries the drive.
 ///
 /// ## The credit sits on the map, above the sheet, at every detent (P-ATTR-01)
 ///
@@ -18,15 +17,12 @@ import SwiftUI
 /// ## The camera follows the detent
 ///
 /// The chip band's bottom and the credit band's top are measured in the window's coordinates and handed to
-/// `MapView` as the two edges the map is covered past; its camera fits the drawn line between them, and MapLibre's
-/// logo and (i) move with them, so the whole route, the logo and the (i) stay on uncovered map at both detents.
+/// `MapView` as the two edges the map is covered past; its camera fits the drawn line between them at both detents.
 ///
 /// ## Three drives, one screen (T-0178, T-0236)
 ///
-/// `selectedDrive` is the one value the title, the road line, the distance, the map centre, the caption and the
-/// handoff URL all read. Saddle Peak is the default; `HandoffDrive.defaultDrive` carries the ruling for why that
-/// default is unconditional and why no locale and no location is consulted to pick it. No duration anywhere:
-/// nobody has measured one, and a number nobody measured is the kind of claim this repository exists to catch.
+/// `selectedDrive` is the one value the title, the road line, the map centre, the caption and the handoff URL read.
+/// Saddle Peak is the default, unconditionally (`HandoffDrive.defaultDrive` carries the ruling).
 ///
 /// ## The safety gate (P-SAFE-03)
 ///
@@ -108,6 +104,8 @@ public struct ScenicHomeScreen: View {
 
                 Spacer(minLength: 0)
 
+                mapControls
+
                 // The credit for everything drawn - the RESOLVED style's credit for the tiles, then the drawn line's
                 // data credit, composed from the same `style` and `route` the map is handed - directly above the
                 // sheet. Nothing between them, nothing over either: limb (h) of check-map-attribution.
@@ -173,52 +171,46 @@ public struct ScenicHomeScreen: View {
         ).attempt()
     }
 
-    /// The three drives, floating over the map below the status bar. Each chip carries its own opaque ground
-    /// (`primary` or `surface`); the band under them is a material with a `border` hairline, so the row reads as one
-    /// control over either basemap, in either appearance. Every chip is 44 pt tall (`DriveSelector`).
+    /// The ONE chip row of drives under the Plan field (T-0408), then the Surprise card when it is open. At AX1+
+    /// (`userTypeSize`, read above the body's cap) the row is not built: the drives are `DriveRows` in the sheet.
+    /// The band's measured bottom is the map's covered top edge.
     private var chips: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
+            if !userTypeSize.isAccessibilitySize {
                 DriveSelector(selection: $selectedDrive)
-                surpriseButton
-                settingsButton
             }
             if isShowingSurprise {
                 SurpriseGateSlot(gate: surpriseGate, card: { surprise({ openSurprise($0) }, surpriseFailure) })
+                    .padding(.horizontal, 16)
             }
         }
-            .padding(6)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(DesignTokens.border, lineWidth: 1)
-            )
-            .padding(.horizontal, 12)
             .padding(.top, 4)
             .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { chipBandBottom = $0 }
     }
 
-    /// Settings (T-0271): a gear at the trailing end of the chip band, inside the same material, so the band's
-    /// measured bottom is still the map's covered edge. 44 pt square, drawn like an unselected chip (`fg` on
-    /// `surface`, a `border` hairline); the action is the shell's (`onSettings`).
-    private var surpriseButton: some View {
-        SurpriseToggle(isShowing: $isShowingSurprise, onToggle: { surpriseFailure = nil })
+    /// The right-edge column riding the credit and the sheet (T-0408): the gear, then Surprise. Both tonal circles,
+    /// so the sheet's button stays the one filled control. The gear is here until T-0429 puts it in the Plan field.
+    private var mapControls: some View {
+        (sheetDetent == .medium ? AnyLayout(HStackLayout(spacing: 10)) : AnyLayout(VStackLayout(spacing: 10))) {
+            settingsButton
+            SurpriseToggle(isShowing: $isShowingSurprise, onToggle: { surpriseFailure = nil })
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.horizontal, 16)
+        .padding(.top, 64).padding(.bottom, 8)
     }
 
+    /// Settings (T-0271): a 44 pt tonal circle (`fg` on `surface`, a `border` hairline) at the top of the right-edge
+    /// column; the action is the shell's (`onSettings`).
     private var settingsButton: some View {
         Button(action: onSettings) {
             Image(systemName: "gearshape")
                 .font(.body.weight(.semibold))
                 .foregroundStyle(DesignTokens.fg)
                 .frame(width: 44, height: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(DesignTokens.surface)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(DesignTokens.border, lineWidth: 1)
-                )
+                .background(Circle().fill(DesignTokens.surface))
+                .overlay(Circle().strokeBorder(DesignTokens.border, lineWidth: 1))
+                .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 2)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Settings")
@@ -236,11 +228,15 @@ public struct ScenicHomeScreen: View {
         selectedRow?.roadList ?? DriveCopy.route(for: selectedDrive)
     }
 
-    /// The collapsed sheet: the drive's name and where it goes, the menu's chips when it has one, a failure card
-    /// if the handoff refused, the conditions line, the button. Short, because it is the first thing anyone sees.
+    /// The collapsed sheet: the drives as rows at AX sizes, the drive's name, the selected option's one meta line,
+    /// a failure card if the handoff refused, the button, and the conditions line directly under it (T-0408).
     @ViewBuilder
     private var sheetSummary: some View {
         PostDriveOpenSlot()
+        if userTypeSize.isAccessibilitySize {
+            DriveRows(selection: $selectedDrive)
+        }
+
         Text(DriveCopy.title(for: selectedDrive))
             .font(.title3)
             .fontWeight(.semibold)
@@ -249,8 +245,8 @@ public struct ScenicHomeScreen: View {
             .accessibilityAddTraits(.isHeader)
             .accessibilityIdentifier("home.title")
 
-        if let menu {
-            DriveMenuChips(menu: menu, selection: $menuRow)
+        if let menu, let selectedRow {
+            DriveOptionMeta(menu: menu, row: selectedRow)
         }
 
         if let handoffFailure {
@@ -261,19 +257,24 @@ public struct ScenicHomeScreen: View {
                                onRetry: { gatedHandoff.attempt() })
         }
 
-        conditions
-
         gatedHandoff
+
+        conditions
     }
 
-    /// What `medium` adds. The caption reads the resolved `style`: it says what is under the map, and on a device
-    /// with no LA archive that is the demo basemap whichever drive is selected.
+    /// What `medium` adds: the menu's option rows when the drive has one (T-0408), then the details. The caption
+    /// reads the resolved `style`: it says what is under the map, the demo basemap on a device with no LA archive.
     private var sheetDetails: some View {
-        DriveDetails(drive: selectedDrive, roads: roadList, caption: DriveCopy.mapCaption(for: selectedDrive, style: style))
+        VStack(alignment: .leading, spacing: 12) {
+            if let menu {
+                DriveMenuChips(menu: menu, selection: $menuRow)
+            }
+            DriveDetails(drive: selectedDrive, roads: roadList, caption: DriveCopy.mapCaption(for: selectedDrive, style: style))
+        }
     }
 
     /// The persistent conditions line - the plan's risk table, verbatim, as the mitigation for *sedan onto
-    /// dirt/gated/closed road*. In the sheet's collapsed part, so it is on screen at both detents, directly above
+    /// dirt/gated/closed road*. In the sheet's collapsed part, so it is on screen at both detents, directly under
     /// the button, whatever the disclaimer has been told. On the sheet's `bg`, where `fgMuted` is a stated pair.
     ///
     /// A text style, so it grows with Dynamic Type; `fixedSize` vertically so the largest sizes wrap rather than

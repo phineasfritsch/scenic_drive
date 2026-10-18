@@ -21,7 +21,7 @@ ops/lib/check-estimate-badge-approved.txt:
           { and } on whole lines, and compared line by line with the approved body, together with the first
           non-blank line ABOVE and BELOW it (an `if false {`, `.hidden()` or `.opacity(0)` around a block is a
           changed fence line, refused).
-  DECLS   (T-0398 R2, rv1's B1) every DECLARATION under apps/ios of a name the nine approved badge bodies use
+  DECLS   (T-0398 R2, rv1's B1) every DECLARATION under apps/ios of a name the eleven approved badge bodies use
           (DesignTokens, fgMuted, border, Copy, Text, Capsule, font, padding, ...; string literals dropped) is an
           approved whole line in scan order, with the block it opens when it is not a type declaration - so a
           file-scoped `enum DesignTokens`, a token's value, an `extension Text` init or a View modifier overload is
@@ -67,6 +67,7 @@ CARD = S + "FeatureSurpriseMe/SurpriseCard.swift"
 PLAN, LOOP, TRIP = (S + "FeaturePlanSheet/PlanPreviewCard.swift", S + "FeaturePlanSheet/LoopPreviewCard.swift",
                     S + "FeaturePlanSheet/TripItineraryCard.swift")
 DRIVE = S + "FeatureScenicHome/DriveCard.swift"
+MENU = S + "FeatureScenicHome/DriveMenuChips.swift"
 BLOCKS = [
     (CARD, "roundTrip(minutes: pick.reason.roundTripMinutes)"),
     (CARD, "private func roundTrip(minutes: Int) -> some View {"),
@@ -78,6 +79,7 @@ BLOCKS = [
     (LOOP, "if preview.etaIsEstimate {"),
     (TRIP, "if itinerary.etaIsEstimate {"),
     (DRIVE, "if showsEstimate {"),
+    (MENU, "VStack(alignment: .leading, spacing: 0) {"),
 ]
 
 
@@ -221,6 +223,8 @@ MUTATIONS = [
      "spacing: 6) {\n                etaText\n"),
     ("the drive card's badge cleared", DRIVE, '.accessibilityIdentifier("drive.estimate")',
      '.accessibilityIdentifier("drive.estimate")\n                    .hidden()'),
+    ("the home menu's badge cleared on its own line", MENU, '.accessibilityIdentifier("home.menu.estimate")',
+     '.accessibilityIdentifier("home.menu.estimate")\n                .hidden()'),
     ("the drive card's arrival drawn under a new name", DRIVE, "addingTimeInterval(remainingSeconds)",
      "addingTimeInterval(secondsLeft)"),
     ("B1 a file-scoped DesignTokens shadows the tag's colours", CARD, None,
