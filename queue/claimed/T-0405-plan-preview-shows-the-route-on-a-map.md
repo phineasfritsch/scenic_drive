@@ -218,6 +218,41 @@ disclaimer. Any new or changed guard is shown red, then green.
   sessions' gate runs, NOT a pin failure; every ops/lib check this round touches (P-ATTR-01, P-SAFE-03) and the
   five named gates ran bare above, each exit 0. CI's check-pins run on the PR is the confirmation.
 
+- 2026-10-18T04:41:53Z rv1 fix round (rv1-t0405 FAIL on e653c349). Ruling first: B1 is the class "the .preview arm
+  frozen as a RUN, not the switch" - swiftc keeps the FIRST of two `.preview` arms, and f4 never asked whether its run
+  was the only/first arm nor where else a card is built with a `map:`. B2 (`.opacity` on planContent in content) is
+  the same class one level up. B3 (stale base) is closed by merging origin/main last (3c4286bf).
+  Fix (99ba6d0c): limb (f4) moves to ops/lib/check-map-attribution-preview (100755; -sites 245 -> 121 lines) and
+  freezes PlanSheetScreen's `body`, `content` and `planContent` WHOLE with frozen_block (no arm added, reordered or
+  re-bound; no modifier added on content or planContent); frozen_run is deleted. Its whole-line whitelist now also
+  covers every line under apps/ios naming PlanPreviewCard or planContent or passing a `map:` argument - ONE approved
+  PlanPreviewCard( construction site, ONE `map:`. Measured population on the clean tree: 14 approved lines.
+  Mutation rows F4f-F4m added to ops/lib/check-map-attribution-mutations (the rv1 arm verbatim; the shadow arm above
+  the FIRST arm and below the LAST; a `default:` arm; an `if case .preview` before the switch; a second
+  PlanPreviewCard( in a new FeaturePlanSheet file; `.opacity(onPreview ? 0 : 1)` on planContent in content (B2) and
+  on content in body). The F4 rows only, run as a filtered copy of the table (owner-approved: touched rows only):
+      ON e653c349 (detached worktree, the old check):     prove-red: 5/13 mutations refused by name
+        F4f..F4m each `1  no`: exit 1 only from -pinned's sha256 of PlanSheetScreen.swift (or the new file), which
+        a re-approved digest passes (rv1 did); f4 printed its green line on every one of them.
+      ON 99ba6d0c (the new check):                         prove-red: 13/13 mutations refused by name
+        F4a..F4m each `1  yes` (named "the plan preview's map is not wired and drawn as approved").
+  No Swift file changed this round (no digest re-approved, no ios-compile needed); acceptance 4-6 stand from the
+  rv0 entries. Acceptance re-quoted on the merged head 3c4286bf, gates run bare and in parallel:
+      `bash ops/lib/check-map-attribution` exit=0:   38 feature file(s), the app shell and AttributionFooter.swift pinned by sha256 (-pinned); every app .swift, pbxproj and root Sources (-linked).
+        (f4): PlanPreviewMap's struct and PlanSheetScreen's body, content and planContent frozen whole; 14 approved line(s) name previewMap, PlanPreviewMap, PlanPreviewCard, planContent or pass `map:`.
+      `bash ops/lib/check-safety-disclaimer` exit=0:   Not checked here: rendering (T-0180), taps, whether that write RUNS, contrast, Dynamic Type, 44 pt.
+      `python ops/lib/check-mutate-population.py` exit=0: P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds
+      `python ops/lib/check-mutate-only.py` exit=0: NAME-PAIRS OK: 242318 pair tokens over 50 id populations, each refused in process by select_only in 4 modes and by onlyIds (0 calls not refused, floor 201117 tokens)
+      `python ops/lib/check-pins-yaml.py` exit=0: PINS-YAML ok pins=53 fields=426
+      `bash ops/lib/check-exec-bits` exit=0: P-OPS-01: 256 files, 23 required present, all modes correct
+      `bash ops/queue-check` exit=0: QUEUE OK (398 tasks)
+      `timeout 2400 bash ops/check-pins --source-only` exit=124: (no output; `timeout 2400` fired on the shared box, as in rv0 - NOT a pin failure; CI pins-source-only is the confirmation)
+      wc:   300 ops/lib/check-map-attribution
+      wc:   121 ops/lib/check-map-attribution-sites
+      wc:   216 ops/lib/check-map-attribution-preview
+      wc:   226 ops/lib/check-map-attribution-mutations
+  Not built here: file-scope type/extension shadowing in the feature modules (T-0406, in review).
+
 ## Acceptance
 1. `bash ops/lib/check-map-attribution` exits 0 and prints an (f3) line naming PlanPreviewMap.swift.
 2. `bash ops/lib/check-safety-disclaimer` exits 0 (the preview's frozen blocks, the shell's frozen line, digests).
