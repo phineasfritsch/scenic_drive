@@ -20,7 +20,10 @@ line, which a non-nesting reader would think closed} x {twin before the opener, 
 the block with its first line respaced (` {` -> `{`) so the reader's count of the approved line stays 1,
 preceded by every other line the comment hides (an ABOVE `}` among them) so braces balance and the lexer reads it. Generated
 rows exercise the guard, not the compiler. C rows are CONTROLS on each frozen file: `"/*"` in a string and `/*` in a
-// line are not block comments and must NOT be refused by this rule. The floor is the literal MIN_MUTATIONS.
+// line are not block comments and must NOT be refused by this rule. R2 and the T rows are the pre-review pass's M1
+(T-0407 Log): the opener sits in a // tail (` // see below /*`, or a `// /*` line of its own), which neither swiftc nor
+the lexer reads as a comment, and the `*/` below is a stray closer - R2 is R1 so spelled, T rows are each block x the
+twin before/after; they are KILLED when the stray `*/` is refused. The floor is the literal MIN_MUTATIONS.
 Exit 0 every row killed (controls passed) and at least MIN_MUTATIONS ran; 1 a survivor; 2 cannot tell; 64 --only.
 Classified in ops/lib/mutate_population_table.py PROBES: its subject lives in ops/lib, outside MODULE_ROOTS.
 """
@@ -40,7 +43,7 @@ import mutate_only  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORK = ROOT / ".build" / "mutate-frozencomments" / "ios"
-MIN_MUTATIONS = 239
+MIN_MUTATIONS = 292
 REASON = "a /* */ block comment in a frozen file"
 S = "Packages/ScenicApp/Sources/"
 H, P = S + "FeatureScenicHome/", S + "FeaturePlanSheet/"
@@ -134,18 +137,19 @@ def generated(rel: str, first: str, lines: list[str], place: str, twin_at: str) 
         raise CannotTell(f"`{first}` does not end in ` {{`, so no twin spelling is generated for it")
     # The twin repeats every line the comment hides: the lines between the opener and the block (an ABOVE line
     # `}` closing the member before it among them) and the block, its first line respaced - so braces still balance.
-    hidden = a if place == "first" else p if place == "own" or q is None else q + 1
+    # A tail opener hides nothing (it is a // comment), so its twin is the block alone.
+    hidden = a if place in ("first", "tail") else p if place == "own" or q is None else q + 1
     twin = lines[hidden:a] + [lines[a][:-2] + "{"] + lines[a + 1:b + 1]
     out = list(lines)
     out.insert(b + 1, "*/")
-    if place == "own" or (place in ("eol", "nested") and q is None):
-        out.insert(p, "/*" if place != "nested" else "/* /* */")
+    if place == "own" or (place in ("eol", "nested", "tail") and q is None):
+        out.insert(p, {"nested": "/* /* */", "tail": "// /*"}.get(place, "/*"))
         opener = p
     elif place == "first":
         out[a] = lines[a].replace(first, "/* " + first)
         opener = a
     else:
-        out[q] += " /*" if place == "eol" else " /* /* */"
+        out[q] += {"eol": " /*", "nested": " /* /* */", "tail": " // see below /*"}[place]
         opener = q
     closer = out.index("*/", b + 1)
     if twin_at == "after":
@@ -162,18 +166,22 @@ def rows(blocks, files) -> list[tuple[str, str, str, object]]:
     for rel, reader in files:
         for k, add in enumerate(('let frozenCommentControl = "/* not a comment */"', "// /* a line comment, not a block")):
             out.append((f"C{len(out)}", rel, reader, ("control", add)))
+    out.append(("R2", P + "PlanPreviewCard.swift", "preview", "r2"))
+    for rel, reader, first in blocks:
+        for twin_at in ("before", "after"):
+            out.append((f"T{len(out)}", rel, reader, (first, "tail", twin_at)))
     return out
 
 
 def apply(row, lines: list[str]) -> list[str]:
     mid, rel, _, spec = row
-    if spec == "r1":
+    if spec in ("r1", "r2"):
         ts = [i for i, ln in enumerate(lines) if ln.strip() == "@Environment(\\.dynamicTypeSize) private var typeSize"]
         tr = [i for i, ln in enumerate(lines) if ln.strip() == "private var titleRow: some View {"]
         if len(ts) != 1 or len(tr) != 1:
-            raise CannotTell("R1's typeSize or titleRow line is not once in PlanPreviewCard.swift")
+            raise CannotTell("R1/R2's typeSize or titleRow line is not once in PlanPreviewCard.swift")
         out = list(lines)
-        out[ts[0]] += " /*"
+        out[ts[0]] += " /*" if spec == "r1" else " // see titleRow /*"
         out[tr[0]] = out[tr[0]].replace("private var titleRow", "*/ private var titleRow")
         return out[:ts[0]] + TWIN_R1 + out[ts[0]:]
     if spec[0] == "control":
@@ -237,7 +245,7 @@ def main(argv: list[str]) -> int:
                 path.write_bytes(before)
             named = [ln for ln in out.splitlines() if f"{path.name} line " in ln and REASON in ln]
             control = isinstance(spec, tuple) and spec[0] == "control"
-            what = "control" if control else (spec if spec == "r1" else "/".join(spec[1:]))
+            what = "control" if control else (spec if spec in ("r1", "r2") else "/".join(spec[1:]))
             if control:
                 ok = not named
             else:

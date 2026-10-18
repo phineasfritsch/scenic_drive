@@ -165,3 +165,29 @@ line sequence catches a twin spelled byte-equal to the original, say so; if it d
      population line`; check-pins-yaml ok; check-exec-bits `P-OPS-01: 265 files, 23 required present, all modes
      correct`; queue-check `QUEUE OK (403 tasks)`. All exit 0. The R9 commit touches only ops/mutate/frozencomments.py
      (generator + docstring), frozen_comments.py's docstring and this file; the gates reading them are re-run on it.
+- 2026-10-18T16:05:29Z pre-review mutant pass, survivor M1 closed by class (agent/claude-opus-5, owner):
+  - R10 M1 put the `/*` inside a // tail on PlanPreviewCard's typeSize line (`... typeSize // see titleRow /*`), a
+    stray `*/ private var titleRow` below and R1's twin above. Neither swiftc nor the lexer reads a // tail's `/*` as a
+    comment, so no reader saw a block comment and every reader was silent; swiftc rejects the shape (`unexpected end
+    of block comment`). The pass offered an EQUIVALENT ruling with that compile witness. Ruled instead: the Brief
+    asks for `/*` OR `*/` outside a string to be refused, and the rule must not lean on the compiler. So
+    frozen_comments.refusals now also refuses every `*/` the SHIPPING lexer reads as code (`strays`): each `*/` outside
+    a recorded block comment (and not the `*/` of `*/*`, whose `/*` opens a comment the rule already refuses) becomes
+    `/**/` in a probe, the lexer runs again, and one it then opens a comment at was code. A `*/` in a string, a
+    multi-line string or a // line stays inert; one in an interpolation is code. The refusal line keeps the
+    block-comment reason, so every reader that already calls the rule refuses it by name with no reader edit.
+  - R11 the population gains the class: R2 (M1 verbatim) and T rows (each of the 26 blocks x twin before/after, the
+    opener a ` // see below /*` tail on the code line above ABOVE, or a `// /*` line of its own, the `*/` on its own
+    line after the block). A tail hides nothing, so a T row's twin is the block alone (repeating the G rows' hidden
+    lines unbalanced the braces on the first measure: 28 of 52 refused as `the lexer cannot read it`, not by the
+    reason). Row ids are appended after C238 (R2, T240-T291), so every earlier id quoted above is unchanged.
+    MIN_MUTATIONS 239 -> 292.
+  - RED on HEAD's rule (d0fe4103's frozen_comments.py in a copy), every row through refusals in-process: `R: 1/2`,
+    `G: 208/208`, `C: 30/30`, `T: 0/52 as required`. Through the shipping readers at 15:53:27Z,
+    `--only R2,T240,T253,T262,T271,T277`: `MUTATE SURVIVED` x6, `MUTATE silent  3 row(s) no reader refused at all:
+    R2 T240 T253`, `MUTATE FAIL  survivors [...]; ran 6, floor 292`, exit 1.
+  - GREEN with the rule, in-process: `population 292 floor 292 files 15`, `pristine refusals 0`, `R: 2/2`, `G:
+    208/208` (0 by the stray line), `C: 30/30`, `T: 52/52 as required, 52 by the stray-closer line`, `bad none`.
+    Through the shipping readers, `--only R2,T240,T244,T253,T262,T271,T277,C209,C238`: R2 and the seven T rows
+    `MUTATE killed`, both controls `MUTATE passed`, `MUTATE silent  0 row(s)`, `MUTATE ok  9/9 killed or passed (floor
+    292, population 292)`, exit 0. The full 292-row population runs in CI through P-SAFE-03's assertion.

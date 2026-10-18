@@ -14,9 +14,13 @@ THE LEXER is check-file-scope.py's (T-0406), loaded from that file: its `_block_
 comment the shipping lexer opens is recorded, and `checked_lines` runs unchanged - strings, raw strings,
 interpolation, nesting and // are read exactly as that guard reads them. FAIL CLOSED: the wrap is proved on a canary
 before each file (a renamed hook is exit 2, never a silent zero); a file the lexer cannot read is a refusal.
-NOT REFUSED: a stray `*/` in code (swiftc rejects it: "unexpected end of block comment"); `/*` inside a // line or a
-string literal (a comment to neither swiftc nor the lexer). Exit 0 none; 1 a refusal (one line per comment); 2 the
-check could not run.
+A STRAY `*/` (T-0407 pre-review M1): a `/*` in a // tail is a comment to neither swiftc nor the lexer, so a `*/` below
+it closes nothing, and every reader read on. swiftc rejects that file ("unexpected end of block comment"), but the
+rule does not lean on the compiler: a `*/` the shipping lexer reads as CODE is refused too. Each `*/` outside a block
+comment (and not the `*/` of `*/*`, whose `/*` opens a comment refused above) becomes `/**/` in a probe and the lexer
+runs again; one it then opens a comment at was code. A `*/` in a string or a // line stays inert in the probe.
+NOT REFUSED: `/*` or `*/` inside a // line or a string literal (a comment to neither swiftc nor the lexer). Exit 0
+none; 1 a refusal (one line per comment or stray closer); 2 the check could not run.
 """
 from __future__ import annotations
 
@@ -49,15 +53,14 @@ def _load():
     return mod
 
 
-def spans(raw: bytes, mod=None) -> list[tuple[int, int]]:
-    """(first, last) 0-based line of every block comment the shipping lexer opens; LexError propagates."""
-    mod = mod or _load()
-    found: list[tuple[int, int]] = []
+def _lex(raw: bytes, mod) -> list[tuple[int, int, int, int]]:
+    """(start, end, first line, last line) of every block comment the shipping lexer opens; LexError propagates."""
+    found: list[tuple[int, int, int, int]] = []
     inner = mod._block_comment
 
     def record(text: str, i: int, line: int) -> tuple[int, int]:
         end, last = inner(text, i, line)
-        found.append((line, last))
+        found.append((i, end, line, last))
         return end, last
 
     mod._block_comment = record
@@ -66,6 +69,30 @@ def spans(raw: bytes, mod=None) -> list[tuple[int, int]]:
     finally:
         mod._block_comment = inner
     return found
+
+
+def spans(raw: bytes, mod=None) -> list[tuple[int, int]]:
+    """(first, last) 0-based line of every block comment the shipping lexer opens; LexError propagates."""
+    return [(first, last) for _, _, first, last in _lex(raw, mod or _load())]
+
+
+def strays(raw: bytes, mod=None) -> list[int]:
+    """0-based line of every `*/` the shipping lexer reads as code (see A STRAY above); LexError propagates."""
+    mod = mod or _load()
+    cuts = [(i, end) for i, end, _, _ in _lex(raw, mod)]
+    text = raw.decode("utf-8").replace("\r\n", "\n")  # the lexer's own text: _lex above refused anything else
+    inside = lambda k: any(i <= k < end for i, end in cuts)  # noqa: E731
+    at, p = [], text.find("*/")
+    while p >= 0:
+        if not inside(p) and not inside(p + 1):
+            at.append(p)
+        p = text.find("*/", p + 1)
+    probe, marks, prev = "", {}, 0
+    for p in at:
+        probe += text[prev:p]
+        marks[len(probe)], probe, prev = p, probe + "/**/", p + 2
+    opened = {i for i, _, _, _ in _lex((probe + text[prev:]).encode("utf-8"), mod)} if at else set()
+    return [text.count("\n", 0, p) for q, p in marks.items() if q in opened]
 
 
 def refusals(path: pathlib.Path, label: str = "") -> list[str]:
@@ -79,7 +106,7 @@ def refusals(path: pathlib.Path, label: str = "") -> list[str]:
     except OSError as e:
         return [f"{head}{path.name}: cannot read it ({e.strerror}) - a frozen file it cannot read is never a pass"]
     try:
-        found = spans(raw, mod)
+        found, stray = spans(raw, mod), strays(raw, mod)
     except mod.LexError as e:
         return [f"{head}{path.name}: the lexer cannot read it - {e}; a frozen file it cannot read is never a pass"]
     lines = raw.decode("utf-8", errors="replace").replace("\r\n", "\n").split("\n")
@@ -90,6 +117,10 @@ def refusals(path: pathlib.Path, label: str = "") -> list[str]:
         out.append(f"{head}{path.name} line {first + 1}: a /* */ block comment in a frozen file (lines {first + 1}-"
                    f"{last + 1}, opening `{lines[first].strip()}`), none approved - it can hide a frozen block while "
                    "every approved line is still read (rv2-t0405, ops/lib/frozen_comments.py)")
+    for ln in stray:
+        out.append(f"{head}{path.name} line {ln + 1}: a /* */ block comment in a frozen file ends at a stray `*/` the "
+                   f"lexer reads as code (`{lines[ln].strip()}`), its `/*` in a // tail or a string - swiftc rejects it "
+                   "and the readers read on (T-0407 M1, ops/lib/frozen_comments.py)")
     return out
 
 
@@ -109,7 +140,8 @@ def main(argv: list[str]) -> int:
         print(f"FROZEN-COMMENT refuse  {line}")
     if bad:
         return 1
-    print(f"FROZEN-COMMENT ok  {len(argv) - 1} file(s), no block comment outside the {len(APPROVED)} approved")
+    print(f"FROZEN-COMMENT ok  {len(argv) - 1} file(s), no block comment outside the {len(APPROVED)} approved, no "
+          "stray */")
     return 0
 
 
