@@ -170,6 +170,7 @@ import SwiftUI
 struct DriveMenuChips: View {
 let menu: DriveMenu
 @Binding var selection: Int?
+@Environment(\.dynamicTypeSize) private var typeSize
 
 static let launchArgumentKey = "menuRow"
 
@@ -217,7 +218,7 @@ if !via.isEmpty {
 Text(via)
 .font(.subheadline)
 .foregroundStyle(DesignTokens.fgMuted)
-.lineLimit(2)
+.lineLimit(typeSize.isAccessibilitySize ? nil : 2)
 .fixedSize(horizontal: false, vertical: true)
 }
 }

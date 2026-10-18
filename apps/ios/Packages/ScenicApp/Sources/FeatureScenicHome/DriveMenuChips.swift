@@ -24,6 +24,7 @@ import SwiftUI
 struct DriveMenuChips: View {
     let menu: DriveMenu
     @Binding var selection: Int?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// The launch argument that selects a row before any tap (`-menuRow 0` for 'Fastest'), for the screenshot
     /// workflow; absent or not a row, the menu's own default.
@@ -74,7 +75,7 @@ struct DriveMenuChips: View {
                         Text(via)
                             .font(.subheadline)
                             .foregroundStyle(DesignTokens.fgMuted)
-                            .lineLimit(2)
+                            .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }

@@ -615,6 +615,7 @@
 0|struct DriveMenuChips: View {
 1|    let menu: DriveMenu
 1|    @Binding var selection: Int?
+1|    @Environment(\.dynamicTypeSize) private var typeSize
 1|    static let launchArgumentKey = "menuRow"
 1|    static var rowAtLaunch: Int? {
 1|    }

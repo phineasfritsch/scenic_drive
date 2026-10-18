@@ -245,3 +245,26 @@ and check-mutate-anchors before buying review.
   EXIT=0; frozen_views.py EXIT=0; A9 swift test --filter OptionViaTests "5 tests in 1 suite passed" EXIT=0; A10 wc -l
   DriveMenuChips 97, DriveOptionMeta 30, DriveRows 90, DriveSelector 73, ScenicHomeScreen 300, SurpriseToggle 31;
   A11 as above.
+- 2026-10-18T21:07:13Z agent/claude-opus-5 - round 3 rulings before code (author rule), on rv2-t-0408 FAIL at 86fb1f3e.
+  B1 (red CI 39159859503: core and pins-source-only fail P-SAFE-03, `python ops/mutate/frozencomments.py` exit 2
+  "check-estimate-badge.py has 9 `{` blocks, this population was built for 8") ACCEPTED. Cause: T-0407 (merged
+  into this branch at e64cba35) brought frozencomments.py, whose population is generated from
+  check-estimate-badge.py's BLOCKS; this branch adds the ninth `{` block (DriveMenuChips' estimate VStack), and the
+  merge did not move the driver's built-for count or its floor. RULING: keep the ninth block (it is the home menu's
+  badge, P-SAFE-* coverage this PR owes) and update the population: the built-for guard 8 -> 9, then RUN the driver
+  and set MIN_MUTATIONS to the population it reports (recomputed, not hand-counted). The new block lives in a new
+  file, so the expected growth is 10 G/T rows for the block plus 2 control rows for the file; the run decides.
+  B2 (ios-screenshot 39156550905 home-ax5-medium: the 'Fastest' option row's via line cut to "via North Topanga
+  Canyon / Boulevard · South Topanga Canyo..." by `.lineLimit(2)` at AX5, losing "+2 more") ACCEPTED; my round-2
+  Log called this "by design" - wrong, the road list is the row's content and an ellipsis hides it. RULING: the
+  via Text in DriveMenuChips takes `.lineLimit(typeSize.isAccessibilitySize ? nil : 2)` from the type's own
+  `@Environment(\.dynamicTypeSize) private var typeSize` (DriveCard's spelling). OptionVia already bounds the line
+  (two roads and "+N more"), so no limit at AX sizes cannot grow without bound. DriveMenuChips is frozen whole, so
+  its digest is re-approved in -pinned (two rows) and its new type-scope line in check-file-scope-approved.txt.
+  Re-shoot and LOOK at every option row in home-ax5-medium, home-ax5-collapsed, home-light-medium, home-dark-medium.
+  M1 (a DriveCopy string returning 60 newlines pushes the sheet off screen; strings are not pinned, only identifiers)
+  and M2 (a view injected as a closure into the chip band) are recorded as non-blocking and filed together as ONE
+  backlog task, T-0436, its id checked unused on origin/main and every open task branch first.
+  Verification this round re-runs only the touched rows (owner-approved): frozencomments.py whole (it is the red
+  one), check-safety-disclaimer, check-map-attribution, check-file-scope + mutate/filescope, check-estimate-badge,
+  check-drive-display; P-SAFE-03's assertion and `bash ops/check-pins --source-only` BARE on the final head.
