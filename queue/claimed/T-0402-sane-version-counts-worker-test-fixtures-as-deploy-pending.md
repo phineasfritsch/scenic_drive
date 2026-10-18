@@ -160,6 +160,23 @@ services/api that wrangler bundles -> exit 3 (fail closed). Each shown red on to
     tell whether a deploy is pending: 'utf-8' codec ..."]`; `1 of 2 cases failed`; restored byte-equal.
   - wc -l: ops/sane 214, check_sane_prod.py 279, sane_version.py 121, sane_version_cases.py 229.
 
+- 2026-10-18T00:18:59Z acceptance re-quoted by agent/claude-opus-5 on e8bb4e02 (fixes bbe4eeda; origin/main merged:
+  AttributionFooter.swift, ops/lib/check-safety-disclaimer-pinned and queue files from T-0404/T-0406 - none touches
+  this task's files). Fast round (owner-approved): only the v- rows run, never the full table.
+  1. `bash ops/lib/check-sane-prod --only <all 36 v- rows>` -> exit 0, 36 `SANE-PROD pass` lines, `SANE-PROD ok
+     36/36 cases passed (0 b-/c- rows through sane_prod.tiles at a fixed clock; sane=ops/sane,
+     fake=http://127.0.0.1:60705)`. The 325 non-v rows are untouched since 347/347 at 19:51:40Z.
+  2. Red on main: not re-run; quoted at 19:51:40Z.
+  3. M1-M4 at 19:51:40Z, M5-M7 at 20:40:58Z, M8-M10 at 23:32:22Z above (sane_version.py changed since only in
+     imports()'s docstring; ops/sane unchanged).
+  4. wc -l: ops/sane 214, check_sane_prod.py 279, sane_version.py 121, sane_version_cases.py 229.
+  5. Gates bare on e8bb4e02: check-safety-disclaimer exit 0 (`... Not checked here: rendering (T-0180), taps, ...`);
+     check-mutate-population.py exit 0 `P-PROC-06: every added module is covered or allowlisted; the floor of 173
+     holds`; check-mutate-only.py exit 0 `MUTATE-ONLY OK: 248 of 248 driver runs refused with exit 64 ...`,
+     `NAME-PAIRS OK: 242318 pair tokens ...`; check-pins-yaml.py exit 0 `PINS-YAML ok pins=53 fields=426`;
+     check-exec-bits exit 0 `P-OPS-01: 255 files, 23 required present, all modes correct`; queue-check exit 0
+     `QUEUE OK (397 tasks)`.
+
 ## Acceptance
 1. `bash ops/lib/check-sane-prod` -> `SANE-PROD ok N/N cases passed`, N including the v- rows, each compared on exit
    code and the WHOLE version line: v-none, v-fixture, v-test, v-vitest, v-outside -> version ok, exit 0; v-src,
