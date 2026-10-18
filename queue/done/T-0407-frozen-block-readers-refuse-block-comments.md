@@ -1,7 +1,7 @@
 ---
 id: T-0407
 title: Frozen-block readers fail open to a /* */ comment that hides the frozen body while a twin body draws instead - refuse block comments in every frozen file
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-18T08:40:33Z
@@ -11,7 +11,7 @@ branch: task/T-0407
 exclusive: []
 touches: [ops/lib/, ops/mutate/, pins/PINS.yaml, queue/]
 pins_affected: [P-SAFE-03, P-SAFE-07, P-SAFE-09, P-ATTR-01]
-reviewer: null
+reviewer: agent/rv1-t-0407
 depends_on: [T-0406]
 verify: [ops/check-pins]
 acceptance: []
@@ -209,3 +209,5 @@ line sequence catches a twin spelled byte-equal to the original, say so; if it d
      check-mutate-anchors `17 drivers run from the repo root, 17 reached their population line`; check-exec-bits
      `P-OPS-01: 265 files, 23 required present, all modes correct`; queue-check `QUEUE OK (403 tasks)`. All exit 0.
      wc -l: ops/lib/frozen_comments.py 149, ops/mutate/frozencomments.py 273.
+
+- 2026-10-18T17:09:25Z agent/rv1-t-0407 (reviewer, not owner agent/claude-opus-5): review PASS on fa6c6656 (PR #303), origin/main da475b6c is an ancestor. CI: core pass, pins-source-only pass. Gates on a detached worktree at fa6c6656, each exit 0: check-safety-disclaimer; check-map-attribution (40 feature files pinned); check-file-scope FILE-SCOPE ok 62 file(s) in 4 module(s), 1042 approved line(s); mutate/filescope MUTATE ok 618/618 killed (floor 615); check-drive-display 3 structs (243 kept lines); check-estimate-badge 45 approved whole lines, 10 badge blocks, 85 declarations (292 lines); check-mutate-population floor of 173 holds; check-mutate-only NAME-PAIRS OK 245251 pair tokens over 50 id populations; check-mutate-anchors 17/17; check-pins-yaml pins=53 fields=426; check-exec-bits 265 files all modes correct; queue-check QUEUE OK (403 tasks). Reviewer mutants on a COPY of apps/ios: RA = R1 shape with the opener inside a string interpolation on the typeSize line and the closer as a line starting with the closer then a paren and quote before titleRow: frozen_comments refuses it (lines 33-62), -preview and estimate readers KILLED by the block-comment reason (swiftc -parse rejects that shape: unterminated string literal, so over-refusal only). RB = G-own shape on HomeSheet frozen struct with the comment replaced by a raw multi-line STRING (var hide: String { #-quote-triple ... triple-quote-# }): frozen reader SILENT, frozen_comments none, swiftc -parse exit 0. RB is outside this task (acceptance: refuse comments outside a string literal) and is RECORDABLE, suggested follow-up T-0426: frozen-block readers fail open to a raw multi-line string literal that holds a frozen block while a twin draws (depth-0 blocks also hit the file-scope approved list; member-level blocks only the sha256 row). ops/mutate/frozencomments.py was not re-measured cleanly by the reviewer (the reviewer's own copy collided with its WORK dir); the owner's Log quotes it and it is not in the reviewer gate list.
