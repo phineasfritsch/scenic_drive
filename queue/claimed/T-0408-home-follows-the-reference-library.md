@@ -279,3 +279,22 @@ and check-mutate-anchors before buying review.
   Digest 10151035... -> 20e93964... re-approved in -pinned (two rows); the changed line in -frozen-views.txt and
   check-estimate-badge-approved.txt. T-0436 filed (M1 + M2); id checked unused on origin/main (max T-0426 on main)
   and every open task branch (T-0432 on task/T-0408, T-0433 on task/T-0411, nothing higher).
+- 2026-10-18T23:05:00Z agent/claude-opus-5 - round 3 landed; what was and was NOT measured.
+  B1: frozencomments.py's population recomputed by its own generator (load_blocks + rows on this tree):
+  304 rows (was 292 before the ninth block; +10 G/T rows for the block, +2 control rows for its new file).
+  MIN_MUTATIONS = 304. Its first run on 7a0a832a went RED before any row ("the estimate reader is not silent on the
+  pristine copy": DriveMenuChips' new typeSize declaration and changed via line were not approved in
+  check-estimate-badge-approved.txt) - fixed in 66cf3e0f, check-estimate-badge then "11 badge blocks ... 122
+  declarations (449 lines)" EXIT=0. check-safety-disclaimer EXIT=0 and check-file-scope "1075 approved line(s)"
+  EXIT=0 on 7a0a832a's tree. NOT MEASURED at this entry: the full frozencomments run (started on 66cf3e0f, still
+  running after 55 min on the loaded box), P-SAFE-03's assertion bare and `bash ops/check-pins --source-only` bare
+  on the final head - CI (core, pins-source-only) is the measurement for them; see the PR checks.
+  B2: ios-screenshot 39171247639 on ecbfb469 green, LOOKED at. home-ax5-medium: the 'Fastest' via line now runs to a
+  third line, "via North Topanga Canyon / Boulevard · South Topanga Canyon / Boulevard · +2 more", no ellipsis; that
+  third line sits at the screen's bottom edge, half drawn, and the +13 / +18 rows are below the edge - the medium
+  overflow T-0432 owns. home-light-medium: Fastest "... South Topanga Canyon Boulevard · +2 more", +13 min "...
+  Mulholland Highway · +6 more", +18 min (check) "... Tuna Canyon Road · +9 more", each whole on two lines, one
+  estimate caption. home-ax5-collapsed (39167985545; collapsed draws no option rows, the change cannot reach it):
+  meta whole on two lines, button, conditions under it, credit on the sheet edge. home-dark-medium on 39171247639 is
+  a BLANK dark frame (54 grey levels vs 229 on 39167985545's dark-medium, whose rows matched light) - NOT looked at
+  for this head; a re-shoot is owed.

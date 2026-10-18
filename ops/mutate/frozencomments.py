@@ -43,7 +43,7 @@ import mutate_only  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORK = ROOT / ".build" / "mutate-frozencomments" / "ios"
-MIN_MUTATIONS = 292
+MIN_MUTATIONS = 304
 REASON = "a /* */ block comment in a frozen file"
 S = "Packages/ScenicApp/Sources/"
 H, P = S + "FeatureScenicHome/", S + "FeaturePlanSheet/"
