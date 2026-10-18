@@ -1,7 +1,7 @@
 ---
 id: T-0398
 title: Surprise card has one filled primary - the duplicate Open in Apple Maps goes, secondary actions become tonal or text, and the hand-off button carries the external-link glyph
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T15:13:51Z
@@ -11,7 +11,7 @@ branch: task/T-0398
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureSurpriseMe/, Sources/ScenicKit/, Tests/, ops/lib/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-A11Y-01]
-reviewer: null
+reviewer: agent/rv3-t-0398
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -302,3 +302,28 @@ then green.
     queue-check exit=0 "QUEUE OK (399 tasks)"
     check-estimate-badge.py exit=0 "41 approved whole lines ...; 10 badge blocks ...; 79 declarations (279 lines)";
       --prove-red exit=0 "PROVE-RED OK: 17/17 refused by name"; run-named-tests.py P-SAFE-07 "passed=23/23"
+- 2026-10-18T05:56:07Z agent/rv3-t-0398 - review round 3 of PR #293: PASS on a761d14d (detached worktree
+  .worktrees/rv3-t-0398 at origin/task/T-0398 after git fetch origin in the main checkout).
+  rv2 mutants on copies of apps/ios (SurpriseCard.swift), each RED by name:
+    R2-B1 (multi-line `ShadowTokens` + `private let \`DesignTokens\``): check-estimate-badge.py exit=1 "SurpriseCard.swift:
+      private let `DesignTokens` = ShadowTokens.self"; check-file-scope.py exit=1 "line 253 '0|private enum ShadowTokens {'
+      is not the approved 'end of file'".
+    R2-B1b (same, one line): check-estimate-badge.py exit=1 (the one-line declaration named); check-file-scope.py exit=1
+      "line 253 '0|private enum ShadowTokens { static let `fg` ...".
+    R2-B1c (member `private enum \`DesignTokens\`` inside SurpriseCard): check-estimate-badge.py exit=1 (named);
+      check-file-scope.py exit=1 "line 13 '1|    private enum `DesignTokens` { ...".
+  Own mutant (bound value swapped inside a frozen block): estimateTag `.foregroundStyle(DesignTokens.fgMuted)` ->
+    `.foregroundStyle(DesignTokens.surface)` (tag ink = card surface): check-estimate-badge.py exit=1 "P-SAFE-07: the
+    badge block `private var estimateTag: some View {` changed ... body: '.foregroundStyle(DesignTokens.surface)'
+    (approved '.foregroundStyle(DesignTokens.fgMuted)')"; check-file-scope.py exit=0 (depth-2 line, not its class).
+  Gates BARE on a761d14d, all exit 0: check-safety-disclaimer; check-map-attribution; check-file-scope "59 file(s) in 4
+    module(s), 985 approved line(s)"; check-mutate-population "the floor of 173 holds"; check-mutate-only "248 of 248",
+    "NAME-PAIRS OK"; check-pins-yaml "pins=53 fields=426"; check-exec-bits "261 files, 23 required present";
+    queue-check "QUEUE OK (399 tasks)"; check-estimate-badge "41 approved whole lines ...; 10 badge blocks ...; 79
+    declarations (279 lines)"; --prove-red "PROVE-RED OK: 17/17 refused by name".
+  CI: gh pr checks 293 core pass, pins-source-only pass; ios-compile dispatched on task/T-0398 (run 39101619130)
+    a761d14d completed success (the merge brought main's FeaturePlanSheet Swift since the a55f2d2f run).
+  Ancestry: git merge-base --is-ancestor origin/main origin/task/T-0398 -> 1; origin/main is ahead by b9b7b33f only
+    (queue: file T-0407, one queue/ file) - queue-only drift, accepted. Not merged by the reviewer.
+  Residual (not blocking, documented in check-estimate-badge.py WHAT IT CANNOT SEE): a sibling view painting over the
+    tag (rendering) is not statically checked; ios-screenshot captures shots, it does not compare them.
