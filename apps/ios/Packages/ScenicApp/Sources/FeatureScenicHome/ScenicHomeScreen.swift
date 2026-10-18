@@ -191,13 +191,13 @@ public struct ScenicHomeScreen: View {
     /// The right-edge column riding the credit and the sheet (T-0408): the gear, then Surprise. Both tonal circles,
     /// so the sheet's button stays the one filled control. The gear is here until T-0429 puts it in the Plan field.
     private var mapControls: some View {
-        VStack(spacing: 10) {
+        (sheetDetent == .medium ? AnyLayout(HStackLayout(spacing: 10)) : AnyLayout(VStackLayout(spacing: 10))) {
             settingsButton
             SurpriseToggle(isShowing: $isShowingSurprise, onToggle: { surpriseFailure = nil })
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.horizontal, 16)
-        .padding(.bottom, 8)
+        .padding(.top, 64).padding(.bottom, 8)
     }
 
     /// Settings (T-0271): a 44 pt tonal circle (`fg` on `surface`, a `border` hairline) at the top of the right-edge
