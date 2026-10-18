@@ -1,0 +1,452 @@
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	Text("About \(Self.duration(preview.durationSeconds)) behind the wheel, \(Self.miles(preview.distanceMeters)). You asked for \(minutes) min.")
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	if preview.etaIsEstimate {
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	Text(PlanPreview.estimateBadge)
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	.accessibilityIdentifier("loop.estimate")
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	etaRow
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	private var etaRow: some View {
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	estimateTag
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	estimateTag
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	let hero = Text(preview.etaHero).fontWeight(.semibold).foregroundStyle(DesignTokens.fg)
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	@ViewBuilder private var estimateTag: some View {
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	if preview.showsEstimateBadge {
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	Text(PlanPreview.estimateBadge)
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	.accessibilityIdentifier("plan.estimate")
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	etaSeconds: 3_300, fastestEtaSeconds: 2_100, etaIsEstimate: true,
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	durationSeconds: 3_480, distanceMeters: 52_000, retraceFraction: 0.04, etaIsEstimate: true,
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	isFull: true, etaSeconds: 9_000, fastestEtaSeconds: 6_600, etaIsEstimate: true,
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	Text("About \(Self.duration(itinerary.etaSeconds)) behind the wheel, \(Self.duration(max(0, itinerary.etaSeconds - itinerary.fastestEtaSeconds))) more than the fastest way")
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	if itinerary.etaIsEstimate {
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	Text(PlanPreview.estimateBadge)
+SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	.accessibilityIdentifier("trip.estimate")
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	let remainingSeconds: Double
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	let glanceLine: String
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text("Arrive \(context.date.addingTimeInterval(remainingSeconds), format: .dateTime.hour().minute())")
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text(glanceLine)
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text(PlanPreview.estimateBadge)
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	.accessibilityIdentifier("drive.estimate")
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	return PlanPreview(route: planned, etaSeconds: 1_500, fastestEtaSeconds: 1_200, etaIsEstimate: true,
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	RerouteReply(line: Self.line, waypoints: [], etaSeconds: 1_380, fastestEtaSeconds: 1_200, continued: true)
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	DriveCard(remainingSeconds: display.remainingSeconds, glanceLine: display.glanceLine,
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	showsEstimate: preview.showsEstimateBadge,
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	roundTrip(minutes: pick.reason.roundTripMinutes)
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTrip(minutes: Int) -> some View {
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	Text("\(Copy.roundTrip) from \(SurpriseOfflineReach.originName)")
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	roundTripValue(minutes: minutes)
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	estimateTag
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	roundTripValue(minutes: minutes)
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	estimateTag
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	.accessibilityIdentifier("surprise.roundTrip")
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTripValue(minutes: Int) -> some View {
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private var estimateTag: some View {
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	Text(Copy.estimate)
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	.accessibilityIdentifier("surprise.estimate")
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	roundTripMinutes: pick.reason.roundTripMinutes,
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	static let roundTrip = "Round trip"
+SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	static let estimate = "estimate · no traffic data"
+BLOCK	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	roundTrip(minutes: pick.reason.roundTripMinutes)
+ABOVE	.accessibilityIdentifier("surprise.hook")
+BODY	roundTrip(minutes: pick.reason.roundTripMinutes)
+BELOW	if let line = pick.reason.goldenHourLine {
+BLOCK	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTrip(minutes: Int) -> some View {
+ABOVE	}
+BODY	private func roundTrip(minutes: Int) -> some View {
+BODY	VStack(alignment: .leading, spacing: 2) {
+BODY	Label {
+BODY	Text("\(Copy.roundTrip) from \(SurpriseOfflineReach.originName)")
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.fixedSize(horizontal: false, vertical: true)
+BODY	} icon: {
+BODY	Image(systemName: "clock.arrow.circlepath")
+BODY	.foregroundStyle(DesignTokens.primary)
+BODY	}
+BODY	.font(.footnote)
+BODY	ViewThatFits(in: .horizontal) {
+BODY	HStack(alignment: .firstTextBaseline, spacing: 8) {
+BODY	roundTripValue(minutes: minutes)
+BODY	estimateTag
+BODY	}
+BODY	VStack(alignment: .leading, spacing: 4) {
+BODY	roundTripValue(minutes: minutes)
+BODY	estimateTag
+BODY	}
+BODY	}
+BODY	}
+BODY	.accessibilityElement(children: .combine)
+BODY	.accessibilityIdentifier("surprise.roundTrip")
+BODY	}
+BELOW	private func roundTripValue(minutes: Int) -> some View {
+BLOCK	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTripValue(minutes: Int) -> some View {
+ABOVE	}
+BODY	private func roundTripValue(minutes: Int) -> some View {
+BODY	Text("About \(minutes) min")
+BODY	.font(.headline)
+BODY	.foregroundStyle(DesignTokens.fg)
+BODY	.fixedSize(horizontal: false, vertical: true)
+BODY	}
+BELOW	private var estimateTag: some View {
+BLOCK	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private var estimateTag: some View {
+ABOVE	}
+BODY	private var estimateTag: some View {
+BODY	Text(Copy.estimate)
+BODY	.font(.caption2.weight(.semibold))
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.padding(.horizontal, 6)
+BODY	.padding(.vertical, 2)
+BODY	.overlay(Capsule().strokeBorder(DesignTokens.border, lineWidth: 1))
+BODY	.fixedSize(horizontal: false, vertical: true)
+BODY	.accessibilityIdentifier("surprise.estimate")
+BODY	}
+BELOW	private var empty: some View {
+BLOCK	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	static let estimate = "estimate · no traffic data"
+ABOVE	static let roundTrip = "Round trip"
+BODY	static let estimate = "estimate · no traffic data"
+BELOW	static let empty = "Nothing within reach right now."
+BLOCK	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	private var etaRow: some View {
+ABOVE	}
+BODY	private var etaRow: some View {
+BODY	ViewThatFits(in: .horizontal) {
+BODY	HStack(alignment: .firstTextBaseline, spacing: 8) {
+BODY	etaText
+BODY	estimateTag
+BODY	}
+BODY	VStack(alignment: .leading, spacing: 6) {
+BODY	etaText
+BODY	estimateTag
+BODY	}
+BODY	}
+BODY	}
+BELOW	private var etaText: Text {
+BLOCK	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	if preview.showsEstimateBadge {
+ABOVE	@ViewBuilder private var estimateTag: some View {
+BODY	if preview.showsEstimateBadge {
+BODY	Text(PlanPreview.estimateBadge)
+BODY	.font(.caption)
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.fixedSize(horizontal: false, vertical: true)
+BODY	.padding(.horizontal, 8)
+BODY	.padding(.vertical, 3)
+BODY	.background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+BODY	.fill(DesignTokens.fgMuted.opacity(0.14)))
+BODY	.accessibilityIdentifier("plan.estimate")
+BODY	}
+BELOW	}
+BLOCK	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	if preview.etaIsEstimate {
+ABOVE	.fixedSize(horizontal: false, vertical: true)
+BODY	if preview.etaIsEstimate {
+BODY	Text(PlanPreview.estimateBadge)
+BODY	.font(.caption)
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.accessibilityIdentifier("loop.estimate")
+BODY	}
+BELOW	Text(Self.retraceLine(preview.retraceFraction))
+BLOCK	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	if itinerary.etaIsEstimate {
+ABOVE	.fixedSize(horizontal: false, vertical: true)
+BODY	if itinerary.etaIsEstimate {
+BODY	Text(PlanPreview.estimateBadge)
+BODY	.font(.caption)
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.accessibilityIdentifier("trip.estimate")
+BODY	}
+BELOW	ForEach(Array(HazardCopy.lines(for: itinerary).enumerated()), id: \.offset) { _, line in
+BLOCK	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	if showsEstimate {
+ABOVE	.accessibilityIdentifier("drive.eta")
+BODY	if showsEstimate {
+BODY	Text(PlanPreview.estimateBadge)
+BODY	.font(.caption)
+BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.fixedSize(horizontal: false, vertical: true)
+BODY	.accessibilityIdentifier("drive.estimate")
+BODY	}
+BELOW	if let caption {
+DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	public enum DesignTokens {
+DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	public static let fg = dynamic(light: 0x0F172A, dark: 0xF8FAFC)
+DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	public static let fgMuted = dynamic(light: 0x64748B, dark: 0x94A3B8)
+DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	public static let primary = dynamic(light: 0xEA580C, dark: 0xFB923C)
+DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	public static let border = Color(uiColor: UIColor { traits in
+DLINE	traits.userInterfaceStyle == .dark
+DLINE	? UIColor(white: 1.0, alpha: 0.08)
+DLINE	: DesignTokens.srgb(0xFCEAE1)
+DLINE	})
+DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	private static func dynamic(light: UInt32, dark: UInt32) -> Color {
+DLINE	Color(uiColor: UIColor { traits in
+DLINE	traits.userInterfaceStyle == .dark ? srgb(dark) : srgb(light)
+DLINE	})
+DLINE	}
+DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	private static func srgb(_ hex: UInt32, alpha: CGFloat = 1) -> UIColor {
+DLINE	UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255.0,
+DLINE	green: CGFloat((hex >> 8) & 0xFF) / 255.0,
+DLINE	blue: CGFloat(hex & 0xFF) / 255.0,
+DLINE	alpha: alpha)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	let preview: LoopPreview
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	let minutes: Int
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopPreviewCard.swift	let minutes = Int((seconds / 60).rounded())
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/LoopScreen.swift	case .preview(let ticket, let preview):
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	let preview: PlanPreview
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	private var etaRow: some View {
+DLINE	ViewThatFits(in: .horizontal) {
+DLINE	HStack(alignment: .firstTextBaseline, spacing: 8) {
+DLINE	etaText
+DLINE	estimateTag
+DLINE	}
+DLINE	VStack(alignment: .leading, spacing: 6) {
+DLINE	etaText
+DLINE	estimateTag
+DLINE	}
+DLINE	}
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	private var etaText: Text {
+DLINE	let hero = Text(preview.etaHero).fontWeight(.semibold).foregroundStyle(DesignTokens.fg)
+DLINE	let distance = preview.distanceLabel.map { Text(" " + $0).foregroundStyle(DesignTokens.fgMuted) }
+DLINE	return (distance.map { hero + $0 } ?? hero).font(.title2)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	@ViewBuilder private var estimateTag: some View {
+DLINE	if preview.showsEstimateBadge {
+DLINE	Text(PlanPreview.estimateBadge)
+DLINE	.font(.caption)
+DLINE	.foregroundStyle(DesignTokens.fgMuted)
+DLINE	.fixedSize(horizontal: false, vertical: true)
+DLINE	.padding(.horizontal, 8)
+DLINE	.padding(.vertical, 3)
+DLINE	.background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+DLINE	.fill(DesignTokens.fgMuted.opacity(0.14)))
+DLINE	.accessibilityIdentifier("plan.estimate")
+DLINE	}
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift	let lines = HazardCopy.lines(for: preview)
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	static let preview = PlanPreview(
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	static let itinerary = TripItinerary(
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	case "preview": return plan(.preview(preview))
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	case "trip": return trip(.itinerary(itinerary))
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	var loop = LoopSheet(disclaimerAccepted: true, minutes: 60)
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	var trip = TripSheet(disclaimerAccepted: true, days: 2, extraBudgetPercent: 40)
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	private static func plan(_ outcome: PlanOutcome, budgetMinutes: Int = 30,
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	private static func loop(_ outcome: LoopOutcome, waitlist: WaitlistAnswer? = nil) -> PlanRehearsal? {
+DLINE	var loop = LoopSheet(disclaimerAccepted: true, minutes: 60)
+DLINE	loop.search("")
+DLINE	loop.choose(topanga)
+DLINE	guard let ticket = loop.startPlanning() else { return nil }
+DLINE	loop.finish(ticket, with: outcome)
+DLINE	return PlanRehearsal(tab: .loop, sheet: PlanSheet(disclaimerAccepted: false), loop: loop,
+DLINE	trip: TripSheet(disclaimerAccepted: false), savedRows: [], waitlist: waitlist)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	var loop = LoopSheet(disclaimerAccepted: true, minutes: 60)
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	private static func trip(_ outcome: TripOutcome, waitlist: WaitlistAnswer? = nil) -> PlanRehearsal? {
+DLINE	var trip = TripSheet(disclaimerAccepted: true, days: 2, extraBudgetPercent: 40)
+DLINE	trip.search("", for: .start)
+DLINE	trip.choose(griffith)
+DLINE	trip.search("", for: .destination)
+DLINE	trip.choose(leoCarrillo)
+DLINE	guard let ticket = trip.startPlanning() else { return nil }
+DLINE	trip.finish(ticket, with: outcome)
+DLINE	return PlanRehearsal(tab: .trip, sheet: PlanSheet(disclaimerAccepted: false),
+DLINE	loop: LoopSheet(disclaimerAccepted: false), trip: trip, savedRows: [], waitlist: waitlist)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	var trip = TripSheet(disclaimerAccepted: true, days: 2, extraBudgetPercent: 40)
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	private let onClose: () -> Void
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	private let onDrive: (PlanPreview) -> Void
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	private let previewMap: @MainActor (PlanPreview) -> AnyView
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	case .preview(let ticket, let preview):
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	let draft = SavedDraft.of(preview, budgetMinutes: budgetMinutes, name: name,
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/RoadTripScreen.swift	case .itinerary(_, let itinerary):
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	let itinerary: TripItinerary
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	let minutes = Int((seconds / 60).rounded())
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	let showsEstimate: Bool
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	let caption: String?
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	if let caption {
+DLINE	Text(caption)
+DLINE	.font(.subheadline)
+DLINE	.fontWeight(.semibold)
+DLINE	.foregroundStyle(DesignTokens.fg)
+DLINE	.fixedSize(horizontal: false, vertical: true)
+DLINE	.accessibilityIdentifier("drive.caption")
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveDetails.swift	let caption: String
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	@State private var style = MapStyle.maplibreDemoTiles
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	private let preview: PlanPreview
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/GatedHandoffButton.swift	private enum Copy {
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/PlanPreviewMap.swift	@State private var style = MapStyle.maplibreDemoTiles
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/PlanPreviewMap.swift	private let preview: PlanPreview
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/SafetyDisclaimer.swift	private enum Copy {
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift	@State private var style = MapStyle.maplibreDemoTiles
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift	private enum Copy {
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/VehicleChoice.swift	if let reason = profile.disabledReason {
+DLINE	Text(reason)
+DLINE	.font(.footnote)
+DLINE	.foregroundStyle(DesignTokens.fgMuted)
+DLINE	.fixedSize(horizontal: false, vertical: true)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	@State private var state = SurpriseCardHistory()
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	@State private var ledgerPlaces: [SurpriseLedgerPlace]?
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	@Environment(\.surpriseLedger) private var ledger
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	@State private var now = Date()
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	if let deck = SurpriseDeck.bundled, let pick = deck.pick(history: merged(deck), at: now),
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func merged(_ deck: SurpriseDeck) -> SurpriseHistory {
+DLINE	SurpriseHistoryMerge.merged(device: state.basis, ledger: ledgerPlaces, candidates: deck.candidates)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	let today = SurpriseDeck.context(at: now).date
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTrip(minutes: Int) -> some View {
+DLINE	VStack(alignment: .leading, spacing: 2) {
+DLINE	Label {
+DLINE	Text("\(Copy.roundTrip) from \(SurpriseOfflineReach.originName)")
+DLINE	.foregroundStyle(DesignTokens.fgMuted)
+DLINE	.fixedSize(horizontal: false, vertical: true)
+DLINE	} icon: {
+DLINE	Image(systemName: "clock.arrow.circlepath")
+DLINE	.foregroundStyle(DesignTokens.primary)
+DLINE	}
+DLINE	.font(.footnote)
+DLINE	ViewThatFits(in: .horizontal) {
+DLINE	HStack(alignment: .firstTextBaseline, spacing: 8) {
+DLINE	roundTripValue(minutes: minutes)
+DLINE	estimateTag
+DLINE	}
+DLINE	VStack(alignment: .leading, spacing: 4) {
+DLINE	roundTripValue(minutes: minutes)
+DLINE	estimateTag
+DLINE	}
+DLINE	}
+DLINE	}
+DLINE	.accessibilityElement(children: .combine)
+DLINE	.accessibilityIdentifier("surprise.roundTrip")
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTripValue(minutes: Int) -> some View {
+DLINE	Text("About \(minutes) min")
+DLINE	.font(.headline)
+DLINE	.foregroundStyle(DesignTokens.fg)
+DLINE	.fixedSize(horizontal: false, vertical: true)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private var estimateTag: some View {
+DLINE	Text(Copy.estimate)
+DLINE	.font(.caption2.weight(.semibold))
+DLINE	.foregroundStyle(DesignTokens.fgMuted)
+DLINE	.padding(.horizontal, 6)
+DLINE	.padding(.vertical, 2)
+DLINE	.overlay(Capsule().strokeBorder(DesignTokens.border, lineWidth: 1))
+DLINE	.fixedSize(horizontal: false, vertical: true)
+DLINE	.accessibilityIdentifier("surprise.estimate")
+DLINE	}
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private enum Copy {
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	static let roundTrip = "Round trip"
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	static let estimate = "estimate · no traffic data"
+DECL	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseDeck.swift	func pick(history: SurpriseHistory, at now: Date) -> SurprisePick? {
+DLINE	Surprise.pick(candidates: candidates, reach: reach, history: history, context: Self.context(at: now), seed: 0)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift	public static let lineWidth = 6.0
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	private var route: MapRoute?
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	private var paintedStyle: UIUserInterfaceStyle?
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	if let style = mapView.style {
+DLINE	install(on: style, in: mapView)
+DLINE	}
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	let padding = UIEdgeInsets(top: covered.top + Self.margin,
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	private func install(on style: MLNStyle, in mapView: MLNMapView) {
+DLINE	let shape = route.flatMap { try? MLNShape(data: $0.geoJSON, encoding: String.Encoding.utf8.rawValue) }
+DLINE	let source: MLNShapeSource
+DLINE	if let existing = style.source(withIdentifier: Self.sourceIdentifier) as? MLNShapeSource {
+DLINE	existing.shape = shape
+DLINE	source = existing
+DLINE	} else {
+DLINE	source = MLNShapeSource(identifier: Self.sourceIdentifier, shape: shape, options: nil)
+DLINE	style.addSource(source)
+DLINE	}
+DLINE	
+DLINE	let casing: MLNLineStyleLayer
+DLINE	if let existing = style.layer(withIdentifier: Self.casingIdentifier) as? MLNLineStyleLayer {
+DLINE	casing = existing
+DLINE	} else {
+DLINE	casing = MLNLineStyleLayer(identifier: Self.casingIdentifier, source: source)
+DLINE	if let labels = style.layers.first(where: { $0 is MLNSymbolStyleLayer }) {
+DLINE	style.insertLayer(casing, below: labels)
+DLINE	} else {
+DLINE	style.addLayer(casing)
+DLINE	}
+DLINE	}
+DLINE	let line: MLNLineStyleLayer
+DLINE	if let existing = style.layer(withIdentifier: Self.lineIdentifier) as? MLNLineStyleLayer {
+DLINE	line = existing
+DLINE	} else {
+DLINE	line = MLNLineStyleLayer(identifier: Self.lineIdentifier, source: source)
+DLINE	style.insertLayer(line, above: casing)
+DLINE	}
+DLINE	
+DLINE	let muted = installMuted(on: style, below: casing)
+DLINE	
+DLINE	let traits = mapView.traitCollection
+DLINE	let lineColor = UIColor(route?.lineColor ?? .clear).resolvedColor(with: traits)
+DLINE	let casingColor = UIColor(route?.casingColor ?? .clear).resolvedColor(with: traits)
+DLINE	let mutedColor = UIColor(route?.mutedColor ?? .clear).resolvedColor(with: traits)
+DLINE	for (layer, color, width) in [(muted, mutedColor, MapRoute.lineWidth),
+DLINE	(casing, casingColor, MapRoute.lineWidth + 2 * MapRoute.casingWidth),
+DLINE	(line, lineColor, MapRoute.lineWidth)] {
+DLINE	layer.lineColor = NSExpression(forConstantValue: color)
+DLINE	layer.lineWidth = NSExpression(forConstantValue: width)
+DLINE	layer.lineJoin = NSExpression(forConstantValue: "round")
+DLINE	layer.lineCap = NSExpression(forConstantValue: "round")
+DLINE	}
+DLINE	paintedStyle = traits.userInterfaceStyle
+DLINE	}
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	let muted = installMuted(on: style, below: casing)
+DECL	Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift	private func installMuted(on style: MLNStyle, below casing: MLNLineStyleLayer) -> MLNLineStyleLayer {
+DLINE	let shape = route?.mutedGeoJSON.flatMap { try? MLNShape(data: $0, encoding: String.Encoding.utf8.rawValue) }
+DLINE	let source: MLNShapeSource
+DLINE	if let existing = style.source(withIdentifier: Self.mutedSourceIdentifier) as? MLNShapeSource {
+DLINE	existing.shape = shape
+DLINE	source = existing
+DLINE	} else {
+DLINE	source = MLNShapeSource(identifier: Self.mutedSourceIdentifier, shape: shape, options: nil)
+DLINE	style.addSource(source)
+DLINE	}
+DLINE	if let existing = style.layer(withIdentifier: Self.mutedIdentifier) as? MLNLineStyleLayer {
+DLINE	return existing
+DLINE	}
+DLINE	let layer = MLNLineStyleLayer(identifier: Self.mutedIdentifier, source: source)
+DLINE	style.insertLayer(layer, below: casing)
+DLINE	return layer
+DLINE	}
+DECL	Packages/ScenicApp/Sources/NavAdapter/DriveNavigator.swift	private var reroutes: [Int: Task<Void, Never>] = [:]
+DECL	Packages/ScenicApp/Sources/NavAdapter/DriveNavigator.swift	guard let session = DriveSession(preview: preview, online: true) else { return nil }
+DECL	Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	case let .surpriseDeclined(reason):
+DECL	Packages/ScenicApp/Sources/PlanAdapter/LiveMoments.swift	let wire = Self.wire(reason)
+DECL	ScenicDrive/ScenicDriveApp.swift	@State private var isShowingSettings = LaunchScreen.atLaunch != .home
+DECL	ScenicDrive/ScenicDriveApp.swift	@State private var isPlanning = PlanRehearsal.opensSheet
+DECL	ScenicDrive/ScenicDriveApp.swift	@State private var corpus: LiveCorpus
+DECL	ScenicDrive/ScenicDriveApp.swift	@State private var isShowingCorpusDownload: Bool
+DECL	ScenicDrive/ScenicDriveApp.swift	@State private var drive = DriveRehearsal.atLaunch
+DECL	ScenicDrive/ScenicDriveApp.swift	@State private var surpriseGate = LivePlanner.surpriseGate()
+DECL	ScenicDrive/ScenicDriveApp.swift	@State private var nextOpen = PostDriveOpenModel(fix: LiveOpenFix(), answers: LivePostDriveAnswers())
+DECL	ScenicDrive/ScenicDriveApp.swift	@Environment(\.scenePhase) private var scenePhase
+DECL	ScenicDrive/ScenicDriveApp.swift	let corpus = LiveCorpus.launch(wifiOnlyKey: SettingsScreen.corpusWifiOnlyKey)
+DECL	ScenicDrive/ScenicDriveApp.swift	if let drive, let host = DriveHost(preview: drive, sender: DriveRehearsal.rerouter ?? LivePlanner.rerouter(for: drive), content: { display in DriveScreen(preview: drive, display: display, onEnd: { self.drive = nil }) }) {
+DLINE	host.environment(\.postDriveAnswers, LivePostDriveAnswers())
+DLINE	.environment(\.driveMoments, LiveMoments())
+DLINE	} else {
+DLINE	home
+DLINE	}
+DECL	ScenicDrive/ScenicDriveApp.swift	private var home: some View {
+DLINE	GeometryReader { proxy in
+DLINE	ScenicHomeScreen(onSettings: { isShowingSettings = true }, surpriseGate: surpriseGate, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })
+DLINE	.frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+DLINE	}
+DLINE	.sheet(isPresented: $isShowingSettings) {
+DLINE	SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, deleteAccount: { await LiveAccountDeletion.run() }, onDone: { isShowingSettings = false })
+DLINE	}
+DLINE	.safeAreaInset(edge: .top, alignment: .leading, spacing: 0) {
+DLINE	PlanDriveButton(action: { isPlanning = true })
+DLINE	.dynamicTypeSize(...HomeTypeSize.cap)
+DLINE	.sheet(isPresented: $isPlanning, onDismiss: { surpriseGate = LivePlanner.surpriseGate() }) {
+DLINE	PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, surpriseGate: { LivePlanner.surpriseGate() }, onDrive: { isPlanning = false; drive = $0 }, previewMap: { AnyView(PlanPreviewMap(preview: $0)) }, onClose: { isPlanning = false })
+DLINE	}
+DLINE	}
+DLINE	.sheet(isPresented: $isShowingCorpusDownload) {
+DLINE	CorpusDownloadSheet(status: corpus.statusText, fraction: corpus.fraction, isWorking: corpus.isWorking,
+DLINE	onDownload: { corpus.start() }, onLater: { isShowingCorpusDownload = false })
+DLINE	}
+DLINE	.environment(\.surpriseLedger, LiveSurpriseLedger.make())
+DLINE	.environment(\.surpriseMoments, LiveMoments())
+DLINE	.environment(\.homeMoments, nextOpen.marking(LiveMoments()))
+DLINE	.environment(nextOpen)
+DLINE	.onChange(of: scenePhase, initial: true) { if $1 == .active { nextOpen.opened() } }
+DLINE	.environment(\.planMoments, LiveMoments())
+DLINE	.environment(\.paywallShown, { LiveMoments.paywallShown() })
+DLINE	.environment(\.paywallConverted, { LiveMoments.paywallConverted() })
+DLINE	}
