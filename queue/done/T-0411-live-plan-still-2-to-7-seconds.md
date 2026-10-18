@@ -1,7 +1,7 @@
 ---
 id: T-0411
 title: Live /plan still takes 1.8-7 s after T-0403 (failure paths 4-7 s) against the plan's p95 1.5 s - measure the remaining time per stage and cut it
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-18T17:23:19Z
@@ -11,7 +11,7 @@ branch: task/T-0411
 exclusive: []
 touches: [services/api/src/, services/api/test/, services/api/test/mutate/, ops/lib/, queue/]
 pins_affected: [P-COST-04, P-SAFE-04]
-reviewer: null
+reviewer: agent/rv1-t-0411
 depends_on: [T-0409]
 verify: [ops/test]
 acceptance: []
@@ -97,3 +97,11 @@ Answer equality must stay byte-exact on the recorded fixtures (T-0403's oracle).
   4. `npx vitest run` -> "Test Files  104 passed (104) / Tests  2774 passed (2774)". `npx tsc --noEmit` -> exit 1, "error TS2688: Cannot find type definition file for '@cloudflare/workers-types/2023-07-01'". Ruled pre-existing and not this PR: tsconfig.json and package.json are unchanged against origin/main (`git diff origin/main --stat` empty); the locked 5.20260907.1 package ships no 2023-07-01 entry, and that pin dates from T-0005. Overriding --types gives 202 errors, none in lambdaSearch.ts or planMutants.mjs. Not green; not caused here; not fixed here.
   5. `bash ops/check-pins --source-only` - started on 1f7b591e and still running after 35 min (it was in check-line-cap / check-safety-disclaimer); NOT quoted, still owed.
   6. `bash ops/queue-check` -> "QUEUE OK (405 tasks)".
+- 2026-10-18T22:10Z agent/rv1-t-0411: REVIEW PASS (PR #304 at 8b1becaf; reviewer is not the owner). Detached worktree at origin/task/T-0411 after `git fetch origin` in the main checkout.
+  1. `npx vitest run` (services/api) -> "Test Files  104 passed (104) / Tests  2774 passed (2774)".
+  2. Measurement reproduced: src/lambdaSearch.ts + src/scenicPlanner.ts checked out from origin/main, `npx vitest run test/planStages.test.ts` -> "Tests  6 failed | 4 passed (10)"; every failure differs ONLY in rounds (4 vs 5, 4 vs 5, 5 vs 6, 4 vs 5, 5 vs 6, 1 vs 2) with sha256/length equal to GOLDEN, so GOLDEN is main's bytes and the BEFORE/AFTER rounds in this Log hold. Restored, 10/10 green.
+  3. Reviewer mutant A (bisection tie: `if (a.value <= ceiling) lo = pending` -> `<`), full vitest: CAUGHT, 3 failed (lambdaSearch "a midpoint exactly at the ceiling moves the bracket up", planCeiling "exactly at the ceiling is returned", planSchedule "exactly at the ceiling ... sha256").
+  4. Reviewer mutant B (guess past the cap: `nextMidpoint(pending, hi, steps + 1, cap)` -> `steps`), full vitest: CAUGHT, lambdaSearch 400-row oracle and the exact 4,6,0,7,7.5,7.75 schedule failed (routes.test.ts /__ro also failed under load; re-run alone on the clean head: 8 passed - a load flake, not this PR).
+  5. Cost/ceiling read: worst case 1 fastest + 6 search + 2 guesses + 1 closure re-request + 1 offer = 11 <= PLAN_UPSTREAM_COST 12, and both later requests stay gated on `used + 1 <= PLAN_UPSTREAM_COST`; guesses are never recorded, so the chosen lambda and P-SAFE-04 ceiling check are unchanged; `finally` awaits every run.
+  6. `gh pr checks 304` at 8b1becaf: core pass, pins-source-only pass. Local `ops/check-pins` (full and --source-only) hung with no output in `ops/lib/pins.py Q` on this loaded box (killed after 40 min / timed out at 580 s) - environment, not quoted as green; CI pins-source-only at the same head is the gate.
+  7. `bash ops/queue-check` -> "QUEUE OK (405 tasks)". Ancestry: origin/main 279152bb is an ancestor of 8b1becaf.
