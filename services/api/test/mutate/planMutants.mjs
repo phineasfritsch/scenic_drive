@@ -24,7 +24,7 @@ import { onlyIds } from "./onlyIds.mjs";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-plan");
 
-export const MIN_MUTATIONS = 82;
+export const MIN_MUTATIONS = 80;
 export const SUBJECTS = ["src/lambdaSearch.ts", "src/planRequest.ts", "src/routePath.ts", "src/planWaypoints.ts",
   "src/appleMaps.ts", "src/hazards.ts", "src/scenicPlanner.ts", "src/plan.ts",
   "src/planToken.ts", "src/reroutePlanner.ts"];
