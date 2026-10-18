@@ -3,7 +3,8 @@ import ScenicKit
 import SwiftUI
 
 /// The Surprise card (T-0273): one place within reach of the bundled corpus, why to go, an ESTIMATED round trip,
-/// the golden-hour line when there is one, Open in Apple Maps and four ways to say "not this".
+/// the golden-hour line when there is one, Open in Apple Maps and four ways to say "not this". T-0398: the hand-off
+/// is the card's one filled primary and carries the external-link glyph; the four reasons are tonal secondaries.
 ///
 /// It never opens a URL. `onOpenInMaps` is the home's gated opener, handed in by the shell: the safety disclaimer
 /// stands between this button and Apple Maps exactly as it does for the home's own button (P-SAFE-03).
@@ -85,7 +86,7 @@ public struct SurpriseCard: View {
                 Image(systemName: Self.symbol(placeClass))
                     .foregroundStyle(DesignTokens.primary)
             }
-            .font(.caption.weight(.semibold))
+            .font(.footnote.weight(.semibold))
             .accessibilityIdentifier("surprise.class")
 
             Text(pick.name)
@@ -96,7 +97,7 @@ public struct SurpriseCard: View {
                 .accessibilityIdentifier("surprise.name")
 
             Text(pick.reason.hook)
-                .font(.subheadline)
+                .font(.body)
                 .foregroundStyle(DesignTokens.fg)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("surprise.hook")
@@ -107,11 +108,12 @@ public struct SurpriseCard: View {
                 Label {
                     Text(line)
                         .foregroundStyle(DesignTokens.fg)
+                        .fixedSize(horizontal: false, vertical: true)
                 } icon: {
                     Image(systemName: "sun.horizon")
                         .foregroundStyle(DesignTokens.primary)
                 }
-                .font(.footnote)
+                .font(.subheadline)
                 .accessibilityIdentifier("surprise.goldenHour")
             }
 
@@ -125,16 +127,23 @@ public struct SurpriseCard: View {
             Button {
                 onOpenInMaps(candidate.coordinate)
             } label: {
-                Text(Copy.openInAppleMaps)
-                    .font(.headline)
-                    .foregroundStyle(DesignTokens.onPrimary)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(DesignTokens.primary)
-                    )
+                HStack(spacing: 8) {
+                    Text(Copy.openInAppleMaps)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Image(systemName: "arrow.up.right")
+                        .accessibilityHidden(true)
+                }
+                .font(.headline)
+                .foregroundStyle(DesignTokens.onPrimary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, minHeight: 50)
+                .background(Capsule(style: .continuous).fill(DesignTokens.primary))
+                .contentShape(Capsule(style: .continuous))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(Copy.openInAppleMaps)
             .accessibilityIdentifier("surprise.openInAppleMaps")
 
             SurpriseNotThis { reason in
@@ -143,25 +152,50 @@ public struct SurpriseCard: View {
         }
     }
 
+    /// T-0398: the round trip as a stat - its label names the origin it returns to, the value carries the estimate
+    /// tag beside it, or under it when the two do not fit on one line (AX sizes).
     private func roundTrip(minutes: Int) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Image(systemName: "clock.arrow.circlepath")
-                .foregroundStyle(DesignTokens.primary)
-                .accessibilityHidden(true)
-            Text("About \(minutes) min round trip from \(SurpriseOfflineReach.originName)")
-                .foregroundStyle(DesignTokens.fg)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("surprise.roundTrip")
-            Text(Copy.estimate)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(DesignTokens.fgMuted)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .overlay(Capsule().strokeBorder(DesignTokens.border, lineWidth: 1))
-                .fixedSize()
-                .accessibilityIdentifier("surprise.estimate")
+        VStack(alignment: .leading, spacing: 2) {
+            Label {
+                Text("\(Copy.roundTrip) from \(SurpriseOfflineReach.originName)")
+                    .foregroundStyle(DesignTokens.fgMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "clock.arrow.circlepath")
+                    .foregroundStyle(DesignTokens.primary)
+            }
+            .font(.footnote)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    roundTripValue(minutes: minutes)
+                    estimateTag
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    roundTripValue(minutes: minutes)
+                    estimateTag
+                }
+            }
         }
-        .font(.subheadline)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("surprise.roundTrip")
+    }
+
+    private func roundTripValue(minutes: Int) -> some View {
+        Text("About \(minutes) min")
+            .font(.headline)
+            .foregroundStyle(DesignTokens.fg)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var estimateTag: some View {
+        Text(Copy.estimate)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(DesignTokens.fgMuted)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .overlay(Capsule().strokeBorder(DesignTokens.border, lineWidth: 1))
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("surprise.estimate")
     }
 
     private var empty: some View {
@@ -209,6 +243,7 @@ public struct SurpriseCard: View {
 
     private enum Copy {
         static let openInAppleMaps = "Open in Apple Maps"
+        static let roundTrip = "Round trip"
         static let estimate = "estimate · no traffic data"
         static let empty = "Nothing within reach right now."
         static let startOver = "Start over"
