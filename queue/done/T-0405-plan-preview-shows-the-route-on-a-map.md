@@ -1,7 +1,7 @@
 ---
 id: T-0405
 title: The plan preview shows the chosen route on a map above the sheet (reference library, Biggest changes 1) instead of a full-height sheet with an empty lower half
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T19:53:44Z
@@ -11,7 +11,7 @@ branch: task/T-0405
 exclusive: []
 touches: [apps/ios/ScenicDrive/ScenicDriveApp.swift, apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/ScenicKit/, Tests/, ops/lib/, ops/mutate/, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-ATTR-01, P-SAFE-03, P-SAFE-07, P-A11Y-01]
-reviewer: null
+reviewer: agent/rv2-t0405
 depends_on: [T-0396]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -267,6 +267,32 @@ disclaimer. Any new or changed guard is shown red, then green.
       `bash ops/lib/check-exec-bits` exit=0: P-OPS-01: 259 files, 23 required present, all modes correct
       `bash ops/queue-check` exit=0: QUEUE OK (398 tasks)
   check-pins --source-only not re-run locally (timed out at 40 min twice on this box); CI pins-source-only confirms.
+- 2026-10-18T05:46:07Z REVIEW PASS (round 2), agent/rv2-t0405 (not the owner), PR #298 at ef599caa (detached
+  worktree .worktrees/rv2-t0405, removed after). Mutants run as --app-tree copies under .build/rv2mut:
+  - rv1 B1 verbatim (shadow `case .preview(let shadowTicket, let shadowPreview):` handing PlanPreviewCard
+    `map: AnyView(EmptyView())`, inserted above the frozen arm): `check-map-attribution --app-tree` exit=1, RED BY
+    NAME: "P-ATTR-01: the plan preview's map is not wired and drawn as approved (f4):" / "PlanSheetScreen's
+    planContent (the whole switch, every arm) line 12 of 30 ... found `case .preview(let shadowTicket, ...`" /
+    "15 line(s) name previewMap / PlanPreviewMap / PlanPreviewCard / planContent, pass `map:` ..., 14 approved".
+  - own wiring mutant M2: PlanPreviewCard reached with no map - the card's frozen body wrapped in `/* */` (opened
+    at the end of the unfrozen `typeSize` line, closed at the start of the unfrozen titleRow line) and a twin
+    `var body: some View{` that draws titleRow/etaRow/why/hazards without `map`. f4 printed its green line
+    ("14 approved line(s)"); the ONLY refusal in both check-map-attribution and check-safety-disclaimer
+    (--sources/--app-tree) was the -pinned sha256 row of PlanPreviewCard.swift, which a re-approved digest passes.
+    RULED RECORDABLE, not blocking for this PR: it is the shared frozen readers' `/* */` gap that
+    ops/lib/check-safety-disclaimer-preview's header already lists under WHAT IT CANNOT SEE, it exists identically
+    on main for every frozen_block (P-SAFE-03's conditions line included), and this PR neither adds nor widens it.
+    To be filed as its own task: fence `/*` and `*/` in every frozen file the way frozen_directives fences `#`.
+  Gates, bare, in parallel on ef599caa, all exit=0: check-map-attribution; check-safety-disclaimer;
+  check-file-scope.py "FILE-SCOPE ok  60 file(s) in 4 module(s), 1002 approved line(s)"; check-mutate-population
+  "P-PROC-06: ... the floor of 173 holds"; check-mutate-only "NAME-PAIRS OK: 242318 pair tokens"; check-pins-yaml
+  "PINS-YAML ok pins=53 fields=426"; check-exec-bits "P-OPS-01: 259 files, 23 required present, all modes correct";
+  queue-check "QUEUE OK (398 tasks)". `gh pr checks 298`: core pass (14m40s), pins-source-only pass (6m32s).
+  Screenshots: ios-screenshot 39088645348 (head e653c349; `git diff e653c349 ef599caa -- apps/` is empty) LOOKED AT:
+  plan-preview light/dark/ax5 show the route on the map above the card, the composed credit on the map's bottom
+  edge, the estimate tag on the ETA, Start with "Conditions change. Verify locally." under it (light/dark); at ax5
+  the map is shorter and the text scrolls below it. `git merge-base --is-ancestor origin/main origin/task/T-0405`
+  exit=0 (origin/main ab36b2bb). Signed off: queue/claimed/ -> queue/done/.
 
 ## Acceptance
 1. `bash ops/lib/check-map-attribution` exits 0 and prints an (f3) line naming PlanPreviewMap.swift.
