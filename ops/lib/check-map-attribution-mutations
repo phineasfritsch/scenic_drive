@@ -172,7 +172,11 @@ rows=(
 # first modifier or view-call line of its file - so a view added to the frozen list is proven refused by the same act.
 while IFS=' ' read -r tag gtype gfile; do
   [[ "$tag" == "@@" ]] || continue
-  rows+=("G-$gtype padded 3000 inside the frozen view|$FS/$gfile|0,/^\( *\)\(\.[a-z][A-Za-z]*(.*\|[A-Z][A-Za-z]*(.*)\)\$/s//&\n\1.padding(.bottom, 3000)/|a frozen render block changed")
+  # The first modifier line; a view with none (PostDriveOpenSlot) gets it after its first view call. No `|` in
+  # the script: it is the row's field separator.
+  gline='\.[a-z][A-Za-z]*(.*'
+  grep -q '^ *\.[a-z][A-Za-z]*(' "$APP_TREE/$FS/$gfile" 2>/dev/null || gline='[A-Z][A-Za-z]*(.*)'
+  rows+=("G-$gtype padded 3000 inside the frozen view|$FS/$gfile|0,/^\( *\)$gline\$/s//&\n\1.padding(.bottom, 3000)/|a frozen render block changed")
 done < <(tr -d '\r' < ops/lib/check-safety-disclaimer-frozen-views.txt)
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies

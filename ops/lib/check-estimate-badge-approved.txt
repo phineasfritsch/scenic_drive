@@ -332,6 +332,7 @@ DLINE	.accessibilityHidden(true)
 DLINE	}
 DLINE	.padding(.vertical, 8)
 DLINE	.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+DLINE	.fixedSize(horizontal: false, vertical: true)
 DLINE	.contentShape(Rectangle())
 DLINE	}
 DLINE	.buttonStyle(.plain)

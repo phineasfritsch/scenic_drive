@@ -86,6 +86,7 @@ struct DriveMenuChips: View {
             }
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
