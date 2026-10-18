@@ -1,7 +1,7 @@
 ---
 id: T-0397
 title: Drive screen follows the reference library - maneuver banner, bottom card with arrival, minutes, distance and the estimate caption, a short red End with a Keep-driving confirm, and the missing disclaimer line above the card
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-17T15:13:47Z
@@ -11,7 +11,7 @@ branch: task/T-0397
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/ScenicKit/, Tests/, ops/lib/, ops/mutate/drive_mutations.py, ops/mutate/filescope.py, .github/workflows/ios-screenshot.yml, pins/PINS.yaml, queue/]
 pins_affected: [P-SAFE-03, P-SAFE-06, P-SAFE-07, P-A11Y-01]
-reviewer: null
+reviewer: agent/rv3-t-0397
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -346,3 +346,25 @@ and drive-dark and state, item by item, what each shot shows. Any new or changed
     added module is covered or allowlisted; the floor of 173 holds"; [0] queue-check "QUEUE OK (398 tasks)";
     [0] check-exec-bits "P-OPS-01: 259 files, 23 required present, all modes correct". ios-compile run 39099914205
     on deaba12b: completed success. This commit changes no Swift file, so that run still covers the Swift tree.
+- 2026-10-18T06:11:30Z agent/rv3-t-0397 (reviewer, round 3): PASS on 8d89a892. Detached worktree at
+  origin/task/T-0397; driver .build/rv3/mut.py restored every file byte-equal by sha256.
+  - rv2 N1/N2 RED by name. N1 in DriveCard.swift (DesignTokens shadow with Color.clear above `import SwiftUI`):
+    check-file-scope.py [1] "line 3 '0|fileprivate enum DesignTokens {' is not the approved '0|import SwiftUI'".
+    N1 in DriveEndConfirm.swift: [1], same message. N2 in DriveScreen.swift (PostDriveQuestion.asks -> true
+    above the import): [1] "line 5 '0|fileprivate enum PostDriveQuestion {'"; check-drive-display.py also [1].
+  - Own mutants on the shipped view, check-file-scope.py [0] on each (out of its class), check-drive-display.py:
+    O1 `.opacity(0)` on the drive.estimate Text inside DriveCard's frozen block: [1] "DriveCard's struct line 55
+    of 90 ... approved `.fixedSize(horizontal: false, vertical: true)`, found `.opacity(0)`". O4 `.hidden()` after
+    drive.conditions: [1] "line 19 of 90 ... found `.hidden()`". O2 `showsEstimate: false,` in DriveScreen: [1]
+    "unapproved: ... DriveScreen.swift: showsEstimate: false,". O3 `} else if confirming {` (confirm while
+    moving): [1] "(21 found, 22 approved)". check-safety-disclaimer [1] on all seven (digest).
+  - Gates on the clean tree, run bare in parallel: [0] check-safety-disclaimer; [0] check-map-attribution;
+    [0] check-file-scope "FILE-SCOPE ok  61 file(s) in 4 module(s), 1017 approved line(s)"; [0]
+    check-drive-display "3 structs (243 kept lines) are their approved whole blocks"; [0] check-mutate-population
+    "the floor of 173 holds"; [0] check-mutate-only "248 of 248 driver runs refused with exit 64"; [0]
+    check-pins-yaml "PINS-YAML ok pins=53 fields=426"; [0] check-exec-bits "259 files, 23 required present";
+    [0] queue-check "QUEUE OK (398 tasks)".
+  - CI on 8d89a892: core pass, pins-source-only pass (linux-core success); ios-compile success on deaba12b, and
+    8d89a892 changes only ops/mutate/filescope.py and this file.
+  - `git merge-base --is-ancestor origin/main origin/task/T-0397` [1]: main moved to b9b7b33f, which only files
+    queue/backlog/T-0407 (one file, 54 insertions). Queue-only drift; accepted.
