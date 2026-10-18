@@ -58,7 +58,7 @@ export const MUTATIONS = [
   m("alongside-unusable-walks", "lambdaSearch.ts", "if (!a.ok || !usable(a.value)) {", "if (!a.ok) {"),
   m("alongside-no-drain", "lambdaSearch.ts", "await Promise.all(runs.values());", "void runs;"),
   m("alongside-launch-after-fastest-fails", "lambdaSearch.ts", "box.fastest?.ok !== false && budgetOk", "budgetOk"),
-  m("alongside-bad-budget-launches", "lambdaSearch.ts", "budgetOk ? nextMidpoint(0, MAX_LAMBDA, 0, cap) : null", "nextMidpoint(0, MAX_LAMBDA, 0, cap)"),
+  m("alongside-bad-budget-launches", "lambdaSearch.ts", "box.fastest?.ok !== false && budgetOk) {", "box.fastest?.ok !== false) {"),
   m("planner-back-roads-resent", "scenicPlanner.ts", "const held = allBackRoads ? measured.get(formatMultiplier(MAX_LAMBDA)) ?? null : null;", "const held = null as RoutePath | null;"),
   m("request-four-dp", "planRequest.ts", "ORIGIN_DECIMALS = 2;", "ORIGIN_DECIMALS = 4;"),
   m("request-any-key", "planRequest.ts", "if (!allowed.includes(key))", "if (!allowed.includes(key) && false)"),

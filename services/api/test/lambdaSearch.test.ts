@@ -242,6 +242,22 @@ describe("searchLambdaAlongside - searchLambda's samples two in flight (T-0403 a
     }
   });
 
+  it("T-0411: a failing fastest stops every launch after the first midpoint; a budget that is not a duration launches none", async () => {
+    const failing: number[] = [];
+    const refusedFast = await whole(() => searchLambdaAlongside(Promise.reject(FASTEST_REFUSED), 600, async (l) => {
+      failing.push(l);
+      await new Promise((done) => setTimeout(done, 0));
+      return 1000 + l * 10;
+    }));
+    const badBudget: number[] = [];
+    const notABudget = await whole(() => searchLambdaAlongside(Promise.resolve(1000), -1, async (l) => {
+      badBudget.push(l);
+      return 1000 + l * 10;
+    }));
+    expect({ failing, refusedFast, badBudget, notABudget: (notABudget as { reason?: string }).reason })
+      .toEqual({ failing: [4], refusedFast: { rejected: FASTEST_REFUSED }, badBudget: [], notABudget: "not_a_budget" });
+  });
+
   it("T-0411: at most 2 guesses - every midpoint overshoots under a cap of 10, so every guess is wrong", async () => {
     const seqVisited: number[] = [];
     const seq = await searchLambda(1000, 600, async (l) => {

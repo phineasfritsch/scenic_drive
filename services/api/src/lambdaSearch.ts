@@ -187,7 +187,7 @@ export async function searchLambdaAlongside(fastest: Promise<number>, budget: nu
   let lo = 0;
   let hi = MAX_LAMBDA;
   let steps = 0;
-  let pending = budgetOk ? nextMidpoint(0, MAX_LAMBDA, 0, cap) : null;
+  let pending = nextMidpoint(0, MAX_LAMBDA, 0, cap);
   let blocked = false;
   let guesses = 0;
   const path: number[] = [];
