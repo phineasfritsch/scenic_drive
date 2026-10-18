@@ -10,7 +10,8 @@ ops/lib/check-estimate-badge-approved.txt:
 
   SITES   every line under apps/ios naming an ETA or badge identifier - estimate, estimateBadge, etaIsEstimate,
           showsEstimateBadge, estimateTag, roundTripMinutes, roundTrip, roundTripValue, etaLine, etaHero,
-          etaMinutes, etaRow, etaSeconds, fastestEtaSeconds, durationSeconds - counted in code and strings alike, is an approved whole line at its
+          etaMinutes, etaRow, etaSeconds, fastestEtaSeconds, durationSeconds, remainingSeconds, glanceLine (the
+          drive card's arrival and its minutes-and-miles line since T-0397 moved them into DriveCard) - counted in code and strings alike, is an approved whole line at its
           file, in scan order (paths sorted, then line order). A new surface that draws an ETA, or a badge line
           removed, moved or respelled, is refused by name.
   BLOCKS  each badge block (the Surprise card's round-trip call, its roundTrip/roundTripValue/estimateTag bodies and
@@ -54,14 +55,14 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 APPROVED_FILE = ROOT / "ops" / "lib" / "check-estimate-badge-approved.txt"
 WORD = re.compile(r"(?<![A-Za-z0-9_])(estimate|estimateBadge|etaIsEstimate|showsEstimateBadge|estimateTag|"
                   r"roundTripMinutes|roundTrip|roundTripValue|etaLine|etaHero|etaMinutes|etaRow|etaSeconds|fastestEtaSeconds|"
-                  r"durationSeconds)"
+                  r"durationSeconds|remainingSeconds|glanceLine)"
                   r"(?![A-Za-z0-9_])")
 MIN_FILES = 60
 S = "Packages/ScenicApp/Sources/"
 CARD = S + "FeatureSurpriseMe/SurpriseCard.swift"
 PLAN, LOOP, TRIP = (S + "FeaturePlanSheet/PlanPreviewCard.swift", S + "FeaturePlanSheet/LoopPreviewCard.swift",
                     S + "FeaturePlanSheet/TripItineraryCard.swift")
-DRIVE = S + "FeatureScenicHome/DriveScreen.swift"
+DRIVE = S + "FeatureScenicHome/DriveCard.swift"
 BLOCKS = [
     (CARD, "roundTrip(minutes: pick.reason.roundTripMinutes)"),
     (CARD, "private func roundTrip(minutes: Int) -> some View {"),
@@ -72,7 +73,7 @@ BLOCKS = [
     (PLAN, "if preview.showsEstimateBadge {"),
     (LOOP, "if preview.etaIsEstimate {"),
     (TRIP, "if itinerary.etaIsEstimate {"),
-    (DRIVE, "if preview.showsEstimateBadge {"),
+    (DRIVE, "if showsEstimate {"),
 ]
 
 
@@ -207,8 +208,10 @@ MUTATIONS = [
     ("the plan card's badge block dropped", PLAN, "if preview.showsEstimateBadge {", "if false {"),
     ("the plan card's AX branch loses its tag", PLAN, "spacing: 6) {\n                etaText\n                estimateTag\n",
      "spacing: 6) {\n                etaText\n"),
-    ("the drive screen's badge cleared", DRIVE, '.accessibilityIdentifier("drive.estimate")',
-     '.accessibilityIdentifier("drive.estimate")\n                        .hidden()'),
+    ("the drive card's badge cleared", DRIVE, '.accessibilityIdentifier("drive.estimate")',
+     '.accessibilityIdentifier("drive.estimate")\n                    .hidden()'),
+    ("the drive card's arrival drawn under a new name", DRIVE, "addingTimeInterval(remainingSeconds)",
+     "addingTimeInterval(secondsLeft)"),
     ("B1 a file-scoped DesignTokens shadows the tag's colours", CARD, None,
      "\nprivate enum DesignTokens {\n    static let fgMuted = SwiftUI.Color.clear\n    static let border = SwiftUI.Color.clear"
      "\n    static let fg = SwiftUI.Color.clear\n}\n"),

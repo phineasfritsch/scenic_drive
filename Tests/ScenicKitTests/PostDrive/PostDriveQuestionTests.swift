@@ -89,7 +89,8 @@ struct PostDriveQuestionTests {
         #expect(DriveDisplay(session: session).arrived == false)
         #expect(DriveDisplay(session: session, arrived: true)
                 == DriveDisplay(surface: session.surface, mode: session.mode, line: line,
-                                etaLine: DriveDisplay(session: session).etaLine, arrived: true))
+                                etaLine: DriveDisplay(session: session).etaLine, arrived: true,
+                                remainingMeters: 1_111.95))
     }
 
     @Test("T-0358 R5/R9: the answer set, its titles, what each sends, and the prompt - each compared whole")

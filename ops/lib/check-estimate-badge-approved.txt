@@ -18,12 +18,16 @@ SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	Text("A
 SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	if itinerary.etaIsEstimate {
 SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	Text(PlanPreview.estimateBadge)
 SITE	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	.accessibilityIdentifier("trip.estimate")
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	let remainingSeconds: Double
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	let glanceLine: String
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text("Arrive \(context.date.addingTimeInterval(remainingSeconds), format: .dateTime.hour().minute())")
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text(glanceLine)
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	Text(PlanPreview.estimateBadge)
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	.accessibilityIdentifier("drive.estimate")
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	return PlanPreview(route: planned, etaSeconds: 1_500, fastestEtaSeconds: 1_200, etaIsEstimate: true,
 SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveRehearsal.swift	RerouteReply(line: Self.line, waypoints: [], etaSeconds: 1_380, fastestEtaSeconds: 1_200, continued: true)
-SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	Text(display.etaLine)
-SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	if preview.showsEstimateBadge {
-SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	Text(PlanPreview.estimateBadge)
-SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	.accessibilityIdentifier("drive.estimate")
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	DriveCard(remainingSeconds: display.remainingSeconds, glanceLine: display.glanceLine,
+SITE	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	showsEstimate: preview.showsEstimateBadge,
 SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	roundTrip(minutes: pick.reason.roundTripMinutes)
 SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	private func roundTrip(minutes: Int) -> some View {
 SITE	Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift	Text("\(Copy.roundTrip) from \(SurpriseOfflineReach.originName)")
@@ -144,15 +148,16 @@ BODY	.foregroundStyle(DesignTokens.fgMuted)
 BODY	.accessibilityIdentifier("trip.estimate")
 BODY	}
 BELOW	ForEach(Array(HazardCopy.lines(for: itinerary).enumerated()), id: \.offset) { _, line in
-BLOCK	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	if preview.showsEstimateBadge {
+BLOCK	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	if showsEstimate {
 ABOVE	.accessibilityIdentifier("drive.eta")
-BODY	if preview.showsEstimateBadge {
+BODY	if showsEstimate {
 BODY	Text(PlanPreview.estimateBadge)
-BODY	.font(.footnote)
+BODY	.font(.caption)
 BODY	.foregroundStyle(DesignTokens.fgMuted)
+BODY	.fixedSize(horizontal: false, vertical: true)
 BODY	.accessibilityIdentifier("drive.estimate")
 BODY	}
-BELOW	Text(PlanPreview.conditions)
+BELOW	if let caption {
 DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	public enum DesignTokens {
 DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	public static let fg = dynamic(light: 0x0F172A, dark: 0xF8FAFC)
 DECL	Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift	public static let fgMuted = dynamic(light: 0x64748B, dark: 0x94A3B8)
@@ -240,15 +245,28 @@ DLINE	}
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRehearsalFixtures.swift	var trip = TripSheet(disclaimerAccepted: true, days: 2, extraBudgetPercent: 40)
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	private let onClose: () -> Void
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	private let onDrive: (PlanPreview) -> Void
+DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	private let previewMap: @MainActor (PlanPreview) -> AnyView
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	case .preview(let ticket, let preview):
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift	let draft = SavedDraft.of(preview, budgetMinutes: budgetMinutes, name: name,
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/RoadTripScreen.swift	case .itinerary(_, let itinerary):
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	let itinerary: TripItinerary
 DECL	Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift	let minutes = Int((seconds / 60).rounded())
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	let showsEstimate: Bool
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	let caption: String?
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveCard.swift	if let caption {
+DLINE	Text(caption)
+DLINE	.font(.subheadline)
+DLINE	.fontWeight(.semibold)
+DLINE	.foregroundStyle(DesignTokens.fg)
+DLINE	.fixedSize(horizontal: false, vertical: true)
+DLINE	.accessibilityIdentifier("drive.caption")
+DLINE	}
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveDetails.swift	let caption: String
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	@State private var style = MapStyle.maplibreDemoTiles
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift	private let preview: PlanPreview
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/GatedHandoffButton.swift	private enum Copy {
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/PlanPreviewMap.swift	@State private var style = MapStyle.maplibreDemoTiles
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/PlanPreviewMap.swift	private let preview: PlanPreview
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/SafetyDisclaimer.swift	private enum Copy {
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift	@State private var style = MapStyle.maplibreDemoTiles
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift	private enum Copy {
@@ -416,7 +434,7 @@ DLINE	.safeAreaInset(edge: .top, alignment: .leading, spacing: 0) {
 DLINE	PlanDriveButton(action: { isPlanning = true })
 DLINE	.dynamicTypeSize(...HomeTypeSize.cap)
 DLINE	.sheet(isPresented: $isPlanning, onDismiss: { surpriseGate = LivePlanner.surpriseGate() }) {
-DLINE	PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, surpriseGate: { LivePlanner.surpriseGate() }, onDrive: { isPlanning = false; drive = $0 }, onClose: { isPlanning = false })
+DLINE	PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, surpriseGate: { LivePlanner.surpriseGate() }, onDrive: { isPlanning = false; drive = $0 }, previewMap: { AnyView(PlanPreviewMap(preview: $0)) }, onClose: { isPlanning = false })
 DLINE	}
 DLINE	}
 DLINE	.sheet(isPresented: $isShowingCorpusDownload) {

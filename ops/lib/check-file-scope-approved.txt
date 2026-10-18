@@ -216,6 +216,7 @@
 0|import SwiftUI
 0|struct PlanPreviewCard: View {
 1|    let preview: PlanPreview
+1|    let map: AnyView
 1|    let destination: String
 1|    let saveLine: String?
 1|    let onSave: () -> Void
@@ -224,6 +225,7 @@
 1|    let onLoop: () -> Void
 1|    let onTrip: () -> Void
 1|    @State private var showsAllHazards = false
+1|    @Environment(\.dynamicTypeSize) private var typeSize
 1|    @Environment(\.planMoments) private var moments
 1|    var body: some View {
 1|    }
@@ -366,6 +368,7 @@
 1|    private let surpriseGate: @MainActor () -> SurpriseGate
 1|    @State private var surprise = SurpriseGate.on
 1|    private let onDrive: (PlanPreview) -> Void
+1|    private let previewMap: @MainActor (PlanPreview) -> AnyView
 1|    @AppStorage("safety.disclaimer.acknowledged.v1") private var safetyNoteRead = false
 1|    @State private var sheet = PlanSheet(disclaimerAccepted: false)
 1|    @State private var query = ""
@@ -385,7 +388,7 @@
 1|                dayLinks: @escaping ([Coordinate]) -> [URL], loopPlanner: any LoopPlanning,
 1|                loopLink: @escaping (Coordinate, [Coordinate]) -> URL?,
 1|                surpriseGate: @escaping @MainActor () -> SurpriseGate, onDrive: @escaping (PlanPreview) -> Void,
-1|                onClose: @escaping () -> Void) {
+1|                previewMap: @escaping @MainActor (PlanPreview) -> AnyView, onClose: @escaping () -> Void) {
 1|    }
 1|    public var body: some View {
 1|    }
@@ -517,6 +520,28 @@
 1|    }
 0|}
 
+@file FeatureScenicHome/DriveCard.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct DriveCard: View {
+1|    @Environment(\.dynamicTypeSize) private var typeSize
+1|    let remainingSeconds: Double
+1|    let glanceLine: String
+1|    let showsEstimate: Bool
+1|    let caption: String?
+1|    let note: String?
+1|    let endTitle: String
+1|    let endMinHeight: Double
+1|    let onEnd: () -> Void
+1|    var body: some View {
+1|    }
+1|    private var facts: some View {
+1|    }
+1|    private func endPill(fullWidth: Bool) -> some View {
+1|    }
+0|}
+
 @file FeatureScenicHome/DriveCopy.swift
 0|import Foundation
 0|import Handoff
@@ -540,6 +565,21 @@
 1|    let drive: HandoffDrive
 1|    let roads: String
 1|    let caption: String
+1|    var body: some View {
+1|    }
+0|}
+
+@file FeatureScenicHome/DriveEndConfirm.swift
+0|import DesignSystem
+0|import ScenicKit
+0|import SwiftUI
+0|struct DriveEndConfirm: View {
+1|    let onKeep: () -> Void
+1|    let onEnd: () -> Void
+1|    static let title = "End this drive?"
+1|    static let sentence = "Your drive stops here."
+1|    static let keep = "Keep driving"
+1|    static let end = "End"
 1|    var body: some View {
 1|    }
 0|}
@@ -637,6 +677,7 @@
 1|    @State private var creditBandTop: CGFloat = 0
 1|    @State private var asked = false
 1|    @State private var isAsking = false
+1|    @State private var confirming = false
 1|    private let preview: PlanPreview
 1|    private let display: DriveDisplay
 1|    private let onEnd: () -> Void
@@ -648,9 +689,11 @@
 1|    }
 1|    private var controls: some View {
 1|    }
-1|    private var endButton: some View {
-1|    }
 1|    private func endTapped() {
+1|    }
+1|    private func endDrive() {
+1|    }
+1|    private func closeOnMoving() {
 1|    }
 1|    private func answer(_ answer: PostDriveAnswer) {
 1|    }
@@ -776,6 +819,26 @@
 1|    static var atLaunch: Onboarding {
 #2|        #if DEBUG
 #2|        #endif
+1|    }
+0|}
+
+@file FeatureScenicHome/PlanPreviewMap.swift
+0|import DesignSystem
+0|import Handoff
+0|import MapAdapter
+0|import ScenicKit
+0|import SwiftUI
+0|public struct PlanPreviewMap: View {
+1|    @Environment(\.colorScheme) private var colorScheme
+1|    @State private var style = MapStyle.maplibreDemoTiles
+1|    @State private var route: MapRoute?
+1|    @State private var creditBandTop: CGFloat = 0
+1|    private let preview: PlanPreview
+1|    public init(preview: PlanPreview) {
+1|    }
+1|    public var body: some View {
+1|    }
+1|    private func resolveMap() {
 1|    }
 0|}
 
@@ -1105,5 +1168,3 @@
 1|    static func save(_ shown: [SurpriseHistory.Shown], today: CivilDate) {
 1|    }
 0|}
-
-

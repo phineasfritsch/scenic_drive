@@ -169,7 +169,8 @@ import Testing
         await Self.carryOut(commands, &controller, Self.rerouter(transport))
         #expect(DriveDisplay(session: controller.session)
             == DriveDisplay(surface: .minimal, mode: .guiding, line: Self.answerLine,
-                            etaLine: "15 min · 2 min longer than the fastest way", continued: false))
+                            etaLine: "15 min · 2 min longer than the fastest way", continued: false,
+                            remainingSeconds: 900, remainingMeters: 4_422))
     }
 
     @Test("T-0328: the offline edge mid-flight cancels; the late answer is dropped by ticket and its token never taken")
