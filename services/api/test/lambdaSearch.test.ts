@@ -33,6 +33,21 @@ describe("searchLambda - the LambdaSearch port", () => {
     expect((await run(1000, 600, () => 1000, 50)).visited).toEqual([0, 4, 6, 7, 7.5, 7.75, 7.875, 7.9375, 7.96875]);
   });
 
+  it("a midpoint exactly at the ceiling moves the bracket up, in both schedules: 0, 4, 6, 5, 4.5, 4.25", async () => {
+    const curve = (l: number) => 100 + 25 * l;
+    const { outcome, visited } = await run(100, 100, curve);
+    expect(visited).toEqual([0, 4, 6, 5, 4.5, 4.25]);
+    expect(outcome).toEqual({ lambda: 4, duration: 200, ceiling: 200, evaluations: 6, usedBudget: true,
+      monotonicityViolated: false });
+    const alongside: number[] = [];
+    const paired = await searchLambdaAlongside(Promise.resolve(100), 100, async (l) => {
+      alongside.push(l);
+      return curve(l);
+    });
+    expect([...alongside].sort((a, b) => a - b)).toEqual([0, 4, 4.25, 4.5, 5, 6]);
+    expect(paired).toEqual(outcome);
+  });
+
   it("keeps the longest feasible duration, not the last one measured", async () => {
     const { outcome } = await run(1000, 600, (l) => (l === 4 ? 1500 : l === 6 ? 1200 : l > 4 ? 2000 : 1100));
     expect(outcome.lambda).toBe(4);
