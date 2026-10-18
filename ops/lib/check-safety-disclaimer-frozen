@@ -26,11 +26,18 @@
 # right-edge column rides the credit's top edge, so its whole view tree is frozen too: `mapControls`,
 # `settingsButton` and SurpriseToggle.swift's struct (a negative padding plus `.zIndex(1)` laid Surprise over the
 # credit's trailing end with every limb green - the 2026-10-18 pre-review pass, survivor M2).
+# rv1-t-0408 B1: those blocks froze the LINES that mount a view, not the view - `.frame(minHeight: 3000)` inside
+# DriveOptionMeta, `.padding(.bottom, 3000)` inside DriveRows, `.frame(height: 2000)` inside DriveSelector pushed
+# the button, the conditions line, the credit and the sheet off the screen with only the routine digest re-approved.
+# So sheetSummary and gatedHandoff are frozen here too, and ops/lib/frozen_views.py freezes WHOLE FILE every view
+# type the blocks mount, transitively (ops/lib/check-safety-disclaimer-frozen-views.txt), and refuses any name on
+# those lines that is neither frozen nor an approved non-view (a closure whitelist, fail closed).
 #
 # WHAT IT CANNOT SEE: whether any of it RENDERS - visible, hittable and not covered at BOTH detents is a runtime
 # property, filed on T-0180 (main 558e154, its both-detents runtime clause); a modifier these blocks call
 # (`.background`, `.overlay`) overloaded by an extension elsewhere in the module; what the views they name
-# (DriveSelector, DriveDetails, AttributionFooter, GatedHandoffButton, SafetyDisclaimer) draw inside themselves;
+# outside frozen_views.py's closure (AttributionFooter, SafetyDisclaimer, the Surprise card the shell injects into
+# SurpriseGateSlot as a closure) draw inside themselves;
 # `/* */` comments.
 FROZEN_REASON="a frozen render block changed"
 FROZEN_DIRECTIVES=()
@@ -165,6 +172,49 @@ FROZEN_CHIPS=(
   '}'
   '.padding(.top, 4)'
   '.onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { chipBandBottom = $0 }'
+  '}'
+)
+FROZEN_SHEET_SUMMARY=(
+  'private var sheetSummary: some View {'
+  'PostDriveOpenSlot()'
+  'if userTypeSize.isAccessibilitySize {'
+  'DriveRows(selection: $selectedDrive)'
+  '}'
+  ''
+  'Text(DriveCopy.title(for: selectedDrive))'
+  '.font(.title3)'
+  '.fontWeight(.semibold)'
+  '.foregroundStyle(DesignTokens.fg)'
+  '.fixedSize(horizontal: false, vertical: true)'
+  '.accessibilityAddTraits(.isHeader)'
+  '.accessibilityIdentifier("home.title")'
+  ''
+  'if let menu, let selectedRow {'
+  'DriveOptionMeta(menu: menu, row: selectedRow)'
+  '}'
+  ''
+  'if let handoffFailure {'
+  'HandoffFailureCard(message: handoffFailure,'
+  'roadList: roadList,'
+  'drive: selectedDrive,'
+  'row: selectedRow,'
+  'onRetry: { gatedHandoff.attempt() })'
+  '}'
+  ''
+  'gatedHandoff'
+  ''
+  'conditions'
+  '}'
+)
+FROZEN_GATED_HANDOFF=(
+  'private var gatedHandoff: GatedHandoffButton {'
+  'GatedHandoffButton('
+  'isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged,'
+  'drive: selectedDrive,'
+  'row: selectedRow,'
+  'onBlocked: { isShowingDisclaimer = true },'
+  'onFailure: { handoffFailure = $0; if $0 == nil { moments?.report(.driveHandedToAppleMaps) } }'
+  ')'
   '}'
 )
 FROZEN_SHEET_DETAILS=(
@@ -357,7 +407,7 @@ frozen_directives() {
   done < <(frozen_code_lines "$file")
 }
 
-# require_frozen_blocks FEATURE_DIR APP_TREE: the nine blocks and the directive fence, or `fail` naming each break.
+# require_frozen_blocks FEATURE_DIR APP_TREE: the eleven blocks, the directive fence and the mounted views, or `fail` naming each break.
 require_frozen_blocks() {
   local feature="$1" app_tree="$2" f
   local sheet="$feature/HomeSheet.swift" screen="$feature/ScenicHomeScreen.swift" toggle="$feature/SurpriseToggle.swift"
@@ -366,6 +416,8 @@ require_frozen_blocks() {
   frozen_block "$sheet" "HomeSheet's struct" FROZEN_HOME_SHEET "import SwiftUI"
   frozen_block "$screen" "ScenicHomeScreen's body (the ZStack and its modifier chain)" FROZEN_SCREEN_BODY "public init(onSettings: @escaping () -> Void, surpriseGate: SurpriseGate, surprise: @escaping SurpriseSlot.Builder) { self.onSettings = onSettings; self.surpriseGate = surpriseGate; self.surprise = surprise }"
   frozen_block "$screen" "ScenicHomeScreen's chips" FROZEN_CHIPS "}"
+  frozen_block "$screen" "ScenicHomeScreen's sheetSummary" FROZEN_SHEET_SUMMARY "@ViewBuilder"
+  frozen_block "$screen" "ScenicHomeScreen's gatedHandoff" FROZEN_GATED_HANDOFF "}"
   frozen_block "$screen" "ScenicHomeScreen's sheetDetails" FROZEN_SHEET_DETAILS "}"
   frozen_block "$screen" "ScenicHomeScreen's conditions" FROZEN_CONDITIONS "}"
   frozen_block "$screen" "ScenicHomeScreen's mapControls" FROZEN_MAP_CONTROLS "}"
@@ -373,6 +425,14 @@ require_frozen_blocks() {
   frozen_block "$toggle" "SurpriseToggle's struct" FROZEN_SURPRISE_TOGGLE "import SwiftUI"
   frozen_block "$shell" "the app shell ScenicDriveApp" FROZEN_APP_SHELL "@main"
   for f in "$sheet" "$screen" "$toggle" "$shell"; do [[ -f "$f" ]] && frozen_directives "$f"; done
+  # rv1-t-0408 B1: every view those blocks MOUNT, frozen whole file, and the closure over the names they call.
+  local views_out views_status views_lines=()
+  views_out="$("${PYTHON:-$(command -v python3 || command -v python)}" ops/lib/frozen_views.py "$feature" "$app_tree" 2>&1)"
+  views_status=$?
+  if [[ "$views_status" -ne 0 ]]; then
+    mapfile -t views_lines <<< "${views_out//$'\r'/}"
+    FROZEN_BAD+=("the mounted views (ops/lib/frozen_views.py exited $views_status):" "${views_lines[@]}")
+  fi
   [[ "${#FROZEN_BAD[@]}" -eq 0 ]] || fail "$FROZEN_REASON:" "${FROZEN_BAD[@]}" \
     "These blocks draw the sheet, the conditions line and the credit at BOTH detents; each is a whole-line whitelist" \
     "(ops/lib/check-safety-disclaimer-frozen). An edit inside one - a wrapper, a modifier, an overlay, a moved line -" \

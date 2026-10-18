@@ -1,0 +1,552 @@
+@@ DriveRows DriveRows.swift
+import DesignSystem
+import Handoff
+import ScenicKit
+import SwiftUI
+
+struct DriveRows: View {
+@Binding var selection: HandoffDrive
+
+@State private var menus: [HandoffDrive: DriveMenu] = [:]
+
+var body: some View {
+VStack(alignment: .leading, spacing: 0) {
+ForEach(DriveSelector.order.indices, id: \.self) { index in
+if index > 0 {
+Rectangle().fill(DesignTokens.border).frame(height: 1)
+}
+row(for: DriveSelector.order[index].drive)
+}
+}
+.fixedSize(horizontal: false, vertical: true)
+.task {
+for entry in DriveSelector.order {
+menus[entry.drive] = DriveRoute.menu(for: entry.drive)
+}
+}
+.accessibilityElement(children: .contain)
+.accessibilityIdentifier("home.driveRows")
+}
+
+private func row(for drive: HandoffDrive) -> some View {
+let isSelected = selection == drive
+let pick = menus[drive].map { $0.row(selected: nil) }
+let fastest = menus[drive].flatMap { menu in menu.rows.first { $0.displayedMinutes == 0 } }
+let via = pick.map { OptionVia.line(roads: $0.roads, fastest: fastest?.roads ?? []) } ?? ""
+return Button {
+selection = drive
+} label: {
+HStack(alignment: .center, spacing: 12) {
+VStack(alignment: .leading, spacing: 2) {
+Text(DriveCopy.shortName(for: drive))
+.font(.headline)
+.fontWeight(isSelected ? .bold : .semibold)
+.foregroundStyle(DesignTokens.fg)
+.fixedSize(horizontal: false, vertical: true)
+if !via.isEmpty {
+Text(via)
+.font(.subheadline)
+.foregroundStyle(DesignTokens.fgMuted)
+.lineLimit(2)
+.fixedSize(horizontal: false, vertical: true)
+}
+}
+.frame(maxWidth: .infinity, alignment: .leading)
+if let pick, pick.displayedMinutes > 0 {
+VStack(alignment: .trailing, spacing: 0) {
+Text("+\(pick.displayedMinutes)")
+.font(.title2)
+.fontWeight(.semibold)
+.monospacedDigit()
+.foregroundStyle(DesignTokens.fg)
+Text("min")
+.font(.caption)
+.foregroundStyle(DesignTokens.fgMuted)
+}
+.fixedSize()
+}
+}
+.padding(.vertical, 8)
+.padding(.leading, 10)
+.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+.overlay(alignment: .leading) {
+Capsule().fill(isSelected ? DesignTokens.primary : Color.clear).frame(width: 4)
+}
+.contentShape(Rectangle())
+}
+.buttonStyle(.plain)
+.accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+.accessibilityIdentifier("home.driveRow.\(drive.rawValue)")
+}
+}
+@@ DriveOptionMeta DriveOptionMeta.swift
+import DesignSystem
+import Handoff
+import ScenicKit
+import SwiftUI
+
+struct DriveOptionMeta: View {
+let menu: DriveMenu
+let row: DriveMenuRow
+
+var body: some View {
+Text(line)
+.font(.subheadline)
+.foregroundStyle(DesignTokens.fgMuted)
+.lineLimit(2)
+.fixedSize(horizontal: false, vertical: true)
+.frame(maxWidth: .infinity, alignment: .leading)
+.accessibilityIdentifier("home.meta")
+}
+
+private var line: String {
+let fastest = menu.rows.first { $0.displayedMinutes == 0 } ?? menu.rows[0]
+let via = OptionVia.line(roads: row.roads, fastest: fastest.roads)
+return via.isEmpty ? row.chipLabel : "\(row.chipLabel) · \(via)"
+}
+}
+@@ DriveSelector DriveSelector.swift
+import DesignSystem
+import Handoff
+import SwiftUI
+
+struct DriveSelector: View {
+@Binding var selection: HandoffDrive
+
+static let order: [(drive: HandoffDrive, identifier: String)] = [
+(.saddlePeak, "home.drive.saddlePeak"),
+(.santaMonicaMountains, "home.drive.la"),
+(.skyline, "home.drive.skyline"),
+]
+
+var body: some View {
+ScrollView(.horizontal, showsIndicators: false) {
+HStack(spacing: 8) {
+ForEach(Self.order.indices, id: \.self) { index in
+chip(for: Self.order[index].drive, identifier: Self.order[index].identifier)
+}
+}
+.padding(.horizontal, 16)
+}
+.scrollClipDisabled()
+.accessibilityIdentifier("home.drivePicker")
+}
+
+private func chip(for drive: HandoffDrive, identifier: String) -> some View {
+let isSelected = selection == drive
+return Button {
+selection = drive
+} label: {
+Text(DriveCopy.shortName(for: drive))
+.font(.subheadline)
+.fontWeight(isSelected ? .semibold : .regular)
+.foregroundStyle(DesignTokens.fg)
+.lineLimit(1)
+.truncationMode(.tail)
+.frame(maxWidth: 220)
+.padding(.horizontal, 14)
+.frame(height: 36)
+.background(Capsule().fill(DesignTokens.surface))
+.overlay(
+Capsule().strokeBorder(isSelected ? DesignTokens.primary : DesignTokens.border,
+lineWidth: isSelected ? 2 : 1)
+)
+.shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 1)
+.frame(minHeight: 44)
+.contentShape(Rectangle())
+}
+.buttonStyle(.plain)
+.accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+.accessibilityIdentifier(identifier)
+}
+}
+@@ DriveMenuChips DriveMenuChips.swift
+import DesignSystem
+import Foundation
+import Handoff
+import ScenicKit
+import SwiftUI
+
+struct DriveMenuChips: View {
+let menu: DriveMenu
+@Binding var selection: Int?
+
+static let launchArgumentKey = "menuRow"
+
+static var rowAtLaunch: Int? {
+UserDefaults.standard.string(forKey: launchArgumentKey).flatMap { Int($0) }
+}
+
+var body: some View {
+VStack(alignment: .leading, spacing: 0) {
+ForEach(menu.rows.indices, id: \.self) { index in
+if index > 0 {
+Rectangle().fill(DesignTokens.border).frame(height: 1)
+}
+option(index)
+}
+Text(PlanPreview.estimateBadge)
+.font(.footnote)
+.foregroundStyle(DesignTokens.fgMuted)
+.fixedSize(horizontal: false, vertical: true)
+.padding(.top, 6)
+.accessibilityIdentifier("home.menu.estimate")
+}
+.accessibilityElement(children: .contain)
+.accessibilityIdentifier("home.menu")
+}
+
+private var fastestRoads: [String] {
+(menu.rows.first { $0.displayedMinutes == 0 } ?? menu.rows[0]).roads
+}
+
+private func option(_ index: Int) -> some View {
+let row = menu.rows[index]
+let isSelected = menu.index(selected: selection) == index
+let via = OptionVia.line(roads: row.roads, fastest: fastestRoads)
+return Button {
+selection = index
+} label: {
+HStack(alignment: .center, spacing: 12) {
+VStack(alignment: .leading, spacing: 2) {
+Text(row.chipLabel)
+.font(.title3)
+.fontWeight(isSelected ? .semibold : .regular)
+.foregroundStyle(DesignTokens.fg)
+if !via.isEmpty {
+Text(via)
+.font(.subheadline)
+.foregroundStyle(DesignTokens.fgMuted)
+.lineLimit(2)
+.fixedSize(horizontal: false, vertical: true)
+}
+}
+.frame(maxWidth: .infinity, alignment: .leading)
+Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+.font(.title3)
+.foregroundStyle(isSelected ? DesignTokens.fg : DesignTokens.fgMuted)
+.accessibilityHidden(true)
+}
+.padding(.vertical, 8)
+.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+.contentShape(Rectangle())
+}
+.buttonStyle(.plain)
+.accessibilityLabel(via.isEmpty ? row.chipLabel : "\(row.chipLabel), \(via)")
+.accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+.accessibilityIdentifier("home.menu.row\(index)")
+}
+}
+@@ DriveDetails DriveDetails.swift
+import DesignSystem
+import Handoff
+import SwiftUI
+
+struct DriveDetails: View {
+let drive: HandoffDrive
+let roads: String
+let caption: String
+
+var body: some View {
+VStack(alignment: .leading, spacing: 8) {
+Text(roads)
+.font(.subheadline)
+.foregroundStyle(DesignTokens.fg)
+.fixedSize(horizontal: false, vertical: true)
+.accessibilityIdentifier("home.route")
+
+DriveFacts(drive: drive)
+
+Text(caption)
+.font(.footnote)
+.foregroundStyle(DesignTokens.fgMuted)
+.fixedSize(horizontal: false, vertical: true)
+.accessibilityIdentifier("home.caption")
+}
+.frame(maxWidth: .infinity, alignment: .leading)
+}
+}
+@@ DriveFacts DriveFacts.swift
+import DesignSystem
+import Handoff
+import SwiftUI
+
+struct DriveFacts: View {
+let drive: HandoffDrive
+
+static func straightLine(for drive: HandoffDrive) -> String {
+"About \(StraightLineDistance.wholeMiles(for: drive)) miles as the crow flies, pin to pin. The roads are longer."
+}
+
+var body: some View {
+VStack(alignment: .leading, spacing: 4) {
+Text(Self.straightLine(for: drive))
+.font(.subheadline)
+.foregroundStyle(DesignTokens.fgMuted)
+.fixedSize(horizontal: false, vertical: true)
+.accessibilityIdentifier("home.distance")
+
+Text(drive.timingSentence)
+.font(.subheadline)
+.foregroundStyle(DesignTokens.fgMuted)
+.fixedSize(horizontal: false, vertical: true)
+.accessibilityIdentifier("home.timing")
+}
+.frame(maxWidth: .infinity, alignment: .leading)
+}
+}
+@@ PostDriveOpenSlot PostDriveOpenSlot.swift
+import ScenicKit
+import SwiftUI
+
+struct PostDriveOpenSlot: View {
+@Environment(PostDriveOpenModel.self) private var model: PostDriveOpenModel?
+
+var body: some View {
+if let model, model.isAsking {
+PostDriveCard(onAnswer: { model.answered($0) })
+}
+}
+}
+@@ PostDriveCard PostDriveCard.swift
+import DesignSystem
+import ScenicKit
+import SwiftUI
+
+struct PostDriveCard: View {
+let onAnswer: (PostDriveAnswer) -> Void
+
+var body: some View {
+VStack(alignment: .leading, spacing: 12) {
+Text(PostDriveQuestion.prompt)
+.font(.title3)
+.fontWeight(.semibold)
+.foregroundStyle(DesignTokens.fg)
+.accessibilityIdentifier("drive.question")
+HStack(spacing: 12) {
+ForEach(PostDriveAnswer.allCases, id: \.self) { answer in
+Button(answer.title) { onAnswer(answer) }
+.font(.body)
+.fontWeight(answer == .dismissed ? .regular : .semibold)
+.foregroundStyle(answer == .dismissed ? DesignTokens.fgMuted : DesignTokens.onPrimary)
+.frame(maxWidth: .infinity, minHeight: 44)
+.background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+.fill(answer == .dismissed ? DesignTokens.surface : DesignTokens.primary))
+.buttonStyle(.plain)
+.accessibilityIdentifier("drive.question.\(answer)")
+}
+}
+}
+}
+}
+@@ HandoffFailureCard HandoffFailureCard.swift
+import DesignSystem
+import Handoff
+import SwiftUI
+
+struct HandoffFailureCard: View {
+let message: String
+
+let roadList: String
+
+let drive: HandoffDrive
+
+let row: DriveMenuRow?
+
+let onRetry: () -> Void
+
+@State private var hasCopied = false
+
+var clipboardText: String {
+drive.clipboardPayload(row: row,
+roadList: roadList,
+straightLine: DriveFacts.straightLine(for: drive),
+timing: drive.timingSentence)
+}
+
+var body: some View {
+VStack(alignment: .leading, spacing: 8) {
+Text(message)
+.font(.footnote)
+.foregroundStyle(DesignTokens.destructive)
+.fixedSize(horizontal: false, vertical: true)
+.accessibilityIdentifier("home.error")
+
+Text(roadList)
+.font(.subheadline)
+.foregroundStyle(DesignTokens.fg)
+.fixedSize(horizontal: false, vertical: true)
+.accessibilityIdentifier("home.error.route")
+
+Text(drive.failureTimingSentence)
+.font(.subheadline)
+.foregroundStyle(DesignTokens.fgMuted)
+.fixedSize(horizontal: false, vertical: true)
+.accessibilityIdentifier("home.error.timing")
+
+HStack(spacing: 12) {
+copyButton
+retryButton
+}
+}
+.frame(maxWidth: .infinity, alignment: .leading)
+.padding(12)
+.background(
+RoundedRectangle(cornerRadius: 12, style: .continuous)
+.fill(DesignTokens.surface)
+.overlay(
+RoundedRectangle(cornerRadius: 12, style: .continuous)
+.strokeBorder(DesignTokens.border, lineWidth: 1)
+)
+)
+}
+
+private var copyButton: some View {
+Button {
+Clipboard.copy(clipboardText)
+hasCopied = true
+} label: {
+Text(hasCopied ? "Copied" : "Copy link + roads")
+.font(.headline)
+.foregroundStyle(DesignTokens.onPrimary)
+.fixedSize(horizontal: false, vertical: true)
+.frame(maxWidth: .infinity, minHeight: 44)
+.background(
+RoundedRectangle(cornerRadius: 12, style: .continuous)
+.fill(DesignTokens.primary)
+)
+}
+.buttonStyle(.plain)
+.accessibilityIdentifier("home.error.copy")
+}
+
+private var retryButton: some View {
+Button {
+onRetry()
+} label: {
+Text("Try again")
+.font(.headline)
+.foregroundStyle(DesignTokens.fg)
+.fixedSize(horizontal: false, vertical: true)
+.frame(maxWidth: .infinity, minHeight: 44)
+.background(
+RoundedRectangle(cornerRadius: 12, style: .continuous)
+.strokeBorder(DesignTokens.border, lineWidth: 1)
+)
+}
+.buttonStyle(.plain)
+.accessibilityIdentifier("home.error.retry")
+}
+}
+@@ GatedHandoffButton GatedHandoffButton.swift
+import DesignSystem
+import Handoff
+import OSLog
+import ScenicKit
+import SwiftUI
+
+struct GatedHandoffButton: View {
+let isSafetyDisclaimerAcknowledged: Bool
+
+let drive: HandoffDrive
+
+let row: DriveMenuRow?
+
+var place: Coordinate? = nil
+
+let onBlocked: () -> Void
+
+let onFailure: (String?) -> Void
+
+private static let log = Logger(subsystem: "com.phineasfritsch.scenicdrive",
+category: "GatedHandoffButton")
+
+var body: some View {
+Button {
+attempt()
+} label: {
+Text(Copy.label)
+.font(.headline)
+.foregroundStyle(DesignTokens.onPrimary)
+.frame(maxWidth: .infinity, minHeight: 44)
+.background(
+RoundedRectangle(cornerRadius: 16, style: .continuous)
+.fill(DesignTokens.primary)
+)
+}
+.buttonStyle(.plain)
+.accessibilityIdentifier("home.openInAppleMaps")
+}
+
+func attempt() {
+guard isSafetyDisclaimerAcknowledged else {
+onBlocked()
+return
+}
+do {
+try SkylineHandoff.open(drive, row: row, place: place)
+onFailure(nil)
+} catch {
+Self.log.error("handoff refused: \(String(describing: error), privacy: .public)")
+onFailure(Copy.handoffFailed)
+}
+}
+
+private enum Copy {
+static let label = "Open in Apple Maps"
+
+static let handoffFailed = "Couldn't open Apple Maps. Try again."
+}
+}
+@@ SurpriseGateSlot SurpriseGateSlot.swift
+import DesignSystem
+import ScenicKit
+import SwiftUI
+
+struct SurpriseGateSlot: View {
+let gate: SurpriseGate
+let card: () -> AnyView
+
+var body: some View {
+if let line = gate.homeLine {
+Text(line)
+.font(.footnote)
+.foregroundStyle(DesignTokens.fg)
+.frame(maxWidth: .infinity, alignment: .leading)
+.fixedSize(horizontal: false, vertical: true)
+.padding(.horizontal, 8)
+.padding(.vertical, 6)
+.accessibilityIdentifier("home.surprise.off")
+} else {
+card()
+}
+}
+}
+@@ SurpriseToggle SurpriseToggle.swift
+import DesignSystem
+import SwiftUI
+
+struct SurpriseToggle: View {
+@Binding var isShowing: Bool
+
+let onToggle: () -> Void
+
+var body: some View {
+Button {
+onToggle()
+isShowing.toggle()
+} label: {
+Image(systemName: isShowing ? "sparkles.rectangle.stack.fill" : "sparkles")
+.font(.title3.weight(.semibold))
+.foregroundStyle(DesignTokens.primary)
+.frame(width: 56, height: 56)
+.background(Circle().fill(DesignTokens.surface))
+.overlay(Circle().strokeBorder(DesignTokens.border, lineWidth: 1))
+.shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 2)
+}
+.buttonStyle(.plain)
+.accessibilityLabel("Surprise me")
+.accessibilityAddTraits(isShowing ? .isSelected : [])
+.accessibilityIdentifier("home.surprise")
+}
+}

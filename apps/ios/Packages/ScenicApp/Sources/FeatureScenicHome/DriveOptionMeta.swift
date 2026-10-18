@@ -17,6 +17,7 @@ struct DriveOptionMeta: View {
             .font(.subheadline)
             .foregroundStyle(DesignTokens.fgMuted)
             .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("home.meta")
     }

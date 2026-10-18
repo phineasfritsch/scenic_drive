@@ -142,6 +142,14 @@ rows=(
   # F4a-F4e rv0-t0405 (survivors M-A, M-B and their classes): limbs (a)-(h) and the frozen home blocks are green on
   # each; each is red by name only because limb (f4) freezes PlanPreviewMap's struct and the .preview arm whole and
   # whitelists every line naming previewMap / PlanPreviewMap. (-pinned also refuses the copy, but runs later.)
+  # H16-H19 rv1-t-0408 B1 and its class: the frozen blocks froze the LINES that mount a view, not the view. RA, RB and RC
+  # verbatim (the reviewer's, each green with only its digest re-approved), then a new view type mounted in
+  # sheetSummary. -frozen now freezes every mounted view whole file and closes the names (ops/lib/frozen_views.py);
+  # one generated row per frozen view follows the table (G-<type>).
+  "H16 rv1 RA DriveOptionMeta pushed 3000 tall|$FS/DriveOptionMeta.swift|s/^\( *\)\.frame(maxWidth: \.infinity, alignment: \.leading)\$/&\n\1.frame(minHeight: 3000)/|a frozen render block changed"
+  "H17 rv1 RB DriveRows padded 3000 below|$FS/DriveRows.swift|0,/^\( *\)\.fixedSize(horizontal: false, vertical: true)\$/s//&\n\1.padding(.bottom, 3000)/|a frozen render block changed"
+  "H18 rv1 RC DriveSelector framed 2000 tall|$FS/DriveSelector.swift|0,/^\( *\)\.accessibilityIdentifier(.*\$/s//&\n\1.frame(height: 2000)/|a frozen render block changed"
+  "H19 an unfrozen view mounted in sheetSummary|$FS/ScenicHomeScreen.swift|s/^\( *\)PostDriveOpenSlot()\$/&\n\1DriveTallNote()/|a frozen render block changed"
   "F4a rv0 M-A the preview arm hands the card no map|Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift|s/map: previewMap(preview),/map: AnyView(EmptyView()),/|the plan preview's map is not wired and drawn as approved"
   "F4b a shadowing previewMap(_:) method|Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift|\$a extension PlanSheetScreen { func previewMap(_ preview: PlanPreview) -> AnyView { AnyView(EmptyView()) } }|the plan preview's map is not wired and drawn as approved"
   "F4c the preview card hidden in its arm|Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift|s/^\( *\)\(onLoop: { showingLoop = true }, onTrip: { showingTrip = true })\)\$/\1\2\n\1.hidden()/|the plan preview's map is not wired and drawn as approved"
@@ -159,6 +167,13 @@ rows=(
   "F4l rv1 B2 planContent faded in content|$PS|s/^\( *\)planContent\$/\1planContent\n\1    .opacity(onPreview ? 0 : 1)/|the plan preview's map is not wired and drawn as approved"
   "F4m content faded in body on the preview|$PS|s/^\( *\)content\$/\1content\n\1    .opacity(onPreview ? 0 : 1)/|the plan preview's map is not wired and drawn as approved"
 )
+
+# G-<type>: one generated row per view frozen whole by ops/lib/frozen_views.py - a 3000 pt bottom padding after the
+# first modifier or view-call line of its file - so a view added to the frozen list is proven refused by the same act.
+while IFS=' ' read -r tag gtype gfile; do
+  [[ "$tag" == "@@" ]] || continue
+  rows+=("G-$gtype padded 3000 inside the frozen view|$FS/$gfile|0,/^\( *\)\(\.[a-z][A-Za-z]*(.*\|[A-Z][A-Za-z]*(.*)\)\$/s//&\n\1.padding(.bottom, 3000)/|a frozen render block changed")
+done < <(tr -d '\r' < ops/lib/check-safety-disclaimer-frozen-views.txt)
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
 # rather than links, and `mklink /J` needs no privilege), a symlink elsewhere - then proven to be a link that

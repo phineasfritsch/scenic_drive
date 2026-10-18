@@ -321,6 +321,7 @@ DLINE	Text(via)
 DLINE	.font(.subheadline)
 DLINE	.foregroundStyle(DesignTokens.fgMuted)
 DLINE	.lineLimit(2)
+DLINE	.fixedSize(horizontal: false, vertical: true)
 DLINE	}
 DLINE	}
 DLINE	.frame(maxWidth: .infinity, alignment: .leading)

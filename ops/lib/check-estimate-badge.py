@@ -21,7 +21,7 @@ ops/lib/check-estimate-badge-approved.txt:
           { and } on whole lines, and compared line by line with the approved body, together with the first
           non-blank line ABOVE and BELOW it (an `if false {`, `.hidden()` or `.opacity(0)` around a block is a
           changed fence line, refused).
-  DECLS   (T-0398 R2, rv1's B1) every DECLARATION under apps/ios of a name the nine approved badge bodies use
+  DECLS   (T-0398 R2, rv1's B1) every DECLARATION under apps/ios of a name the eleven approved badge bodies use
           (DesignTokens, fgMuted, border, Copy, Text, Capsule, font, padding, ...; string literals dropped) is an
           approved whole line in scan order, with the block it opens when it is not a type declaration - so a
           file-scoped `enum DesignTokens`, a token's value, an `extension Text` init or a View modifier overload is

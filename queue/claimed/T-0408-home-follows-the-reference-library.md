@@ -162,3 +162,44 @@ and check-mutate-anchors before buying review.
   check-exec-bits "263 files, 23 required present, all modes correct", queue-check "QUEUE OK (403 tasks)" - all
   EXIT=0; A9 swift test --filter OptionViaTests "5 tests in 1 suite passed" EXIT=0; A10 no Swift file changed since
   the last measurement (ScenicHomeScreen 300, SurpriseToggle 31, the rest as above); A11 as above.
+- 2026-10-18T17:28:31Z agent/claude-opus-5 - round 2 rulings before code (author rule), on rv1-t-0408 FAIL at 44168d3b.
+  B1 (P-SAFE-03 + P-ATTR-01 fail open) ACCEPTED as a class, not three spellings. sheetSummary, chips and mapControls
+  are whole-line frozen, but the View types their lines MOUNT are not, so any geometry inside one of those types
+  (RA `.frame(minHeight: 3000)` in DriveOptionMeta, RB `.padding(.bottom, 3000)` in DriveRows, RC
+  `.frame(height: 2000)` in DriveSelector) pushes the button, the conditions line, the credit and the sheet off the
+  screen with only the routine sha256 re-approval in -pinned. Same class as survivor M2, which froze the right-edge
+  column but not the bodies the other roots call. RULING: the class closes by a CLOSURE WHITELIST, fail closed.
+  (1) Roots: ScenicHomeScreen's sheetSummary (now also frozen in -frozen itself, not only in -sheet, so
+  check-map-attribution stands on its own), chips, sheetDetails, mapControls, settingsButton and gatedHandoff (the
+  property sheetSummary mounts by name; frozen whole too). (2) Every View type named on a root line, or on a line of a
+  type already frozen, is frozen WHOLE FILE (every kept line of its file, imports included) in
+  ops/lib/check-safety-disclaimer-frozen-views.txt, read by ops/lib/frozen_views.py, run from -frozen's
+  require_frozen_blocks so both pins run it. (3) Every capitalised identifier on those lines (string literals removed)
+  must be a frozen view, an approved SwiftUI/system name that our tree never redeclares, or an approved non-view
+  type of ours whose every declaration and extension header does not name View; anything else is refused by name -
+  so mounting a NEW view type in sheetSummary is refused until it is frozen whole. (4) A frozen entry no root reaches
+  is refused (the list stays the mounted set). The transitive set measured: DriveRows, DriveOptionMeta,
+  DriveSelector, DriveMenuChips, DriveDetails, DriveFacts, PostDriveOpenSlot, PostDriveCard, HandoffFailureCard,
+  GatedHandoffButton, SurpriseGateSlot (SurpriseToggle stays frozen by FROZEN_SURPRISE_TOGGLE).
+  RB ambiguity ruled: DriveRows has three `.fixedSize(horizontal: false, vertical: true)` lines; the demo inserts
+  after the FIRST in the file (the body's root VStack), the plain reading of "after".
+  "against origin/main's guards" ruled: main's guards cannot run green on this branch's tree at all (its SUMMARY_BLOCK
+  and frozen arrays predate T-0408), so the meaningful baseline is the pre-fix branch 44168d3b, whose guard set is
+  main's plus T-0408's. RED of the fail-open there (each with its digest re-approved in -pinned, both checks bare):
+  (.artifacts/t0408-rv1-b1.sh, 34 min on the loaded box) RA "digest ce348e2d... -> 7f8ae12e...",
+  check-safety-disclaimer EXIT=0, check-map-attribution EXIT=0; RB "digest 1d680cef... -> 323cdaff...", EXIT=0 and
+  EXIT=0; RC "digest a1f37bd7... -> b58cac76...", EXIT=0 and EXIT=0 - all three survive, the fail-open reproduced.
+  GAP RULED (recorded in -frozen's WHAT IT CANNOT SEE, not closed here): SurpriseGateSlot's card is an AnyView the
+  frozen app shell injects from FeatureSurpriseMe (a lowercase builder, `surprise`); the closure walks named types,
+  not injected closures. The chip band is above the Spacer, and the card shows only after a Surprise tap.
+  B2 (clipped via lines) ACCEPTED. Cause measured from 39137239496: the medium sheet's content is taller than the
+  screen (light medium: DriveDetails' paragraph already runs off the bottom edge; at `.large` HomeSheet does not
+  scroll details), so the VStack compresses every compressible Text; the via Texts in DriveMenuChips and
+  DriveOptionMeta have `.lineLimit(2)` but no `.fixedSize(horizontal: false, vertical: true)`, so they are the
+  ones cut. FIX: fixedSize on both via Texts. The ZStack aligns top, so the overflow leaves by the bottom edge:
+  DriveMenuChips' extra lines push only DriveDetails (below the conditions line) further down, but DriveOptionMeta
+  sits ABOVE the button, so its second line moves the button and the conditions line down one line - the AX5 medium
+  and collapsed shots must show both still on screen (A11). The overflow itself (medium content below the screen edge at every size, details
+  not scrollable at `.large`) is HomeSheet.swift - inside touches, but a P-SAFE-03 frozen layout change the reviewer
+  did not raise; RULED OUT of this round and filed as T-0432.
+  Item 4: check-estimate-badge.py's docstring says "nine approved badge bodies"; corrected to the real count.
