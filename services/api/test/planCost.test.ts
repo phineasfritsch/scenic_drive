@@ -58,12 +58,12 @@ describe("POST /plan spend control (R4, P-COST-01)", () => {
 });
 
 describe("POST /plan request count (R5, P-COST-04)", () => {
-  it("one plan makes 7 upstream requests - at most 12 - one in flight at a time", async () => {
+  it("one plan makes 7 upstream requests - at most 12 - at most 2 in flight", async () => {
     const h = harness(SANTA_MONICA_TOPANGA);
     await handlePlan(planRequest(SANTA_MONICA_TOPANGA_BODY), {}, h.deps);
     expect(h.sent).toHaveLength(7);
     expect(h.sent.length).toBeLessThanOrEqual(12);
-    expect(h.maxInFlight()).toBe(1);
+    expect(h.maxInFlight()).toBe(2);
   });
 });
 

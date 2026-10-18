@@ -24,7 +24,7 @@ import { onlyIds } from "./onlyIds.mjs";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-plan");
 
-export const MIN_MUTATIONS = 68;
+export const MIN_MUTATIONS = 75;
 export const SUBJECTS = ["src/lambdaSearch.ts", "src/planRequest.ts", "src/routePath.ts", "src/planWaypoints.ts",
   "src/appleMaps.ts", "src/hazards.ts", "src/scenicPlanner.ts", "src/plan.ts",
   "src/planToken.ts", "src/reroutePlanner.ts"];
@@ -38,15 +38,22 @@ export const MUTATIONS = [
   m("search-ceiling-strict", "lambdaSearch.ts", "if (duration <= ceiling && (best", "if (duration < ceiling && (best"),
   m("search-keeps-shorter", "lambdaSearch.ts", "duration > best.duration ||", "duration < best.duration ||"),
   m("search-tie-smaller", "lambdaSearch.ts", "lambda > best.lambda))", "lambda < best.lambda))"),
-  m("search-bracket-strict", "lambdaSearch.ts", "if (duration <= ceiling) lo = mid;", "if (duration < ceiling) lo = mid;"),
+  m("search-bracket-strict", "lambdaSearch.ts", "if (samples.record(mid, await measure(mid)) <= ceiling) lo = mid;", "if (samples.record(mid, await measure(mid)) < ceiling) lo = mid;"),
   m("search-tolerance", "lambdaSearch.ts", "LAMBDA_TOLERANCE = 0.05", "LAMBDA_TOLERANCE = 0.1"),
   m("search-mid-third", "lambdaSearch.ts", "lo + (hi - lo) / 2", "lo + (hi - lo) / 3"),
-  m("search-one-extra", "lambdaSearch.ts", "evaluations < cap &&", "evaluations <= cap &&"),
+  m("search-one-extra", "lambdaSearch.ts", "1 + steps < cap &&", "1 + steps <= cap &&"),
   m("search-zero-budget", "lambdaSearch.ts", "budget === 0 ||", "budget === 1 ||"),
   m("search-used-strict", "lambdaSearch.ts", "winner.duration >= fastest + MIN", "winner.duration > fastest + MIN"),
   m("search-mono-equal", "lambdaSearch.ts", "b.duration < a.duration", "b.duration <= a.duration"),
   m("search-zero-fastest", "lambdaSearch.ts", "!(fastest > 0)", "!(fastest >= 0)"),
   m("search-max-lambda", "lambdaSearch.ts", "MAX_LAMBDA = 8;", "MAX_LAMBDA = 7;"),
+  m("alongside-bracket-strict", "lambdaSearch.ts", "answer.value <= ceiling : null", "answer.value < ceiling : null"),
+  m("alongside-first-after-fastest", "lambdaSearch.ts", "pending === null ? null : settle(() => measure(pending as number))]);", "pending === null ? null : fastest.then(() => settle(() => measure(pending as number)), () => null)]);"),
+  m("alongside-floor-after-next", "lambdaSearch.ts", "const floorRun = floorRecorded ? null : settle(() => measure(0));" + NL + "    const nextRun = next === null ? null : settle(() => measure(next));", "const nextRun = next === null ? null : settle(() => measure(next));" + NL + "    const floorRun = floorRecorded ? null : (nextRun ?? Promise.resolve(null)).then(() => settle(() => measure(0)));"),
+  m("alongside-mid-recorded-first", "lambdaSearch.ts", "    if (floorRun !== null) {" + NL + "      floorRecorded = true;" + NL + "      const [floor] = await Promise.all([floorRun, nextRun]);" + NL + "      samples.record(0, unwrap(floor));" + NL + "    }" + NL + "    const nextSettled = nextRun === null ? null : await nextRun;" + NL + "    samples.record(mid, unwrap(answer));", "    samples.record(mid, unwrap(answer));" + NL + "    if (floorRun !== null) {" + NL + "      floorRecorded = true;" + NL + "      const [floor] = await Promise.all([floorRun, nextRun]);" + NL + "      samples.record(0, unwrap(floor));" + NL + "    }" + NL + "    const nextSettled = nextRun === null ? null : await nextRun;"),
+  m("alongside-unusable-successor", "lambdaSearch.ts", "answer.ok && usable(answer.value) ? answer.value", "answer.ok ? answer.value"),
+  m("alongside-floor-every-round", "lambdaSearch.ts", "floorRecorded = true;", "floorRecorded = false;"),
+  m("alongside-bad-budget-launches", "lambdaSearch.ts", "budgetOk ? nextMidpoint(0, MAX_LAMBDA, 0, cap) : null", "nextMidpoint(0, MAX_LAMBDA, 0, cap)"),
   m("request-four-dp", "planRequest.ts", "ORIGIN_DECIMALS = 2;", "ORIGIN_DECIMALS = 4;"),
   m("request-any-key", "planRequest.ts", "if (!allowed.includes(key))", "if (!allowed.includes(key) && false)"),
   m("request-budget-181", "planRequest.ts", "MAX_BUDGET_MINUTES = 180;", "MAX_BUDGET_MINUTES = 181;"),
@@ -110,8 +117,11 @@ export const EQUIVALENT = [
     witness: "chosen is the measured route at outcome.lambda, and searchLambda returns only a measured duration <= the "
       + "same ceiling; bisection lambdas are distinct at formatMultiplier's 6 dp, so no second route shares the key. "
       + "Defence in depth - searchLambda's own ceiling mutants (search-ceiling-strict etc.) are the observable ones." },
-  { id: "search-cap-floor", file: "src/lambdaSearch.ts", find: "Math.max(1, maxEvaluations)",
+  { id: "search-cap-floor", file: "src/lambdaSearch.ts", find: "cap = Math.max(1, maxEvaluations);" + NL + "  const samples",
     witness: "lambda 0 is evaluated before the loop, so a cap of 0 and a cap of 1 both stop after one evaluation." },
+  { id: "alongside-cap-floor", file: "src/lambdaSearch.ts", find: "cap = Math.max(1, maxEvaluations);" + NL + "  const budgetOk",
+    witness: "the cap is read only by nextMidpoint as 1 + steps < cap with steps >= 0, which is false for a cap of 0 and "
+      + "for a cap of 1 alike, so both launch no midpoint and measure lambda 0 alone." },
 ];
 
 export function floorRefusal(mutations = MUTATIONS, subjects = SUBJECTS) {

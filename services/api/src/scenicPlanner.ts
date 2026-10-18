@@ -15,7 +15,7 @@ import { buildCustomModel, formatMultiplier, rejectCustomModel } from "./customM
 import { appleMapsUrl } from "./appleMaps";
 import { hazardsOf, HAZARD_DETAILS, type Hazard } from "./hazards";
 import { backRoadsEta, HonestFailure } from "./honestFailure";
-import { MAX_LAMBDA, MIN_BUDGET_USE, searchLambda } from "./lambdaSearch";
+import { MAX_LAMBDA, MIN_BUDGET_USE, searchLambdaAlongside, settle, unwrap } from "./lambdaSearch";
 import type { LatLon } from "./latLon";
 import { decisionPoints } from "./planWaypoints";
 import { PLAN_UPSTREAM_COST } from "./quota";
@@ -108,19 +108,24 @@ export async function planScenic(call: GuardedFetch, routerBase: string, origin:
     return call(url, init);
   };
   const closures = closuresFor(origin, destination);
-  const fastest = await route(counted, routerBase, [origin, destination], FAST_PROFILE, undefined);
-  const fastestSeconds = durationSeconds(fastest);
-  const ceiling = fastestSeconds + budgetSeconds;
-
   const measured = new Map<string, RoutePath>();
   const measure = async (lambda: number) => {
     const path = await route(counted, routerBase, [origin, destination], SCENIC_PROFILE, buildCustomModel(lambda, closures));
     measured.set(formatMultiplier(lambda), path);
     return durationSeconds(path);
   };
+  // T-0403: the fastest request is sent first and the search's first scenic request rides alongside it - at most
+  // two in flight (P-COST-04), the same requests and the same answer as one at a time.
+  const fastestCall = route(counted, routerBase, [origin, destination], FAST_PROFILE, undefined);
   // T-0334 R2: "all back roads" is ONE request at MAX_LAMBDA, then every guard below - the ceiling first.
-  const outcome = allBackRoads ? backRoadsOutcome(await measure(MAX_LAMBDA), fastestSeconds, budgetSeconds)
-    : await searchLambda(fastestSeconds, budgetSeconds, measure, MAX_EVALUATIONS);
+  const outcome = allBackRoads ? await (async () => {
+    const [fastestSettled, backSettled] = await Promise.all([settle(() => fastestCall), settle(() => measure(MAX_LAMBDA))]);
+    const fastestSeconds = durationSeconds(unwrap(fastestSettled));
+    return backRoadsOutcome(unwrap(backSettled), fastestSeconds, budgetSeconds);
+  })() : await searchLambdaAlongside(fastestCall.then(durationSeconds), budgetSeconds, measure, MAX_EVALUATIONS);
+  const fastest = await fastestCall;
+  const fastestSeconds = durationSeconds(fastest);
+  const ceiling = fastestSeconds + budgetSeconds;
 
   const measuredChosen = measured.get(formatMultiplier(outcome.lambda));
   if (!measuredChosen) throw new PlanFailure("no_recorded_lambda", `no route was measured at lambda ${outcome.lambda}`);
