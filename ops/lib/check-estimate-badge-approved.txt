@@ -300,6 +300,7 @@ DLINE	.accessibilityIdentifier("drive.caption")
 DLINE	}
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveDetails.swift	let caption: String
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	let menu: DriveMenu
+DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	@Environment(\.dynamicTypeSize) private var typeSize
 DECL	Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift	private var fastestRoads: [String] {
 DLINE	(menu.rows.first { $0.displayedMinutes == 0 } ?? menu.rows[0]).roads
 DLINE	}
@@ -320,7 +321,7 @@ DLINE	if !via.isEmpty {
 DLINE	Text(via)
 DLINE	.font(.subheadline)
 DLINE	.foregroundStyle(DesignTokens.fgMuted)
-DLINE	.lineLimit(2)
+DLINE	.lineLimit(typeSize.isAccessibilitySize ? nil : 2)
 DLINE	.fixedSize(horizontal: false, vertical: true)
 DLINE	}
 DLINE	}
