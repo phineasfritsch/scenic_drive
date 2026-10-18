@@ -24,14 +24,14 @@ import { onlyIds } from "./onlyIds.mjs";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-plan");
 
-export const MIN_MUTATIONS = 79;
+export const MIN_MUTATIONS = 81;
 export const SUBJECTS = ["src/lambdaSearch.ts", "src/planRequest.ts", "src/routePath.ts", "src/planWaypoints.ts",
   "src/appleMaps.ts", "src/hazards.ts", "src/scenicPlanner.ts", "src/plan.ts",
   "src/planToken.ts", "src/reroutePlanner.ts"];
 const TESTS = ["test/lambdaSearch.test.ts", "test/appleMaps.test.ts", "test/planRecorded.test.ts",
   "test/planPrivacy.test.ts", "test/planCost.test.ts", "test/planCeiling.test.ts", "test/planWaypoints.test.ts",
   "test/planReroute.test.ts", "test/closuresCrossing.test.ts", "test/planContinued.test.ts", "test/planStages.test.ts",
-  "test/planSchedule.test.ts"];
+  "test/planSchedule.test.ts", "test/lambdaSearchLanding.test.ts"];
 
 const NL = String.fromCharCode(10);
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
@@ -58,6 +58,8 @@ export const MUTATIONS = [
   m("alongside-unusable-walks", "lambdaSearch.ts", "if (!a.ok || !usable(a.value)) {", "if (!a.ok) {"),
   m("alongside-no-drain", "lambdaSearch.ts", "await Promise.all(runs.values());", "void runs;"),
   m("alongside-bad-budget-launches", "lambdaSearch.ts", "while (box.inFlight < 2 && budgetOk) {", "while (box.inFlight < 2) {"),
+  m("alongside-guess-resent", "lambdaSearch.ts", "guess !== null && !runs.has(guess) && guesses", "guess !== null && guesses"),
+  m("alongside-pending-resent", "lambdaSearch.ts", "!blocked && !runs.has(pending)) launch(pending);", "!blocked) launch(pending);"),
   m("planner-back-roads-resent", "scenicPlanner.ts", "const held = allBackRoads ? measured.get(formatMultiplier(MAX_LAMBDA)) ?? null : null;", "const held = null as RoutePath | null;"),
   m("request-four-dp", "planRequest.ts", "ORIGIN_DECIMALS = 2;", "ORIGIN_DECIMALS = 4;"),
   m("request-any-key", "planRequest.ts", "if (!allowed.includes(key))", "if (!allowed.includes(key) && false)"),
