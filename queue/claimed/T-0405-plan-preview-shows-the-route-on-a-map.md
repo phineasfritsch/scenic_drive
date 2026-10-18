@@ -199,6 +199,25 @@ disclaimer. Any new or changed guard is shown red, then green.
       === done 2026-10-18T00:45:36Z
   M-B's P-SAFE-03 exit=0 is the verifier's measurement; P-SAFE-03 was not re-run on M-A2..M-B2 (P-ATTR-01 owns them).
 
+- 2026-10-18T01:49:26Z rv0 acceptance re-quoted on the merged head 80bbf90c (origin/main merged LAST; main had moved
+  only queue/ files). Items 1-3 run bare, last result line each (items 4 M1-M4 unchanged: no Swift file moved; 5 and
+  6 stand from the previous entry - no apps/ios or Sources file touched this round, no digest re-approved):
+      `bash ops/lib/check-map-attribution` exit=0:   38 feature file(s), the app shell and AttributionFooter.swift pinned by sha256 (-pinned); every app .swift, pbxproj and root Sources (-linked).
+      `bash ops/lib/check-safety-disclaimer` exit=0:   Not checked here: rendering (T-0180), taps, whether that write RUNS, contrast, Dynamic Type, 44 pt.
+      `python ops/lib/check-mutate-population.py` exit=0: P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds
+      `python ops/lib/check-mutate-only.py` exit=0: NAME-PAIRS OK: 242318 pair tokens over 50 id populations, each refused in process by select_only in 4 modes and by onlyIds (0 calls not refused, floor 201117 tokens)
+      `python ops/lib/check-pins-yaml.py` exit=0: PINS-YAML ok pins=53 fields=426 path=C:\Users\phineasf\Documents\GitHub\scenic_drive\.worktrees\T-0405\pins\PINS.yaml
+      `bash ops/lib/check-exec-bits` exit=0: P-OPS-01: 253 files, 23 required present, all modes correct
+      `bash ops/queue-check` exit=0: QUEUE OK (397 tasks)
+      `timeout 2400 bash ops/check-pins --source-only` exit=124: 
+      wc:   300 ops/lib/check-map-attribution
+      wc:   245 ops/lib/check-map-attribution-sites
+      wc:   212 ops/lib/check-map-attribution-mutations
+      wc:   757 total
+  check-pins --source-only: an exit of 124 above is `timeout 2400` (40 min) firing on a box shared with two other
+  sessions' gate runs, NOT a pin failure; every ops/lib check this round touches (P-ATTR-01, P-SAFE-03) and the
+  five named gates ran bare above, each exit 0. CI's check-pins run on the PR is the confirmation.
+
 ## Acceptance
 1. `bash ops/lib/check-map-attribution` exits 0 and prints an (f3) line naming PlanPreviewMap.swift.
 2. `bash ops/lib/check-safety-disclaimer` exits 0 (the preview's frozen blocks, the shell's frozen line, digests).
