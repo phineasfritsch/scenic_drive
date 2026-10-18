@@ -126,6 +126,20 @@ async function whole(run: () => Promise<unknown>) {
   }
 }
 
+/** The requests searchLambdaAlongside makes BEYOND searchLambda's, as a function of the row: the first midpoint (4)
+ *  runs alongside the fastest whenever the budget is a duration and the cap admits a midpoint, so a failing fastest
+ *  leaves it measured; the second midpoint runs alongside lambda 0 only when 4's answer is usable, so a failing
+ *  lambda 0 leaves 4 and that second midpoint measured. Past lambda 0 a request launches only from a usable answer. */
+function extras(r: ReturnType<typeof row>, seqVisited: number[]): number[] {
+  const cap = Math.max(1, r.cap);
+  if (!(Number.isFinite(r.budget) && r.budget >= 0) || cap < 2) return [];
+  if (r.fastestRejects || !(Number.isFinite(r.fastest) && r.fastest > 0)) return [4];
+  if (seqVisited.length !== 1) return [];
+  const a4 = r.curve(4);
+  if (typeof a4 !== "number" || !Number.isFinite(a4) || a4 < 0 || cap < 3) return [4];
+  return [4, a4 <= r.fastest + r.budget ? 6 : 2];
+}
+
 describe("searchLambdaAlongside - searchLambda's samples two in flight (T-0403 acceptance 3)", () => {
   it("over 400 generated rows: the whole result equal, the same set of lambdas, evaluations <= the cap, <= 2 in flight", async () => {
     let succeeded = 0;
@@ -164,13 +178,9 @@ describe("searchLambdaAlongside - searchLambda's samples two in flight (T-0403 a
       expect({ seed, result: got }).toEqual({ seed, result: seq });
       expect({ seed, peak: peak <= 2 }).toEqual({ seed, peak: true });
       expect(new Set(visited).size).toBe(visited.length);
-      if ("outcome" in seq) {
-        succeeded += 1;
-        expect({ seed, set: [...visited].sort((a, b) => a - b) }).toEqual({ seed, set: [...seqVisited].sort((a, b) => a - b) });
-      } else {
-        expect(seqVisited.every((l) => visited.includes(l))).toBe(true);
-        expect(visited.length).toBeLessThanOrEqual(seqVisited.length + 2);
-      }
+      if ("outcome" in seq) succeeded += 1;
+      const expected = [...new Set([...seqVisited, ...extras(r, seqVisited)])].sort((a, b) => a - b);
+      expect({ seed, set: [...visited].sort((a, b) => a - b) }).toEqual({ seed, set: expected });
       expect(visited.length).toBeLessThanOrEqual(Math.max(1, r.cap));
     }
     expect(succeeded).toBeGreaterThan(150);
@@ -199,6 +209,20 @@ describe("searchLambdaAlongside - searchLambda's samples two in flight (T-0403 a
       }
     }
     expect(rows).toBe(108);
+  });
+
+  it("a midpoint whose answer is unusable launches no successor: NaN or -1 at 4 or 6, the exact requests", async () => {
+    const rows: [number, number, number[]][] = [[4, -1, [4, 0]], [4, Number.NaN, [4, 0]], [6, -1, [4, 0, 6]],
+      [6, Number.NaN, [4, 0, 6]]];
+    for (const [at, bad, want] of rows) {
+      const visited: number[] = [];
+      const got = await whole(() => searchLambdaAlongside(Promise.resolve(1000), 600, async (l) => {
+        visited.push(l);
+        return l === at ? bad : 1000 + l * 10;
+      }));
+      expect({ at, bad, visited, reason: (got as { reason?: string }).reason })
+        .toEqual({ at, bad, visited: want, reason: "router_nonsense" });
+    }
   });
 
   it("the first midpoint runs alongside the fastest and lambda 0 alongside the second: 4, then 0 and 6, then 7, 7.5, 7.75", async () => {
