@@ -253,6 +253,21 @@ disclaimer. Any new or changed guard is shown red, then green.
       wc:   226 ops/lib/check-map-attribution-mutations
   Not built here: file-scope type/extension shadowing in the feature modules (T-0406, in review).
 
+- 2026-10-18T05:09:34Z main moved during the push (PR #299, T-0406 merged: ops/lib/check-file-scope.py in P-SAFE-03). Merged
+  origin/main again (40055a9b). check-file-scope.py refused 3 files this branch adds or edits (PlanPreviewCard.swift
+  line 12 `let map: AnyView`, PlanSheetScreen.swift line 28 `private let previewMap`, PlanPreviewMap.swift not listed);
+  the three blocks it printed are pasted into ops/lib/check-file-scope-approved.txt (approved deliberately: each is
+  this task's own reviewed wiring). Gates re-run bare on 765990cc, in parallel:
+      `bash ops/lib/check-map-attribution` exit=0: 38 feature file(s), the app shell and AttributionFooter.swift pinned by sha256 (-pinned); every app .swift, pbxproj and root Sources (-linked).
+      `bash ops/lib/check-safety-disclaimer` exit=0: Not checked here: rendering (T-0180), taps, whether that write RUNS, contrast, Dynamic Type, 44 pt.
+      `python ops/lib/check-file-scope.py` exit=0: FILE-SCOPE ok  60 file(s) in 4 module(s), 1002 approved line(s) at depth 0-1 or #if/#else/#endif; no file-scope or member line outside the approved list
+      `python ops/lib/check-mutate-population.py` exit=0: P-PROC-06: every added module is covered or allowlisted; the floor of 173 holds
+      `python ops/lib/check-mutate-only.py` exit=0: NAME-PAIRS OK: 242318 pair tokens over 50 id populations, each refused in process by select_only in 4 modes and by onlyIds (0 calls not refused, floor 201117 tokens)
+      `python ops/lib/check-pins-yaml.py` exit=0: PINS-YAML ok pins=53 fields=426 path=C:\Users\phineasf\Documents\GitHub\scenic_drive\.worktrees\T-0405\pins\PINS.yaml
+      `bash ops/lib/check-exec-bits` exit=0: P-OPS-01: 259 files, 23 required present, all modes correct
+      `bash ops/queue-check` exit=0: QUEUE OK (398 tasks)
+  check-pins --source-only not re-run locally (timed out at 40 min twice on this box); CI pins-source-only confirms.
+
 ## Acceptance
 1. `bash ops/lib/check-map-attribution` exits 0 and prints an (f3) line naming PlanPreviewMap.swift.
 2. `bash ops/lib/check-safety-disclaimer` exits 0 (the preview's frozen blocks, the shell's frozen line, digests).
