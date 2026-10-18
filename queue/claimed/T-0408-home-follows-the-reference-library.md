@@ -130,3 +130,35 @@ and check-mutate-anchors before buying review.
   A10 wc -l DriveMenuChips 95, DriveOptionMeta 29, DriveRows 90, DriveSelector 73, ScenicHomeScreen 300,
   SurpriseToggle 31 (all <= 300); A11 ios-compile 39132380776 and ios-screenshot 39132388632 green on c8878158;
   39137231763 / 39137239496 dispatched on 1ef8b9d1.
+- 2026-10-18T16:22:42Z agent/claude-opus-5 - pre-review mutant pass at 2de5135d: M1 and M3 caught; M2 SURVIVED
+  (P-ATTR-01): in `mapControls`, `.padding(.bottom, 8)` -> `.padding(.bottom, -44)` + `.zIndex(1)` laid Surprise over
+  the credit's trailing end; with only the digest re-approved all five guards exited 0 (`mapControls` was not a frozen
+  block and no limb reads its modifiers). RED as recorded by the pass: check-safety-disclaimer, check-map-attribution,
+  check-file-scope, check-drive-display, check-estimate-badge all EXIT=0 on M2.
+  CLASS ruled: the right-edge column rides the credit's top edge, so any geometry or z-order anywhere in its view tree
+  (mapControls, the settingsButton it calls, SurpriseToggle's body) can cover the credit or push credit and sheet off
+  the screen. Closed by whitelist, not by spelling: check-safety-disclaimer-frozen freezes `mapControls`,
+  `settingsButton` and SurpriseToggle.swift's struct whole (FROZEN_MAP_CONTROLS / FROZEN_SETTINGS_BUTTON /
+  FROZEN_SURPRISE_TOGGLE; the directive fence now covers SurpriseToggle.swift). check-map-attribution-mutations gains
+  H13 (M2 verbatim), H14 (the gear's frame height 44 -> 2000) and H15 (`.offset(y: 60)` under Surprise's identifier).
+  GREEN of the refusal (31cdfbf4, the three new rows on app-tree copies; full table not re-run, owner-approved
+  touched-rows rule): "H13 M2 Surprise laid over the credit's trailing end 1 yes", "H14 the gear's frame pushes
+  credit and sheet off 1 yes", "H15 Surprise offset down over the credit 1 yes", "prove-red: 3/3 mutations refused by
+  name" (reason "a frozen render block changed"). GREEN on the real tree: A1/A2 below.
+  A11 witness looked at: ios-screenshot 39137239496 and ios-compile 39137231763 on 1ef8b9d1 both success. ax5 medium:
+  the selected Saddle Peak row keeps both via lines ("via Fernwood Pacific Drive · / Tuna Canyon Road · +9 more")
+  inside its bar, "+18 min" right, Westwood loop and SF Peninsula below with no overlap - the DEFECT is fixed; gear
+  and Surprise sit above the credit, which is whole on the sheet edge; conditions under the button. light medium
+  re-looked: credit uncovered, option rows and one estimate caption. No Swift changed after 1ef8b9d1.
+  ACCEPTANCE re-run at 31cdfbf4 (origin/main da475b6c is an ancestor; `git fetch origin` then merge: already up to
+  date): A1 check-safety-disclaimer EXIT=0; A2 check-map-attribution "...conditions, the right-edge column and the
+  app shell frozen whole" EXIT=0; A3 check-file-scope "FILE-SCOPE ok 64 file(s) in 4 module(s), 1074 approved
+  line(s)" EXIT=0, mutate/filescope "MUTATE ok 618/618 killed (floor 615, population 618)" EXIT=0; A4
+  check-drive-display "27 approved whole lines ... 3 structs (243 kept lines)" EXIT=0; A5 check-drive-copy NOT
+  MEASURED (still running at this entry under `timeout 1500` on the loaded box; not in CI); A6 check-store-links
+  EXIT=0; A7 check-estimate-badge "47 approved whole lines ... 11 badge blocks ... 121 declarations (446 lines)"
+  EXIT=0; A8 check-mutate-population "the floor of 173 holds", check-mutate-only "MUTATE-ONLY OK: 248 of 248" and
+  "NAME-PAIRS OK", check-mutate-anchors "17 drivers, 1303 anchors, 0 stale", check-pins-yaml "ok pins=53",
+  check-exec-bits "263 files, 23 required present, all modes correct", queue-check "QUEUE OK (403 tasks)" - all
+  EXIT=0; A9 swift test --filter OptionViaTests "5 tests in 1 suite passed" EXIT=0; A10 no Swift file changed since
+  the last measurement (ScenicHomeScreen 300, SurpriseToggle 31, the rest as above); A11 as above.
