@@ -103,6 +103,7 @@ require_drive_surface() {
   require_tracked_occurrences "DriveBasemap.planned(" "planned resolve call" "$DRIVE_SCREEN_REL(1) $PREVIEW_MAP_REL(1)"     "ONE resolve per planned-route surface, held in state: a second is a second answer, and the credit then names"     "tiles the renderer never got (mutant pass A5, now on the drive map and the preview map)." -- "$@"
   require_planned_surface "f2" "the drive map" "$DRIVE_SCREEN_REL"
   require_planned_surface "f3" "the plan preview's map" "$PREVIEW_MAP_REL"
+  require_preview_wiring -- "$@"
 }
 require_planned_surface() {
   local limb="$1" what="$2" rel="$3" home=("$FOOTER_ARG" "$FOOTER_STYLE" "$FOOTER_ROUTE") mounted styles all_h ok_h
@@ -117,4 +118,128 @@ require_planned_surface() {
   [[ "$all_h" -eq "$ok_h" ]] || fail     "$surface hides something from accessibility: $all_h \`accessibilityHidden\` occurrence(s), $ok_h \`(false)\`."     "A WHITELIST, as at the home: this map's credit is read by VoiceOver like everybody else's."
   echo "P-ATTR-01 ($limb): $what $rel - footer $FOOTER_ARG, mounted from $FOOTER_STYLE and $FOOTER_ROUTE, one DriveBasemap.planned(, nothing hidden."
   FOOTER_ARG="${home[0]}" FOOTER_STYLE="${home[1]}" FOOTER_ROUTE="${home[2]}"
+}
+
+# T-0405 rv0 M-A, M-B (limb f4): THE PREVIEW'S MAP IS THE ONE DRAWN, AND IT IS DRAWN UNDER ITS CREDIT. (f3) reads
+# the footer's argument and the mount, never what the plan sheet hands the card nor the ZStack's order: the
+# `.preview` arm handing the card `AnyView(EmptyView())` (M-A, no map and no credit) and the footer moved before
+# MapView (M-B, the map drawn over the credit) were both green on it with every digest re-approved. So PlanPreviewMap's
+# struct and the `.preview` arm are frozen WHOLE (check-safety-disclaimer-frozen's readers: an added modifier, a
+# moved line, a wrapper is refused), and every line under apps/ios naming previewMap or PlanPreviewMap - and every
+# line of PlanPreviewCard.swift naming `map` - is an approved whole line, in scan order (a shadowing declaration,
+# a second closure, a replaced argument or a re-bound card property is refused by name).
+PLAN_SHEET_REL="Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift"
+FROZEN_PREVIEW_MAP=(
+  'public struct PlanPreviewMap: View {'
+  '@Environment(\.colorScheme) private var colorScheme'
+  '@State private var style = MapStyle.maplibreDemoTiles'
+  '@State private var route: MapRoute?'
+  '@State private var creditBandTop: CGFloat = 0'
+  ''
+  'private let preview: PlanPreview'
+  ''
+  'public init(preview: PlanPreview) {'
+  'self.preview = preview'
+  '}'
+  ''
+  'public var body: some View {'
+  'ZStack(alignment: .bottom) {'
+  'MapView('
+  'styleURL: style.url,'
+  'centerLatitude: preview.route.first?.latitude ?? 0,'
+  'centerLongitude: preview.route.first?.longitude ?? 0,'
+  'zoomLevel: 11,'
+  'coveredBelowY: creditBandTop,'
+  'route: route'
+  ')'
+  'AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))'
+  '.onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { creditBandTop = $0 }'
+  '}'
+  '.clipped()'
+  '.dynamicTypeSize(...HomeTypeSize.cap)'
+  '.accessibilityIdentifier("plan.map")'
+  '.task { resolveMap() }'
+  '.onChange(of: colorScheme) { resolveMap() }'
+  '.onChange(of: preview.route) { resolveMap() }'
+  '}'
+  ''
+  'private func resolveMap() {'
+  'route = DriveMapLine.route(for: preview.route)'
+  'style = DriveBasemap.planned(appearance: colorScheme == .dark ? .dark : .light)'
+  '}'
+  '}'
+)
+# The arm, then the NEXT arm's first line: a case arm has no braces to count, so its end is the line that follows.
+FROZEN_PREVIEW_ARM=(
+  'case .preview(let ticket, let preview):'
+  'PlanPreviewCard(preview: preview, map: previewMap(preview), destination: sheet.destination?.name ?? "",'
+  'saveLine: saveLine,'
+  'onSave: { save(preview, budgetMinutes: ticket.budgetMinutes) },'
+  'onChangePlace: { searchFor(.destination) }, onDrive: { onDrive(preview) },'
+  'onLoop: { showingLoop = true }, onTrip: { showingTrip = true })'
+  'case .failed(_, let failure):'
+)
+PREVIEW_WIRING=(
+  "Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift: let map: AnyView"
+  "Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift: map"
+  "Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift: Button(\"Plan a road trip\", systemImage: \"map\", action: onTrip)"
+  "Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift: let distance = preview.distanceLabel.map { Text(\" \" + \$0).foregroundStyle(DesignTokens.fgMuted) }"
+  "Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift: return (distance.map { hero + \$0 } ?? hero).font(.title2)"
+  "$PLAN_SHEET_REL: private let previewMap: @MainActor (PlanPreview) -> AnyView"
+  "$PLAN_SHEET_REL: previewMap: @escaping @MainActor (PlanPreview) -> AnyView, onClose: @escaping () -> Void) {"
+  "$PLAN_SHEET_REL: self.previewMap = previewMap"
+  "$PLAN_SHEET_REL: PlanPreviewCard(preview: preview, map: previewMap(preview), destination: sheet.destination?.name ?? \"\","
+  "$PREVIEW_MAP_REL: public struct PlanPreviewMap: View {"
+  "ScenicDrive/ScenicDriveApp.swift: PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, surpriseGate: { LivePlanner.surpriseGate() }, onDrive: { isPlanning = false; drive = \$0 }, previewMap: { AnyView(PlanPreviewMap(preview: \$0)) }, onClose: { isPlanning = false })"
+)
+# Trimmed whole lines naming previewMap / PlanPreviewMap anywhere, or `map` in the card; only a line STARTING with //
+# and holding no backslash is dropped (B1 rv1-t0295: a // line with a backslash can be code inside a string).
+preview_wiring_lines() {
+  awk -v root="$APP_TREE/" '
+    {
+      line = $0; sub(/\r$/, "", line); sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+      if (substr(line, 1, 2) == "//" && index(line, "\\") == 0) next
+      if (line !~ /(^|[^A-Za-z0-9_])(previewMap|PlanPreviewMap)([^A-Za-z0-9_]|$)/ &&
+          !(FILENAME ~ /FeaturePlanSheet\/PlanPreviewCard\.swift$/ && line ~ /(^|[^A-Za-z0-9_])map([^A-Za-z0-9_]|$)/)) next
+      rel = FILENAME
+      if (index(FILENAME, root) == 1) rel = substr(FILENAME, length(root) + 1)
+      printf "%s: %s\n", rel, line
+    }
+  ' "$@"
+}
+# frozen_run FILE LABEL ARRAY: the approved lines, consecutive, from the ONE occurrence of the first.
+frozen_run() {
+  local file="$1" label="$2" kept=() i at=-1 n=0 j
+  local -n run_want="$3"
+  if [[ ! -f "$file" ]]; then FROZEN_BAD+=("$label: no such file $file"); return; fi
+  mapfile -t kept < <(frozen_code_lines "$file")
+  for i in "${!kept[@]}"; do [[ "${kept[$i]}" == "${run_want[0]}" ]] && { n=$((n + 1)); at="$i"; }; done
+  if [[ "$n" -ne 1 ]]; then
+    FROZEN_BAD+=("$label: the whole line \`${run_want[0]}\` occurs $n time(s) in $file, expected exactly 1"); return
+  fi
+  for j in "${!run_want[@]}"; do
+    [[ "${kept[$((at + j))]-<end of file>}" == "${run_want[$j]}" ]] && continue
+    FROZEN_BAD+=("$label line $((j + 1)) of ${#run_want[@]} in $file: approved \`${run_want[$j]}\`, found \`${kept[$((at + j))]-<end of file>}\`")
+    return
+  done
+}
+require_preview_wiring() {
+  [[ "${1:-}" == "--" ]] && shift
+  FROZEN_BAD=()
+  frozen_block "$APP_TREE/$PREVIEW_MAP_REL" "PlanPreviewMap's struct (the map, then its credit over it)" \
+    FROZEN_PREVIEW_MAP "import SwiftUI"
+  frozen_run "$APP_TREE/$PLAN_SHEET_REL" "PlanSheetScreen's .preview arm" FROZEN_PREVIEW_ARM
+  local found=() w
+  mapfile -t found < <(preview_wiring_lines "$@")
+  if [[ "$(printf '%s\n' "${found[@]}")" != "$(printf '%s\n' "${PREVIEW_WIRING[@]}")" ]]; then
+    FROZEN_BAD+=("${#found[@]} line(s) name previewMap / PlanPreviewMap (or \`map\` in PlanPreviewCard.swift), ${#PREVIEW_WIRING[@]} approved; found, in scan order:")
+    for w in "${found[@]}"; do FROZEN_BAD+=("  $w"); done
+  fi
+  [[ "${#FROZEN_BAD[@]}" -eq 0 ]] || fail "the plan preview's map is not wired and drawn as approved (f4):" \
+    "${FROZEN_BAD[@]}" \
+    "The preview's ONLY credit is PlanPreviewMap's footer: the shell builds it, PlanSheetScreen's .preview arm hands" \
+    "it to the card as \`map\`, and the footer is drawn AFTER MapView in its ZStack, so over it. rv0-t0405 M-A handed" \
+    "the card an empty view and M-B drew the map over the credit; every other limb was green on both. Each block" \
+    "is a whole-line whitelist - an edit is refused until this list is edited in the same commit."
+  echo "P-ATTR-01 (f4): PlanPreviewMap's struct and the .preview arm frozen whole; ${#found[@]} approved line(s) wire previewMap."
 }

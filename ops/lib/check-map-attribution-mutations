@@ -129,6 +129,14 @@ rows=(
   # B1 rv1-t0295 (MB66): a `//`-leading line holding a backslash is CODE - here an interpolation inside a multi-line
   # string mounts a HomeSheet - so sheet_occurrences must count it. Dropping the backslash test is red only here.
   "B1 rv1-t0295 a HomeSheet( in a string interpolation|+$FS/DriveOverlayNote.swift|struct DriveOverlayNote: View { @State var d = HomeSheetDetent.collapsed; var body: some View { Text(\"\"\""$'\n'"//\(String(describing: HomeSheet(detent: \$d, summary: { Text(\"x\") }, details: { Text(\"y\") })))"$'\n'"\"\"\") } }|HomeSheet( occurs outside its tracked set"
+  # F4a-F4e rv0-t0405 (survivors M-A, M-B and their classes): limbs (a)-(h) and the frozen home blocks are green on
+  # each; each is red by name only because limb (f4) freezes PlanPreviewMap's struct and the .preview arm whole and
+  # whitelists every line naming previewMap / PlanPreviewMap. (-pinned also refuses the copy, but runs later.)
+  "F4a rv0 M-A the preview arm hands the card no map|Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift|s/map: previewMap(preview),/map: AnyView(EmptyView()),/|the plan preview's map is not wired and drawn as approved"
+  "F4b a shadowing previewMap(_:) method|Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift|\$a extension PlanSheetScreen { func previewMap(_ preview: PlanPreview) -> AnyView { AnyView(EmptyView()) } }|the plan preview's map is not wired and drawn as approved"
+  "F4c the preview card hidden in its arm|Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift|s/^\( *\)\(onLoop: { showingLoop = true }, onTrip: { showingTrip = true })\)\$/\1\2\n\1.hidden()/|the plan preview's map is not wired and drawn as approved"
+  "F4d rv0 M-B the map drawn over the preview credit|$FS/PlanPreviewMap.swift|/^ *MapView(\$/,/^ *)\$/{H;d};/onGeometryChange(for: CGFloat.self) { \$0.frame(in: .global)/{p;x;s/^\n//}|the plan preview's map is not wired and drawn as approved"
+  "F4e the preview credit faded out|$FS/PlanPreviewMap.swift|s/^\( *\)\(\.onGeometryChange(for: CGFloat.self) { \$0.frame.*\)\$/\1\2\n\1.opacity(0)/|the plan preview's map is not wired and drawn as approved"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies

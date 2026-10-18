@@ -144,6 +144,61 @@ disclaimer. Any new or changed guard is shown red, then green.
   5. ios-compile 39070023891 SUCCESS, ios-screenshot 39070028987 SUCCESS; the shots as recorded above.
   6. `wc -l`: PlanPreviewMap.swift 52, PlanPreviewCard.swift 146, PlanSheetScreen.swift 285, ScenicDriveApp.swift 89.
 
+- 2026-10-18T00:47:40Z rv0 pre-review mutant pass, SURVIVORS M-A and M-B closed by class (limb f4, ops/lib/check-map-attribution-sites).
+  Ruling: (f3) read the preview footer's argument and the mount only. Nothing bound the plan sheet's `.preview`
+  arm's `map:` to the shell's PlanPreviewMap (M-A: `AnyView(EmptyView())` = no map and no credit) nor the
+  ZStack's order (M-B: footer before MapView = the map drawn over the credit). Class fix, all whitelists: (1)
+  PlanPreviewMap's whole struct frozen (frozen_block, above-line `import SwiftUI`) - z-order, an added hiding
+  modifier, a re-bound state; (2) the `.preview` arm frozen whole as a run of lines ending at the next arm's
+  `case .failed(_, let failure):` (frozen_run) - a replaced argument, a wrapper or `.hidden()` after the card;
+  (3) every whole trimmed line under apps/ios naming `previewMap` / `PlanPreviewMap`, plus every line of
+  PlanPreviewCard.swift naming `map`, equals an 11-line approved list in scan order - a shadowing
+  `previewMap(_:)`, a second closure or a re-bound card property is refused by name. f4 runs inside
+  require_drive_surface, so check-map-attribution itself stays at 300 lines. Prove-red rows F4a-F4e added to
+  ops/lib/check-map-attribution-mutations. No Swift file changed: no digest re-approved, ios CI runs stand.
+  Method: each mutant applied to the REAL tree with every sha256 row naming the old content re-approved
+  (.artifacts/t0405-rv0/driver.sh), check run, file + digest holders restored. RED = HEAD's checker, GREEN = f4.
+  RED, M-A (16:06Z run, P-SAFE-03 too): `[M-A empty map in the .preview arm] P-ATTR-01 exit=0`, `P-SAFE-03 exit=0`.
+  A first attempt at the other four overlapped two driver processes (TaskStop left orphans) and is discarded; the
+  sequential re-run (.artifacts/t0405-rv0/redgreen.sh) quoted verbatim:
+      === RED (HEAD checker) 2026-10-17T23:43:42Z
+      [M-A2 a shadowing previewMap(_:) method] P-ATTR-01 exit=0 (digest re-approved in 1 file(s))
+      [M-A3 the card hidden in the .preview arm] P-ATTR-01 exit=0 (digest re-approved in 1 file(s))
+      [M-B footer before MapView in the ZStack] P-ATTR-01 exit=0 (digest re-approved in 1 file(s))
+      [M-B2 the preview credit faded out] P-ATTR-01 exit=0 (digest re-approved in 1 file(s))
+      === GREEN (limb f4) 2026-10-18T00:14:05Z
+      [clean tree] P-ATTR-01 exit=0
+      P-ATTR-01 (f4): PlanPreviewMap's struct and the .preview arm frozen whole; 11 approved line(s) wire previewMap.
+      [M-A empty map in the .preview arm] P-ATTR-01 exit=1 (digest re-approved in 1 file(s))
+        | P-ATTR-01: the plan preview's map is not wired and drawn as approved (f4):
+        |   PlanSheetScreen's .preview arm line 2 of 7 in apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift: approved `PlanPreviewCard(preview: preview, map: previewMap(preview), destination: sheet.destination?.name ?? "",`, found `PlanPreviewCard(preview: preview, map: AnyView(EmptyView()), destination: sheet.destination?.name ?? "",`
+      [M-A2 a shadowing previewMap(_:) method] P-ATTR-01 exit=1 (digest re-approved in 1 file(s))
+        | P-ATTR-01: the plan preview's map is not wired and drawn as approved (f4):
+        |   12 line(s) name previewMap / PlanPreviewMap (or `map` in PlanPreviewCard.swift), 11 approved; found, in scan order:
+      [M-A3 the card hidden in the .preview arm] P-ATTR-01 exit=1 (digest re-approved in 1 file(s))
+        | P-ATTR-01: the plan preview's map is not wired and drawn as approved (f4):
+        |   PlanSheetScreen's .preview arm line 7 of 7 in apps/ios/Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift: approved `case .failed(_, let failure):`, found `.hidden()`
+      [M-B footer before MapView in the ZStack] P-ATTR-01 exit=1 (digest re-approved in 1 file(s))
+        | P-ATTR-01: the plan preview's map is not wired and drawn as approved (f4):
+        |   PlanPreviewMap's struct (the map, then its credit over it) line 15 of 38 in apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/PlanPreviewMap.swift: approved `MapView(`, found `AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))`
+      [M-B2 the preview credit faded out] P-ATTR-01 exit=1 (digest re-approved in 1 file(s))
+        | P-ATTR-01: the plan preview's map is not wired and drawn as approved (f4):
+        |   PlanPreviewMap's struct (the map, then its credit over it) line 25 of 38 in apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/PlanPreviewMap.swift: approved `}`, found `.opacity(0)`
+       M ops/lib/check-map-attribution-mutations
+       M ops/lib/check-map-attribution-sites
+      === prove-red rows F4a-F4e
+      MUTATION                                         EXIT   REASON NAMED
+      F4a rv0 M-A the preview arm hands the card no map 1      yes
+      F4b a shadowing previewMap(_:) method            1      yes
+      F4c the preview card hidden in its arm           1      yes
+      F4d rv0 M-B the map drawn over the preview credit 1      yes
+      F4e the preview credit faded out                 1      yes
+      prove-red: 5/5 mutations refused by name
+       M ops/lib/check-map-attribution-mutations
+       M ops/lib/check-map-attribution-sites
+      === done 2026-10-18T00:45:36Z
+  M-B's P-SAFE-03 exit=0 is the verifier's measurement; P-SAFE-03 was not re-run on M-A2..M-B2 (P-ATTR-01 owns them).
+
 ## Acceptance
 1. `bash ops/lib/check-map-attribution` exits 0 and prints an (f3) line naming PlanPreviewMap.swift.
 2. `bash ops/lib/check-safety-disclaimer` exits 0 (the preview's frozen blocks, the shell's frozen line, digests).
