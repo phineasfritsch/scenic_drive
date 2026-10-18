@@ -91,8 +91,8 @@ describe("POST /plan budget ceiling (R7, P-SAFE-04)", () => {
   });
 
   it("a route with no osm_way_id detail is not 'different' - it is refused", async () => {
-    const { status } = await plan(curveRouter(1_000_000, () => 1_100_000, [], []), 25);
-    expect(status).toBe(422);
+    const { status, body } = await plan(curveRouter(1_000_000, () => 1_100_000, [], []), 25);
+    expect({ status, body }).toEqual({ status: 422, body: { error: "no_scenic_alternative" } });
   });
 });
 

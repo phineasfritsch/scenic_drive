@@ -147,50 +147,102 @@ export function unwrap<T>(settled: Settled<T>): T {
   return settled.value;
 }
 
+/** T-0411: the most requests one search sends that it may never record - each a guess at the next midpoint. */
+export const MAX_SPECULATIVE = 2;
+
 /**
- * T-0403: searchLambda's search with its requests two in flight (P-COST-04) - the SAME samples, so the same outcome.
- * The first midpoint is always MAX_LAMBDA / 2 and measuring it needs nothing, so it runs alongside the fastest
- * request; lambda 0 never moves the bracket, so it runs alongside the second midpoint. Every result is RECORDED in
- * searchLambda's order (fastest, lambda 0, then each midpoint) once its round has settled, so the error searchLambda
- * would throw is the error thrown. A midpoint whose answer is unusable launches no successor.
+ * searchLambda's search with at most two requests in flight (P-COST-04) - the SAME samples, so the same outcome.
+ * T-0403: the first midpoint runs alongside the fastest request and lambda 0 alongside the second midpoint. T-0411:
+ * a slot the search would leave idle carries the midpoint it needs next if the one in flight fits the ceiling (its
+ * upper child) - at most MAX_SPECULATIVE such guesses, never recorded unless the bisection reaches them. Every result is RECORDED in
+ * searchLambda's order (fastest, lambda 0, then each midpoint), so the error searchLambda would throw is the error
+ * thrown. A midpoint whose answer is unusable launches no successor. Every request the search sent has settled
+ * before it returns or throws, so nothing it sent is in flight after it.
  */
 export async function searchLambdaAlongside(fastest: Promise<number>, budget: number,
   measure: (lambda: number) => Promise<number>, maxEvaluations = DEFAULT_MAX_EVALUATIONS): Promise<BudgetOutcome> {
   const cap = Math.max(1, maxEvaluations);
   const budgetOk = Number.isFinite(budget) && budget >= 0;
-  let pending = budgetOk ? nextMidpoint(0, MAX_LAMBDA, 0, cap) : null;
-  const [fastestSettled, firstSettled] = await Promise.all([settle(() => fastest),
-    pending === null ? null : settle(() => measure(pending as number))]);
-  const fastestSeconds = unwrap(fastestSettled);
-  const ceiling = ceilingOf(fastestSeconds, budget);
-  const samples = samplesUnder(fastestSeconds, budget, ceiling);
-  if (pending === null || firstSettled === null) {
-    samples.record(0, await measure(0));
-    return samples.outcome();
-  }
+  const runs = new Map<number, Promise<Settled<number>>>();
+  const answers = new Map<number, Settled<number>>();
+  const box: { fastest: Settled<number> | null; inFlight: number; wake: () => void } =
+    { fastest: null, inFlight: 1, wake: () => undefined };
+  const landed = () => {
+    box.inFlight -= 1;
+    box.wake();
+  };
+  void settle(() => fastest).then((s) => {
+    box.fastest = s;
+    landed();
+  });
+  const launch = (lambda: number) => {
+    box.inFlight += 1;
+    runs.set(lambda, settle(() => measure(lambda)).then((s) => {
+      answers.set(lambda, s);
+      landed();
+      return s;
+    }));
+  };
 
   let lo = 0;
   let hi = MAX_LAMBDA;
-  let answer: Settled<number> = firstSettled;
-  let floorRecorded = false;
-  for (let steps = 0; pending !== null; steps += 1) {
-    const mid: number = pending;
-    const feasible = answer.ok && usable(answer.value) ? answer.value <= ceiling : null;
-    const next = feasible === null ? null
-      : nextMidpoint(feasible ? mid : lo, feasible ? hi : mid, steps + 1, cap);
-    const floorRun = floorRecorded ? null : settle(() => measure(0));
-    const nextRun = next === null ? null : settle(() => measure(next));
-    if (floorRun !== null) {
-      floorRecorded = true;
-      const [floor] = await Promise.all([floorRun, nextRun]);
-      samples.record(0, unwrap(floor));
+  let steps = 0;
+  let pending = nextMidpoint(0, MAX_LAMBDA, 0, cap);
+  let blocked = false;
+  let guesses = 0;
+  const path: number[] = [];
+  const fill = () => {
+    while (box.inFlight < 2 && budgetOk) {
+      const guess = pending === null || blocked ? null : nextMidpoint(pending, hi, steps + 1, cap);
+      if (pending !== null && !blocked && !runs.has(pending)) launch(pending);
+      else if (!runs.has(0)) launch(0);
+      else if (guess !== null && !runs.has(guess) && guesses < MAX_SPECULATIVE) {
+        guesses += 1;
+        launch(guess);
+      } else return;
     }
-    const nextSettled = nextRun === null ? null : await nextRun;
-    samples.record(mid, unwrap(answer));
-    if (feasible) lo = mid;
-    else hi = mid;
-    pending = next;
-    if (nextSettled !== null) answer = nextSettled;
+  };
+
+  let samples: ReturnType<typeof samplesUnder> | null = null;
+  let recorded = 0;
+  try {
+    for (;;) {
+      const fastestNow = box.fastest as Settled<number> | null;
+      if (fastestNow !== null) {
+        if (samples === null) {
+          const fastestSeconds = unwrap(fastestNow);
+          samples = samplesUnder(fastestSeconds, budget, ceilingOf(fastestSeconds, budget));
+        }
+        const ceiling = fastestNow.ok ? fastestNow.value + budget : 0;
+        for (let a = pending === null ? undefined : answers.get(pending); a !== undefined && !blocked;
+          a = pending === null ? undefined : answers.get(pending)) {
+          if (!a.ok || !usable(a.value)) {
+            blocked = true;
+            break;
+          }
+          if (a.value <= ceiling) lo = pending as number;
+          else hi = pending as number;
+          path.push(pending as number);
+          steps += 1;
+          pending = nextMidpoint(lo, hi, steps, cap);
+        }
+        const floor = answers.get(0);
+        if (floor !== undefined) {
+          if (recorded === 0) {
+            samples.record(0, unwrap(floor));
+            recorded = 1;
+          }
+          for (; recorded <= path.length; recorded += 1) samples.record(path[recorded - 1]!, unwrap(answers.get(path[recorded - 1]!)!));
+          if (blocked) samples.record(pending as number, unwrap(answers.get(pending as number)!));
+          if (pending === null) return samples.outcome();
+        }
+      }
+      fill();
+      await new Promise<void>((resolve) => {
+        box.wake = resolve;
+      });
+    }
+  } finally {
+    await Promise.all(runs.values());
   }
-  return samples.outcome();
 }

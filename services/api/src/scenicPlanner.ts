@@ -145,9 +145,11 @@ export async function planScenic(call: GuardedFetch, routerBase: string, origin:
       return durationSeconds(again) <= ceiling && overlap(wayIds(again), wayIds(fastest)) < MAXIMUM_OVERLAP ? again : null;
     } : null);
   if (isHonestFailure(routeScoreOf(chosen))) {
-    throw new HonestFailure(await backRoadsEta(used + 1 <= PLAN_UPSTREAM_COST
-      ? () => route(counted, routerBase, [origin, destination], SCENIC_PROFILE, buildCustomModel(MAX_LAMBDA, closures))
-      : null), fastestSeconds);
+    // T-0411 L3: an all-back-roads plan already holds the offer's route - the same request, measured above.
+    const held = allBackRoads ? measured.get(formatMultiplier(MAX_LAMBDA)) ?? null : null;
+    throw new HonestFailure(await backRoadsEta(held !== null ? async () => held : used + 1 <= PLAN_UPSTREAM_COST
+        ? () => route(counted, routerBase, [origin, destination], SCENIC_PROFILE, buildCustomModel(MAX_LAMBDA, closures))
+        : null), fastestSeconds);
   }
   const eta = durationSeconds(chosen);
 
