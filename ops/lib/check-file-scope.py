@@ -23,18 +23,19 @@ FAIL CLOSED, each a refusal by reason: an unterminated block comment, string, in
 inside a single-line string; a `#` not followed by `#`, `"` or an identifier (`#/regex/#`); a `/` that is not `//`,
 `/*`, `/=` or followed by whitespace (Swift 6 mode enables bare `/regex/` literals, whose `{` would skew the depth);
 a lone CR; bytes that are not UTF-8; a depth that goes negative or ends != 0; a missing or malformed approved list.
-
-WHAT IT CANNOT SEE (residual limits, also named in the pin rows): a declaration in a module outside the four
-(MapAdapter, Handoff, ScenicKit, PlaceStore) - those are covered only by the digest pins and, for the Linux targets,
-their SwiftUI import ban; a frozen block inside a type nested at depth >= 1 (none today); text inside an `#if` that
-was already approved; whether the tree compiles or what an approved member computes.
-
-To approve an edit, paste the block the refusal prints over that file's block, in the same commit, deliberately.
-Exit 0 every line approved; 1 a refusal; 2 the check could not run.
+DIRECTIVES (rv1 B1: `{{` in an unparsed `#if compiler(>=99)` branch skewed the depth and a decoy undid it): every
+`#if/#elseif/#else/#endif` at ANY depth is an approved entry `#<depth>|<line>`, alone on its line outside strings;
+a condition is one bare build flag (`DEBUG`, `!DEBUG`), never compiler(/swift(/canImport(/os(; each branch is
+brace-neutral (same depth at `#elseif/#else/#endif` as at its `#if`, no `}` closing a scope opened before it).
+CANNOT SEE (also in the pin rows): a declaration in another module (MapAdapter, Handoff, ScenicKit, PlaceStore: digest
+pins only); a frozen block in a type nested at depth >= 1 (none today); text inside an approved `#if`; whether the
+tree compiles or what an approved member computes. To approve an edit, paste the block the refusal prints over that
+file's block, in the same commit, deliberately. Exit 0 every line approved; 1 a refusal; 2 the check could not run.
 """
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -43,6 +44,9 @@ MODULES = ("DesignSystem", "FeaturePlanSheet", "FeatureScenicHome", "FeatureSurp
 APPROVED = "ops/lib/check-file-scope-approved.txt"
 CHECKED_DEPTH = 1
 MIN_FILES = 59
+DIRECTIVES = ("if", "elseif", "else", "endif")
+WORD = re.compile(r"\w+")
+FLAG = re.compile(r"[ 	]+!?[A-Za-z_]\w*[ 	]*")
 IDENT_START = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")
 
 
@@ -65,8 +69,8 @@ def _block_comment(text: str, i: int, line: int) -> tuple[int, int]:
     raise LexError("an unterminated /* comment")
 
 
-def checked_lines(raw: bytes) -> list[tuple[int, int]]:
-    """(0-based line, min code depth) for every line with a code character at depth <= CHECKED_DEPTH."""
+def checked_lines(raw: bytes) -> list[tuple[int, str]]:
+    """(0-based line, tag): min code depth if <= CHECKED_DEPTH; `#<depth>` on every directive line at any depth."""
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as e:
@@ -76,6 +80,8 @@ def checked_lines(raw: bytes) -> list[tuple[int, int]]:
     text = text.replace("\r\n", "\n")
     n, i, line, depth = len(text), 0, 0, 0
     mins: dict[int, int] = {}
+    dirs: dict[int, int] = {}  # directive line -> depth
+    ifs: list[int] = []  # the depth at each open #if
     stack: list[list] = []  # ["str", hashes, multiline] | ["interp", open parens]
 
     def code(d: int) -> None:
@@ -133,6 +139,18 @@ def checked_lines(raw: bytes) -> list[tuple[int, int]]:
                 stack.append(["str", k - i, multi])
                 code(depth)
                 i = k + (3 if multi else 1)
+            elif k == i + 1 and (m := WORD.match(text, k)) and m.group(0) in DIRECTIVES:
+                word, eol, at = m.group(0), (text.find("\n", k) + 1 or n + 1) - 1, f"(line {line + 1})"
+                if stack or line in mins:
+                    raise LexError(f"a #{word} not on a line of its own (after code, or in an interpolation) {at}")
+                if not FLAG.fullmatch(text[m.end():eol]) if word in ("if", "elseif") else text[m.end():eol].strip():
+                    raise LexError(f"a #{word} condition that is not one bare build flag, or text after #{word} {at}: "
+                                   "a compiler(/swift( branch is not parsed, so its braces cannot be read")
+                if word != "if" and (not ifs or depth != ifs[-1]):
+                    raise LexError(f"a #{word} without its #if, or an #if branch that is not brace-neutral (depth "
+                                   f"{depth} at #{word}, {ifs[-1] if ifs else '-'} at its #if) {at}")
+                ifs[len(ifs) - (word == "endif"):] = [depth] if word == "if" else []
+                dirs[line], i = depth, eol
             elif k == i + 1 and k < n and text[k] in IDENT_START:
                 code(depth)
                 i += 1
@@ -156,6 +174,8 @@ def checked_lines(raw: bytes) -> list[tuple[int, int]]:
             depth -= 1
             if depth < 0:
                 raise LexError(f"a '}}' below depth 0 (line {line + 1})")
+            if ifs and depth < ifs[-1]:
+                raise LexError(f"a '}}' in an #if branch that closes a scope opened before it (line {line + 1})")
             code(depth)
             i += 1
         else:
@@ -170,9 +190,10 @@ def checked_lines(raw: bytes) -> list[tuple[int, int]]:
             i += 1
     if stack:
         raise LexError(f"an unterminated {'string' if stack[-1][0] == 'str' else 'interpolation'} at end of file")
-    if depth != 0:
-        raise LexError(f"a brace depth of {depth} at end of file")
-    return sorted((ln, d) for ln, d in mins.items() if d <= CHECKED_DEPTH)
+    if ifs or depth != 0:
+        raise LexError("an #if without its #endif at end of file" if ifs else f"a brace depth of {depth} at end of file")
+    tags = {ln: str(d) for ln, d in mins.items() if d <= CHECKED_DEPTH}
+    return sorted({**tags, **{ln: f"#{d}" for ln, d in dirs.items()}}.items())
 
 
 def file_entries(path: pathlib.Path) -> list[tuple[int, str]]:
@@ -205,7 +226,7 @@ def load_approved(path: pathlib.Path) -> dict[str, list[str]]:
             if current in approved or current.split("/")[0] not in MODULES:
                 raise SystemExit(f"FILE-SCOPE cannot run  {path}:{no}: duplicate or out-of-scope @file {current}")
             approved[current] = []
-        elif line[:2] in ("0|", "1|") and current is not None:
+        elif re.match(r"(?:[01]|#\d+)\|", line) and current is not None:
             approved[current].append(line)
         elif line.strip() and not line.startswith("# "):
             raise SystemExit(f"FILE-SCOPE cannot run  {path}:{no}: malformed approved-list line {line[:60]!r}")
@@ -271,7 +292,7 @@ def main(argv: list[str]) -> int:
         print(f"FILE-SCOPE FAIL  {len(refusals)} refusal(s)")
         return 1
     print(f"FILE-SCOPE ok  {len(files)} file(s) in {len(MODULES)} module(s), {lines_ok} approved line(s) at depth "
-          f"0-{CHECKED_DEPTH}; no file-scope or member line outside the approved list")
+          f"0-{CHECKED_DEPTH} or #if/#else/#endif; no file-scope or member line outside the approved list")
     return 0
 
 

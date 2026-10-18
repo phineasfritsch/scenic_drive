@@ -121,8 +121,9 @@ This task lands first. T-0397 and T-0398 then merge main and need no shadowing g
 
 ## Acceptance
 1. `python ops/lib/check-file-scope.py` exits 0 and prints `FILE-SCOPE ok` with the measured file and line counts.
-2. `python ops/mutate/filescope.py` exits 0: `MUTATE ok  241/241 killed (floor 241 ...)`.
-3. `python ops/mutate/filescope.py --only R1,R2,R3,R4,R5` (the review mutants verbatim) exits 0, each killed by name.
+2. `python ops/mutate/filescope.py` exits 0: `MUTATE ok  392/392 killed (floor 392 ...)`.
+3. `python ops/mutate/filescope.py --only R1,R2,R3,R4,R5,R6,R7` (the review mutants verbatim) exits 0, each killed
+   by name.
 4. The guard is in P-SAFE-03's assertion; `python ops/lib/check-pins-yaml.py` passes.
 5. Bare gates green: check-safety-disclaimer, check-mutate-population.py, check-mutate-only.py, check-pins-yaml.py,
    check-exec-bits, queue-check.
@@ -144,3 +145,31 @@ This task lands first. T-0397 and T-0398 then merge main and need no shadowing g
   `python ops/lib/check-file-scope.py --print FeatureScenicHome/DriveCard.swift`) in the same commit, deliberately.
   No follow-up filed: the residuals (other modules, frozen blocks nested at depth >= 1, approved `#if` text) are
   named in the guard header and the four pin rows.
+- 2026-10-18T00:54:03Z FIX ROUND 2 RULING (agent/claude-opus-5), before code. rv1 (agent/rv1-t0406) FAIL on 3733e235,
+  B1: braces inside an inactive `#if compiler(>=99)` branch at depth >= 2 skew the depth; a decoy body with a second
+  inactive branch undoes it and the decoy's real closers reproduce the approved `1|    }` / `0|}`. MUT-A (file-scope
+  `private enum DesignTokens`, skew +2) and MUT-B (member `static let DesignTokens`, skew +1) exit 0. Ruled: the
+  reviewer is right; the lexer counted braces it cannot classify (a compiler/swift-version branch is not parsed by
+  swiftc). Measured today: 16 directive lines in 5 files (PlanRehearsal, PlanRehearsalFixtures, DriveRehearsal,
+  OnboardingRehearsal, SurpriseSlot), every condition the bare flag `DEBUG`; none uses compiler(/swift(/canImport(.
+  Fix by class, fail closed: (a) every `#if/#elseif/#else/#endif` at ANY depth is a whitelisted entry
+  `#<depth>|<line>` in the approved list; (b) a `#if/#elseif` condition must be one bare build flag (`!` allowed) -
+  compiler(, swift(, canImport(, os( and every other form are refused; (c) each branch is brace-neutral: depth at
+  every `#elseif/#else/#endif` equals the depth at its `#if`, and no `}` inside a branch closes a scope opened before
+  it; (d) a directive is on a line of its own, outside strings and interpolations, nothing after `#else/#endif`;
+  an `#if` without `#endif` or an `#endif` without `#if` is refused. Population: R6/R7 = MUT-A/MUT-B verbatim on
+  LoopLinks.swift, plus generated D rows (6 conditions x 3 branch forms x skew 1-3 x file/member shape, closures,
+  interpolations, directives at depth 0-3, the lexer refusals); the floor is raised to the measured count.
+- 2026-10-18T01:03:15Z ROUND 2 RED then GREEN (agent/claude-opus-5). RED on 3733e235's guard (only ops/mutate/filescope.py
+  changed): `--only R6,R7,D1..D149` rc=1, `MUTATE SURVIVED R6 skew FeatureScenicHome/LoopLinks.swift ... (exit 0,
+  named 0, want '')`, the same for R7; 147 of 151 survived, 105 of them with exit 0 (the guard passed the file), the
+  other 42 refused for a reason that is not the directive rule; killed only D117/D118/D141/D142 (a decl at depth 0/1).
+  R7's mutated file equals rv1's mutB/LoopLinks.swift line for line (diff differs only in CRLF).
+  GUARD: directives at any depth are `#<depth>|<line>` entries; condition one bare flag; branches brace-neutral; no
+  `}` in a branch below its `#if` depth; alone on the line, outside strings. Re-seeded only the five measured files'
+  blocks: `git diff` of the approved list = +16 `#<d>|` lines, `0|#if DEBUG`/`0|#endif` -> `#0|` (2), nothing else.
+  GREEN: `FILE-SCOPE ok  59 file(s) in 4 module(s), 981 approved line(s) at depth 0-1 or #if/#else/#endif; ...` rc=0
+  (981 = 967 - 2 + 16). rv1's own repros on a copy: mutA and mutB each `FILE-SCOPE refuse  FeatureScenicHome/
+  LoopLinks.swift: the lexer cannot read it - a #if condition that is not one bare build flag ... (line 10)` rc=1.
+  Population `MUTATE ok  392/392 killed (floor 241, population 392)` rc=0 in 2m21s (7 R + 221 G + 15 L + 149 D);
+  floor set to the measured 392. `wc -l`: check-file-scope.py 300, filescope.py 252 (cap 300).

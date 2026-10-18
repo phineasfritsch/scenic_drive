@@ -10,10 +10,13 @@ restored byte for byte. No tracked byte and no .py file moves, so no __pycache__
 the guard must be green on the pristine copy (a guard red without a mutant proves nothing).
 
 KILLED means exit 1 AND the refusal names the mutated file (`FILE-SCOPE refuse  <module>/<file>`) AND, for the
-lexer rows, the reason. R1-R5 are the review mutants verbatim (T-0398 rv1/rv2, T-0397 rv2 twice, T-0396 rv1).
+lexer rows, the reason. R1-R5 are the review mutants verbatim (T-0398 rv1/rv2, T-0397 rv2 twice, T-0396 rv1); R6/R7
+are T-0406 rv1's MUT-A/MUT-B (an #if branch's braces skew the depth, a decoy branch undoes it).
 G rows are generated: each file-scope shadow x {above the imports, between them, at the end} x each frozen-block
 file; each member shadow inserted into the first type of each frozen-block file; each file-scope shadow as a new
-file in each module. L rows are the fail-closed lexer rows. The floor is the literal MIN_MUTATIONS.
+file in each module. L rows are the fail-closed lexer rows. D rows are generated directive rows: 6 conditions x
+{#if, #else, #elseif} x skew 1-3 x {file-scope, member} decoy, skew in a closure and an interpolation, directives at
+depth 0-3, and the directive lexer refusals. The floor is the literal MIN_MUTATIONS.
 
 Exit 0 every mutation killed and at least MIN_MUTATIONS ran; 1 a survivor or too few; 2 cannot tell; 64 a bad
 --only. Classified in ops/lib/mutate_population_table.py PROBES: its subject lives in ops/lib, outside MODULE_ROOTS.
@@ -36,7 +39,7 @@ GUARD = "ops/lib/check-file-scope.py"
 SOURCES = "apps/ios/Packages/ScenicApp/Sources"
 MODULES = ("DesignSystem", "FeaturePlanSheet", "FeatureScenicHome", "FeatureSurpriseMe")
 WORK = ROOT / ".build" / "mutate-filescope" / "Sources"
-MIN_MUTATIONS = 241
+MIN_MUTATIONS = 392
 
 FROZEN_FILES = ("FeatureScenicHome/SafetyDisclaimer.swift", "FeatureScenicHome/ScenicHomeScreen.swift",
                 "FeatureScenicHome/PostDriveCard.swift", "FeatureSurpriseMe/SurpriseCard.swift",
@@ -100,6 +103,63 @@ _LEXER = [
 ]
 MUTATIONS += [(f"L{i}",) + m for i, m in enumerate(_LEXER, 1)]
 
+# T-0406 rv1 B1: braces in an #if branch skew the depth; a decoy body's branch undoes it. R6/R7 are MUT-A/MUT-B
+# verbatim ("skew": the part before @@ goes after the first body opener, the rest before that body's `    }`).
+_LOOP, _IF = "FeatureScenicHome/LoopLinks.swift", "#if compiler(>=99)"
+_FILE_DECOY = "    }\n}\nprivate enum DesignTokens { static let bg = 0 }\nprivate enum Hide {\n    static func h() {"
+_MEMBER_DECOY = "    }\n    static let DesignTokens = 0\n    static func h() {"
+MUTATIONS += [
+    ("R6", _LOOP, "skew", f"        {_IF}\n        {{{{\n        #endif\n@@\n{_FILE_DECOY}\n        {_IF}\n        }}}}\n"
+                          "        #endif", ""),
+    ("R7", _LOOP, "skew", f"        {_IF}\n        {{\n        #endif\n@@\n{_MEMBER_DECOY}\n        {_IF}\n        }}\n"
+                          "        #endif", ""),
+]
+CONDS = ("compiler(>=99)", "swift(>=99)", "canImport(Nope)", "os(Linux)", "DEBUG", "!DEBUG")
+FORMS = {"if": lambda c, body: [f"#if {c}", *body, "#endif"],
+         "else": lambda c, body: [f"#if {c}", "#else", *body, "#endif"],
+         "elseif": lambda c, body: [f"#if {c}", f"#elseif {c}", *body, "#endif"]}
+
+
+def _ind(lines: list[str], pad: str = "        ") -> str:
+    return "\n".join(pad + ln for ln in lines)
+
+
+def _why(cond: str, flagged: str) -> str:
+    return "one bare build flag" if "(" in cond else flagged
+
+
+_D = []
+for _c in CONDS:
+    for _form, _wrap in FORMS.items():
+        for _k in (1, 2, 3):
+            for _decoy in (_FILE_DECOY, _MEMBER_DECOY):
+                _D.append((_LOOP, "skew", _ind(_wrap(_c, ["{" * _k])) + "\n@@\n" + _decoy + "\n"
+                           + _ind(_wrap(_c, ["}" * _k])), _why(_c, "not brace-neutral")))
+    _D.append((_LOOP, "body", "        let f = {\n" + _ind(FORMS["if"](_c, ["{"]), " " * 12) + "\n        }",
+               _why(_c, "not brace-neutral")))
+    _D.append((_LOOP, "body", '        _ = """\n        \\(\n' + _ind(FORMS["if"](_c, ["{"])) + '\n        0)\n        """',
+               "not on a line of its own"))
+    _D.append((_CARD, "append", "\n".join(FORMS["if"](_c, ["private enum DesignTokens { static let bg = 0 }"])),
+               _why(_c, "not at an approved site")))
+    _D.append((_LOOP, "member", _ind(FORMS["if"](_c, ["static let DesignTokens = 0"]), "    "),
+               _why(_c, "not at an approved site")))
+    _D.append((_LOOP, "body", _ind(FORMS["if"](_c, ["let x = 1"])), _why(_c, "not at an approved site")))
+    _D.append((_LOOP, "body", "        _ = {\n" + _ind(FORMS["if"](_c, ["let x = 1"]), " " * 12) + "\n        }",
+               _why(_c, "not at an approved site")))
+_D += [
+    (_CARD, "append", "#if DEBUG", "without its #endif"),
+    (_CARD, "append", "#endif", "without its #if"),
+    (_LOOP, "body", "        #if DEBUG\n    }\n    static func x() {\n        #endif", "closes a scope opened before"),
+    (_CARD, "append", "#if DEBUG\n#else DEBUG\n#endif", "text after"),
+    (_LOOP, "body", "        let x = 1; #if DEBUG\n        #endif", "not on a line of its own"),
+]
+MUTATIONS += [(f"D{i}",) + m for i, m in enumerate(_D, 1)]
+
+
+def _body_site(lines: list[str]) -> int | None:
+    return next((k for k, ln in enumerate(lines) if ln.startswith("    ") and ln.endswith("{")
+                 and ("var body" in ln or " func " in ln)), None)
+
 
 def mutate(text: str, place: str, add: str) -> str | None:
     lines = text.split("\n")
@@ -107,13 +167,19 @@ def mutate(text: str, place: str, add: str) -> str | None:
         return add + "\n" + text
     if place == "append":
         return text.rstrip("\n") + "\n" + add + "\n"
+    if place == "skew":
+        head, tail = add.split("\n@@\n")
+        k = _body_site(lines)
+        end = next((j for j in range(k + 1, len(lines)) if lines[j] == "    }"), None) if k is not None else None
+        if end is None:
+            return None
+        return "\n".join(lines[:k + 1] + head.split("\n") + lines[k + 1:end] + tail.split("\n") + lines[end:])
     if place == "after-import":
         k = next((k for k, ln in enumerate(lines) if ln.startswith("import ")), None)
     elif place == "member":
         k = next((k for k, ln in enumerate(lines) if OPENER.match(ln)), None)
     else:  # body: inside the first member body that opens a `var body` or a func
-        k = next((k for k, ln in enumerate(lines) if ln.startswith("    ") and ln.endswith("{")
-                  and ("var body" in ln or " func " in ln)), None)
+        k = _body_site(lines)
     if k is None:
         return None
     return "\n".join(lines[:k + 1] + add.split("\n") + lines[k + 1:])

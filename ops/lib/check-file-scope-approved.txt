@@ -1,6 +1,7 @@
 # T-0406's approved list, read by ops/lib/check-file-scope.py. One block per file of DesignSystem, FeaturePlanSheet,
 # FeatureScenicHome and FeatureSurpriseMe: `@file <module>/<path>`, then every line with code at brace depth 0 or 1,
-# in order, as `<depth>|<the line, byte-equal>`. A refusal prints the file's new block; paste it here deliberately.
+# in order, as `<depth>|<the line, byte-equal>`, and every #if/#elseif/#else/#endif at any depth as
+# `#<depth>|<the line>`. A refusal prints the file's new block; paste it here deliberately.
 
 @file DesignSystem/AttributionFooter.swift
 0|import SwiftUI
@@ -255,13 +256,16 @@
 1|    var searchQuery = ""
 1|    var searchAnswer: PlaceSearchAnswer? = nil
 1|    static var atLaunch: PlanRehearsal? {
+#2|        #if DEBUG
+#2|        #else
+#2|        #endif
 1|    }
 1|    public static var opensSheet: Bool {
 1|    }
 0|}
 
 @file FeaturePlanSheet/PlanRehearsalFixtures.swift
-0|#if DEBUG
+#0|#if DEBUG
 0|import Foundation
 0|import ScenicKit
 0|enum PlanRehearsalFixtures {
@@ -348,7 +352,7 @@
 1|    private static func trip(_ outcome: TripOutcome, waitlist: WaitlistAnswer? = nil) -> PlanRehearsal? {
 1|    }
 0|}
-0|#endif
+#0|#endif
 
 @file FeaturePlanSheet/PlanSheetScreen.swift
 0|import DesignSystem
@@ -592,8 +596,14 @@
 1|    static let planned = [line[0], line[line.count - 1]].map {
 1|    }
 1|    public static var atLaunch: PlanPreview? {
+#2|        #if DEBUG
+#2|        #else
+#2|        #endif
 1|    }
 1|    public static var rerouter: (any RerouteSending)? {
+#2|        #if DEBUG
+#2|        #else
+#2|        #endif
 1|    }
 1|    public func reroute(_ request: RerouteRequest) async throws -> RerouteReply {
 1|    }
@@ -764,6 +774,8 @@
 0|import ScenicKit
 0|enum OnboardingRehearsal {
 1|    static var atLaunch: Onboarding {
+#2|        #if DEBUG
+#2|        #endif
 1|    }
 0|}
 
@@ -931,6 +943,9 @@
 1|    static let launchArgumentKey = "screen"
 1|    static let launchValue = "surprise"
 1|    static var atLaunch: Bool {
+#2|        #if DEBUG
+#2|        #else
+#2|        #endif
 1|    }
 0|}
 
