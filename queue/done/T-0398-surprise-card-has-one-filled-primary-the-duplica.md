@@ -379,3 +379,20 @@ then green.
   head a88c9a94. LAST, after a second fetch: git merge-base --is-ancestor origin/main origin/task/T-0398 exit 1; the
   only commit on main past the merge base 839220da is 47b6f10d "queue: file T-0411", one queue/backlog file (44
   insertions) - queue-only drift, accepted. Reviewer set to agent/rv4-t0398; state stays done. Not merged.
+- 2026-10-18T12:10:38Z agent/rv5-t0398: rv5 content review of 8c23c1b9 PASS (P-SAFE-07 screen guard re-pointed at DriveCard.swift).
+  Approved list: every changed row is explained by the merged tree - DriveScreen badge SITE/BLOCK rows replaced by
+  DriveCard rows (remainingSeconds, glanceLine, arrival, glanceLine Text, badge Text, drive.estimate; BLOCK if
+  showsEstimate {, BODY .font(.caption) + .fixedSize, BELOW if let caption {), DriveScreen call-site SITEs, DECLs
+  showsEstimate/caption + the if-let-caption DLINEs (T-0397); PlanPreviewMap/previewMap DECLs and the ScenicHomeScreen
+  DLINE come from T-0405 (#298) on main. Nothing beyond the merge. --prove-red 18/18.
+  Own mutants (digest rows in check-safety-disclaimer-pinned re-approved for each): A facts.opacity(0) in DriveCard
+  non-AX branch: P-SAFE-07 exit 0, P-SAFE-09 drive_display_frozen exit 1 (caught). B let showsEstimate = false
+  shadow in facts: P-SAFE-07 exit 1 (86 found, 85 approved decls), P-SAFE-09 exit 1. C extension Text
+  foregroundStyle -> hidden() appended to DriveCopy.swift: P-SAFE-07 exit 1 (87/85), P-SAFE-09 exit 0. D extension
+  Font static let caption = size 0.01 in DriveCopy.swift: P-SAFE-07 exit 1 (86/85), P-SAFE-09 exit 0. No mutant
+  green on every check. Recordable: P-SAFE-07 alone does not fence the facts container (A); P-SAFE-09 freezes it.
+  Gates on 1e6b0da8, all exit 0: check-safety-disclaimer, check-map-attribution, check-file-scope (1042 lines),
+  filescope 618/618, check-drive-display (3 structs, 243 lines), check-estimate-badge (45 sites, 10 blocks, 85
+  decls), check-mutate-population (floor 173), check-mutate-only, check-mutate-anchors (17/17), check-pins-yaml
+  (53 pins), check-exec-bits (263 files), queue-check QUEUE OK (402). gh pr checks 293: core pass, pins-source-only
+  pass. Not merged.
