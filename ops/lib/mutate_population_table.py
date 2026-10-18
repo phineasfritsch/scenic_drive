@@ -19,7 +19,10 @@ DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "config.py", "corpusfet
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own",
           "sane_corpus.py": "ops/sane exit 4's population (T-0372): its subjects ops/lib/sane_corpus.py and ops/sane "
                             "are outside MODULE_ROOTS, so no SUBJECT_MODULES can name them; its floor is the "
-                            "driver's literal MIN_MUTATIONS"}
+                            "driver's literal MIN_MUTATIONS",
+          "filescope.py": "ops/lib/check-file-scope.py's population (T-0406): its subject is an ops/lib guard, "
+                          "outside MODULE_ROOTS, and its mutants are copies of the feature sources; its floor is "
+                          "the driver's literal MIN_MUTATIONS"}
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
