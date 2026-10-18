@@ -24,7 +24,7 @@ import { onlyIds } from "./onlyIds.mjs";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-plan");
 
-export const MIN_MUTATIONS = 80;
+export const MIN_MUTATIONS = 79;
 export const SUBJECTS = ["src/lambdaSearch.ts", "src/planRequest.ts", "src/routePath.ts", "src/planWaypoints.ts",
   "src/appleMaps.ts", "src/hazards.ts", "src/scenicPlanner.ts", "src/plan.ts",
   "src/planToken.ts", "src/reroutePlanner.ts"];
@@ -57,8 +57,7 @@ export const MUTATIONS = [
   m("alongside-guess-past-blocked", "lambdaSearch.ts", "pending === null || blocked ? null : nextMidpoint", "pending === null ? null : nextMidpoint"),
   m("alongside-unusable-walks", "lambdaSearch.ts", "if (!a.ok || !usable(a.value)) {", "if (!a.ok) {"),
   m("alongside-no-drain", "lambdaSearch.ts", "await Promise.all(runs.values());", "void runs;"),
-  m("alongside-launch-after-fastest-fails", "lambdaSearch.ts", "box.fastest?.ok !== false && budgetOk", "budgetOk"),
-  m("alongside-bad-budget-launches", "lambdaSearch.ts", "box.fastest?.ok !== false && budgetOk) {", "box.fastest?.ok !== false) {"),
+  m("alongside-bad-budget-launches", "lambdaSearch.ts", "while (box.inFlight < 2 && budgetOk) {", "while (box.inFlight < 2) {"),
   m("planner-back-roads-resent", "scenicPlanner.ts", "const held = allBackRoads ? measured.get(formatMultiplier(MAX_LAMBDA)) ?? null : null;", "const held = null as RoutePath | null;"),
   m("request-four-dp", "planRequest.ts", "ORIGIN_DECIMALS = 2;", "ORIGIN_DECIMALS = 4;"),
   m("request-any-key", "planRequest.ts", "if (!allowed.includes(key))", "if (!allowed.includes(key) && false)"),

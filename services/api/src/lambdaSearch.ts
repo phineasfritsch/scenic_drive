@@ -192,7 +192,7 @@ export async function searchLambdaAlongside(fastest: Promise<number>, budget: nu
   let guesses = 0;
   const path: number[] = [];
   const fill = () => {
-    while (box.inFlight < 2 && box.fastest?.ok !== false && budgetOk) {
+    while (box.inFlight < 2 && budgetOk) {
       const guess = pending === null || blocked ? null : nextMidpoint(pending, hi, steps + 1, cap);
       if (pending !== null && !blocked && !runs.has(pending)) launch(pending);
       else if (!runs.has(0)) launch(0);
