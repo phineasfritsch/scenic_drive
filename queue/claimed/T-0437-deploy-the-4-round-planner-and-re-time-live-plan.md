@@ -1,13 +1,13 @@
 ---
 id: T-0437
 title: Deploy the 4-round planner (T-0411) and re-time live /plan through the tunnel - quote at least 5 plans before and after
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-18T22:34:36Z
+lease_expires_at: 2026-10-19T22:34:36Z
+worktree: .worktrees/T-0437
+branch: task/T-0437
 exclusive: [prod]
 touches: [queue/]
 pins_affected: []
@@ -36,3 +36,4 @@ Record in the Log anything still slow and why. T-0433, an owner decision, covers
 
 ## Log
 - 2026-10-18 filed by agent/claude-opus-5 after PR #304 merged.
+- 2026-10-18T22:34:36Z claimed by agent/claude-opus-5; lease until 2026-10-19T22:34:36Z
