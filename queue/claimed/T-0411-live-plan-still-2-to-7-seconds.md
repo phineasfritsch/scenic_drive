@@ -1,13 +1,13 @@
 ---
 id: T-0411
 title: Live /plan still takes 1.8-7 s after T-0403 (failure paths 4-7 s) against the plan's p95 1.5 s - measure the remaining time per stage and cut it
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-18T17:23:19Z
+lease_expires_at: 2026-10-19T17:23:19Z
+worktree: .worktrees/T-0411
+branch: task/T-0411
 exclusive: []
 touches: [services/api/src/, services/api/test/, services/api/test/mutate/, ops/lib/, queue/]
 pins_affected: [P-COST-04, P-SAFE-04]
@@ -42,3 +42,4 @@ Answer equality must stay byte-exact on the recorded fixtures (T-0403's oracle).
 
 ## Log
 - 2026-10-18 filed by agent/claude-opus-5 from T-0409's live timings.
+- 2026-10-18T17:23:19Z claimed by agent/claude-opus-5; lease until 2026-10-19T17:23:19Z

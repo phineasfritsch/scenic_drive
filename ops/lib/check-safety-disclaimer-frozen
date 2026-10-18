@@ -37,10 +37,29 @@
 # property, filed on T-0180 (main 558e154, its both-detents runtime clause); a modifier these blocks call
 # (`.background`, `.overlay`) overloaded by an extension elsewhere in the module; what the views they name
 # outside frozen_views.py's closure (AttributionFooter, SafetyDisclaimer, the Surprise card the shell injects into
-# SurpriseGateSlot as a closure) draw inside themselves;
-# `/* */` comments.
+# SurpriseGateSlot as a closure) draw inside themselves.
+# COMMENTS (T-0407, rv2-t0405): frozen_block refuses ANY /* */ block comment in a file it reads a block from
+# (ops/lib/frozen_comments.py, check-file-scope's lexer), so a block commented out under a twin is refused. A view
+# frozen_views.py freezes is compared WHOLE FILE, every non-// line, so a /* */ line there is a changed line.
 FROZEN_REASON="a frozen render block changed"
 FROZEN_DIRECTIVES=()
+FROZEN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+declare -gA FROZEN_COMMENTS_SEEN=()
+
+# frozen_comments FILE LABEL: frozen_comments.py's refusals for FILE appended to FROZEN_BAD; a run that cannot tell
+# is a refusal too. The result is kept per file CONTENT, so a file read for several blocks spawns python once.
+frozen_comments() {
+  local file="$1" label="$2" raw=() key out rc line py="${PYTHON:-$(command -v python3 || command -v python)}"
+  mapfile -t raw < "$file"; printf -v key '%s\n' "$file" "${raw[@]}"
+  if [[ -z "${FROZEN_COMMENTS_SEEN[$key]+x}" ]]; then
+    out="$("$py" "$FROZEN_LIB_DIR/frozen_comments.py" "$file")"; rc=$?
+    FROZEN_COMMENTS_SEEN[$key]="$rc"$'\n'"$out"
+  fi
+  rc="${FROZEN_COMMENTS_SEEN[$key]%%$'\n'*}"; out="${FROZEN_COMMENTS_SEEN[$key]#*$'\n'}"
+  [[ "$rc" -eq 0 ]] && return
+  while IFS= read -r line; do FROZEN_BAD+=("$label: ${line#FROZEN-COMMENT refuse  }"); done <<< "$out"
+  [[ "$rc" -eq 1 ]] || FROZEN_BAD+=("$label: frozen_comments.py exited $rc on $file - a frozen file it cannot read is never a pass")
+}
 
 FROZEN_HOME_SHEET=(
   'struct HomeSheet<Summary: View, Details: View>: View {'
@@ -362,6 +381,7 @@ frozen_block() {
   local file="$1" label="$2" above="$4" ob='{' cb='}'
   local -n want="$3"
   if [[ ! -f "$file" ]]; then FROZEN_BAD+=("$label: no such file $file"); return; fi
+  frozen_comments "$file" "$label"
   local kept=() i at=-1 n=0
   mapfile -t kept < <(frozen_code_lines "$file")
   for i in "${!kept[@]}"; do

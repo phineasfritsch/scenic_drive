@@ -35,6 +35,7 @@ import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from drive_display_frozen import BLOCKS  # noqa: E402  (this directory is sys.path[0])
+import frozen_comments  # noqa: E402  (T-0407: no /* */ block comment in a frozen file)
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORD = re.compile(r"(?<![A-Za-z0-9_])(DriveDisplay|DriveSurface|DriveMode|display)(?![A-Za-z0-9_])")
@@ -191,6 +192,8 @@ def frozen(tree: pathlib.Path) -> list[str]:
     """T-0397 rv1 B2/B3: each drive view is its approved whole block, under its approved line, its file's last code."""
     bad = []
     for label, rel, above, want in BLOCKS:
+        if (tree / rel).is_file():
+            bad += frozen_comments.refusals(tree / rel, label)
         lines = kept(tree / rel) if (tree / rel).is_file() else []
         if lines.count(want[0]) != 1:
             bad.append(f"{label}: `{want[0]}` occurs {lines.count(want[0])} time(s) in {rel}, expected exactly 1")

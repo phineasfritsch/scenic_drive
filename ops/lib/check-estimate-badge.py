@@ -31,8 +31,11 @@ ops/lib/check-estimate-badge-approved.txt:
 Lines are trimmed and a trailing CR stripped; a line is dropped only when its trimmed text STARTS with `//`; nothing
 is cut inside a line (source guards fail closed). An approved-file edit is the deliberate act; a digest is not one.
 
+COMMENTS (T-0407): check() first refuses ANY /* */ block comment in a file a badge block is read from
+(ops/lib/frozen_comments.py, check-file-scope's lexer), so a block commented out under a twin is refused.
+
 WHAT IT CANNOT SEE: whether the badge RENDERS (the ios-screenshot shots), an ETA reaching the screen under a name
-none of the words spells, `/* */` comments, Swift outside apps/ios (ScenicKit's PlanPreview.estimateBadge is bound by
+none of the words spells, Swift outside apps/ios (ScenicKit's PlanPreview.estimateBadge is bound by
 name in P-SAFE-07's row), and a public or internal helper that an approved declaration's body calls (only same-file
 private helpers are followed: following every name freezes the whole app - estimate_badge_decls.py).
 
@@ -50,6 +53,7 @@ import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import estimate_badge_decls as decls  # noqa: E402
+import frozen_comments  # noqa: E402  (T-0407: no /* */ block comment in a file a badge block lives in)
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 APPROVED_FILE = ROOT / "ops" / "lib" / "check-estimate-badge-approved.txt"
@@ -163,6 +167,13 @@ def check(tree: pathlib.Path) -> None:
     if not tree.is_dir():
         raise Refusal(f"no such directory: {tree}")
     sites, blocks, approved_decls = approved()
+    try:
+        hidden = [ln for rel in dict.fromkeys(r for r, _ in BLOCKS) if (tree / rel).is_file()
+                  for ln in frozen_comments.refusals(tree / rel, rel)]
+    except frozen_comments.CannotRun as e:
+        raise Refusal(f"the block-comment rule cannot run ({e}) - a badge file it cannot read is never a pass")
+    if hidden:
+        raise Refusal("\n  ".join(hidden))
     files = swift(tree)
     found = population(files)
     if found != sites:
