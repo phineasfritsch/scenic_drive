@@ -72,3 +72,62 @@ enumeration fix either way.
 
 ## Log
 - 2026-09-08T07:46:38Z claimed by agent/claude-opus-5; lease until 2026-09-08T10:46:38Z
+
+- 2026-09-08 — **branches, not pull requests — and the first run of the fix broke the tool in two more
+  places, both of which are now closed.**
+
+  **The enumeration.** `ops/merge-rehearse:76` built its branch list from `gh pr list --state open`, so a
+  ref ahead of `main` with no PR was never rehearsed and never counted:
+
+        branches: 55 to rehearse = 44 with an open PR + 11 with none
+        no-PR branch: task/T-0069 (59 commit(s)) - rehearsed here, but it has NO CI result anywhere
+        no-PR branch: task/T-0029 (55 commit(s)) - ...
+        ... nine more
+
+  PRs still supply the ordering — `baseRefName` is the only place that says what is stacked on what — and
+  they are the only source of CI state. They no longer decide what gets rehearsed. The derived ordering rule
+  picked up `task/T-0080` on its own the moment its PR existed, which is the argument for deriving rather
+  than listing, made again without being asked.
+
+  **DEFECT 1, mine, found by demanding a red run for the guard I had just written.** The vacuity guard
+  compared the unique heads in `EDGES` against the unique PR heads — but `EDGES` *starts* as the PR list, so
+  that count can never fall below it. Pointing the ref query at an empty namespace added nothing, the guard
+  passed, and the tool rehearsed 44 branches while printing a total. **A guard whose expected value comes
+  from the thing it checks: the defect this entire task is about, written into the check for it.** It now
+  counts refs and PR heads in the same namespace independently:
+
+        RED   (guard as first written, ref query aimed at an empty namespace)  -> ran anyway
+        GREEN REHEARSAL REFUSED: git lists 0 ref(s) under refs/remotes/origin/task/ but GitHub reports
+                49 open PR head(s) in that namespace. ...                          real exit 2
+
+  **DEFECT 2, also mine, and it invalidated an entire run.** `$SCRATCH` is a FIXED path and this script's
+  first act is `git worktree remove --force "$SCRATCH"`. I started a copy of the script (to demo the guard
+  above) while a real run was in flight; the copy deleted the live run's worktree, and from that moment
+  every remaining branch answered from a directory that was no longer a worktree. The run reported:
+
+        REHEARSAL (cumulative): 10 of 55 merged, 12 conflicts, 3 gate failures, 33 unresolvable
+        task/T-0045   UNRESOLVABLE: no origin/task/T-0045      <- exists; 7a93410
+
+  **None of that was true**, and it is the second time this tool has printed a confident summary of nothing
+  (the first was the CRLF truncation the merge loop already documents). Two fixes:
+
+  - **A lock.** `set -o noclobber` + `>` is the shell's compare-and-swap. A second run now refuses:
+
+            REHEARSAL REFUSED: another run holds .../\.artifacts/merge-rehearse.lock
+              pid=78104 started=2026-09-08T09:14:45Z
+              This tool deletes and recreates one fixed scratch worktree, so two runs destroy each other's.
+            real exit 2
+
+    and the first run survives, which is exactly what would have saved the corrupted one.
+  - **Three answers, not two.** `git rev-parse --verify origin/$b` failing was read as "that branch does not
+    exist". The third answer — *git cannot answer at all* — is what happened, and it is now separated with
+    `git rev-parse --git-dir`. The run ABORTS and says every row below is not a measurement, instead of
+    counting 33 healthy refs as missing.
+
+  `ops/pr-ci-preflight` cannot gate what has no PR, so it now says how many branches it did not cover rather
+  than leaving its denominator to be read as the backlog.
+
+  **Cost worth recording:** the pair loop that derives delete/modify edges is O(n²) shell with process
+  substitution. At 44 branches it took minutes; at 55, with eleven branches that all delete
+  `pins/floor_linux.txt`, it took far longer than the merging did. That is a real cost of this fix, not a
+  reason to reverse it.

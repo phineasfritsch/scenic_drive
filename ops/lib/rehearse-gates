@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# The gate set ops/merge-rehearse runs after each merge, as a SCRIPT rather than a function inside it.
+#
+# It is a separate file for one reason: it can be run. The reviewer who found that the function this replaces
+# ignored the exit code of every check it called had to copy the function into a file to demonstrate it - and
+# a copy is not the thing. Now the demonstration runs the same bytes the rehearsal runs:
+#
+#     cd <any worktree> && bash <this repo>/ops/lib/rehearse-gates ; echo $?
+#
+# CONTRACT
+#   stdout   one finding per line, "<check>: <message>". Nothing at all on a clean tree.
+#   exit 0   clean - every check ran and every check passed
+#   exit 1   findings, listed on stdout
+#   exit 3   COULD NOT MEASURE. Never a finding. The caller must abort the run, because a check that could
+#            not run is not evidence of anything: not that the tree is clean, and not that it is broken.
+#
+# Exit 3 is the whole point of the rewrite. `ops/merge-rehearse` used to answer every question from whatever
+# text a failed command happened to leave in a variable, and on 2026-09-08 that turned a deleted scratch
+# worktree into 93 confident, specific, false findings. An empty result that means "I could not look" must
+# never be reported as "there is nothing there" - the assertion ops/lib/check-exec-bits and
+# ops/lib/check-line-cap both carry in their headers, and which this tool did not inherit until now.
+#
+# WHICH TREE. The cwd, always - no `cd` to a toplevel and no path relative to this file. The rehearsal runs
+# THIS copy of the harness (fixed for the whole run, so every row is measured the same way) against the merged
+# tree in the scratch worktree, and invokes the CHECKS out of that merged tree, because the merged tree's own
+# checks running on the merged tree is the thing under test.
+set -uo pipefail
+
+# ---------------------------------------------------------------- can this tree be measured at all
+git rev-parse --git-dir >/dev/null 2>&1 || {
+  echo "cannot measure: $(pwd 2>/dev/null || echo '<unreadable cwd>') is not inside a git worktree"; exit 3; }
+[[ -d ops && -d queue ]] || {
+  echo "cannot measure: no ops/ and no queue/ under $(pwd)"; exit 3; }
+[[ -f ops/queue-check ]] || {
+  echo "cannot measure: ops/queue-check is not in this tree"; exit 3; }
+
+findings=()
+
+# ---------------------------------------------------------------- queue-check: EVERY problem, not tail -1
+# `q="$(bash ops/queue-check | tail -1)"` was wrong twice over. The pipeline's exit status is tail's, so the
+# check's own verdict was discarded; and the single line kept was whichever problem queue-check happened to
+# print last. The caller then compared that ONE line against the previous branch's to decide whether a branch
+# had introduced anything new - so a branch that added a brand-new duplicate task id, the defect this whole
+# tool was built to catch, was printed as "(INHERITED, unchanged by this branch)" whenever the last line was
+# unchanged. Under-blame is the same defect as over-blame, in the direction that loses the finding.
+q="$(bash ops/queue-check 2>&1)"
+qrc=$?
+if [[ $qrc -ne 0 ]]; then
+  n=0
+  while IFS= read -r line; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    [[ -n "$line" ]] || continue
+    [[ "$line" == QUEUE\ CHECK\ FAIL* ]] && continue
+    findings+=("queue-check: ${line#- }")
+    n=$((n + 1))
+  done <<<"$q"
+  # A non-zero exit with nothing to say is still a failure. Reporting no finding for it would be the same
+  # fail-open this file exists to remove.
+  [[ $n -gt 0 ]] || findings+=("queue-check: exit $qrc with no problem lines")
+fi
+
+# ---------------------------------------------------------------- the pin checks, by EXIT CODE
+# The old function grepped for one message per check and ignored the exit code, so most real failures printed
+# as "merged, gates clean": ops/lib/check-exec-bits has three failure messages and two were matched;
+# ops/lib/check-line-cap has one today and six once T-0058 lands, of which one was matched. A check that says
+# "I failed" is a failure whatever it says next.
+#
+# first_finding keeps the header line AND the line under it, because `wrong git file mode:` is a header and
+# the offending path is on the next line - the header alone names no file and tells a reviewer nothing.
+first_finding() {
+  local n=0 l1="" l2="" line
+  while IFS= read -r line; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    [[ -n "$line" ]] || continue
+    n=$((n + 1))
+    if [[ $n -eq 1 ]]; then l1="$line"; else l2="$line"; break; fi
+  done <<<"$1"
+  if [[ "$l1" == *: ]]; then printf '%s %s' "$l1" "$l2"; else printf '%s' "$l1"; fi
+}
+
+for chk in check-exec-bits check-line-cap; do
+  if [[ ! -f "ops/lib/$chk" ]]; then
+    # Not "skip": main has both, so a merged tree without one is a merge that deleted a check. Silently
+    # skipping a missing check is how a rehearsal reports "clean" for a tree that removed its own gates.
+    findings+=("$chk: NOT IN THIS TREE - a merge removed ops/lib/$chk")
+    continue
+  fi
+  out="$(bash "ops/lib/$chk" 2>&1)"
+  rc=$?
+  [[ $rc -eq 0 ]] || findings+=("$chk: $(first_finding "$out") [exit $rc]")
+done
+
+# ---------------------------------------------------------------- duplicate pin ids
+# ops/check-pins catches these too, but it is slow, so look directly. Keyed on the ID, not on the whole line:
+# `grep '^- id:' | sort | uniq -d` compares "- id: P-OPS-01" against "- id: P-OPS-01 " and calls them
+# different, so the same pin twice with one trailing space passed.
+if [[ -f pins/PINS.yaml ]]; then
+  dup="$(grep -oE '^-[[:space:]]+id:[[:space:]]*[A-Za-z0-9_.:-]+' pins/PINS.yaml \
+         | sed -E 's/^-[[:space:]]+id:[[:space:]]*//' | sort | uniq -d)"
+  while IFS= read -r d; do
+    [[ -n "$d" ]] || continue
+    findings+=("pins: duplicate pin id $d")
+  done <<<"$dup"
+fi
+
+[[ ${#findings[@]} -eq 0 ]] && exit 0
+printf '%s\n' "${findings[@]}"
+exit 1
