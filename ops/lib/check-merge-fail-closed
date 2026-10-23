@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# P-OPS-03's assertion: the merge gate is FAIL-CLOSED on any check conclusion it does not recognise, and a
+# check with no name is reported rather than crashing the classifier.
+#
+# WHY THIS EXISTS AS A CHECK AND NOT AS PROSE. The property was won once, in T-0021. Before that fix ops/merge
+# asked "is this conclusion in my list of BAD ones?", so SKIPPED / NEUTRAL / STALE / anything GitHub invents
+# next year was neither pending nor failed and the gate proceeded; and a check record with no `name` raised
+# KeyError inside a shell substitution, which bash swallowed into failed="" - so a genuine FAILURE printed
+# "every gate passed". Both were fixed. Nothing then re-asked the question: no test, no pin, and the argument
+# survived only in a merged task log. ops/merge is what decides which branches reach main, several open tasks
+# queue up to edit it, and this regression is invisible from everywhere else - the suite stays green, CI stays
+# green, and the gate quietly starts saying yes.
+#
+# Anchored on behaviour and on identifiers (ops/lib/classify-checks.py, the recorded gh stub), never on a
+# comment. Runs offline: `gh` here is the repository's own recorded stub, so this makes no network call.
+#
+# NON-VACUITY. A gate that refused everything would satisfy "it refuses the bad shapes" trivially, so two
+# positive controls are asserted as well: an all-SUCCESS rollup classifies with an empty failed list, and
+# ops/merge's own `checks` line reports failed=[none] for it. If either stops holding, this goes red.
+#
+# COST. Eight interpreter starts (five direct, three through ops/merge). Milliseconds on Linux CI; a few
+# seconds per start on the Windows dev box, which is why the conclusions are swept in ONE combined rollup
+# rather than one process per conclusion.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+
+MERGE="ops/merge"
+CLASSIFY="ops/lib/classify-checks.py"
+STUB="ops/lib/gh-stub-for-merge-tests"
+fail=0
+
+bad() { echo "P-OPS-03 FAIL: $*"; fail=1; }
+# python writes CRLF to stdout on the Windows checkout; a trailing \r turns every numeric comparison below
+# into a silent bash arithmetic error, so strip it at the boundary.
+strip() { tr -d '\r'; }
+field() { printf '%s\n' "$1" | strip | sed -n "s/^$2=//p"; }
+
+# --- 0. the artefacts under test must exist and be tracked --------------------------------------------
+# An empty, renamed or truncated file set must never read as "fail-closed holds" - the same vacuity P-OPS-01
+# was rewritten to avoid.
+for f in "$MERGE" "$CLASSIFY" "$STUB"; do
+  git ls-files --error-unmatch "$f" >/dev/null 2>&1 || bad "$f is not tracked"
+  [[ -s "$f" ]] || bad "$f is missing or empty"
+done
+[[ -n "$PY" ]] || bad "no python interpreter found (\$PYTHON, python3, python)"
+[[ $fail -eq 0 ]] || { echo "P-OPS-03: cannot verify - the files under test are not present"; exit 1; }
+
+# Classification must live in one place this check can drive. Comment lines are stripped first: a guard that a
+# comment can satisfy is not a guard.
+grep -vE '^[[:space:]]*#' "$MERGE" | grep -q 'ops/lib/classify-checks\.py' \
+  || bad "$MERGE no longer calls $CLASSIFY in executable code - classification moved somewhere unchecked"
+
+classify() { "$PY" "$CLASSIFY" "$1" 2>&1; }
+
+# --- 1. the classifier, driven directly ---------------------------------------------------------------
+# Every conclusion GitHub documents that is not SUCCESS, conclusions GitHub has not invented yet, and strings
+# that only look like success. All in one rollup, so one process settles the whole sweep.
+UNRECOGNISED=(FAILURE CANCELLED TIMED_OUT ACTION_REQUIRED NEUTRAL SKIPPED STALE STARTUP_FAILURE
+              QUANTUM_FAILED SUCCESSFUL SUCCESS_WITH_WARNINGS success_ish)
+sweep="["; i=0
+for c in "${UNRECOGNISED[@]}"; do
+  [[ $i -gt 0 ]] && sweep+=","
+  sweep+="{\"name\":\"chk$i\",\"c\":\"$c\"}"
+  i=$((i + 1))
+done
+sweep+=",{\"name\":\"chk$i\",\"c\":\"\"}]"    # empty conclusion: must be pending, never a pass
+
+out="$(classify "$sweep")"; rc=$?
+if [[ $rc -ne 0 ]]; then
+  bad "the classifier could not read a well-formed rollup (exit $rc): $out"
+else
+  failed_list="$(field "$out" failed)"
+  pending_n="$(field "$out" pending)"
+  total_n="$(field "$out" total)"
+  [[ "$total_n" == "$((i + 1))" ]] || bad "classifier counted total=$total_n for $((i + 1)) checks - checks are being dropped"
+  [[ "$pending_n" == "1" ]] || bad "the empty conclusion was not counted as pending (pending=$pending_n) - it must block, never pass"
+  j=0
+  for c in "${UNRECOGNISED[@]}"; do
+    case "$failed_list" in
+      *"chk$j("*) ;;
+      *) bad "conclusion '$c' is neither failed nor pending - the gate is fail-OPEN for it";;
+    esac
+    j=$((j + 1))
+  done
+fi
+
+# A check with no name is still a check: labelled, never dropped, never a crash.
+out="$(classify '[{"c":"FAILURE"}]')"; rc=$?
+if [[ $rc -ne 0 ]]; then
+  bad "a nameless check crashes the classifier (exit $rc): $out"
+elif [[ -z "$(field "$out" failed)" ]]; then
+  bad "a nameless FAILURE was dropped from the failed list: $out"
+fi
+
+# Malformed input fails loudly rather than printing an empty answer that reads like good news.
+for shape in '{"not":"a list"}' '[{"name":"a",'; do
+  out="$(classify "$shape")"; rc=$?
+  [[ $rc -ne 0 ]] || bad "malformed rollup $shape exited 0: $out"
+done
+
+# POSITIVE CONTROL: a genuinely green rollup must classify clean, or every assertion above is satisfied by a
+# classifier that just says no to everything.
+out="$(classify '[{"name":"core","c":"SUCCESS"},{"name":"pins","c":"SUCCESS"}]')"; rc=$?
+if [[ $rc -ne 0 ]]; then
+  bad "an all-SUCCESS rollup did not classify (exit $rc): $out"
+elif [[ -n "$(field "$out" failed)" ]]; then
+  bad "an all-SUCCESS rollup was reported as failing: $out"
+fi
+
+# --- 2. the whole merge gate, through the recorded gh stub --------------------------------------------
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+cp "$STUB" "$tmp/gh" && chmod +x "$tmp/gh" || bad "could not install the recorded gh stub"
+
+merge_run() {  # merge_run <rollup-json>; prints ops/merge's output, returns its exit code
+  PATH="$tmp:$PATH" PYTHON="$PY" STUB_ROLLUP="$1" STUB_COUNT="$tmp/count" \
+    STUB_HEAD_REF="task/T-0000-fail-closed-fixture" STUB_DONE_NAMES="T-0000-fail-closed-fixture.md" \
+    bash "$MERGE" 1 --dry-run 2>&1 | strip
+}
+
+# One rollup carrying all three shapes the gate must refuse: an unrecognised conclusion, a conclusion that does
+# not exist yet, and a check with no name at all.
+out="$(merge_run '[{"name":"core","c":"SKIPPED"},{"name":"future","c":"QUANTUM_FAILED"},{"c":"FAILURE"}]')"; rc=$?
+if [[ $rc -eq 0 ]]; then
+  bad "ops/merge ACCEPTED SKIPPED + an unknown conclusion + a nameless FAILURE (exit 0): $(printf '%s' "$out" | tr '\n' '|')"
+else
+  printf '%s' "$out" | grep -q 'Traceback (most recent call last)' \
+    && bad "ops/merge refused, but crashed doing it: $(printf '%s' "$out" | tr '\n' '|')"
+  for want in 'core(SKIPPED)' 'future(QUANTUM_FAILED)' 'FAILURE'; do
+    printf '%s' "$out" | grep -qF "$want" || bad "the refusal never named $want - a refusal nobody can act on: $(printf '%s' "$out" | tr '\n' '|')"
+  done
+fi
+
+# A rollup ops/merge cannot parse must refuse, not proceed on an empty answer.
+out="$(merge_run '{"not":"a list"}')"; rc=$?
+[[ $rc -ne 0 ]] || bad "ops/merge ACCEPTED an unparseable rollup (exit 0): $(printf '%s' "$out" | tr '\n' '|')"
+
+# POSITIVE CONTROL through the gate: a green rollup must reach the checks line and report failed=[none].
+out="$(merge_run '[{"name":"core","c":"SUCCESS"},{"name":"pins","c":"SUCCESS"}]')"
+if ! printf '%s' "$out" | grep -q 'failed=\[none\]'; then
+  bad "an all-SUCCESS rollup never reached a clean checks line - this check can no longer tell a refusal from a pass"
+  echo "  ops/merge said: $(printf '%s' "$out" | tr '\n' '|')"
+  echo "  If a NEW gate now refuses before the checks loop, extend this fixture - do not delete the control."
+fi
+
+[[ $fail -eq 0 ]] || exit 1
+echo "P-OPS-03: ${#UNRECOGNISED[@]} unrecognised conclusions refused, nameless check reported not dropped, green rollup still merges"
