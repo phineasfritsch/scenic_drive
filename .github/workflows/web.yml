@@ -1,0 +1,39 @@
+# apps/web - the web demo (owner, 2026-11-24: web first, lightweight process). Typecheck, unit tests, build.
+name: web
+
+on:
+  pull_request:
+    paths: ["apps/web/**", "services/api/src/**", "Tests/Fixtures/t0239/**", ".github/workflows/web.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/web/**", "services/api/src/**", "Tests/Fixtures/t0239/**", ".github/workflows/web.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+    working-directory: apps/web
+
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      # The committed demo data must be what the recorder fixtures and the Worker's scoring produce today.
+      - run: npm run data && git diff --exit-code -- src/data/demo.json
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx vite build
