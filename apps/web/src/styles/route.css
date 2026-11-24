@@ -1,0 +1,240 @@
+/* The recommendation hero and the route list. */
+.hero {
+  border-radius: var(--radius-card);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--fg-muted);
+}
+
+.eyebrow-scenic {
+  color: var(--scenic);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--fg-muted);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  background: var(--surface);
+}
+
+.hero-title {
+  margin: -4px 0 0;
+  font-size: 20px;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 4px 0 0;
+}
+
+.stats > div {
+  display: grid;
+  gap: 2px;
+}
+
+.stats > div + div {
+  padding-left: 12px;
+  border-left: 1px solid var(--hairline);
+}
+
+.stats > div:not(:last-child) {
+  padding-right: 8px;
+}
+
+.stats dt {
+  order: 2;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+.stats dd {
+  order: 1;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stat-sub {
+  order: 3;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+.score-good {
+  color: var(--scenic);
+}
+
+.strip {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.strip > span {
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.strip-compact {
+  height: 4px;
+  border-radius: 2px;
+  grid-column: 1 / -1;
+}
+
+.strip-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: -6px;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.strip-legend-swatch {
+  width: 14px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.honest {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+
+.honest p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Route list */
+.routes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.route {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: center;
+  min-height: 56px;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: background-color var(--dur-press) var(--ease-out), border-color var(--dur-press) var(--ease-out);
+}
+
+.route:hover {
+  background: var(--surface-2);
+}
+
+.route-selected {
+  border-color: var(--fg);
+  background: var(--surface-2);
+}
+
+.route-over {
+  opacity: 0.6;
+}
+
+.route-over:hover {
+  opacity: 0.85;
+}
+
+.route-main {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.route-time {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.route-via {
+  color: var(--fg-muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.route-score {
+  font-weight: 650;
+  color: var(--fg);
+  min-width: 2ch;
+  text-align: right;
+}
+
+.route-flag {
+  grid-column: 1 / -1;
+  justify-self: start;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--scenic);
+  color: var(--surface);
+}
+
+.route-flag-over {
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  border: 1px solid var(--hairline);
+}

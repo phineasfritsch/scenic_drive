@@ -1,0 +1,255 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--fg);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Layout. Desktop: Pampam's floating panel over a full-bleed map. Narrow: map on top, sheet below. */
+.app {
+  position: relative;
+  height: 100%;
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+}
+
+.map-canvas {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+}
+
+.panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  bottom: 16px;
+  width: 400px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+  padding: 20px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 899px) {
+  .app {
+    height: auto;
+    min-height: 100%;
+  }
+  .map {
+    position: sticky;
+    top: 0;
+    height: 40svh;
+  }
+  .panel {
+    position: relative;
+    inset: auto;
+    width: auto;
+    margin-top: -20px;
+    border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+    overflow: visible;
+    padding: 20px 16px calc(24px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 24px -12px rgba(15, 23, 42, 0.25);
+  }
+}
+
+/* Map chrome */
+.map-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.control-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--surface);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-control);
+}
+
+.control {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--dur-press) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+
+.control:hover {
+  background: var(--surface-2);
+}
+
+.control:active {
+  transform: scale(0.94);
+}
+
+.control-single {
+  background: var(--surface);
+  box-shadow: var(--shadow-control);
+}
+
+.control-divider {
+  width: 20px;
+  height: 1px;
+  background: var(--hairline);
+}
+
+/* Always visible, at every width: CLAUDE.md product invariant. */
+.attribution {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  margin: 0;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--fg-muted);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  border-radius: 6px;
+}
+
+.attribution a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.attribution a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 899px) {
+  .attribution {
+    bottom: 28px;
+    right: 8px;
+  }
+}
+
+.stop-popup .maplibregl-popup-content {
+  font-family: var(--font);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow-control);
+}
+
+.stop-popup .maplibregl-popup-tip {
+  display: none;
+}
+
+.stop-popup p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+/* The safety gate */
+.gate {
+  width: min(440px, calc(100vw - 32px));
+  border: 0;
+  border-radius: var(--radius-panel);
+  padding: 24px;
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-panel);
+  animation: gate-in var(--dur-open) var(--ease-out);
+}
+
+.gate::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.gate h2 {
+  margin: 12px 0 8px;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.gate p,
+.gate li {
+  color: var(--fg-muted);
+}
+
+.gate ul {
+  padding-left: 18px;
+  margin: 12px 0 20px;
+}
+
+.gate-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--hazard);
+  background: color-mix(in srgb, var(--hazard) 12%, transparent);
+}
+
+@keyframes gate-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes gate-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
