@@ -7,6 +7,12 @@ part every agent must obey on every task. `ops/check-pins --source-only` enforce
 Agents report success on broken work. Everything in `ops/`, `pins/` and `queue/` exists to contradict you.
 Run `ops/agent-preflight` first thing in every session. A smaller honest result beats a larger claimed one.
 
+## Web first (owner, 2026-11-24)
+Focus moved to a working web demo first (`apps/web`), then a port to mobile. See `docs/STATUS.md`.
+`apps/web` uses a lightweight process: a normal branch, small commits, a PR, and CI (build, typecheck, test).
+Queue tasks, `touches:`, pins and mutation floors do not apply to `apps/web`. The product invariants below
+still apply in full, and so do the 300-line cap and the no-secrets rule.
+
 ## Repository shape
 - `Package.swift` (root) — **Linux-only** targets: ScenicKit, ScenicAPIClient, PlaceStore, Handoff, Telemetry.
   These may import Foundation (and GRDB in PlaceStore) and nothing else. Never `CoreLocation`, `MapKit`, `UIKit`,
@@ -74,3 +80,4 @@ Run `ops/agent-preflight` first thing in every session. A smaller honest result 
 - The safety disclaimer gates the first plan and stays visible on the route screen.
 - ETAs show the *estimate · no traffic data* badge until a corridor has ≥ 5 learned samples.
 - The server never receives more than one coordinate per user action, never more than 2 decimal places.
+@AGENTS.md

@@ -63,3 +63,6 @@ corpus*.sqlite
 # SwiftPM there DELETES an existing Package.resolved, so a committed one reads as "deleted" in every Windows
 # worktree after `swift test`. GRDB is pinned `exact:` in Package.swift instead. The iOS package's is unaffected.
 /Package.resolved
+
+# Local screenshot scratch from UI tasks (T-0341 left 51 MB untracked)
+.shots-*/
