@@ -1,0 +1,9 @@
+{
+  "name": "scenic-drive",
+  "aliases": [],
+  "preferred_product": "claude",
+  "wake": "terminal",
+  "approval": "first",
+  "phone_detail": "preview",
+  "accept_from": "any"
+}
