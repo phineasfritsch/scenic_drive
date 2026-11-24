@@ -35,10 +35,56 @@ Clutter pass:
 - P12: every control is at least 44 px (map controls 44x44, slider 44 px tall, route rows 56 px, buttons 48 px).
 - P8/P18/P5: press 120 ms, hover and fill 150 ms, gate opens in 250 ms ease-out. Tokens are in `tokens.css`, and
   reduced motion zeroes them.
+- P20 camera: changing the drive flies the map to the new drive in 450 ms (orientation: where the new drive is).
+  Zoom takes 200 ms and "show whole drive" 350 ms. With prefers-reduced-motion the camera jumps instead
+  (`MapView.tsx` `ms()`).
 
 ## Our screenshots
 Taken with Playwright against `npm run dev`. On 2026-11-24 they were saved to the session scratchpad (not committed):
 desktop 1280x800 light and dark, mobile 390x844, the safety gate, and the zero-budget honest fallback.
 
 ## Independent match check
-_Pending: one checker that did not build the screen._
+One checker (a separate agent that did not build the screen), 2026-11-24. It opened the four reference PNGs beside
+our six screenshots.
+
+Round 1 found:
+- The safety line and the result were below the fold (1280x800 and 390 px).
+- The sticky button covered the slider scale.
+- Route labels repeated ("Fastest Fastest route", "Mulholland Hwy & Mulholland Hwy (The Snake)", four identical rows).
+- The planned route was drawn behind the safety gate.
+- Unguarded `localStorage`.
+- Camera moves ignored reduced motion, and the drive change took 600 ms.
+- Stop hooks were hover-only.
+- A ticket id appeared in user-facing copy.
+- There were 11 font sizes.
+- Small things: the sparkle eyebrow, the dashed box, flags clipped into the row border, and the origin glyph differed between panel and map.
+
+All fixed in round 1:
+- Solid footer holding the safety line and the action.
+- Mobile hides the intro.
+- `via()` picks a pair of roads no other route shares (`format.test.ts`, seen red at 4/5 distinct, then green).
+- The map draws no plan until the gate is accepted.
+- Storage is guarded.
+- `ms()` handles reduced motion, and the drive change is now 450 ms.
+- Stops open on tap.
+- Provenance copy no longer names tickets.
+- Five font sizes (11/13/15/20/28).
+- Flags inline, hollow origin ring on both panel and map, and stops drawn as rings.
+
+| Ship checklist | Result | Evidence |
+|---|---|---|
+| 1 reason per animation | pass (after fix) | Rules applied above, including camera |
+| 2 P8 durations | pass (after fix) | `MapView.tsx` 450/350/200 ms; tokens 120/150/250 ms |
+| 3 close faster than open | pass | gate 250 ms in, closes instantly (`tokens.css` --dur-close 110 ms) |
+| 4 grows from trigger | n/a | the gate opens on load, with no trigger |
+| 5 interruptible | pass | CSS transitions and MapLibre camera only; input never blocked |
+| 6 100 ms response | pass (from code) | slider calls setState synchronously; `choose` is pure and memoised |
+| 7 44 px targets | pass | controls 44, slider 44, rows 56, drive cards 52, buttons 48/44 |
+| 8 reduced motion | pass (after fix) | tokens zeroed, gate fades, camera jumps (`ms()`) |
+| 9 no native menus | pass | drive picker is a radiogroup; no select or datalist |
+| 10 one primary action | pass | one orange action, at most 6 routes, 2 drives |
+| 11 success moment | pass | the hero card plus the action, both visible at 1280x800 after the fix |
+| 13 no linear easing | pass | cubic-bezier everywhere |
+
+Invariants: attribution pass; disclaimer gate pass (after fix); safety line visible pass (after fix); ETA ceiling pass;
+no-traffic badge pass.

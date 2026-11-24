@@ -6,13 +6,13 @@
 
 .brand-name {
   font-weight: 650;
-  font-size: 16px;
+  font-size: 15px;
   letter-spacing: -0.01em;
 }
 
 .chip {
   margin-left: auto;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
   color: var(--fg-muted);
   background: var(--surface-2);
@@ -45,7 +45,7 @@
   display: block;
   padding: 0;
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -199,4 +199,20 @@
   font-size: 11px;
   color: var(--fg-muted);
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 899px) {
+  .intro,
+  .drive-arrow {
+    display: none;
+  }
+  .drive-list {
+    grid-template-columns: 1fr 1fr;
+  }
+  .drive {
+    padding: 8px 12px;
+  }
+  .drive-text {
+    font-size: 13px;
+  }
 }

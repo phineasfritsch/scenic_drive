@@ -25,10 +25,29 @@ export function scenicScore(value: number): number {
 }
 
 /** "Mulholland Highway & Cold Canyon Road": the roads that make this route different from the fastest one. */
-export function via(route: RouteOption, fastest: RouteOption): string {
-  const distinct = route.roads.filter((r) => !fastest.roads.includes(r));
-  const pick = (distinct.length > 0 ? distinct : route.roads).slice(0, 2).map(shortRoad);
-  return pick.length === 0 ? "Local roads" : pick.join(" & ");
+export function via(route: RouteOption, fastest: RouteOption, others: RouteOption[] = []): string {
+  const names = (r: RouteOption) => [...new Set(r.roads.map(baseRoad))];
+  const onFastest = new Set(names(fastest));
+  const rivals = others.filter((o) => o.id !== route.id && o.id !== fastest.id).map((o) => new Set(names(o)));
+  const own = names(route).filter((n) => !onFastest.has(n));
+  return distinguishingPair(own, rivals).join(" & ") || "Local roads";
+}
+
+/** Two of `own`, in driving order, that no rival route also has both of; else the first two. */
+function distinguishingPair(own: string[], rivals: Set<string>[]): string[] {
+  const unique = own.find((n) => rivals.every((r) => !r.has(n)));
+  if (unique) return [unique, ...own.filter((n) => n !== unique)].slice(0, 2).sort((a, b) => own.indexOf(a) - own.indexOf(b));
+  for (let i = 0; i < own.length; i += 1) {
+    for (let j = i + 1; j < own.length; j += 1) {
+      if (rivals.every((r) => !(r.has(own[i]!) && r.has(own[j]!)))) return [own[i]!, own[j]!];
+    }
+  }
+  return own.slice(0, 2);
+}
+
+/** "Mulholland Highway (The Snake)" and "Mulholland Highway" are one road to a driver. */
+export function baseRoad(name: string): string {
+  return shortRoad(name.replace(/\s*\(.*\)\s*$/, ""));
 }
 
 export function shortRoad(name: string): string {

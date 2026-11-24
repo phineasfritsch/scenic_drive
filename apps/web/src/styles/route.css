@@ -20,7 +20,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
   color: var(--fg-muted);
 }
@@ -70,14 +70,14 @@
 
 .stats dt {
   order: 2;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--fg-muted);
 }
 
 .stats dd {
   order: 1;
   margin: 0;
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -86,7 +86,7 @@
 
 .stat-sub {
   order: 3;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--fg-muted);
 }
 
@@ -133,12 +133,12 @@
   padding: 12px;
   border-radius: 10px;
   background: var(--surface);
-  border: 1px dashed var(--hairline);
+  border: 1px solid var(--hairline);
 }
 
 .honest p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 /* Route list */
@@ -199,7 +199,7 @@
 
 .route-via {
   color: var(--fg-muted);
-  font-size: 14px;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -221,10 +221,9 @@
 }
 
 .route-flag {
-  position: absolute;
-  top: -7px;
-  right: 10px;
-  font-size: 10px;
+  grid-column: 1 / -1;
+  justify-self: start;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;

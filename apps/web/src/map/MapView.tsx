@@ -12,11 +12,18 @@ maplibregl.addProtocol("pmtiles", new Protocol().tile);
 interface Props {
   corridor: Corridor;
   selected: RouteOption;
+  /** False until the safety disclaimer is accepted: the gate comes before the first plan, on the map too. */
+  planned: boolean;
   stops: ScenicStop[];
   onSelect: (routeId: string) => void;
 }
 
 const DESKTOP = "(min-width: 900px)";
+
+/** Camera moves follow prefers-reduced-motion (ux-principles P20): they jump instead of flying. */
+function ms(duration: number): number {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : duration;
+}
 
 function boundsOf(corridor: Corridor): LngLatBoundsLike {
   const b = new maplibregl.LngLatBounds();
@@ -30,11 +37,11 @@ function padding() {
     : { top: 32, bottom: 40, left: 24, right: 64 };
 }
 
-export function MapView({ corridor, selected, stops, onSelect }: Props) {
+export function MapView({ corridor, selected, planned, stops, onSelect }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
-  const latest = useRef({ corridor, selected, stops, onSelect });
-  latest.current = { corridor, selected, stops, onSelect };
+  const latest = useRef({ corridor, selected, planned, stops, onSelect });
+  latest.current = { corridor, selected, planned, stops, onSelect };
 
   useEffect(() => {
     let appearance: Appearance = currentAppearance();
@@ -59,8 +66,7 @@ export function MapView({ corridor, selected, stops, onSelect }: Props) {
     map.on("style.load", install);
 
     const popup = new maplibregl.Popup({ closeButton: false, offset: 12, className: "stop-popup", maxWidth: "260px" });
-    map.on("mouseenter", "stops", (e) => {
-      map.getCanvas().style.cursor = "pointer";
+    const showStop = (e: maplibregl.MapLayerMouseEvent) => {
       const f = e.features?.[0];
       if (!f || f.geometry.type !== "Point") return;
       const { name, hook } = f.properties as { name: string; hook: string };
@@ -71,7 +77,12 @@ export function MapView({ corridor, selected, stops, onSelect }: Props) {
       body.textContent = hook;
       content.append(title, body);
       popup.setLngLat(f.geometry.coordinates as [number, number]).setDOMContent(content).addTo(map);
+    };
+    map.on("mouseenter", "stops", (e) => {
+      map.getCanvas().style.cursor = "pointer";
+      showStop(e);
     });
+    map.on("click", "stops", showStop);
     map.on("mouseleave", "stops", () => {
       map.getCanvas().style.cursor = "";
       popup.remove();
@@ -99,19 +110,19 @@ export function MapView({ corridor, selected, stops, onSelect }: Props) {
   useEffect(() => {
     const map = mapRef.current;
     if (map?.isStyleLoaded()) draw(map, latest.current);
-  }, [corridor, selected, stops]);
+  }, [corridor, selected, planned, stops]);
 
   useEffect(() => {
-    mapRef.current?.fitBounds(boundsOf(corridor), { padding: padding(), duration: 600 });
+    mapRef.current?.fitBounds(boundsOf(corridor), { padding: padding(), duration: ms(450) });
   }, [corridor]);
 
   return (
     <div className="map">
       <div ref={container} className="map-canvas" aria-label={`Map of ${corridor.title}`} role="region" />
       <MapControls
-        onZoomIn={() => mapRef.current?.zoomIn({ duration: 200 })}
-        onZoomOut={() => mapRef.current?.zoomOut({ duration: 200 })}
-        onFit={() => mapRef.current?.fitBounds(boundsOf(corridor), { padding: padding(), duration: 400 })}
+        onZoomIn={() => mapRef.current?.zoomIn({ duration: ms(200) })}
+        onZoomOut={() => mapRef.current?.zoomOut({ duration: ms(200) })}
+        onFit={() => mapRef.current?.fitBounds(boundsOf(corridor), { padding: padding(), duration: ms(350) })}
       />
       <p className="attribution">
         © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>
@@ -122,10 +133,18 @@ export function MapView({ corridor, selected, stops, onSelect }: Props) {
   );
 }
 
-function draw(map: MlMap, { corridor, selected, stops }: { corridor: Corridor; selected: RouteOption; stops: ScenicStop[] }) {
+interface DrawState {
+  corridor: Corridor;
+  selected: RouteOption;
+  planned: boolean;
+  stops: ScenicStop[];
+}
+
+function draw(map: MlMap, { corridor, selected, planned, stops }: DrawState) {
   const set = (id: string, data: GeoJSON.FeatureCollection) => (map.getSource(id) as GeoJSONSource | undefined)?.setData(data);
-  set("others", otherRoutes(corridor, selected.id));
-  set("selected", selectedRuns(selected));
+  const none: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+  set("others", planned ? otherRoutes(corridor, selected.id) : none);
+  set("selected", planned ? selectedRuns(selected) : none);
   set("endpoints", endpoints(corridor));
   set("stops", stopsCollection(stops));
 }

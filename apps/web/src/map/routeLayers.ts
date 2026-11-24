@@ -121,10 +121,10 @@ export function overlayLayers(appearance: Appearance): LayerSpecification[] {
       type: "circle",
       source: "stops",
       paint: {
-        "circle-radius": 6,
-        "circle-color": dark ? "#4ade80" : "#15803d",
-        "circle-stroke-color": casing,
-        "circle-stroke-width": 2.5,
+        "circle-radius": 5,
+        "circle-color": casing,
+        "circle-stroke-color": dark ? "#4ade80" : "#15803d",
+        "circle-stroke-width": 3,
       },
     },
     {
@@ -132,9 +132,9 @@ export function overlayLayers(appearance: Appearance): LayerSpecification[] {
       type: "circle",
       source: "endpoints",
       paint: {
-        "circle-radius": ["case", ["==", ["get", "role"], "to"], 8, 7],
-        "circle-color": ["case", ["==", ["get", "role"], "to"], dark ? "#fb923c" : "#ea580c", dark ? "#f8fafc" : "#0f172a"],
-        "circle-stroke-color": casing,
+        "circle-radius": ["case", ["==", ["get", "role"], "to"], 8, 6],
+        "circle-color": ["case", ["==", ["get", "role"], "to"], dark ? "#fb923c" : "#ea580c", casing],
+        "circle-stroke-color": ["case", ["==", ["get", "role"], "to"], casing, dark ? "#f8fafc" : "#0f172a"],
         "circle-stroke-width": 3,
       },
     },

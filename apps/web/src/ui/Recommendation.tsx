@@ -1,7 +1,7 @@
 import { extra, miles, minutes, scenicScore, via } from "../format";
 import type { Choice } from "../plan/choose";
 import type { Corridor, RouteOption } from "../plan/types";
-import { Clock, Sparkle } from "./Icons";
+import { Clock } from "./Icons";
 import { ScenicStrip, StripLegend } from "./ScenicStrip";
 
 interface Props {
@@ -21,13 +21,13 @@ export function Recommendation({ corridor, choice, selected, bestBudget, onBudge
     <section className="hero" aria-live="polite" aria-label="Selected route">
       <div className="hero-top">
         <span className={isFastest ? "eyebrow" : "eyebrow eyebrow-scenic"}>
-          {!isFastest && <Sparkle />} {eyebrow}
+          {eyebrow}
         </span>
         <span className="badge" title="Times come from road speeds, not live traffic">
           <Clock /> estimate · no traffic data
         </span>
       </div>
-      <h2 className="hero-title">{isFastest ? "The fastest way" : `Via ${via(selected, corridor.fastest)}`}</h2>
+      <h2 className="hero-title">{isFastest ? "The fastest way" : `Via ${via(selected, corridor.fastest, [corridor.fastest, ...corridor.alternatives])}`}</h2>
 
       <dl className="stats">
         <div>
@@ -43,7 +43,7 @@ export function Recommendation({ corridor, choice, selected, bestBudget, onBudge
         <div>
           <dt>Scenic score</dt>
           <dd className={selected.score.value >= 0.45 ? "score-good" : undefined}>{scenicScore(selected.score.value)}</dd>
-          <span className="stat-sub">fastest {scenicScore(corridor.fastest.score.value)}</span>
+          <span className="stat-sub">{isFastest ? "out of 100" : `vs ${scenicScore(corridor.fastest.score.value)} fastest`}</span>
         </div>
       </dl>
 

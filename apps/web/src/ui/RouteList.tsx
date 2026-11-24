@@ -1,4 +1,4 @@
-import { extra, miles, scenicScore, via } from "../format";
+import { extra, miles, minutes, scenicScore, via } from "../format";
 import type { Choice } from "../plan/choose";
 import type { Corridor } from "../plan/types";
 import { ScenicStrip } from "./ScenicStrip";
@@ -16,6 +16,7 @@ interface Props {
  * budget to fit, so the screen keeps the ceiling true (returned ETA <= fastest + budget).
  */
 export function RouteList({ corridor, choice, selectedId, onSelect, onBudget }: Props) {
+  const all = choice.options.map((o) => o.route);
   return (
     <section className="section">
       <h3 className="section-label">All routes</h3>
@@ -33,9 +34,9 @@ export function RouteList({ corridor, choice, selectedId, onSelect, onBudget }: 
                 onClick={() => (fitsBudget ? onSelect(route.id) : onBudget(needed))}
               >
                 <span className="route-main">
-                  <span className="route-time">{extra(extraS)}</span>
+                  <span className="route-time">{route.kind === "fastest" ? minutes(route.timeS) : extra(extraS)}</span>
                   <span className="route-via">
-                    {route.kind === "fastest" ? "Fastest route" : via(route, corridor.fastest)}
+                    {route.kind === "fastest" ? "Fastest route" : via(route, corridor.fastest, all)}
                   </span>
                 </span>
                 <span className="route-meta">
@@ -44,7 +45,7 @@ export function RouteList({ corridor, choice, selectedId, onSelect, onBudget }: 
                 </span>
                 <ScenicStrip route={route} compact />
                 {recommended && <span className="route-flag">Recommended</span>}
-                {!fitsBudget && <span className="route-flag route-flag-over">Needs +{needed} min</span>}
+                {!fitsBudget && <span className="route-flag route-flag-over">Needs {needed} min extra</span>}
               </button>
             </li>
           );

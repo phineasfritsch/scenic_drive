@@ -113,7 +113,7 @@ function corridor(spec: (typeof CORRIDORS)[number]): Corridor {
     to: { name: spec.to, at: [to![1], to![0]] },
     fastest: option(`${spec.id}-fastest`, "fastest", fastestPath, fastestPath),
     alternatives,
-    provenance: `GraphHopper ${recorded.graphhopper} over the LA graph, recorded for ${recorded.task}`,
+    provenance: `GraphHopper ${recorded.graphhopper} over the Los Angeles road graph`,
   };
 }
 

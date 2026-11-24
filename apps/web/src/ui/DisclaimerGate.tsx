@@ -3,6 +3,23 @@ import { Shield } from "./Icons";
 
 export const DISCLAIMER_KEY = "scenic.disclaimer.v1";
 
+/** Storage can be blocked (private modes, policies). Then the gate simply shows again next visit. */
+export function readAccepted(): boolean {
+  try {
+    return localStorage.getItem(DISCLAIMER_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function writeAccepted() {
+  try {
+    localStorage.setItem(DISCLAIMER_KEY, new Date().toISOString());
+  } catch {
+    // Accepted for this visit only.
+  }
+}
+
 /** The safety disclaimer gates the first plan (CLAUDE.md product invariant). Native <dialog>: focus trap + Escape. */
 export function DisclaimerGate({ onAccept }: { onAccept: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -30,7 +47,7 @@ export function DisclaimerGate({ onAccept }: { onAccept: () => void }) {
         className="button-primary"
         autoFocus
         onClick={() => {
-          localStorage.setItem(DISCLAIMER_KEY, new Date().toISOString());
+          writeAccepted();
           ref.current?.close();
           onAccept();
         }}
