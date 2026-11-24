@@ -15,11 +15,13 @@ path: "Tests/TelemetryTests",
 .git
 .gitattributes
 .gitignore
+AGENTS.md
 CLAUDE.md
 LICENSE-DATA
 Package.resolved
 Package.swift
 README.md
+handoff.json
 [PINNED_APP_OTHER]
 ScenicDrive.xcodeproj/project.pbxproj 8a8df89b9196769f6fa81090dbef38446ad20b3b04bc2693009c7d27d9a2de40
 ScenicDrive.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved 26692099c7e2ca44ac866e28621dbbed1b0e72e31dda2888e519dc1c28bdb5ac
