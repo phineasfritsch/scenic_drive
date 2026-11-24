@@ -52,7 +52,9 @@ export function StripLegend() {
   return (
     <div className="strip-legend" aria-hidden>
       <span>Ordinary</span>
-      <span className="strip-legend-ramp" style={{ background: `linear-gradient(90deg, ${stops.map((s) => s[1]).join(", ")})` }} />
+      {stops.map(([score, color]) => (
+        <span key={score} className="strip-legend-swatch" style={{ background: color }} />
+      ))}
       <span>Scenic</span>
     </div>
   );

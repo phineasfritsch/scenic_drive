@@ -30,7 +30,7 @@ Clutter pass:
 ## Rules applied (ux-principles)
 - P15: one primary action per view, "Open in Google Maps", pinned at the panel's bottom (`route.css` `.panel-cta`).
   The recommended route is marked once.
-- P14: two drives shown as radio cards, no dropdown. Over-budget routes are dimmed and labelled "Needs +N min".
+- P14: two drives shown as radio cards, no dropdown. Over-budget routes are dimmed and labelled "Needs N min extra"; choosing one raises the budget to fit.
 - P16: the slider re-plans synchronously on input, and the map and card update in the same frame. No spinner, because there is no network.
 - P12: every control is at least 44 px (map controls 44x44, slider 44 px tall, route rows 56 px, buttons 48 px).
 - P8/P18/P5: press 120 ms, hover and fill 150 ms, gate opens in 250 ms ease-out. Tokens are in `tokens.css`, and
@@ -85,6 +85,22 @@ All fixed in round 1:
 | 10 one primary action | pass | one orange action, at most 6 routes, 2 drives |
 | 11 success moment | pass | the hero card plus the action, both visible at 1280x800 after the fix |
 | 13 no linear easing | pass | cubic-bezier everywhere |
+
+Round 2 re-check (same checker, read-only, against commit ccbac48d):
+- Confirmed fixed: the slider scale, stat focus, type scale, route names, markers, stop tap, ticket id, checklist items
+  1, 2 and 8, the disclaimer gate, and the safety line.
+- Still open: the strip legend was missing grey, and the hero was partly under the taller footer.
+- New: "Use +17 min" was hidden in the zero-budget state, the map label was clipped at 390 px, and this file's
+  wording was stale.
+
+Round 2 fixes (the last round the skill allows), checked by the builder in screenshots only:
+- The safety line is one line.
+- The honest-failure action moved directly under the title.
+- The legend shows every swatch the strip uses.
+- Mobile map bottom padding increased to 64.
+- This file's wording corrected.
+
+The route list still truncates long road pairs at 390 px; accepted for the demo. Remaining polish goes to the owner, not a third round.
 
 Invariants: attribution pass; disclaimer gate pass (after fix); safety line visible pass (after fix); ETA ceiling pass;
 no-traffic badge pass.

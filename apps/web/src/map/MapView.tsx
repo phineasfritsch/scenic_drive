@@ -34,7 +34,7 @@ function boundsOf(corridor: Corridor): LngLatBoundsLike {
 function padding() {
   return window.matchMedia(DESKTOP).matches
     ? { top: 56, bottom: 56, left: 456, right: 88 }
-    : { top: 32, bottom: 40, left: 24, right: 64 };
+    : { top: 32, bottom: 64, left: 24, right: 64 };
 }
 
 export function MapView({ corridor, selected, planned, stops, onSelect }: Props) {

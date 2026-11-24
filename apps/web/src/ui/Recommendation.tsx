@@ -29,6 +29,20 @@ export function Recommendation({ corridor, choice, selected, bestBudget, onBudge
       </div>
       <h2 className="hero-title">{isFastest ? "The fastest way" : `Via ${via(selected, corridor.fastest, [corridor.fastest, ...corridor.alternatives])}`}</h2>
 
+      {choice.honestFailure && isRecommended && (
+        <div className="honest">
+          <p>
+            {bestBudget > 0
+              ? `Nothing prettier fits in your budget. Give it ${bestBudget} minutes and the mountain roads open up.`
+              : "Nothing on this drive is prettier than the fastest way."}
+          </p>
+          {bestBudget > 0 && (
+            <button type="button" className="button-secondary" onClick={() => onBudget(bestBudget)}>
+              Use +{bestBudget} min
+            </button>
+          )}
+        </div>
+      )}
       <dl className="stats">
         <div>
           <dt>Drive time</dt>
@@ -50,20 +64,6 @@ export function Recommendation({ corridor, choice, selected, bestBudget, onBudge
       <ScenicStrip route={selected} />
       <StripLegend />
 
-      {choice.honestFailure && isRecommended && (
-        <div className="honest">
-          <p>
-            {bestBudget > 0
-              ? `Nothing prettier fits in your budget. Give it ${bestBudget} minutes and the mountain roads open up.`
-              : "Nothing on this drive is prettier than the fastest way."}
-          </p>
-          {bestBudget > 0 && (
-            <button type="button" className="button-secondary" onClick={() => onBudget(bestBudget)}>
-              Use +{bestBudget} min
-            </button>
-          )}
-        </div>
-      )}
     </section>
   );
 }

@@ -87,7 +87,7 @@ export function App() {
         {accepted && (
           <div className="panel-cta">
             <p className="safety">
-              <Shield /> Conditions change. Check closures, and drive the road in front of you, not the app.
+              <Shield /> Conditions change. Check closures before you go.
             </p>
             <a className="button-primary" href={googleMapsUrl(selected)} target="_blank" rel="noreferrer">
               Open in Google Maps <ArrowOut />

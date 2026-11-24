@@ -115,16 +115,16 @@
 .strip-legend {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   margin-top: -6px;
   font-size: 11px;
   color: var(--fg-muted);
 }
 
-.strip-legend-ramp {
-  flex: 0 0 56px;
-  height: 4px;
-  border-radius: 2px;
+.strip-legend-swatch {
+  width: 14px;
+  height: 6px;
+  border-radius: 3px;
 }
 
 .honest {
