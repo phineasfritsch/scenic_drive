@@ -1,0 +1,70 @@
+/* Colours: apps/ios/Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift, so web and iOS stay one brand.
+   Motion: the company ux-principles skill (P5, P8, P18). */
+:root {
+  --bg: #fff7ed;
+  --surface: #ffffff;
+  --surface-2: #fbf6f1;
+  --fg: #0f172a;
+  --fg-muted: #64748b;
+  --primary: #ea580c;
+  --primary-press: #c2410c;
+  --on-primary: #ffffff;
+  --route: #2563eb;
+  --scenic: #15803d;
+  --scenic-soft: #dcfce7;
+  --hazard: #b45309;
+  --border: #f1e4da;
+  --hairline: rgba(15, 23, 42, 0.08);
+  --shadow-panel: 0 1px 2px rgba(15, 23, 42, 0.06), 0 12px 32px -8px rgba(15, 23, 42, 0.18);
+  --shadow-control: 0 1px 2px rgba(15, 23, 42, 0.08), 0 4px 12px -4px rgba(15, 23, 42, 0.2);
+  --focus: 0 0 0 3px rgba(234, 88, 12, 0.35);
+
+  --radius-panel: 20px;
+  --radius-card: 14px;
+  --radius-pill: 999px;
+
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-num: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --dur-press: 120ms;
+  --dur-fast: 150ms;
+  --dur-open: 250ms;
+  --dur-close: 110ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --surface: #192134;
+    --surface-2: #1f2940;
+    --fg: #f8fafc;
+    --fg-muted: #94a3b8;
+    --primary: #fb923c;
+    --primary-press: #fdba74;
+    --on-primary: #0f172a;
+    --route: #3b82f6;
+    --scenic: #4ade80;
+    --scenic-soft: rgba(74, 222, 128, 0.14);
+    --hazard: #fbbf24;
+    --border: rgba(255, 255, 255, 0.08);
+    --hairline: rgba(255, 255, 255, 0.08);
+    --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 40px -8px rgba(0, 0, 0, 0.55);
+    --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px -4px rgba(0, 0, 0, 0.5);
+    --focus: 0 0 0 3px rgba(251, 146, 60, 0.4);
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-press: 0ms;
+    --dur-fast: 0ms;
+    --dur-open: 120ms;
+    --dur-close: 0ms;
+  }
+}
