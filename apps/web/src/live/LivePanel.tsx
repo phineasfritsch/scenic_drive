@@ -1,4 +1,5 @@
 import { BudgetSlider } from "../ui/BudgetSlider";
+import { LIVE_MAX_BUDGET_MINUTES } from "./budget";
 import { LiveResult } from "./LiveResult";
 import { OriginPicker } from "./OriginPicker";
 import { PlacePicker } from "./PlacePicker";
@@ -22,7 +23,7 @@ export function LivePanel({ live }: { live: LivePlanner }) {
     <>
       <OriginPicker value={live.origin} onChange={live.setOrigin} />
       <PlacePicker value={live.destination} origin={live.origin} onChange={live.setDestination} />
-      <BudgetSlider value={live.budget} onChange={live.setBudget} />
+      <BudgetSlider value={live.budget} max={LIVE_MAX_BUDGET_MINUTES} onChange={live.setBudget} />
       {live.destination && (
         <LiveResult
           destination={live.destination}
