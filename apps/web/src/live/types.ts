@@ -41,6 +41,7 @@ export type LiveFailure =
   | { kind: "quota_exhausted"; resetsAt: string | null }
   | { kind: "offline" }
   | { kind: "no_scenic_alternative" }
+  | { kind: "no_route" }
   | { kind: "unknown_place" }
   | { kind: "region_unsupported" }
   | { kind: "other"; detail: string };

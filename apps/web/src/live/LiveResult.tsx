@@ -137,6 +137,11 @@ function LiveFailureCard({ failure, budget, onRetry }: { failure: LiveFailure; b
         ) : null,
       );
     }
+    case "no_route":
+      return card(
+        "No road reaches it from here",
+        "The router found no drivable connection to this place. A nearby trailhead or town usually works.",
+      );
     case "unknown_place":
       return card("That place isn't in the planner yet", "Try a nearby place from the list.");
     case "region_unsupported":

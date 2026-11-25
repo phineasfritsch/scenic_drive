@@ -47,6 +47,7 @@ describe("failureOf", () => {
     expect(failureOf(503, { error: "planning_unavailable" }).kind).toBe("offline");
     expect(failureOf(422, { error: "nothing_pretty", more_time_minutes: 40, back_roads_eta_s: 3000, back_roads_budget_minutes: 50 }))
       .toEqual({ kind: "nothing_pretty", moreTimeMinutes: 40, backRoadsEtaS: 3000, backRoadsBudgetMinutes: 50 });
+    expect(failureOf(502, { error: "no_route", detail: "router answered 400" })).toEqual({ kind: "no_route" });
     expect(failureOf(500, { error: "weird" })).toEqual({ kind: "other", detail: "weird" });
   });
 });
