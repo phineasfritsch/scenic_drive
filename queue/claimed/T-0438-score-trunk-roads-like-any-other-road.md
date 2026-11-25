@@ -101,3 +101,7 @@ NOT HERE: any change to the safety gates, the budget ceiling or the motorway rul
   P-SAFE-03 and P-ATTR-01, both "the pinned linked trees changed" for Gates/RouteScore/SegmentScore/
   SegmentScoreCeiling.swift; re-approved in ops/lib/check-safety-disclaimer-linked-digests.txt (b999c888);
   `bash ops/lib/check-map-attribution` then exit 0.
+  check-pins --source-only re-run at 2c4307ae (after b999c888): `PINS ok=23 skipped=29 pending=1 expired=0 failed=0
+  tier=linux source-only`. Not run here: the full mutation drivers (segmentscore.py runs a whole `swift test`
+  per mutant, 66 runs; the ETL drivers would write into services/etl/etl during the rebuild), the LA rebuild
+  readback acceptance line, and vitest (no node_modules in this worktree).
