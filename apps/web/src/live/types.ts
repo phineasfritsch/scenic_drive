@@ -30,6 +30,8 @@ export interface LivePlan {
   ceiling_s: number;
   budget_s: number;
   lambda: number;
+  /** Present (true) when the fastest route already scores as scenic, so it is the plan (lambda 0, no extra time). */
+  fastest_is_scenic?: true;
   eta_is_estimate: true;
   hazards: LiveHazard[];
   waypoints: { lat: number; lon: number }[];

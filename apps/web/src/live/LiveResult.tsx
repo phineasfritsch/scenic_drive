@@ -58,6 +58,9 @@ function LiveBody({ destination, budget, loading, plan, failure, onRetry }: Prop
         </span>
       </div>
       <h2 className="hero-title">To {destination.name}</h2>
+      {plan.fastest_is_scenic && (
+        <p className="hint">The fastest way is already the scenic way, so this drive takes no extra time.</p>
+      )}
       <dl className="stats">
         <div>
           <dt>Drive time</dt>
