@@ -1,13 +1,13 @@
 ---
 id: T-0438
 title: Score trunk roads like any other road: only motorway and motorway_link carry scenic_score 0
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5-5
+owner_session: ee4f14b6
+claimed_at: 2026-11-25T04:17:55Z
+lease_expires_at: 2026-11-25T08:17:55Z
+worktree: .worktrees/T-0438
+branch: task/T-0438
 exclusive: [scenic-index, routing-config]
 touches: [services/etl/, Sources/ScenicKit/, Tests/, ops/mutate/, ops/lib/, pins/, CLAUDE.md, services/routing/, docs/STATUS.md, queue/]
 pins_affected: []
@@ -47,3 +47,4 @@ WHAT CHANGES
 NOT HERE: any change to the safety gates, the budget ceiling or the motorway rule.
 
 ## Log
+- 2026-11-25T04:17:55Z claimed by agent/claude-opus-5-5; lease until 2026-11-25T08:17:55Z
