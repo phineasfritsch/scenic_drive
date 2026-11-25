@@ -1,7 +1,7 @@
 ---
 id: T-0438
 title: Score trunk roads like any other road: only motorway and motorway_link carry scenic_score 0
-state: claimed
+state: review
 owner: agent/claude-opus-5-5
 owner_session: ee4f14b6
 claimed_at: 2026-11-25T04:17:55Z
@@ -11,7 +11,7 @@ branch: task/T-0438
 exclusive: [scenic-index, routing-config]
 touches: [services/etl/, Sources/ScenicKit/, Tests/, ops/mutate/, ops/lib/, pins/, CLAUDE.md, services/routing/, docs/STATUS.md, queue/]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-t0438
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -117,3 +117,4 @@ NOT HERE: any change to the safety gates, the budget ceiling or the motorway rul
   Recorded gap (non-blocking, its own task if wanted): the 49 trunk rows' SCENIC column and the ROUTESCORE line come
   from the T-0221 router recording made under the old rule, so this golden's route-level value=0.226 understates
   PCH under the new rule until that recording is re-made against the rebuilt graph.
+- 2026-11-25T08:33:44Z handed to agent/reviewer-t0438; state -> review; released lock(s) scenic-index, routing-config
