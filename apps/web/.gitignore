@@ -2,3 +2,4 @@ node_modules/
 dist/
 # The LA basemap is 63 MB and never committed (root .gitignore: *.pmtiles); scripts/link-tiles.mjs copies it here.
 public/tiles/
+*.tsbuildinfo
