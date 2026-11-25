@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "data": "tsx scripts/build-demo-data.ts"
+    "data": "tsx scripts/build-demo-data.ts && tsx scripts/build-places.ts"
   },
   "dependencies": {
     "@protomaps/basemaps": "^5.7.2",
