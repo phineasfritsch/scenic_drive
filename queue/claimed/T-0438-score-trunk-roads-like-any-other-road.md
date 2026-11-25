@@ -105,3 +105,15 @@ NOT HERE: any change to the safety gates, the budget ceiling or the motorway rul
   tier=linux source-only`. Not run here: the full mutation drivers (segmentscore.py runs a whole `swift test`
   per mutant, 66 runs; the ETL drivers would write into services/etl/etl during the rebuild), the LA rebuild
   readback acceptance line, and vitest (no node_modules in this worktree).
+- 2026-11-25 golden re-record, owner-initiated (owner in session: "re-record the autopsy golden"). Commit 498c0b25
+  changes one line of Tests/Fixtures/t0327/westwood-malibu.autopsy.txt: way 675540508 (trunk) SCORE 0.000 -> 0.204.
+  Regenerated through the code, not hand-edited: after the copy `swift test --filter RouteAutopsy` -> "11 tests in
+  3 suites passed" (the golden test is full line-for-line equality).
+  Independent review (a separate read-only agent, not the owner): APPROVE. Recomputed M=0.110, E=0.341+0.15 byway
+  =0.491, 0.110^0.35*0.491^0.65=0.29086, x0.7 (metersToNearestMotorway 0 < 150) = 0.20361 -> 0.204. Only change
+  under Sources/ is SegmentScore.dullClasses; only 4 of 166 rows carry terms and only 675540508 is trunk. Red run:
+  an unrelated digit changed (line 19 METRES 407.4 -> 407.5) -> "11 tests in 3 suites failed ... with 2 issues";
+  restored, tree clean.
+  Recorded gap (non-blocking, its own task if wanted): the 49 trunk rows' SCENIC column and the ROUTESCORE line come
+  from the T-0221 router recording made under the old rule, so this golden's route-level value=0.226 understates
+  PCH under the new rule until that recording is re-made against the rebuilt graph.
