@@ -7,9 +7,10 @@ import Foundation
 /// **A motorway is never gated.** CLAUDE.md lists it first among the product invariants not to
 /// "optimize away":
 ///
-/// > Motorway/trunk ways carry `scenic_score = 0`; they are penalized, **not** hard-excluded (freeway
-/// > shoulders, scenic middle). Hard gates are safety only: unpaved (positive evidence), private/no access,
-/// > track.
+/// > Motorway ways (`motorway`, `motorway_link`) carry `scenic_score = 0`; they are penalized, **not**
+/// > hard-excluded (freeway shoulders, scenic middle). Trunk is scored like any other road (owner,
+/// > 2026-11-24: PCH is OSM trunk). Hard gates are safety only: unpaved (positive evidence), private/no
+/// > access, track.
 ///
 /// It has already failed once here: a whole-route freeway exclusion made the flagship Mountain View -> SF
 /// fixture unroutable, and the plan records the fix. It is the easiest rule in this file to break by

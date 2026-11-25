@@ -57,7 +57,7 @@ public struct RouteScore: Equatable, Sendable {
     ///
     /// **The plan does not specify this number.** It names the `dud_frac` term and its weight and leaves the
     /// threshold open. 0.25 is chosen here to mean "actively dull rather than merely unremarkable" - it puts
-    /// motorway and trunk (which score 0 by construction) and bare arterial into the dud bucket while
+    /// motorway (which scores 0 by construction) and bare arterial into the dud bucket while
     /// leaving ordinary residential and unclassified roads out of it. It is a tuning constant, it is named
     /// rather than inlined so that tuning it is a one-line change with a test that moves, and it must not be
     /// mistaken for a value the plan handed down.

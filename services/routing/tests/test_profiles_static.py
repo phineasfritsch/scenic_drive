@@ -6,7 +6,8 @@ has, and they cannot see these properties even when they run:
   - The safety gates live in car_scenic_base.json, which the Dockerfile bakes into the image; no routed test
     mounts it, so the routed suite ran 9 passed with `priority: []` (PR #105 rv2 R2). The whole priority list is
     compared here to a typed literal (T-0190, P-SAFE-01's JSON half).
-  - The CLAUDE.md invariant "motorway/trunk are PENALIZED, not hard-excluded" is guarded on the Vermont pair
+  - The CLAUDE.md invariant "motorway is PENALIZED, not hard-excluded" (and trunk, scored like any road since
+    T-0438, is never gated either) is guarded on the Vermont pair
     only by the route disappearing (ConnectionNotFoundException). On a fixture that stayed routable, a hard
     gate would pass unnoticed.
 
@@ -84,8 +85,9 @@ def _positive_speed(value):
 
 
 def test_no_profile_hard_excludes_motorway_or_trunk():
-    """CLAUDE.md: motorway/trunk carry scenic_score 0 and are PENALIZED, never hard-excluded (freeway
-    shoulders, scenic middle). Hard gates are safety only: unpaved, private/no access, track. GraphHopper
+    """CLAUDE.md: motorway ways carry scenic_score 0 and are PENALIZED, never hard-excluded (freeway
+    shoulders, scenic middle); trunk is scored like any road (T-0438) and is never gated either. Hard gates
+    are safety only: unpaved, private/no access, track. GraphHopper
     never routes an edge of speed 0 either, so the WHOLE model is read (T-0012 rv1 B1): no key this test
     cannot read, and every speed rule's value a positive number or an encoded speed - the gates live in
     priority, never in speed. Read over the base profile AND every recorded per-request model."""
@@ -117,7 +119,7 @@ def test_ignored_highways_keeps_motorway_and_trunk():
     offenders = [value for value in named if value.startswith(("motorway", "trunk"))]
     assert not offenders, (
         f"config.yml drops {offenders} at import: motorway and trunk must reach the graph and be "
-        f"penalized there (scenic_score 0), never hard-excluded. ignored_highways reads {named}."
+        f"scored there (motorway at scenic_score 0), never hard-excluded. ignored_highways reads {named}."
     )
 
 

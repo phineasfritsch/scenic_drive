@@ -154,7 +154,7 @@ MUTATIONS = [
     # a motorway at 1 printed gated_scored=0 and exited 0.
     ("only object to a gated way scoring above 1", SCENECHECK, CHECK_GATED,
      "        elif kind == SCORED and detail > 1 and is_gated(tags):"),
-    ("forget that motorway and trunk are a clause of their own", SCENECHECK, IS_GATED,
+    ("forget that motorway is a clause of its own", SCENECHECK, IS_GATED,
      "    return gate_reason(tags) is not None"),
     ("forget the safety gates, keeping only the zero classes", SCENECHECK, IS_GATED,
      "    return tags.get(HIGHWAY) in ZERO_CLASSES"),

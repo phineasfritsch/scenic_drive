@@ -14,7 +14,7 @@ WHAT IS CHECKED, AND WHAT IS NOT (T-0372 rulings R1-R5, measured on both LA corp
   corpus-viewpoints  places of class viewpoint >= the region's MEASURED floor. LA's corpus holds 102; the floor is
                      int(102 * 0.75) = 76 (T-0205 R3's margin). A region with no measured floor is refused by name.
   corpus-surface     surfacecoverage.verdict over meta.surface_coverage - the one definition, never a recount.
-  corpus-score       SKIP, always: the corpus stores no score (schema.py rule 6). Motorway/trunk = 0 and the gates
+  corpus-score       SKIP, always: the corpus stores no score (schema.py rule 6). Motorway = 0 and the gates
                      are P-PROD-01's (score.py, the router profile, ScenicKit.Gates); scenic_score is the graph's.
 """
 from __future__ import annotations
@@ -32,7 +32,7 @@ from etl import schema, surfacecoverage  # noqa: E402
 PREDICATES = ("corpus-open", "corpus-terms", "corpus-viewpoints", "corpus-surface")
 SCORE_ROW = "corpus-score"
 DISCOVERY_ROW = "corpus-db"
-SCORE_SKIP = ("the corpus stores no score (schema.py rule 6): motorway/trunk = 0 and the gates are P-PROD-01's, "
+SCORE_SKIP = ("the corpus stores no score (schema.py rule 6): motorway = 0 and the gates are P-PROD-01's, "
               "scenic_score is the graph's (T-0008)")
 TERM_TABLES = ("terms_osm", "terms_raster")
 VIEWPOINT_CLASS = "viewpoint"

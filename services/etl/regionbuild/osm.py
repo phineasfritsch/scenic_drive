@@ -10,8 +10,8 @@ import subprocess
 
 from . import tiles as tileplan
 
-# proximity.MOTORWAY_CLASSES: the four classes waydoc measures a way's distance to (T-0208 R1b).
-MOTORWAY_FILTER = "w/highway=motorway,motorway_link,trunk,trunk_link"
+# proximity.MOTORWAY_CLASSES: the classes waydoc measures a way's distance to (T-0208 R1b; trunk left in T-0438).
+MOTORWAY_FILTER = "w/highway=motorway,motorway_link"
 CHUNK = 1 << 20
 
 

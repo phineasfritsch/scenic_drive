@@ -35,8 +35,9 @@ OUT = pathlib.Path(__file__).resolve().parent / "segment_terms.json"
 # `.infinity` for "no motorway anywhere near", so the fixture spells it and both readers translate it.
 INF = "Infinity"
 
-# plan:83 - these score 0 and are NOT gated; the router may still use them.
-PLAN_ZERO_CLASSES = ("motorway", "motorway_link", "trunk", "trunk_link")
+# plan:83 - these score 0 and are NOT gated; the router may still use them. Motorways only: the owner
+# overrode the plan's "motorway/trunk" on 2026-11-24 (T-0438) - trunk is scored like any other class.
+PLAN_ZERO_CLASSES = ("motorway", "motorway_link")
 # plan:84 - absent surface here is a x0.8 penalty; on primary/secondary/tertiary it means "paved".
 PLAN_UNSURVEYED_CLASSES = ("unclassified", "residential")
 
@@ -108,8 +109,9 @@ def covering_rows() -> list[dict]:
     """The rows chosen by hand, one property at a time. Random rows cannot be relied on to hit these."""
     out: list[dict] = []
 
-    # Every highway class against every tier, with and without a surface tag. The four zero classes are
-    # here three times each: a motorway that is also a designated byway must still score exactly 0.
+    # Every highway class against every tier, with and without a surface tag. The two zero classes are
+    # here three times each: a motorway that is also a designated byway must still score exactly 0, and a
+    # trunk with the same terms must not (T-0438).
     for hw in HIGHWAYS:
         for tier in TIERS:
             for surf in (None, "asphalt"):

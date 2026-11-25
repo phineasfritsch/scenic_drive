@@ -15,7 +15,7 @@ whole region's ranking population, computed once in a first pass over every tile
 WHAT IS IN IT, AND WHY IT IS EXACTLY WHAT `normalise_region` WOULD HAVE RANKED (T-0208 R2). `raw_values`
 takes the same two decisions the normaliser takes region-internally and takes them through the normaliser's
 own functions, so the two can never drift apart:
-  * `normalise.population_of` - the ZERO CLASSES (motorway, trunk and their links) are NOT in the curve.
+  * `normalise.population_of` - the ZERO CLASSES (motorway and motorway_link) are NOT in the curve.
     They score 0 by class, and 19,511 motorway ways would otherwise set the distribution for the back roads
     this product exists to find. They stay in the corpus, penalised and not excluded (CLAUDE.md).
   * `normalise.answering` - a way that DECLINED to measure a term (today only `sinuosity`, T-0161's closed

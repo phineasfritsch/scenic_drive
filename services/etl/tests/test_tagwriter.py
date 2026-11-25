@@ -152,7 +152,7 @@ def test_a_row_the_assembly_scored_none_is_written_as_a_refusal(tmp_path):
 
 
 def test_a_motorway_is_scored_zero_and_not_refused(tmp_path):
-    """CLAUDE.md's product invariant: motorway/trunk carry scenic_score 0 and stay routable."""
+    """CLAUDE.md's product invariant: motorway ways carry scenic_score 0 and stay routable."""
     out, _ = written(tmp_path)
     tags = tags_of(out.read_text(encoding="utf-8"), MOTORWAY)
     assert tags["scenic_score"] == "0"

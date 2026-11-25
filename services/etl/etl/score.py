@@ -13,7 +13,7 @@ THE FORMULA (plan lines 78-87):
     E = 0.24*canopy + 0.22*relief + 0.16*(1-impervious) + 0.14*poi + 0.12*water + 0.12*(1-furniture)
         (+ the byway bonus, capped at 1)
     tunnel > 300 m -> x0.15 ; within 150 m of a motorway -> x0.7 ; absent surface on an unsurveyed class -> x0.8
-    highway in {motorway, motorway_link, trunk, trunk_link} -> 0
+    highway in {motorway, motorway_link} -> 0   (trunk is scored like any other class: T-0438)
 
 The mean is GEOMETRIC and the exponents are the two most product-defining constants in the repository: a
 curvy industrial road and a straight redwood road are different products, and an arithmetic mean says they

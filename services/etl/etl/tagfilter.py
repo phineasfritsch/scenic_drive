@@ -1,6 +1,6 @@
 """What the Bay Area extract keeps, expressed as osmium tags-filter expressions.
 
-The load-bearing decision here is what is NOT dropped. Motorway and trunk ways score 0 and are penalised by
+The load-bearing decision here is what is NOT dropped. Motorway ways score 0 and are penalised by
 the router, but they are never excluded: almost every Bay Area commute over 15 km needs freeway shoulders
 around a scenic middle, and an extract that "cleans up" motorways makes those routes unroutable rather than
 unattractive. Same for track and private ways - they are SAFETY gates in the routing profile, applied to tags

@@ -43,7 +43,7 @@ origin and carries `services/routing/compose.yaml`, and when the box has no non-
 | Piece | Status |
 |---|---|
 | `plugins/scenic-score-parser` | Real. `scenic_score`, unsigned, 4 bits, 0..10; no tag means 0. |
-| `profiles/car_scenic_base.json` | Real. Safety gates only: private/no access, the unpaved surfaces, track. Motorway and trunk are **not** gated — they carry score 0 and are penalized by the request model. |
+| `profiles/car_scenic_base.json` | Real. Safety gates only: private/no access, the unpaved surfaces, track. Motorway and trunk are **not** gated. Motorway carries score 0 and is penalized by the request model; trunk is scored like any other road (T-0438: PCH is OSM trunk). |
 | `config.yml` | Real, and read by the runner AND the served router, so the profile under test is the profile that ships. Its `server:` section (T-0392) is read only by `ScenicServerApplication`. |
 | per-request models | Not a profile. `services/api/src/customModel.ts` builds the body per request; its output at the oracle lambdas is RECORDED in `Tests/Fixtures/custom-model/lambda-<l>.json`, held byte-equal to the builder by `services/api/test/customModelGolden.test.ts`, and `tests/request_models.py` routes those bytes unchanged (T-0190: the old template + band table had drifted to 3 clauses against the Worker's 9). |
 | `tools/synthetic_scenic_tags.py` | **SYNTHETIC.** `way_id % 11` on every highway way, stamped into the output PBF's header. Not a scenic index. T-0168 owns the real writer. |

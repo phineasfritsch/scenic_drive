@@ -8,6 +8,12 @@ graphhopper:
   graph.location: /graph
   datareader.file: ""
 
+  # How far a point may snap to the nearest routable road, in location-index cells (GraphHopper's default is 4).
+  # Peaks and viewpoints sit off the road: at 4, 2 of 12 sampled LA destinations answered "Cannot find point"
+  # (Iron Mountain, Magic Mountain). At 16, 1329 of the 1334 bundled places route from Westwood (measured
+  # 2026-11-24, T-0438; the 5 left snap to a road island). The client says when a drive ends short of its place.
+  index.max_region_search: 16
+
   # osm_way_id is GraphHopper's own encoded value (DefaultImportRegistry knows it; our ImportRegistry only
   # adds scenic_score). It is here so that a value read back out of the built graph can be bound to a NAMED
   # OSM way - `--mode probe --probe-ways 74344132` walks the edges and answers way id -> scenic_score with no
@@ -21,8 +27,8 @@ graphhopper:
   graph.encoded_values: car_access, car_average_speed, road_class, road_access, surface, scenic_score, osm_way_id, track_type, smoothness, gate_locked_barrier, gate_ford, gate_service_way
 
   # GraphHopper 11 refuses to start without this key. It drops ways a car can never use from the graph; it is
-  # NOT a scenic gate and it names no motorway or trunk - those carry scenic_score 0 and are penalized by the
-  # per-request model, never hard-excluded.
+  # NOT a scenic gate and it names no motorway or trunk - motorways carry scenic_score 0 and are penalized by the
+  # per-request model, never hard-excluded; trunk is scored like any other road (T-0438).
   import.osm.ignored_highways: footway, cycleway, path, pedestrian, steps
 
   # Contraction hierarchies stay OFF: every request carries its own custom model (the lambda penalty), and a

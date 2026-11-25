@@ -89,8 +89,9 @@ public enum SegmentScore {
     public static let unsurveyedClasses: Set<String> = ["unclassified", "residential"]
     public static let unsurveyedMultiplier = 0.8
 
-    /// Ways that are dull by construction. **Score zero, never gated.**
-    public static let dullClasses: Set<String> = ["motorway", "motorway_link", "trunk", "trunk_link"]
+    /// Ways that are dull by construction. **Score zero, never gated.** Motorways only: trunk is scored by
+    /// the formula like any other class (owner, 2026-11-24, T-0438) - PCH is OSM `highway=trunk`.
+    public static let dullClasses: Set<String> = ["motorway", "motorway_link"]
 
     // MARK: - the score
 

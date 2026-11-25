@@ -14,7 +14,7 @@ hardened oracle (`scenecheck.classify`) requires `quantise(unit) == score`; deri
 string makes that clause true by construction instead of by luck.
 
 A REFUSAL IS NEVER A SILENT 0 (ruling R2). 0 is a real score - it is what a motorway honestly carries
-(CLAUDE.md, "Motorway/trunk ways carry scenic_score = 0 ... penalized, not hard-excluded"). A way whose
+(CLAUDE.md, "Motorway ways carry scenic_score = 0 ... penalized, not hard-excluded"). A way whose
 producer could not answer carries `scenic_refused=1` and `scenic_refused_why`, and NO `scenic_score`. A row
 whose score came back None is the same fact reached a different way and is written the same way.
 

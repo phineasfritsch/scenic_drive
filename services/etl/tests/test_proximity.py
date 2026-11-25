@@ -97,18 +97,18 @@ class TestTunnelValues:
 
 
 class TestMotorwayClasses:
-    def test_the_four_classes_against_literals(self):
+    def test_the_two_classes_against_literals(self):
         """Imported from byways rather than restated (score.py does the same), so this assertion is what
         turns a change of meaning there into a failure here instead of a wider penalty in the corpus."""
-        assert set(proximity.MOTORWAY_CLASSES) == {"motorway", "motorway_link", "trunk", "trunk_link"}
+        assert set(proximity.MOTORWAY_CLASSES) == {"motorway", "motorway_link"}
 
-    def test_a_primary_road_is_not_a_motorway(self):
-        assert proximity.is_motorway({"highway": "primary"}) is False
+    def test_a_primary_or_trunk_road_is_not_a_motorway(self):
+        for highway in ("primary", "trunk", "trunk_link"):  # T-0438: PCH is OSM trunk, not a motorway
+            assert proximity.is_motorway({"highway": highway}) is False, highway
         assert proximity.is_motorway({}) is False
 
     def test_a_link_is_a_motorway(self):
         assert proximity.is_motorway({"highway": "motorway_link"}) is True
-        assert proximity.is_motorway({"highway": "trunk_link"}) is True
 
 
 class TestSearchRadius:

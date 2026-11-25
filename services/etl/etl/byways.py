@@ -66,8 +66,9 @@ enforced by a test over the whole status table - a `min(MAX_BONUS, ...)` at the 
 at these values and only looked like a check.
 
 MOTORWAYS ARE GATED HERE. S&H 263.3 lists Interstates - Routes 5, 8, 10, 15, 40, 57, 80 - as eligible, and
-the pinned pull carries I-80, I-280, I-580 and I-680 rows at both statuses. The plan's invariant is that
-motorway and trunk ways score 0 on scenery: penalised, never hard-excluded. A byway bonus on an Interstate
+the pinned pull carries I-80, I-280, I-580 and I-680 rows at both statuses. The invariant is that
+motorway ways score 0 on scenery: penalised, never hard-excluded. Trunk is not a motorway (T-0438): a
+designated trunk corridor such as PCH earns its bonus. A byway bonus on an Interstate
 would put scenery back on exactly those roads, so `bonus_for` returns 0.0 for SCENIC_ZERO_CLASSES and takes
 `way_class` as a REQUIRED argument: a caller that does not know the class has to find out rather than earn a
 bonus by omission. `match` is deliberately NOT gated, so the designation stays visible in the data and only
@@ -107,8 +108,9 @@ ELIGIBLE_BONUS = 0.06
 MAX_BONUS = 0.15
 # E is a 0..1 score; the six base terms already sum to 1.00. This is what "capped" governs.
 E_CEILING = 1.0
-# The plan's invariant: these score 0 on scenery, so no byway bonus reaches them. See the docstring.
-SCENIC_ZERO_CLASSES = frozenset({"motorway", "motorway_link", "trunk", "trunk_link"})
+# The invariant: motorways score 0 on scenery, so no byway bonus reaches them. Trunk is scored like any
+# other class (owner, 2026-11-24, T-0438): PCH is OSM trunk. See the docstring.
+SCENIC_ZERO_CLASSES = frozenset({"motorway", "motorway_link"})
 
 DESIGNATED = "OD"
 ELIGIBLE = "E"
@@ -224,7 +226,7 @@ def match(way: list[tuple[float, float]], byways: list[dict], way_ref: str | Non
 def bonus_for(way: list[tuple[float, float]], byways: list[dict], *, way_class: str | None, **kw) -> float:
     """The E bonus a way earns from byway designation. Add it to E through `apply_to_e`, never bare.
 
-    `way_class` is the OSM `highway` value and is required with no default: a motorway or trunk earns
+    `way_class` is the OSM `highway` value and is required with no default: a motorway earns
     nothing here whatever Caltrans says about the corridor, and a caller that does not know the class must
     find out rather than collect a bonus by omission.
     """

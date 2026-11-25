@@ -91,7 +91,7 @@
     "tiger:name_type_1": "Hwy",
     "turn:lanes:both_ways": "left"
    },
-   "verdict": "ZERO_NOT_GATED"
+   "verdict": "PAVED"
   },
   {
    "class": "trunk_link",
@@ -105,7 +105,7 @@
     "tiger:cfcc": "A63",
     "tiger:county": "Los Angeles, CA"
    },
-   "verdict": "ZERO_NOT_GATED"
+   "verdict": "PAVED"
   },
   {
    "class": "surface=gravel",

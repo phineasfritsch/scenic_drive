@@ -4,7 +4,7 @@ THE THREE CLAUSES (the plan's check 4, ruling R8 in T-0168's log; the third from
 
     null_score     ways that SHOULD carry a score and do not - a `highway` way that is neither
                    `scenic_refused` nor scored. Must be 0.
-    gated_scored   ways the safety gates refuse, or motorway/trunk, carrying a score ABOVE 0. Must be 0.
+    gated_scored   ways the safety gates refuse, or motorway, carrying a score ABOVE 0. Must be 0.
     malformed      ways whose `scenic_score` is not an integer the router can hold, whose
                    `scenic_score_unit` is missing, not a number, outside 0..1 or does not quantise to the
                    integer beside it, or that claim to be refused AND scored at once. Must be 0.

@@ -105,7 +105,7 @@ MUTATIONS = [
      "        out[way_id] = (below + 0.5 * equal) / population\n    return out\n\n\ndef population_of",
      "        out[way_id] = (below + 1.0 * equal) / population\n    return out\n\n\ndef population_of"),
     # WHICH WAYS ARE IN THE CURVE (R2). Both rules, one mutation each.
-    ("motorway and trunk join the curve they are supposed to be out of", REFERENCE,
+    ("motorway joins the curve it is supposed to be out of", REFERENCE,
      POPULATION, "    population = list(records)"),
     ("a way that declined to measure a term is put back into that term's curve", REFERENCE,
      ANSWERING,

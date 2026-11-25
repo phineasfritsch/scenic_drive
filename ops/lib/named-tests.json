@@ -1804,7 +1804,8 @@
         "test_profile_gives_the_fixture_verdict[no surface on unclassified]",
         "test_profile_gives_the_fixture_verdict[no surface on residential]",
         "test_etl_and_profile_agree_on_every_gate",
-        "test_motorway_and_trunk_score_zero_and_are_routable_in_every_layer",
+        "test_motorway_scores_zero_and_is_routable_in_every_layer",
+        "test_trunk_is_scored_like_any_road_and_routable_in_every_layer",
         "test_the_fixture_is_the_briefs_table",
         "test_only_the_typed_classes_diverge",
         "test_the_profile_read_is_the_shipped_file"
@@ -1889,7 +1890,8 @@
       "filter": "ScenicKitTests\\.GateParityFixtureTests|ScenicKitTests\\.SegmentScoreContractTests|ScenicKitTests\\.SegmentScoreCeilingTests|ScenicKitTests\\.SegmentScoreSurfaceTests",
       "tests": [
         "ScenicKitTests.GateParityFixtureTests/everyRowGetsTheFixtureVerdict()",
-        "ScenicKitTests.GateParityFixtureTests/motorwayAndTrunkArePenalisedNotGated()",
+        "ScenicKitTests.GateParityFixtureTests/motorwayIsPenalisedNotGated()",
+        "ScenicKitTests.GateParityFixtureTests/trunkIsScoredNotGated()",
         "ScenicKitTests.SegmentScoreContractTests/everyRowMatchesTheOracle()",
         "ScenicKitTests.SegmentScoreContractTests/everyRowShowsThePostCeilingScore()",
         "ScenicKitTests.SegmentScoreContractTests/fixtureStraddlesEveryCeiling()",

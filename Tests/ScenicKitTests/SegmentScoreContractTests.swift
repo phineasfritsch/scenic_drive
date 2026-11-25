@@ -168,4 +168,16 @@ struct SegmentScoreContractTests {
         }
         #expect(checked >= 40, "only \(checked) dull-class rows - the invariant is barely exercised")
     }
+
+    /// T-0438 (owner, 2026-11-24): trunk is scored like any other class - PCH is OSM `highway=trunk`.
+    @Test("a trunk row in the fixture is scored by the formula, not zeroed")
+    func trunkRowsAreScored() throws {
+        let fixture = try ScoringFixture.load()
+        let rows = fixture.rows.filter { ["trunk", "trunk_link"].contains($0.highway) && $0.expected > 0 }
+        #expect(rows.count >= 40, "only \(rows.count) scored trunk rows - the T-0438 rule is barely exercised")
+        for r in rows {
+            let got = try #require(SegmentScore.score(for: Self.terms(r)), "\(r.id) scored nil")
+            #expect(got > 0, "\(r.id) scored \(got); the oracle says \(r.expected)")
+        }
+    }
 }

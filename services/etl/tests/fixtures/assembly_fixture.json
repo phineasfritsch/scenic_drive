@@ -31,8 +31,8 @@
      "furniture_nodes": [{"highway": "street_lamp"}, {"highway": "street_lamp"}],
      "sinuosity": 1.05},
 
-    {"way_id": 800000002, "case": "trunk - zero class, scores 0.0 by class, NOT gated",
-     "tags": {"highway": "trunk", "surface": "asphalt", "maxspeed": "55 mph"},
+    {"way_id": 800000002, "case": "motorway_link - zero class, scores 0.0 by class, NOT gated (a trunk until T-0438 scored trunk like any other class)",
+     "tags": {"highway": "motorway_link", "surface": "asphalt", "maxspeed": "55 mph"},
      "coords": [[37.11, -122.0], [37.11, -121.998], [37.1101, -121.996], [37.11, -121.994], [37.11, -121.992]],
      "elevation_profile": [30.0, 33.0, 36.0, 38.0, 37.0, 39.0, 41.0, 40.0],
      "landcover_codes": [50, 50, 50, 30, 30, 30, 10, 10, 10, 50],

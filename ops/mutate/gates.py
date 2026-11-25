@@ -4,9 +4,9 @@
 The mutation corpus is ops/mutate/gates_corpus.py; this file is the runner and the floors.
 
 The mutations that matter most are the nineteen under THE INVARIANT there. If the suite does not catch them,
-the suite does not protect the invariant CLAUDE.md lists first - motorway and trunk are PENALISED, not
-excluded - and this repository has already broken that once, making the flagship Mountain View -> SF fixture
-unroutable. Most of them exist because reviews of PR #82 refused freeway geometry with the whole suite green,
+the suite does not protect the invariant CLAUDE.md lists first - motorway is PENALISED, not excluded, and
+trunk (scored like any road since T-0438) is not excluded either - and this repository has already broken
+that once, making the flagship Mountain View -> SF fixture unroutable. Most of them exist because reviews of PR #82 refused freeway geometry with the whole suite green,
 twelve shapes in all: `motorway_link` + `oneway`, `motorroad`, `expressway`, `foot`/`bicycle`, `lanes`,
 `maxspeed`, `destination`, `horse`, a `horse`/`moped` loop, `motor_vehicle != "yes"`, and then `sidewalk` and
 `int_ref` from the sixth review. Roughly half the rest turn a rule that requires positive evidence into one

@@ -73,8 +73,9 @@ still apply in full, and so do the 300-line cap and the no-secrets rule.
 - Snapshot references are re-recorded only by a human-initiated commit reviewed by a different agent.
 
 ## Product invariants you must not "optimize away"
-- Motorway/trunk ways carry `scenic_score = 0`; they are penalized, **not** hard-excluded (freeway shoulders,
-  scenic middle). Hard gates are safety only: unpaved (positive evidence), private/no access, track.
+- Motorway ways (`motorway`, `motorway_link`) carry `scenic_score = 0`; they are penalized, **not** hard-excluded
+  (freeway shoulders, scenic middle). Trunk is scored like any other road (owner, 2026-11-24: PCH is OSM trunk).
+  Hard gates are safety only: unpaved (positive evidence), private/no access, track.
 - The extra-time budget is a **ceiling**: returned ETA ≤ fastest + budget. Always.
 - Attribution (`© OpenStreetMap contributors · Protomaps`) is visible on every map surface at every sheet detent.
 - The safety disclaimer gates the first plan and stays visible on the route screen.

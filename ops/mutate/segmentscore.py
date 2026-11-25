@@ -253,17 +253,20 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
     ("a motorway stops scoring zero", SCORE,
      '        if dullClasses.contains(t.highway) { return 0 }', "        // motorway rule removed"),
 
-    ("only motorway scores zero, so trunk keeps its score", SCORE,
-     '    public static let dullClasses: Set<String> = ["motorway", "motorway_link", "trunk", "trunk_link"]',
-     '    public static let dullClasses: Set<String> = ["motorway", "motorway_link"]'),
+    # T-0438 (owner, 2026-11-24): trunk is scored like any other class, because PCH is OSM highway=trunk.
+    # This mutant was "only motorway scores zero, so trunk keeps its score" - that is now the shipped rule -
+    # and is turned round: putting trunk back zeroes the whole LA coast and must be killed by name.
+    ("trunk is dull again, so the whole LA coast (PCH) scores zero", SCORE,
+     '    public static let dullClasses: Set<String> = ["motorway", "motorway_link"]',
+     '    public static let dullClasses: Set<String> = ["motorway", "motorway_link", "trunk", "trunk_link"]'),
 
     ("secondary roads are dull too, which would delete the scenic middle", SCORE,
-     '    public static let dullClasses: Set<String> = ["motorway", "motorway_link", "trunk", "trunk_link"]',
-     '    public static let dullClasses: Set<String> = ["motorway", "motorway_link", "trunk", "trunk_link",\n'
+     '    public static let dullClasses: Set<String> = ["motorway", "motorway_link"]',
+     '    public static let dullClasses: Set<String> = ["motorway", "motorway_link",\n'
      '                                                  "secondary"]'),
 
     # The class rule on the axis no fixture varied. Every test that exercised it left `surface` at its nil
-    # default, so the CLAUDE.md invariant "motorway/trunk carry scenic_score = 0" was pinned only for ways
+    # default, so the CLAUDE.md invariant "motorway carries scenic_score = 0" was pinned only for ways
     # carrying no surface tag - which for a motorway in OSM is the minority. Survived all 39 tests at e2b77f5.
     ("a dull class stops scoring zero once the way carries a surface tag", SCORE,
      "        if dullClasses.contains(t.highway) { return 0 }",
