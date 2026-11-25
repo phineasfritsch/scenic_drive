@@ -78,14 +78,26 @@ struct GateParityFixtureTests {
         }
     }
 
-    @Test("motorway and trunk rows score zero and are never gated by ScenicKit")
-    func motorwayAndTrunkArePenalisedNotGated() throws {
-        let rows = try Self.rows().filter { ["motorway", "motorway_link", "trunk", "trunk_link"].contains($0.name) }
-        #expect(rows.count == 4)
+    @Test("motorway rows score zero and are never gated by ScenicKit")
+    func motorwayIsPenalisedNotGated() throws {
+        let rows = try Self.rows().filter { ["motorway", "motorway_link"].contains($0.name) }
+        #expect(rows.count == 2)
         for row in rows {
             #expect(Gates.decide(row.tags).isAllowed, "ScenicKit gates \(row.name): penalised, never excluded")
             #expect(SegmentScore.score(for: Self.terms(row.tags, surface: row.tags["surface"])) == 0,
                     "ScenicKit scores \(row.name) above zero")
+        }
+    }
+
+    @Test("trunk rows are scored like any road and never gated by ScenicKit (T-0438: PCH is OSM trunk)")
+    func trunkIsScoredNotGated() throws {
+        let rows = try Self.rows().filter { ["trunk", "trunk_link"].contains($0.name) }
+        #expect(rows.count == 2)
+        for row in rows {
+            #expect(Gates.decide(row.tags).isAllowed, "ScenicKit gates \(row.name): trunk is never excluded")
+            let score = try #require(SegmentScore.score(for: Self.terms(row.tags, surface: row.tags["surface"])))
+            #expect(score > 0, "ScenicKit scores \(row.name) zero: trunk is scored like any other class")
+            #expect(Self.scenicKitVerdict(row.tags) == "PAVED", "\(row.name) is not PAVED in ScenicKit")
         }
     }
 

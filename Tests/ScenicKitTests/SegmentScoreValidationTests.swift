@@ -158,7 +158,7 @@ struct SegmentScoreValidationTests {
         // and the bad measurement would never surface - the one outcome the doc comment on `score(for:)`
         // says the nil return exists to prevent. Measured: that reordering passed every other test, because
         // no other fixture puts a dull class and an illegal term in the same way.
-        for highway in ["motorway", "motorway_link", "trunk", "trunk_link"] {
+        for highway in ["motorway", "motorway_link"] {
             var overRange = Self.flat(0.5)
             overRange.highway = highway
             overRange.curvature = 1.5

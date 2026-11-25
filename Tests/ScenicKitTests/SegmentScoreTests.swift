@@ -162,18 +162,30 @@ struct SegmentScoreTests {
 
     @Test("a motorway scores zero, which is not the same as being refused")
     func motorwayScoresZero() throws {
-        // CLAUDE.md: motorway and trunk carry scenic_score 0 and are PENALISED, not hard-excluded. This file
+        // CLAUDE.md: motorway ways carry scenic_score 0 and are PENALISED, not hard-excluded. This file
         // owns the "scores 0" half. The "is still allowed" half belongs to Gates, which is not on this branch,
         // so the pairing cannot be asserted here - recorded in the task Log rather than implied.
         //
         // Given the best possible terms, so this cannot pass by the terms being poor.
-        for highway in ["motorway", "motorway_link", "trunk", "trunk_link"] {
+        for highway in ["motorway", "motorway_link"] {
             let best = Self.uniform(1.0, highway: highway)
             #expect(try #require(SegmentScore.score(for: best)) == 0, "\(highway) must score 0")
         }
-        // And a road that is not one of those four keeps its score with identical terms, so the rule is about
+        // And a road that is not one of those two keeps its score with identical terms, so the rule is about
         // the class and not about something else in the fixture.
         #expect(try #require(SegmentScore.score(for: Self.uniform(1.0, highway: "secondary"))) == 1.0)
+    }
+
+    @Test("a trunk way is scored by the formula like any other class (T-0438: PCH is OSM trunk)")
+    func trunkIsScoredLikeAnyOtherClass() throws {
+        for highway in ["trunk", "trunk_link"] {
+            #expect(!SegmentScore.dullClasses.contains(highway), "\(highway) is a dull class again")
+            for v in [1.0, 0.5] {
+                let secondary = try #require(SegmentScore.score(for: Self.uniform(v, highway: "secondary")))
+                #expect(try #require(SegmentScore.score(for: Self.uniform(v, highway: highway))) == secondary)
+                #expect(secondary > 0, "uniform \(v) must score above 0")
+            }
+        }
     }
 
     @Test("a dull class scores zero whether or not the way carries a surface tag")
@@ -183,9 +195,9 @@ struct SegmentScoreTests {
         // axis only. Measured on the committed tree at `e2b77f5`: the shortcut could become
         // `if dullClasses.contains(t.highway), t.surface == nil { return 0 }` with all 39 tests green, and a
         // tagged motorway would then score its full terms. In OSM a motorway usually DOES carry a surface
-        // tag, so that mutation would have left the CLAUDE.md invariant - motorway and trunk carry
+        // tag, so that mutation would have left the CLAUDE.md invariant - motorway ways carry
         // scenic_score 0 - true only for the minority of them.
-        for highway in ["motorway", "motorway_link", "trunk", "trunk_link"] {
+        for highway in ["motorway", "motorway_link"] {
             for surface in ["asphalt", "concrete", "gravel"] {
                 var t = Self.uniform(1.0, highway: highway)
                 t.surface = surface

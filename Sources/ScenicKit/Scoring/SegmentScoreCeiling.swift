@@ -11,8 +11,9 @@ import Foundation
 ///
 /// `byClass` is bound to the ETL table by `SegmentScoreCeilingTests`, which parses the one
 /// `CLASS_SCORE_CEILING = {...}` line of assemble.py and requires whole-table equality: the same class
-/// strings, matched exactly as Python's `dict.get` matches them, and the same numbers. Motorway and trunk
-/// are not here: they score 0 in the formula itself and are penalised, never gated.
+/// strings, matched exactly as Python's `dict.get` matches them, and the same numbers. Motorway is not
+/// here: it scores 0 in the formula itself and is penalised, never gated. Trunk is not here either: it
+/// is scored by the formula like any other class (T-0438).
 public enum SegmentScoreCeiling {
 
     /// assemble.py's `CLASS_SCORE_CEILING`. 0.6499 is the largest four-decimal unit the quantiser sends
