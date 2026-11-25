@@ -180,8 +180,8 @@ def test_named_way_carries_its_real_scenic_score(probed, score, way, name):
 
 def test_gated_way_is_imported_and_carries_zero(probed):
     """A gate is a PROFILE decision, never an import one: way 10715427 is scenic_gate=track, scored 0, and
-    it must still be in the graph. CLAUDE.md's invariant lives on the same mechanism - motorway and trunk
-    carry 0 and are penalized, and an edge that was never imported can never be penalized back in."""
+    it must still be in the graph. CLAUDE.md's invariant lives on the same mechanism - motorway ways carry
+    0 and are penalized, and an edge that was never imported can never be penalized back in."""
     edges, scores = probed[GATED_TRACK]
     assert edges > 0, (
         f"gated way {GATED_TRACK} (highway=track, scenic_gate=track) is absent from the graph: gating is "
