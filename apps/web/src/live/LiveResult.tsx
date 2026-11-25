@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { miles, minutes } from "../format";
 import { Clock } from "../ui/Icons";
+import { endGapKm } from "./budget";
 import type { LiveFailure, LivePlace, LivePlan } from "./types";
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
 }
 
 const MAX_LAMBDA = 8;
+/** Past this, say the drive stops short of the place (peaks and viewpoints often sit off the road). */
+const END_GAP_NOTE_KM = 0.3;
 
 /** The live answer: the same stat row as a recorded drive, from the fields /plan really sends. */
 export function LiveResult({ destination, budget, loading, plan, failure, onRetry }: Props) {
@@ -45,6 +48,7 @@ function LiveBody({ destination, budget, loading, plan, failure, onRetry }: Prop
   if (!plan) return null;
   const extraS = plan.eta_s - plan.fastest_eta_s;
   const hazards = [...new Set(plan.hazards.map((h) => h.value || h.kind))];
+  const gapKm = endGapKm(plan.route.coordinates, destination.at);
   return (
     <section className="hero" aria-live="polite" aria-label="Live plan">
       <div className="hero-top">
@@ -54,6 +58,9 @@ function LiveBody({ destination, budget, loading, plan, failure, onRetry }: Prop
         </span>
       </div>
       <h2 className="hero-title">To {destination.name}</h2>
+      {plan.fastest_is_scenic && (
+        <p className="hint">The fastest way is already the scenic way, so this drive takes no extra time.</p>
+      )}
       <dl className="stats">
         <div>
           <dt>Drive time</dt>
@@ -74,6 +81,11 @@ function LiveBody({ destination, budget, loading, plan, failure, onRetry }: Prop
       <p className="hint">
         Within your +{budget} min: at most {minutes(plan.ceiling_s)}. Line colours by scenic score are only on featured drives.
       </p>
+      {gapKm > END_GAP_NOTE_KM && (
+        <p className="hint">
+          The drive ends at the nearest road, {miles(gapKm * 1000)} from {destination.name}.
+        </p>
+      )}
       {hazards.length > 0 && (
         <p className="honest">
           <span>Heads up on this route: {hazards.join(", ")}.</span>
@@ -128,6 +140,11 @@ function LiveFailureCard({ failure, budget, onRetry }: { failure: LiveFailure; b
         ) : null,
       );
     }
+    case "no_route":
+      return card(
+        "No road reaches it from here",
+        "The router found no drivable connection to this place. A nearby trailhead or town usually works.",
+      );
     case "unknown_place":
       return card("That place isn't in the planner yet", "Try a nearby place from the list.");
     case "region_unsupported":

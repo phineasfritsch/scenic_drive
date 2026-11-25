@@ -67,6 +67,8 @@ export function failureOf(status: number, body: Record<string, unknown>): LiveFa
       return { kind: "offline" };
     case "no_scenic_alternative":
       return { kind: "no_scenic_alternative" };
+    case "no_route":
+      return { kind: "no_route" };
     case "unknown_place":
       return { kind: "unknown_place" };
     case "region_unsupported":

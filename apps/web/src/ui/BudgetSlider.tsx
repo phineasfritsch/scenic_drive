@@ -4,14 +4,17 @@ import { MAX_BUDGET_MINUTES } from "../plan/choose";
 
 interface Props {
   value: number;
+  /** The slider's top; recorded drives stop at their own MAX_BUDGET_MINUTES. */
+  max?: number;
   /** Known for recorded drives; for a live plan it arrives with the answer. */
   fastestS?: number;
   onChange: (minutes: number) => void;
 }
 
 /** The extra-time budget. It is a ceiling, and the copy says so: "at most", never "about". */
-export function BudgetSlider({ value, fastestS, onChange }: Props) {
-  const fill = { "--fill": `${(value / MAX_BUDGET_MINUTES) * 100}%` } as CSSProperties;
+export function BudgetSlider({ value, max = MAX_BUDGET_MINUTES, fastestS, onChange }: Props) {
+  const fill = { "--fill": `${(value / max) * 100}%` } as CSSProperties;
+  const ticks = [0, 1, 2, 3].map((i) => Math.round((max / 3) * i));
   return (
     <div className="section">
       <div className="budget-head">
@@ -26,7 +29,7 @@ export function BudgetSlider({ value, fastestS, onChange }: Props) {
         id="budget"
         type="range"
         min={0}
-        max={MAX_BUDGET_MINUTES}
+        max={max}
         step={1}
         value={value}
         style={fill}
@@ -36,10 +39,9 @@ export function BudgetSlider({ value, fastestS, onChange }: Props) {
         className="budget"
       />
       <div className="budget-scale" aria-hidden>
-        <span>0</span>
-        <span>10</span>
-        <span>20</span>
-        <span>30 min</span>
+        {ticks.map((t, i) => (
+          <span key={t}>{i === ticks.length - 1 ? `${t} min` : t}</span>
+        ))}
       </div>
       <p className="hint">
         {fastestS === undefined

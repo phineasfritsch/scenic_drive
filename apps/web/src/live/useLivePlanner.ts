@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiBase, dailyPlanAllowance, planLive } from "./api";
+import { suggestedBudget } from "./budget";
 import { ORIGINS } from "./places";
 import type { LiveFailure, LivePlace, LivePlan, Origin } from "./types";
 
@@ -17,8 +18,8 @@ const keyOf = (origin: Origin | null, destination: LivePlace | null, budget: num
  * device's few daily plans, so nothing here plans on input changes.
  */
 export function useLivePlanner() {
-  const [origin, setOrigin] = useState<Origin | null>(ORIGINS[0]!);
-  const [destination, setDestination] = useState<LivePlace | null>(null);
+  const [origin, setOriginState] = useState<Origin | null>(ORIGINS[0]!);
+  const [destination, setDestinationState] = useState<LivePlace | null>(null);
   const [budget, setBudget] = useState(20);
   const [status, setStatus] = useState<LiveStatus>({ state: "idle" });
   const [allowance, setAllowance] = useState<number | null>(null);
@@ -28,6 +29,19 @@ export function useLivePlanner() {
     void dailyPlanAllowance().then(setAllowance);
     return () => inflight.current?.abort();
   }, []);
+
+  // A new trip starts from a budget sized to it (budget.ts); the user's own slider move then stands.
+  const suggest = (o: Origin | null, d: LivePlace | null) => {
+    if (o && d) setBudget(suggestedBudget([o.lon, o.lat], d.at));
+  };
+  const setOrigin = (o: Origin | null) => {
+    setOriginState(o);
+    suggest(o, destination);
+  };
+  const setDestination = (d: LivePlace | null) => {
+    setDestinationState(d);
+    suggest(origin, d);
+  };
 
   const key = keyOf(origin, destination, budget);
   const current = (status.state === "done" || status.state === "failed") && status.key === key ? status : null;
