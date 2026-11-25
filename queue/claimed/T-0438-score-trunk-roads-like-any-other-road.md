@@ -48,3 +48,56 @@ NOT HERE: any change to the safety gates, the budget ceiling or the motorway rul
 
 ## Log
 - 2026-11-25T04:17:55Z claimed by agent/claude-opus-5-5; lease until 2026-11-25T08:17:55Z
+- 2026-11-24 (session ee4f14b6, repo consistency + guards; services/etl/etl and regionbuild NOT edited by this
+  pass - a LA rebuild was reading them). Commits 3611464b (etl rule, fixtures, tests), ff75f20d (ScenicKit),
+  cd33a2b2 (named tests, PINS.yaml, mutants), 3748f56c (CLAUDE.md, routing docs), b999c888 (linked digests).
+  RULINGS. (R1) The plan's line 83 says "motorway/trunk score 0"; the owner overrode it 2026-11-24 - the two hand
+  oracles (Tests/Fixtures/scoring/generate.py, services/etl/tests/fixtures/plan_oracle.py) now carry
+  PLAN_ZERO_CLASSES = (motorway, motorway_link) with that citation. (R2) assembly_fixture.json is HAND-WRITTEN
+  (not generated); its zero-class slot 800000002 was retagged trunk -> motorway_link so the typed sinuosity and
+  gain/relief rank ladders over "ten ways less two zero classes" stay true; the trunk-is-scored assertion at the
+  assembly layer lives in the new tests/test_trunk_is_scored.py (retags the scenic clip's motorway). (R3)
+  gate_parity.json trunk/trunk_link verdict ZERO_NOT_GATED -> PAVED (both carry a real surface or none on a
+  non-unsurveyed class; still NOT_GATED in the profile). (R4) segmentscore.py mutant "only motorway scores
+  zero, so trunk keeps its score" is the shipped rule now; turned round into "trunk is dull again, so the whole
+  LA coast (PCH) scores zero" (population stays 64). The ETL mutation drivers (normalise_mutations,
+  scenic_tags_mutations, profilegate) were NOT run: they write mutants into services/etl/etl/*.py, which the
+  rebuild is reading; only descriptions changed there and every anchor was counted read-only (below).
+  REGENERATED: `python Tests/Fixtures/scoring/generate.py` -> rows=1000 covering=177, zero-class rows=111,
+  nonzero expected=886 (142 trunk rows changed expected 0.0 -> formula). `python
+  services/etl/tests/fixtures/generate_way_records.py` -> ways=240 population=218 excluded=22 (was 192/48).
+  RED (old four-class set restored IN MEMORY by a pytest plugin outside the repo that rebinds
+  byways/score/proximity/scenecheck/way_record's names - no file edited): `pytest -p t0438_red` over
+  test_trunk_is_scored, test_gate_parity, test_byways, test_normalise, test_proximity, test_scenecheck,
+  test_score_contract, test_way_records_fixture, test_assemble -> junit total=290 failed=24, including all five
+  of test_trunk_is_scored.py, test_trunk_is_scored_like_any_road_and_routable_in_every_layer,
+  test_etl_gives_the_fixture_verdict[trunk|trunk_link], test_a_trunk_on_a_designated_corridor_earns_the_bonus,
+  test_population_of_names_the_scorable_ways, test_a_primary_or_trunk_road_is_not_a_motorway,
+  test_a_trunk_with_a_score_above_zero_is_not_a_violation. GREEN, same files, no plugin: total=290 failed=0.
+  Swift RED: a `git archive HEAD` copy with dullClasses = [motorway, motorway_link, trunk, trunk_link], `swift
+  test --filter "GateParityFixtureTests|SegmentScoreTests|SegmentScoreContractTests|SegmentScoreValidationTests"`
+  -> `Test run with 33 tests in 4 suites failed ... with 338 issues`: trunkIsScoredLikeAnyOtherClass (6),
+  trunkRowsAreScored (142), trunkIsScoredNotGated (4), everyRowGetsTheFixtureVerdict (2), the two 1e-6
+  contract tests (21 each), dullClassesScoreZero (142, the oracle now says >0). GREEN on the branch: `swift test
+  --scratch-path .build/T0438 --filter "GateParityFixtureTests|SegmentScore|RouteScore|GatesTests|
+  GatesInvariantTests"` -> `Test run with 97 tests in 14 suites passed`.
+  ANCHORS (read-only count of every MUTATIONS/EQUIVALENT search string in its file): segmentscore 64/64 + 2,
+  normalise_mutations 22 + 2, scenic_tags_mutations 75 + 3, gates_corpus 51 + 2 - none stale; profilegate 84 + 1
+  with ONE pre-existing double anchor ("an absent surface is OTHER", `return "MISSING"` occurs twice in
+  etl/profilegate.py; untouched by T-0438).
+  SUITES: services/etl `pytest --junitxml` total=4168 failed=0 skipped=1; services/routing total=52 failed=0
+  skipped=23 (container tests); services/tiles total=112 failed=0. `ops/lib/run-named-tests.py P-PROD-01` ->
+  `NAMED P-PROD-01 passed=149/149` (137 pytest + 12 swift).
+  ops/test: the Swift tier ran, `Test run with 939 tests in 193 suites failed ... with 2 issues` (junit
+  total=990 failed=1), then `FAIL: services/api exists but vitest produced no report` (no node_modules in this
+  worktree; services/api is out of this task's scope). The ONE Swift failure is RouteAutopsyGoldenTests
+  "the autopsy of westwood-malibu equals its golden" line 140: way 675540508 (trunk, SYNTHETIC terms) now
+  scores 0.204 where the golden says 0.000 - the T-0438 rule itself. `ops/route-autopsy 34.0669,-118.4399
+  34.0356,-118.6894 25 --recorded Tests/Fixtures/t0221/westwood-malibu --terms
+  Tests/Fixtures/t0327/westwood-malibu-terms.json` differs from Tests/Fixtures/t0327/westwood-malibu.autopsy.txt
+  on that line ONLY. NOT re-recorded here: a golden/snapshot reference is re-recorded only by a
+  human-initiated commit reviewed by a different agent (CLAUDE.md, Verification). OPEN.
+  check-pins --source-only (first run, before b999c888): `PINS ok=21 skipped=29 pending=1 expired=0 failed=2` -
+  P-SAFE-03 and P-ATTR-01, both "the pinned linked trees changed" for Gates/RouteScore/SegmentScore/
+  SegmentScoreCeiling.swift; re-approved in ops/lib/check-safety-disclaimer-linked-digests.txt (b999c888);
+  `bash ops/lib/check-map-attribution` then exit 0.
