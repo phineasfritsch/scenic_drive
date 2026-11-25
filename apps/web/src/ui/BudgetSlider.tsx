@@ -4,7 +4,8 @@ import { MAX_BUDGET_MINUTES } from "../plan/choose";
 
 interface Props {
   value: number;
-  fastestS: number;
+  /** Known for recorded drives; for a live plan it arrives with the answer. */
+  fastestS?: number;
   onChange: (minutes: number) => void;
 }
 
@@ -30,7 +31,8 @@ export function BudgetSlider({ value, fastestS, onChange }: Props) {
         value={value}
         style={fill}
         onChange={(e) => onChange(Number(e.target.value))}
-        aria-valuetext={`${value} extra minutes, at most ${minutes(fastestS + value * 60)} in total`}
+        aria-valuetext={fastestS === undefined ? `${value} extra minutes at most`
+          : `${value} extra minutes, at most ${minutes(fastestS + value * 60)} in total`}
         className="budget"
       />
       <div className="budget-scale" aria-hidden>
@@ -39,7 +41,11 @@ export function BudgetSlider({ value, fastestS, onChange }: Props) {
         <span>20</span>
         <span>30 min</span>
       </div>
-      <p className="hint">At most {minutes(fastestS + value * 60)} door to door. The fastest way is {minutes(fastestS)}.</p>
+      <p className="hint">
+        {fastestS === undefined
+          ? `The drive will take at most the fastest time plus ${value} min.`
+          : `At most ${minutes(fastestS + value * 60)} door to door. The fastest way is ${minutes(fastestS)}.`}
+      </p>
     </div>
   );
 }

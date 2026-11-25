@@ -62,15 +62,13 @@ export function shortRoad(name: string): string {
 
 /** Google Maps directions pinned to this route by its decision points. Opened only by the user's own click. */
 export function googleMapsUrl(route: RouteOption): string {
-  const start = route.coordinates[0]!;
-  const end = route.coordinates[route.coordinates.length - 1]!;
+  return directionsUrl(route.coordinates[0]!, route.coordinates[route.coordinates.length - 1]!, route.waypoints);
+}
+
+/** Google Maps directions from start to end through up to 9 waypoints, all [lon, lat]. */
+export function directionsUrl(start: [number, number], end: [number, number], waypoints: [number, number][]): string {
   const ll = ([lon, lat]: [number, number]) => `${lat},${lon}`;
-  const params = new URLSearchParams({
-    api: "1",
-    origin: ll(start),
-    destination: ll(end),
-    travelmode: "driving",
-  });
-  if (route.waypoints.length > 0) params.set("waypoints", route.waypoints.map(ll).join("|"));
+  const params = new URLSearchParams({ api: "1", origin: ll(start), destination: ll(end), travelmode: "driving" });
+  if (waypoints.length > 0) params.set("waypoints", waypoints.slice(0, 9).map(ll).join("|"));
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }

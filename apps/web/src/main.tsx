@@ -6,6 +6,7 @@ import "./styles/base.css";
 import "./styles/panel.css";
 import "./styles/route.css";
 import "./styles/actions.css";
+import "./styles/live.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

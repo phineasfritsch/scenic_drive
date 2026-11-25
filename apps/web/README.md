@@ -27,9 +27,29 @@ undefined (reading 'config')".
 - **Basemap**: the Protomaps LA extract `la.pmtiles` (63 MB, never committed), plus Protomaps' public glyphs and
   sprites. For a hosted deploy, upload it somewhere that supports range requests and set `VITE_PMTILES_URL`.
 
-The live router (`scenic-router.phineasfritsch.com`) and search were offline on 2026-11-24. When they're back, a
-`PlanSource` that calls `/plan` can replace the recorded data without changing the UI (`src/plan/types.ts` is the
-contract).
+## Live planning ("Plan any drive")
+
+The second mode calls the deployed Worker's `/plan`.
+- **Start:** a preset or a map tap, rounded to 2 decimals.
+- **Destination:** chosen from the 1,334-place corpus (`src/data/places.json`, built from
+  `apps/ios/ScenicDrive/Corpus/corpus-fallback.sqlite`). The search runs in the browser, so no keystroke leaves the device.
+- **Budget:** the extra-time slider.
+
+How it fits together:
+- **Dev only, through a proxy.** The Worker sends no CORS headers, so `npm run dev` proxies `/api` to it
+  (`vite.config.ts`). Set `SCENIC_API_URL` to point the proxy at a `wrangler dev` instead. A plain build has no
+  proxy and shows "Live planning runs in dev" unless `VITE_API_BASE` names an API that allows the origin.
+- **The router must be up.** It is the WSL docker project `scenic-routing-pilot` behind the Cloudflare Tunnel
+  `scenic-router`. The tunnel is started by hand, never automatically (owner, 2026-11-25):
+  `cloudflared.exe tunnel --config C:\Users\phineasf\.cloudflared\scenic-router.yml run`.
+  Without it the app says "The live planner is offline".
+- **Quota.** Each browser gets a random device UUID. The free tier allows 3 plans a day per device, so the app
+  plans only when you press "Plan this drive", never on input changes. It never offers to repeat a plan that just
+  failed for the same inputs.
+- **Privacy.** `planBody()` in `src/live/api.ts` is the only place a request body is built. It rounds the origin to
+  2 decimals, and `live.test.ts` holds it there (seen red with the rounding removed).
+- **What live answers lack:** live answers have no per-stretch scenic scores, so the route draws in one colour.
+  Featured drives keep the scored colouring.
 
 ## Product invariants this app keeps
 
