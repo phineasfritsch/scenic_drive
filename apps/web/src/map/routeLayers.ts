@@ -1,5 +1,6 @@
 import type { ExpressionSpecification, GeoJSONSourceSpecification, LayerSpecification } from "maplibre-gl";
-import type { Corridor, RouteOption, ScenicStop } from "../plan/types";
+import type { ScenicStop } from "../plan/types";
+import type { MapScene } from "./scene";
 import type { Appearance } from "./basemap";
 
 type FC = GeoJSON.FeatureCollection;
@@ -31,33 +32,33 @@ function line(coordinates: [number, number][], properties: Record<string, unknow
 }
 
 /** The selected route, one feature per run of equal scenic score. */
-export function selectedRuns(route: RouteOption): FC {
+export function selectedRuns(selected: MapScene["selected"]): FC {
+  if (!selected) return NONE;
   return {
     type: "FeatureCollection",
-    features: route.runs.map((run) =>
-      line(route.coordinates.slice(run.from, run.to + 1), { score: run.score }),
+    features: selected.runs.map((run) =>
+      line(selected.coordinates.slice(run.from, run.to + 1), { score: run.score, uniform: selected.uniform }),
     ),
   };
 }
 
-/** Every option of the corridor except the selected one, thin, clickable. */
-export function otherRoutes(corridor: Corridor, selectedId: string): FC {
-  const all = [corridor.fastest, ...corridor.alternatives].filter((r) => r.id !== selectedId);
+/** The other routes of the scene, thin and clickable. */
+export function otherRoutes(others: MapScene["others"]): FC {
+  return { type: "FeatureCollection", features: others.map((r) => line(r.coordinates, { id: r.id, fastest: r.fastest })) };
+}
+
+export function endpoints(points: MapScene["endpoints"]): FC {
   return {
     type: "FeatureCollection",
-    features: all.map((r) => line(r.coordinates, { id: r.id, fastest: r.kind === "fastest" })),
+    features: points.map((p) => ({
+      type: "Feature",
+      properties: { role: p.role, name: p.name },
+      geometry: { type: "Point", coordinates: p.at },
+    })),
   };
 }
 
-export function endpoints(corridor: Corridor): FC {
-  return {
-    type: "FeatureCollection",
-    features: [
-      { type: "Feature", properties: { role: "from", name: corridor.from.name }, geometry: { type: "Point", coordinates: corridor.from.at } },
-      { type: "Feature", properties: { role: "to", name: corridor.to.name }, geometry: { type: "Point", coordinates: corridor.to.at } },
-    ],
-  };
-}
+const NONE: FC = { type: "FeatureCollection", features: [] };
 
 export function stopsCollection(stops: ScenicStop[]): FC {
   return {
@@ -114,7 +115,10 @@ export function overlayLayers(appearance: Appearance): LayerSpecification[] {
       type: "line",
       source: "selected",
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": scoreColorExpression(appearance), "line-width": 6 },
+      paint: {
+        "line-color": ["case", ["==", ["get", "uniform"], true], dark ? "#3b82f6" : "#2563eb", scoreColorExpression(appearance)],
+        "line-width": 6,
+      },
     },
     {
       id: "stops",

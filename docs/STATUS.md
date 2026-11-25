@@ -5,11 +5,11 @@
 | Area | State |
 |---|---|
 | Cloudflare Worker API (`services/api`) | Deployed and healthy (`/__health` ok, sha `2edb7e60`). 20 routes. |
-| Scenic router (GraphHopper) | **Down.** `scenic-router.phineasfritsch.com` answers 530 (the tunnel origin is offline), so live `/plan`, `/loop`, `/trip` can't plan. |
+| Scenic router (GraphHopper) | Runs on the owner's Windows box (WSL docker `scenic-routing-pilot`) behind the hand-started Cloudflare Tunnel `scenic-router`. Brought back 2026-11-25: the tunnel had not survived a reboot. It stays manual by owner decision, so 530 means "tunnel not started". Live `/plan` answers in about 1.5-3 s. |
 | Search (Photon) | **Down.** `/search` answers `search_unavailable`. |
 | Region data | LA only: 5 curated seeds (`services/etl/regions/la/curated.yaml`), 2 recorded corridors (`Tests/Fixtures/t0239`). |
 | iOS app | Builds only on the macOS CI runner. The dev box is Windows, so nobody can run it locally. In the latest screenshots the basemap shows no roads and the header chips overlap. |
-| Web app | Did not exist. Now `apps/web` (see below). |
+| Web app | `apps/web`: recorded featured drives, plus live `/plan` in dev through a Vite proxy (2026-11-25). |
 
 ## Problems found
 

@@ -1,0 +1,174 @@
+/* Mode switch, chips, the destination combobox and the loading skeleton. */
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+
+.segment {
+  min-height: 40px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.segment-on {
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-control);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-button {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--hairline);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background-color var(--dur-press) var(--ease-out), border-color var(--dur-press) var(--ease-out);
+}
+
+.chip-button:hover {
+  background: var(--surface-2);
+}
+
+.chip-on {
+  border-color: var(--fg);
+  background: var(--surface-2);
+}
+
+.combo {
+  position: relative;
+}
+
+.combo-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 44px 0 14px;
+  border-radius: var(--radius-card);
+  border: 1.5px solid var(--hairline);
+  background: var(--surface);
+  font-size: 15px;
+}
+
+.combo-input:focus {
+  outline: none;
+  border-color: var(--fg);
+}
+
+.combo-clear {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  font-size: 20px;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.combo-list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-panel);
+  transform-origin: top center;
+  animation: combo-in var(--dur-fast) var(--ease-out);
+}
+
+.combo-option {
+  display: grid;
+  gap: 1px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.combo-active {
+  background: var(--surface-2);
+}
+
+.combo-name {
+  font-weight: 550;
+}
+
+.combo-meta {
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+@keyframes combo-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--hairline), var(--surface), var(--hairline));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+.skeleton-title {
+  height: 22px;
+  width: 70%;
+}
+
+.skeleton-row {
+  height: 52px;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.button-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.hint code {
+  font-size: 13px;
+}
+
+/* Keeps a scrolled-to answer clear of the sticky footer. */
+.live-anchor {
+  scroll-margin-bottom: 150px;
+}
