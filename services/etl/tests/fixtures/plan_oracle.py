@@ -25,7 +25,8 @@ from __future__ import annotations
 INF = "Infinity"
 
 # plan:83 - these score 0 and are NOT gated; the router may still use them (CLAUDE.md, product invariants).
-PLAN_ZERO_CLASSES = ("motorway", "motorway_link", "trunk", "trunk_link")
+# Motorways only: the owner overrode the plan's "motorway/trunk" on 2026-11-24 (T-0438) - PCH is OSM trunk.
+PLAN_ZERO_CLASSES = ("motorway", "motorway_link")
 # plan:84 - an absent surface tag on one of these is a x0.8 penalty; elsewhere it means "paved".
 PLAN_UNSURVEYED_CLASSES = ("unclassified", "residential")
 # Caltrans's own two status values and the reviewed per-tier bonus (byways.py:100, :105).

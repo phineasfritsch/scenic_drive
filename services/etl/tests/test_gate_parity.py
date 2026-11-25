@@ -45,7 +45,9 @@ DIVERGENT_CLASSES = ("tracktype=grade3 on tertiary", "barrier=gate+locked=yes", 
                      "service=parking_aisle")
 # T-0188 rv1 B1/B2: Gates.verdict compares ford and locked to "yes" ONLY, so every layer routes these.
 NEAR_MISS_CLASSES = ("ford=stepping_stones", "barrier=gate+locked=true", "ford=Yes")
-EXPECTED_VERDICT = {**{c: ZERO for c in CORE_CLASSES[:4]}, **{c: GATED for c in CORE_CLASSES[4:20]},
+# T-0438 (owner, 2026-11-24): motorway and motorway_link score 0; trunk and trunk_link are scored like any road.
+EXPECTED_VERDICT = {**{c: ZERO for c in CORE_CLASSES[:2]}, **{c: PAVED for c in CORE_CLASSES[2:4]},
+                    **{c: GATED for c in CORE_CLASSES[4:20]},
                     **{c: PAVED for c in CORE_CLASSES[20:23]}, **{c: X08 for c in CORE_CLASSES[23:]},
                     **{c: GATED for c in DIVERGENT_CLASSES}, **{c: PAVED for c in NEAR_MISS_CLASSES}}
 
@@ -123,12 +125,21 @@ def test_etl_and_profile_agree_on_every_gate():
     assert not bad, "the ETL and the profile disagree: " + "; ".join(bad)
 
 
-def test_motorway_and_trunk_score_zero_and_are_routable_in_every_layer():
+def test_motorway_scores_zero_and_is_routable_in_every_layer():
     """CLAUDE.md: penalized, never excluded. ZERO in the ETL, NOT_GATED in the profile, ZERO in the fixture."""
-    rows = [r for r in ROWS if r["class"] in CORE_CLASSES[:4]]
-    assert [r["class"] for r in rows] == CORE_CLASSES[:4]
+    rows = [r for r in ROWS if r["class"] in CORE_CLASSES[:2]]
+    assert [r["class"] for r in rows] == CORE_CLASSES[:2]
     for r in rows:
         assert (r["verdict"], etl_verdict(r["tags"]), profile_verdict(r["tags"])) == (ZERO, ZERO, NOT_GATED), r
+
+
+def test_trunk_is_scored_like_any_road_and_routable_in_every_layer():
+    """T-0438: trunk (PCH) scores above 0 by the formula - PAVED, not ZERO - and stays NOT_GATED everywhere."""
+    rows = [r for r in ROWS if r["class"] in CORE_CLASSES[2:4]]
+    assert [r["class"] for r in rows] == ["trunk", "trunk_link"]
+    for r in rows:
+        assert (r["verdict"], etl_verdict(r["tags"]), profile_verdict(r["tags"])) == (PAVED, PAVED, NOT_GATED), r
+        assert assemble.scored_row(record(r["tags"], r["tags"].get("surface")), r["tags"])["score"] > 0.0, r
 
 
 def test_the_fixture_is_the_briefs_table():

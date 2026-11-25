@@ -104,21 +104,21 @@ class TestThePopulation:
                   for i, highway in enumerate(sorted(byways.SCENIC_ZERO_CLASSES))]
         region.append(raw(130, "primary"))
         out = normalise.normalise_region(region)
-        assert [record.terms_state for record in out] == [wr.EXCLUDED] * 4 + [wr.NORMALISED]
-        assert [record.way_id for record in out] == [120, 121, 122, 123, 130]
-        for record in out[:4]:
+        assert [record.terms_state for record in out] == [wr.EXCLUDED] * 2 + [wr.NORMALISED]
+        assert [record.way_id for record in out] == [120, 121, 130]
+        for record in out[:2]:
             assert score.score(**record.score_kwargs()) == 0.0, record.way_id
 
     def test_a_region_of_only_zero_classes_ranks_nothing_and_refuses_nothing(self):
-        out = normalise.normalise_region([raw(141, "motorway"), raw(142, "trunk_link")])
+        out = normalise.normalise_region([raw(141, "motorway"), raw(142, "motorway_link")])
         assert [record.terms_state for record in out] == [wr.EXCLUDED, wr.EXCLUDED]
 
     def test_an_empty_region_normalises_to_an_empty_region(self):
         assert normalise.normalise_region([]) == []
 
     def test_population_of_names_the_scorable_ways(self):
-        region = [raw(151), raw(152, "trunk"), raw(153, "residential")]
-        assert [record.way_id for record in normalise.population_of(region)] == [151, 153]
+        region = [raw(151), raw(152, "motorway"), raw(153, "trunk"), raw(154, "trunk_link")]  # T-0438
+        assert [record.way_id for record in normalise.population_of(region)] == [151, 153, 154]
 
 
 class TestARankAgainstASuppliedReference:

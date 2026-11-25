@@ -1,6 +1,6 @@
 """`python -m regionbuild <stage>`: the region build that made la-tagged.osm.pbf, one stage per call.
 
-    motorways  the region's motorway/trunk set, cut once (waydoc --motorways reads it)
+    motorways  the region's motorway set, cut once (waydoc --motorways reads it)
     tiles      the tile plan cut out of the clip, osmium extract -c
     docs       pass 1: etl.waydoc per tile, N at a time, resume by file presence
     reference  the ONE region reference over every tile's raw values; refuses a plan tile with no doc

@@ -175,8 +175,9 @@ class TestBonus:
 
 class TestTheMotorwayGate:
     """S&H 263.3 lists Interstates as eligible and the pinned pull has I-80/280/580/680 rows at both
-    statuses, while the plan's invariant is that motorway and trunk score 0 on scenery. Without a gate the
-    composition site in T-0029 would put scenery back on exactly those roads."""
+    statuses, while the invariant is that motorway ways score 0 on scenery. Without a gate the composition
+    site in T-0029 would put scenery back on exactly those roads. Trunk is scored like any other class
+    (T-0438), so a designated trunk corridor - PCH - earns its bonus."""
 
     ENTRIES = [{"name": "CA SM route 280", "status": "OD", "source": "caltrans", "geometry": BYWAY}]
 
@@ -187,7 +188,13 @@ class TestTheMotorwayGate:
     def test_every_scenic_zero_class_is_gated_not_just_motorway(self):
         for cls in sorted(bw.SCENIC_ZERO_CLASSES):
             assert bw.bonus_for(along(), self.ENTRIES, way_class=cls) == 0.0, cls
-        assert bw.SCENIC_ZERO_CLASSES >= {"motorway", "trunk"}
+        assert bw.SCENIC_ZERO_CLASSES == {"motorway", "motorway_link"}
+
+    def test_a_trunk_on_a_designated_corridor_earns_the_bonus(self):
+        """T-0438 (owner, 2026-11-24): PCH is OSM trunk and a designated byway; its bonus is not withheld."""
+        for cls in ("trunk", "trunk_link"):
+            assert cls not in bw.SCENIC_ZERO_CLASSES, cls
+            assert bw.bonus_for(along(), self.ENTRIES, way_class=cls) == bw.DESIGNATED_BONUS, cls
 
     def test_an_ordinary_road_on_the_same_corridor_still_earns_it(self):
         """Otherwise 'the gate works' would be satisfied by a gate that rejects everything."""

@@ -1,8 +1,8 @@
 """`ops/sane` check 4 over the file that ships: both clauses as numbers, and a refusal on either.
 
 The clauses are the plan's, and this module is where they are first computed over a real tagged extract:
-no road may be left without a score, and nothing the safety gates refuse - nor a motorway or trunk - may
-carry a score above 0.
+no road may be left without a score, and nothing the safety gates refuse - nor a motorway - may carry a
+score above 0. Trunk is scored like any other road (T-0438), so a scored trunk is not a violation.
 """
 from __future__ import annotations
 
@@ -44,11 +44,19 @@ def test_a_road_with_no_score_is_counted_as_a_number_and_refuses(tmp_path):
 
 
 def test_a_motorway_with_a_score_above_zero_is_counted_as_a_number_and_refuses(tmp_path):
-    """Clause two, the class half: motorway and trunk score 0 - that is the invariant, not an opinion."""
+    """Clause two, the class half: motorway scores 0 - that is the invariant, not an opinion."""
     path = osm(tmp_path, [(1, scored()), (2, scored(highway="motorway", scenic_score="3", scenic_score_unit="0.3000"))])
     counts = scenecheck.counts(path)
     assert counts["gated_scored"] == 1
     assert scenecheck.main([str(path)]) == 4
+
+
+def test_a_trunk_with_a_score_above_zero_is_not_a_violation(tmp_path):
+    """T-0438 (owner, 2026-11-24): PCH is OSM trunk and is scored by the formula like any other road."""
+    path = osm(tmp_path, [(1, scored()), (2, scored(highway="trunk", scenic_score="3", scenic_score_unit="0.3000")),
+                          (3, scored(highway="trunk_link", scenic_score="3", scenic_score_unit="0.3000"))])
+    assert scenecheck.counts(path)["gated_scored"] == 0
+    assert scenecheck.main([str(path)]) == 0
 
 
 def test_a_private_way_with_a_score_above_zero_is_counted_and_refuses(tmp_path):

@@ -23,7 +23,7 @@ three of the cases the brief separates, with no branch to get wrong:
     by zero to guard. An EMPTY population ranks nothing and returns `{}`.
 A rank is therefore never exactly 0.0 or 1.0 (the extremes are `0.5/n` and `1 - 0.5/n`), which keeps
 CLAUDE.md's invariant true of the corpus: ranking alone cannot zero a scorable way's score, and only
-motorway and trunk carry 0.
+motorway and motorway_link carry 0.
 
 DETERMINISM. Ways are ordered by (value, `way_id`) - `ranked_order` - so the ranks do not depend on the
 order rows arrive in. Two rows with equal values get the same rank whichever way the sort breaks the tie, so

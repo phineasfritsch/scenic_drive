@@ -19,11 +19,11 @@ by `tests/test_proximity.py`, which is the only way a set like this stays honest
 `covered=yes` (arcades, galleries under buildings) is NOT read. It is a different key with a different
 meaning and, if it is ever wanted, it is a decision with its own constant and its own test.
 
-THE MOTORWAY SET IS IMPORTED, NEVER RESTATED. `byways.SCENIC_ZERO_CLASSES` is already the four values -
-motorway, motorway_link, trunk, trunk_link - and `score.py` imports them from there for the same reason
+THE MOTORWAY SET IS IMPORTED, NEVER RESTATED. `byways.SCENIC_ZERO_CLASSES` is already the two values -
+motorway, motorway_link (trunk left it in T-0438, so PCH is no longer "near a motorway" because of itself) - and `score.py` imports them from there for the same reason
 (score.py:23-27): a copy would drift, both files would stay internally consistent, and the corpus would
 carry two answers for one road. The tests pin the imported set against the four literals, so a change to the
-meaning of that constant in `byways` fails here instead of silently widening "near a motorway".
+meaning of that constant in `byways` fails here instead of silently changing "near a motorway".
 
 HOW THE DISTANCE IS MEASURED, and the wrong way that this exists to rule out. The answer is the minimum
 distance between two POLYLINES, not between a way's nodes and a polyline. OSM node density varies
@@ -87,7 +87,7 @@ def tunnel_meters(coords: list[tuple[float, float]], tags: dict) -> float:
 
 
 def is_motorway(tags: dict) -> bool:
-    """Whether a way is one of the four classes proximity is measured to."""
+    """Whether a way is one of the motorway classes proximity is measured to."""
     return tags.get("highway") in MOTORWAY_CLASSES
 
 

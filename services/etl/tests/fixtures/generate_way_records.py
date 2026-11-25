@@ -5,7 +5,7 @@ WHAT THIS FIXTURE IS NOT. The landcover and terrain fixtures beside it are MEASU
 raster samples, nothing typed by hand. This one is the opposite and says so: every number in it is drawn
 from a seeded generator, and no way_id here is a claim about a road. It exists to pin the NORMALISER's
 arithmetic and the whole raw -> `normalise.normalise_region` -> `score.score` path over a population big
-enough to have ties, both ends of every threshold and all four zero classes in it.
+enough to have ties, both ends of every threshold and both zero classes in it (trunk is scored, T-0438).
 
 TWO EXPECTATIONS PER WAY, AND NEITHER IS COMPUTED BY THE SUBJECT. Both come from `plan_oracle.py` beside
 this file, which imports nothing at all and is loaded by path. `expected_ranks` is `naive_rank`: for one
@@ -105,7 +105,7 @@ def covering_ways() -> list[dict]:
     def add(highway: str, **kw) -> None:
         out.append(way(len(out), highway, **kw))
 
-    # Every highway class with and without a surface tag: the four zero classes, the two unsurveyed ones
+    # Every highway class with and without a surface tag: the two zero classes, the two unsurveyed ones
     # whose absent surface is a x0.8 penalty (plan:84), and the rest.
     for highway in HIGHWAYS:
         for surface in (None, "asphalt"):

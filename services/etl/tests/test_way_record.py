@@ -246,7 +246,7 @@ class TestTheStatesRefuseEachOther:
 
     def test_an_excluded_record_keeps_its_mapped_terms(self):
         """Only the ranked fields are pinned: canopy was measured and the measurement survives."""
-        record = raw(highway="trunk", canopy=0.77).excluded_from_population()
+        record = raw(highway="motorway_link", canopy=0.77).excluded_from_population()
         assert record.canopy == 0.77
         assert score.score(**record.score_kwargs()) == 0.0
 

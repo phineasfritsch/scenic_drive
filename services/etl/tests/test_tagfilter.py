@@ -1,7 +1,7 @@
 """The filter decides what exists downstream. Everything it drops is invisible for the rest of the pipeline.
 
-The product invariant these tests defend, from CLAUDE.md: motorway and trunk ways carry scenic_score 0 and are
-PENALISED, not hard-excluded. An agent tidying up "we do not want freeways" at the extract stage does not make
+The product invariant these tests defend, from CLAUDE.md: motorway ways carry scenic_score 0 and are
+PENALISED, not hard-excluded; trunk is scored like any other road (T-0438) and is not excluded either. An agent tidying up "we do not want freeways" at the extract stage does not make
 routes prettier, it makes half the Bay Area's commutes unroutable - and nothing else in the pipeline notices,
 because a missing way looks exactly like a way that was never there.
 """
@@ -17,7 +17,7 @@ class TestTheShippedFilter:
         assert tf.problems() == []
 
     def test_motorways_and_trunks_are_kept(self):
-        """The invariant. They score 0; they are not excluded."""
+        """The invariant. Motorway scores 0 and trunk is scored; neither is excluded."""
         for cls in ("motorway", "trunk"):
             assert cls in tf.WAY_CLASSES
             assert tf.WAY_CLASSES[cls], f"{cls} keeps no highway values"

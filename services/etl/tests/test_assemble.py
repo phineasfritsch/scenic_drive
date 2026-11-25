@@ -1,7 +1,7 @@
 """The assembly's four gate assertions, the closed-loop rank, and the wiring between record and producer.
 
 THE FOUR GATES are the ones the plan's `ops/sane` check 4 needs and T-0146's second acceptance line names:
-no NULL score; motorway, trunk, private and unpaved ways exactly 0.0; every term in 0..1; ScenicKit parity
+no NULL score; motorway, private and unpaved ways exactly 0.0; every term in 0..1; ScenicKit parity
 to 1e-6. Each is named `test_gate_...` so a red run says which gate broke rather than which file.
 
 WHAT PINS WHAT. `fixtures/assembly_fixture.json` is hand-written and pins the ASSEMBLY - which producer
@@ -40,7 +40,7 @@ GATE_REASON_SWIFT = ROOT / "Sources" / "ScenicKit" / "Gates" / "GateReason.swift
 TOLERANCE = 1e-6
 
 MOTORWAY = 800000001
-TRUNK = 800000002
+MOTORWAY_LINK = 800000002
 PRIVATE = 800000003
 UNPAVED = 800000004
 LOOP = 800000005
@@ -106,9 +106,9 @@ def test_gate_no_row_has_a_null_score():
     assert len(TABLE) == len(DOCUMENT["ways"]) == 10
 
 
-def test_gate_motorway_and_trunk_score_exactly_zero_and_are_not_gated():
+def test_gate_motorway_and_motorway_link_score_exactly_zero_and_are_not_gated():
     """CLAUDE.md: they carry 0 and are still ROUTABLE. The 0.0 must come from the class, not a gate."""
-    for way_id in (MOTORWAY, TRUNK):
+    for way_id in (MOTORWAY, MOTORWAY_LINK):
         row = BY_WAY[way_id]
         assert row["score"] == 0.0, "way %d scored %r" % (way_id, row["score"])
         assert row["gate_reason"] is None, "way %d was GATED: %r" % (way_id, row["gate_reason"])
